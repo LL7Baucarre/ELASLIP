@@ -148,11 +148,17 @@ def create_ioc_relation(ioc_id):
     if not data:
         return jsonify({'error': 'JSON body required'}), 400
     
+    # Support both singular (related_ioc_id) and plural (related_ioc_ids) formats
     related_ids = data.get('related_ioc_ids', [])
+    
+    # If singular format is used, convert to list
+    if not related_ids and data.get('related_ioc_id'):
+        related_ids = [data.get('related_ioc_id')]
+    
     relation_type = data.get('relation_type', 'related')  # related, caused_by, used_by, etc.
     
     if not related_ids:
-        return jsonify({'error': 'related_ioc_ids array is required'}), 400
+        return jsonify({'error': 'related_ioc_ids or related_ioc_id is required'}), 400
     
     if not isinstance(related_ids, list):
         return jsonify({'error': 'related_ioc_ids must be an array'}), 400
