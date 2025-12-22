@@ -1,0 +1,80 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elasmisp-app
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
+      - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
+    volumes:
+      - ./app:/app/app
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./scripts:/app/scripts
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ioc-network
+    restart: unless-stopped
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elasmisp-celery
+    command: celery -A app.celery_app worker --loglevel=info
+    environment:
+      - FLASK_ENV=development
+      - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
+      - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+    volumes:
+      - ./app:/app/app
+      - ./scripts:/app/scripts
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - ioc-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: elasmisp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - ioc-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  redis-data:
+
+networks:
+  ioc-network:
+    driver: bridge
