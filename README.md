@@ -51,8 +51,23 @@ cp .env.example .env
 ```
 
 3. Start the services:
+
+**Option A: With included Elasticsearch (default)**
 ```bash
 docker-compose up -d
+```
+
+**Option B: With external Elasticsearch instance**
+If you already have Elasticsearch installed elsewhere, use:
+```bash
+docker-compose -f docker-compose.external-elasticsearch.yml up -d
+```
+
+Update your `.env` file with your Elasticsearch connection details:
+```env
+ELASTICSEARCH_URL=http://user:password@your-elasticsearch-host:9200
+ELASTICSEARCH_USER=elastic
+ELASTICSEARCH_PASSWORD=your-password
 ```
 
 4. Access the application:
@@ -104,7 +119,11 @@ Access admin features through the "Admin" section in the navigation menu (visibl
 |----------|-------------|---------|
 | `SECRET_KEY` | Flask secret key | Random |
 | `JWT_SECRET_KEY` | JWT signing key | Random |
-| `ELASTICSEARCH_URL` | Elasticsearch URL | `http://elasticsearch:9200` |
+| `ELASTICSEARCH_URL` | Elasticsearch URL with auth | `http://elastic:elastic123@elasticsearch:9200` |
+| `ELASTICSEARCH_USER` | Elasticsearch username | `elastic` |
+| `ELASTICSEARCH_PASSWORD` | Elasticsearch password | `elastic123` |
+| `ELASTICSEARCH_MEMORY_XMS` | Elasticsearch min heap memory | `256m` |
+| `ELASTICSEARCH_MEMORY_XMX` | Elasticsearch max heap memory | `256m` |
 | `REDIS_URL` | Redis URL | `redis://redis:6379/0` |
 | `FLASK_ENV` | Environment mode | `production` |
 | `DEBUG` | Debug mode | `false` |
@@ -142,6 +161,33 @@ def verify_signature(payload, signature, secret):
     ).hexdigest()
     return hmac.compare_digest(f"sha256={expected}", signature)
 ```
+
+## Docker Deployment
+
+### Standard Deployment (Elasticsearch included)
+
+Use `docker-compose.yml` for a complete, self-contained deployment with Elasticsearch, Redis, and the application:
+
+```bash
+docker-compose up -d
+```
+
+### Using External Elasticsearch Instance
+
+Use `docker-compose.external-elasticsearch.yml` if you already have Elasticsearch installed on another server:
+
+```bash
+docker-compose -f docker-compose.external-elasticsearch.yml up -d
+```
+
+Configure your Elasticsearch connection in `.env`:
+```env
+ELASTICSEARCH_URL=http://user:password@your-elasticsearch-host:9200
+ELASTICSEARCH_USER=elastic
+ELASTICSEARCH_PASSWORD=your-password
+```
+
+This configuration includes only the Flask app, Celery worker, and Redis cache - Elasticsearch management is external.
 
 ## Development
 
