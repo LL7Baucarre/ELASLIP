@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<!-- Top Bar -->
+<div class="top-bar">
+    <h4 class="mb-0">Dashboard</h4>
+    <div class="d-flex align-items-center">
+        <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add IOC
+        </a>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card primary">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ stats.total }}</h3>
+                    <small class="text-muted">Total IOCs</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card success">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-file-earmark-binary"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ stats.by_type.get('md5', 0) + stats.by_type.get('sha1', 0) + stats.by_type.get('sha256', 0) }}</h3>
+                    <small class="text-muted">Hashes</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card warning">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-globe"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ stats.by_type.get('ipv4', 0) + stats.by_type.get('domain', 0) }}</h3>
+                    <small class="text-muted">Network IOCs</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card danger">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-link-45deg"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ stats.by_type.get('url', 0) + stats.by_type.get('email', 0) }}</h3>
+                    <small class="text-muted">URLs & Emails</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- IOCs by Type Chart -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">IOCs by Type</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for type, count in stats.by_type.items() %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="ioc-type-badge ioc-type-{{ type }}">{{ type.upper() }}</span>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted px-0">No IOCs yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Labels -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Top Labels</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% set label_items = stats.by_label.items()|list %}
+                    {% for label, count in label_items[:10] %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="badge bg-light text-dark">{{ label }}</span>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted px-0">No labels yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.iocs_add') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-lg me-2"></i> Add IOC
+                    </a>
+                    <a href="{{ url_for('main.import_page') }}" class="btn btn-outline-success">
+                        <i class="bi bi-upload me-2"></i> Import IOCs
+                    </a>
+                    <a href="{{ url_for('main.search_page') }}" class="btn btn-outline-info">
+                        <i class="bi bi-search me-2"></i> Search IOCs
+                    </a>
+                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-plug me-2"></i> Configure APIs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent IOCs -->
+<div class="card mt-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Recent IOCs</h6>
+        <a href="{{ url_for('main.iocs_list') }}" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Pattern</th>
+                        <th>Labels</th>
+                        <th>Sources</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ioc in recent_iocs %}
+                    <tr style="cursor: pointer" onclick="window.location='{{ url_for('main.iocs_detail', ioc_id=ioc.id) }}'">
+                        <td><span class="ioc-type-badge ioc-type-{{ ioc.ioc_type }}">{{ ioc.ioc_type|upper }}</span></td>
+                        <td><code class="pattern-text">{{ ioc.pattern[:80] }}{% if ioc.pattern|length > 80 %}...{% endif %}</code></td>
+                        <td>
+                            {% for label in ioc.labels[:3] %}
+                            <span class="badge bg-light text-dark">{{ label }}</span>
+                            {% endfor %}
+                            {% if ioc.labels|length > 3 %}
+                            <span class="badge bg-secondary">+{{ ioc.labels|length - 3 }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-info">{{ ioc.sources|length }}</span></td>
+                        <td><small class="text-muted">{{ ioc.created[:10] }}</small></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No IOCs yet. <a href="{{ url_for('main.iocs_add') }}">Add your first IOC</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

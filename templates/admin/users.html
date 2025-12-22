@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2><i class="bi bi-people me-2"></i>User Management</h2>
+    </div>
+    <div class="col-md-6 text-end">
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+            <i class="bi bi-person-plus me-2"></i>Add User
+        </button>
+    </div>
+</div>
+
+{% if users %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Created</th>
+                <th>Last Login</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>
+                    <i class="bi bi-person-circle me-2"></i>
+                    {{ user.username }}
+                </td>
+                <td>{{ user.email }}</td>
+                <td>
+                    {% if user.is_admin %}
+                        <span class="badge bg-warning text-dark">Admin</span>
+                    {% else %}
+                        <span class="badge bg-secondary">User</span>
+                    {% endif %}
+                </td>
+                <td>{{ user.created_at[:10] if user.created_at else '-' }}</td>
+                <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button class="btn btn-outline-primary" onclick="editUser('{{ user.id }}', '{{ user.username }}', '{{ user.email }}', {{ 'true' if user.is_admin else 'false' }})">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% if user.id != current_user.id %}
+                        <button class="btn btn-outline-danger" onclick="deleteUser('{{ user.id }}', '{{ user.username }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle me-2"></i>No users found.
+</div>
+{% endif %}
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUserForm" method="POST" action="{{ url_for('main.create_user') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="addUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="addUsername" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="addEmail" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addPassword" class="form-label">Password</label>
+                        <input type="password" class="form-control" id="addPassword" name="password" placeholder="Min 8 characters" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="addIsAdmin" name="is_admin" value="true">
+                        <label class="form-check-label" for="addIsAdmin">Admin privileges</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPassword" class="form-label">Password (leave blank to keep current)</label>
+                        <input type="password" class="form-control" id="editPassword" name="password" placeholder="Min 8 characters">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin" value="true">
+                        <label class="form-check-label" for="editIsAdmin">Admin privileges</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle me-2"></i>Delete User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger"><small><i class="bi bi-exclamation-circle me-1"></i>This action cannot be undone.</small></p>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteUserForm" method="POST" style="display: inline;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$('#addUserForm').submit(function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        username: $('#addUsername').val(),
+        email: $('#addEmail').val(),
+        password: $('#addPassword').val(),
+        is_admin: $('#addIsAdmin').is(':checked')
+    };
+    
+    $.ajax({
+        url: "{{ url_for('main.create_user') }}",
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            showAlert('User created successfully', 'success');
+            $('#addUserModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to create user', 'danger');
+        }
+    });
+});
+
+$('#editUserForm').submit(function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        email: $('#editEmail').val(),
+        is_admin: $('#editIsAdmin').is(':checked')
+    };
+    
+    if ($('#editPassword').val()) {
+        formData.password = $('#editPassword').val();
+    }
+    
+    $.ajax({
+        url: this.action,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            showAlert('User updated successfully', 'success');
+            $('#editUserModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to update user', 'danger');
+        }
+    });
+});
+
+$('#deleteUserForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: this.action,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({}),
+        success: function(response) {
+            showAlert('User deleted successfully', 'success');
+            $('#deleteUserModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to delete user', 'danger');
+        }
+    });
+});
+
+function editUser(userId, username, email, isAdmin) {
+    document.getElementById('editUserForm').action = "{{ url_for('main.edit_user', user_id='USERID') }}".replace('USERID', userId);
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editIsAdmin').checked = isAdmin;
+    document.getElementById('editPassword').value = '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    modal.show();
+}
+
+function deleteUser(userId, username) {
+    document.getElementById('deleteUserForm').action = "{{ url_for('main.delete_user', user_id='USERID') }}".replace('USERID', userId);
+    document.getElementById('deleteUsername').textContent = username;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+    modal.show();
+}
+</script>
+
+{% endblock %}

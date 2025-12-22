@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <h4 class="mb-0">My Profile</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Account Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr>
+                        <th width="30%">Username</th>
+                        <td>{{ user.username }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                    <tr>
+                        <th>Created</th>
+                        <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Login</th>
+                        <td>{{ user.last_login[:19] if user.last_login else 'Never' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Quick Links</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.settings_api_keys') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-key me-2"></i> Manage API Keys
+                    </a>
+                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-plug me-2"></i> External APIs
+                    </a>
+                    <a href="{{ url_for('main.settings_webhooks') }}" class="btn btn-outline-info">
+                        <i class="bi bi-broadcast me-2"></i> Webhooks
+                    </a>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right me-2"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

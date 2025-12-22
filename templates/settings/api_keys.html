@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}API Keys - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">API Keys</h4>
+        <small class="text-muted">Manage API keys for programmatic access</small>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createKeyModal">
+        <i class="bi bi-plus-lg me-1"></i> Create API Key
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('main.settings') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-person me-2"></i> Profile
+            </a>
+            <a href="{{ url_for('main.settings_api_keys') }}" 
+               class="list-group-item list-group-item-action active">
+                <i class="bi bi-key me-2"></i> API Keys
+            </a>
+            <a href="{{ url_for('main.settings_external_apis') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-cloud me-2"></i> External APIs
+            </a>
+            <a href="{{ url_for('main.settings_webhooks') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-broadcast me-2"></i> Webhooks
+            </a>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div class="card">
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Key Prefix</th>
+                            <th>Created</th>
+                            <th>Last Used</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apiKeysTable">
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <span class="spinner-border spinner-border-sm"></span> Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- API Documentation Link -->
+        <div class="card mt-4">
+            <div class="card-body">
+                <h6>Using API Keys</h6>
+                <p class="text-muted mb-2">Include your API key in requests using the <code>X-API-Key</code> header:</p>
+                <pre class="bg-light p-3 rounded mb-0"><code>curl -X GET "{{ request.url_root }}api/ioc" \
+     -H "X-API-Key: your-api-key-here"</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Key Modal -->
+<div class="modal fade" id="createKeyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create API Key</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createKeyForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="keyName" class="form-label">Key Name</label>
+                        <input type="text" class="form-control" id="keyName" required
+                               placeholder="e.g., Production API, CI/CD Pipeline">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Key</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Show Key Modal -->
+<div class="modal fade" id="showKeyModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle me-2"></i> Save Your API Key
+                </h5>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Important:</strong> This is the only time you'll see this key. 
+                    Copy it now and store it securely.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Your API Key</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control font-monospace" id="generatedKey" readonly>
+                        <button class="btn btn-outline-secondary" type="button" id="copyKeyBtn">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I've Saved My Key</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadApiKeys();
+});
+
+function loadApiKeys() {
+    $.ajax({
+        url: '/api/api-keys',
+        method: 'GET',
+        success: function(data) {
+            displayApiKeys(data.api_keys || []);
+        },
+        error: function() {
+            $('#apiKeysTable').html('<tr><td colspan="6" class="text-center text-danger">Failed to load API keys</td></tr>');
+        }
+    });
+}
+
+function displayApiKeys(keys) {
+    const tbody = $('#apiKeysTable');
+    tbody.empty();
+    
+    if (keys.length === 0) {
+        tbody.html(`
+            <tr>
+                <td colspan="6" class="text-center py-4 text-muted">
+                    <i class="bi bi-key d-block mb-2" style="font-size: 2rem;"></i>
+                    No API keys created yet
+                </td>
+            </tr>
+        `);
+        return;
+    }
+    
+    keys.forEach(key => {
+        const created = key.created_at ? key.created_at.substring(0, 10) : 'N/A';
+        const lastUsed = key.last_used ? key.last_used.substring(0, 10) : 'Never';
+        const statusClass = key.is_active ? 'success' : 'danger';
+        const statusText = key.is_active ? 'Active' : 'Inactive';
+        
+        tbody.append(`
+            <tr>
+                <td><strong>${escapeHtml(key.name)}</strong></td>
+                <td><code>${key.key_prefix || 'ioc_'}...</code></td>
+                <td><small>${created}</small></td>
+                <td><small>${lastUsed}</small></td>
+                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" onclick="revokeKey('${key.id}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+$('#createKeyForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: '/api/api-keys',
+        method: 'POST',
+        data: JSON.stringify({
+            name: $('#keyName').val()
+        }),
+        success: function(data) {
+            $('#createKeyModal').modal('hide');
+            $('#keyName').val('');
+            
+            // Show the generated key
+            $('#generatedKey').val(data.api_key);
+            $('#showKeyModal').modal('show');
+            
+            loadApiKeys();
+        },
+        error: function(xhr) {
+            showAlert('Failed to create API key: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+$('#copyKeyBtn').click(function() {
+    const key = $('#generatedKey').val();
+    navigator.clipboard.writeText(key).then(() => {
+        $(this).html('<i class="bi bi-check"></i>');
+        setTimeout(() => $(this).html('<i class="bi bi-clipboard"></i>'), 2000);
+    });
+});
+
+function revokeKey(keyId) {
+    if (!confirm('Are you sure you want to revoke this API key? This cannot be undone.')) return;
+    
+    $.ajax({
+        url: `/api/api-keys/${keyId}`,
+        method: 'DELETE',
+        success: function() {
+            showAlert('API key revoked', 'success');
+            loadApiKeys();
+        },
+        error: function() {
+            showAlert('Failed to revoke API key', 'danger');
+        }
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

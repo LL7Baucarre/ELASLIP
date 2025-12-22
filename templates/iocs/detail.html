@@ -1,0 +1,447 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Detail - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">IOC Detail</h4>
+        <small class="text-muted">{{ ioc.id }}</small>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-info" id="enrichBtn">
+            <i class="bi bi-search me-1"></i> Enrich
+        </button>
+        <button class="btn btn-outline-danger" id="deleteBtn">
+            <i class="bi bi-trash me-1"></i> Delete
+        </button>
+        <a href="{{ url_for('main.iocs_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Info -->
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Indicator Information</h6>
+                <span class="ioc-type-badge ioc-type-{{ ioc.ioc_type }}">{{ ioc.ioc_type|upper }}</span>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr>
+                        <th width="25%">Value</th>
+                        <td><code class="pattern-text">{{ ioc.ioc_value }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>STIX Pattern</th>
+                        <td><code class="pattern-text">{{ ioc.pattern }}</code></td>
+                    </tr>
+                    <tr>
+                        <th>Pattern Type</th>
+                        <td>{{ ioc.pattern_type }}</td>
+                    </tr>
+                    <tr>
+                        <th>Name</th>
+                        <td>{{ ioc.name or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Description</th>
+                        <td>{{ ioc.description or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <th>Labels</th>
+                        <td>
+                            {% for label in ioc.labels or [] %}
+                            <span class="badge bg-light text-dark me-1">{{ label }}</span>
+                            {% else %}
+                            <span class="text-muted">No labels</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Created</th>
+                        <td>{{ ioc.created }}</td>
+                    </tr>
+                    <tr>
+                        <th>Modified</th>
+                        <td>{{ ioc.modified or ioc.created }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Enrichment Results -->
+        <div class="card mb-4" id="enrichmentCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Enrichment Results</h6>
+            </div>
+            <div class="card-body" id="enrichmentResults">
+            </div>
+        </div>
+        
+        <!-- Related IOCs -->
+        <div class="card mb-4" id="relatedIocsCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Related IOCs</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="relatedIocsList">
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Edit Form -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Edit Labels & Description</h6>
+            </div>
+            <div class="card-body">
+                <form id="editForm">
+                    <div class="mb-3">
+                        <label for="editLabels" class="form-label">Labels</label>
+                        <input type="text" class="form-control" id="editLabels" 
+                               value="{{ (ioc.labels or [])|join(', ') }}"
+                               placeholder="Comma-separated labels">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" rows="3">{{ ioc.description or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Save Changes
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Create Relation -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Create Relation</h6>
+            </div>
+            <div class="card-body">
+                <form id="createRelationForm">
+                    <div class="mb-3">
+                        <label for="relationIOC" class="form-label">Related IOC</label>
+                        <input type="text" class="form-control" id="relationIOC" 
+                               placeholder="Search IOC value or click to select"
+                               autocomplete="off">
+                        <div class="dropdown-menu" id="iocSearchDropdown" style="display: none; width: 100%; max-height: 200px; overflow-y: auto;">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="relationType" class="form-label">Relation Type</label>
+                        <select class="form-select" id="relationType" required>
+                            <option value="">-- Select relation type --</option>
+                            <option value="related-to">Related To</option>
+                            <option value="indicates">Indicates</option>
+                            <option value="resolves-to">Resolves To</option>
+                            <option value="located-at">Located At</option>
+                            <option value="communicates-with">Communicates With</option>
+                            <option value="uses">Uses</option>
+                            <option value="attributed-to">Attributed To</option>
+                            <option value="exploits">Exploits</option>
+                            <option value="based-on">Based On</option>
+                            <option value="created-by">Created By</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-link-45deg me-1"></i> Create Relation
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sources -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Sources ({{ (ioc.sources or [])|length }})</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for source in ioc.sources or [] %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ source.name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ source.timestamp[:19] if source.timestamp else 'N/A' }}</small>
+                            </div>
+                            <span class="badge bg-secondary">{{ loop.index }}</span>
+                        </div>
+                        {% if source.metadata %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                {% for key, value in source.metadata.items() %}
+                                {{ key }}: {{ value }}<br>
+                                {% endfor %}
+                            </small>
+                        </div>
+                        {% endif %}
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">No sources recorded</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- STIX JSON -->
+        <div class="card mt-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">STIX JSON</h6>
+                <button class="btn btn-sm btn-outline-secondary" id="copyStixBtn">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <pre class="mb-0" style="max-height: 300px; overflow: auto; font-size: 0.75rem;" id="stixJson">{{ ioc|tojson(indent=2) }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const iocId = '{{ ioc.id }}';
+const iocValue = '{{ ioc.ioc_value }}';
+const iocType = '{{ ioc.ioc_type }}';
+
+$('#deleteBtn').click(function() {
+    if (!confirm('Are you sure you want to delete this IOC?')) return;
+    
+    $.ajax({
+        url: `/api/ioc/${iocId}`,
+        method: 'DELETE',
+        success: function() {
+            showAlert('IOC deleted successfully', 'success');
+            setTimeout(() => window.location.href = '/iocs', 1500);
+        },
+        error: function(xhr) {
+            showAlert('Failed to delete IOC', 'danger');
+        }
+    });
+});
+
+$('#editForm').submit(function(e) {
+    e.preventDefault();
+    
+    const labels = $('#editLabels').val()
+        .split(',')
+        .map(l => l.trim())
+        .filter(l => l);
+    
+    $.ajax({
+        url: `/api/ioc/${iocId}`,
+        method: 'PUT',
+        data: JSON.stringify({
+            labels: labels,
+            description: $('#editDescription').val()
+        }),
+        success: function() {
+            showAlert('IOC updated successfully', 'success');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert('Failed to update IOC', 'danger');
+        }
+    });
+});
+
+$('#enrichBtn').click(function() {
+    const btn = $(this);
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Enriching...');
+    
+    $.ajax({
+        url: '/api/external-apis/enrich',
+        method: 'POST',
+        data: JSON.stringify({
+            value: iocValue,
+            type: iocType
+        }),
+        success: function(data) {
+            displayEnrichment(data.results);
+            btn.prop('disabled', false).html('<i class="bi bi-search me-1"></i> Enrich');
+        },
+        error: function(xhr) {
+            showAlert('Enrichment failed: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+            btn.prop('disabled', false).html('<i class="bi bi-search me-1"></i> Enrich');
+        }
+    });
+});
+
+function displayEnrichment(results) {
+    const card = $('#enrichmentCard');
+    const container = $('#enrichmentResults');
+    container.empty();
+    
+    if (!results || results.length === 0) {
+        container.html('<p class="text-muted">No external APIs configured. <a href="/settings/external-apis">Configure APIs</a></p>');
+        card.show();
+        return;
+    }
+    
+    results.forEach(result => {
+        let html = `<div class="border rounded p-3 mb-3">
+            <h6>${result.api_name}</h6>`;
+        
+        if (result.success) {
+            if (result.transformed) {
+                html += '<pre class="bg-light p-2 rounded" style="font-size: 0.75rem; max-height: 200px; overflow: auto;">' + 
+                    JSON.stringify(result.transformed, null, 2) + '</pre>';
+            }
+            if (result.from_cache) {
+                html += '<small class="text-muted"><i class="bi bi-clock"></i> From cache</small>';
+            }
+        } else {
+            html += `<p class="text-danger mb-0">${result.error}</p>`;
+        }
+        
+        html += '</div>';
+        container.append(html);
+    });
+    
+    card.show();
+}
+
+$('#copyStixBtn').click(function() {
+    const stixJson = $('#stixJson').text();
+    navigator.clipboard.writeText(stixJson).then(() => {
+        showAlert('Copied to clipboard', 'success');
+    });
+});
+
+// Load related IOCs
+function loadRelatedIOCs() {
+    $.ajax({
+        url: `/api/ioc/${iocId}/relations`,
+        method: 'GET',
+        success: function(response) {
+            const relatedIOCs = response.related_iocs || [];
+            
+            if (relatedIOCs.length > 0) {
+                const card = $('#relatedIocsCard');
+                const list = $('#relatedIocsList');
+                list.empty();
+                
+                relatedIOCs.forEach(ioc => {
+                    list.append(`
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong><a href="/iocs/${ioc.id}">${ioc.ioc_value}</a></strong>
+                                    <br>
+                                    <small class="text-muted">
+                                        <span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${(ioc.ioc_type || '').toUpperCase()}</span>
+                                        ${ioc.relation_type ? ` • ${ioc.relation_type}` : ''}
+                                    </small>
+                                </div>
+                            </div>
+                        </li>
+                    `);
+                });
+                
+                card.show();
+            }
+        },
+        error: function() {
+            console.log('Failed to load related IOCs');
+        }
+    });
+}
+
+// Load related IOCs on page load
+$(document).ready(function() {
+    loadRelatedIOCs();
+    
+    // IOC search for creating relations
+    $('#relationIOC').on('input', function() {
+        const query = $(this).val().trim();
+        const dropdown = $('#iocSearchDropdown');
+        
+        if (query.length < 2) {
+            dropdown.hide();
+            return;
+        }
+        
+        $.ajax({
+            url: '/api/search',
+            method: 'GET',
+            data: { q: query },
+            success: function(response) {
+                dropdown.empty();
+                const iocs = response.results || response.items || [];
+                
+                if (iocs.length === 0) {
+                    dropdown.html('<div class="dropdown-item text-muted">No IOCs found</div>');
+                } else {
+                    iocs.forEach(ioc => {
+                        if (ioc.id !== iocId) { // Don't allow self-relation
+                            dropdown.append(`
+                                <div class="dropdown-item" style="cursor: pointer;" data-ioc-id="${ioc.id}" data-ioc-value="${ioc.ioc_value || ioc.value}">
+                                    <strong>${ioc.ioc_value || ioc.value}</strong>
+                                    <br>
+                                    <small class="text-muted">${ioc.ioc_type || ioc.type}</small>
+                                </div>
+                            `);
+                        }
+                    });
+                }
+                
+                dropdown.show();
+            }
+        });
+    });
+    
+    // Handle IOC selection from dropdown
+    $(document).on('click', '#iocSearchDropdown .dropdown-item', function() {
+        const iocId = $(this).data('ioc-id');
+        const iocValue = $(this).data('ioc-value');
+        $('#relationIOC').val(iocValue).data('selected-id', iocId);
+        $('#iocSearchDropdown').hide();
+    });
+    
+    // Create relation form submission
+    $('#createRelationForm').submit(function(e) {
+        e.preventDefault();
+        
+        const selectedId = $('#relationIOC').data('selected-id');
+        const relationType = $('#relationType').val();
+        
+        if (!selectedId) {
+            showAlert('Please select a valid IOC', 'warning');
+            return;
+        }
+        
+        if (!relationType) {
+            showAlert('Please select a relation type', 'warning');
+            return;
+        }
+        
+        $.ajax({
+            url: `/api/ioc/${iocId}/relations`,
+            method: 'POST',
+            data: JSON.stringify({
+                related_ioc_id: selectedId,
+                relation_type: relationType
+            }),
+            success: function() {
+                showAlert('Relation created successfully', 'success');
+                document.getElementById('createRelationForm').reset();
+                $('#relationIOC').removeData('selected-id');
+                loadRelatedIOCs();
+            },
+            error: function(xhr) {
+                showAlert('Failed to create relation: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

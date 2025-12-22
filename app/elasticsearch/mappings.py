@@ -1,0 +1,287 @@
+"""Elasticsearch index mappings for IOC Manager."""
+
+
+# IOC Index Mapping - STIX 2.1 Indicator format
+IOC_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "analysis": {
+            "analyzer": {
+                "pattern_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase"]
+                }
+            }
+        }
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "type": {"type": "keyword"},
+            "spec_version": {"type": "keyword"},
+            "created": {"type": "date"},
+            "modified": {"type": "date"},
+            "name": {"type": "text"},
+            "description": {"type": "text"},
+            "pattern": {
+                "type": "text",
+                "analyzer": "pattern_analyzer",
+                "fields": {
+                    "keyword": {"type": "keyword"}
+                }
+            },
+            "pattern_type": {"type": "keyword"},
+            "pattern_version": {"type": "keyword"},
+            "valid_from": {"type": "date"},
+            "valid_until": {"type": "date"},
+            "labels": {"type": "keyword"},
+            "confidence": {"type": "integer"},
+            "lang": {"type": "keyword"},
+            "external_references": {
+                "type": "nested",
+                "properties": {
+                    "source_name": {"type": "keyword"},
+                    "url": {"type": "keyword"},
+                    "external_id": {"type": "keyword"}
+                }
+            },
+            "object_marking_refs": {"type": "keyword"},
+            "granular_markings": {"type": "nested"},
+            "sources": {
+                "type": "nested",
+                "properties": {
+                    "name": {"type": "keyword"},
+                    "timestamp": {"type": "date"},
+                    "metadata": {"type": "object", "enabled": False}
+                }
+            },
+            "pattern_hash": {"type": "keyword"},
+            "ioc_type": {"type": "keyword"},
+            "ioc_value": {"type": "keyword"}
+        }
+    }
+}
+
+
+# Users Index Mapping
+USERS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "username": {
+                "type": "text",
+                "fields": {
+                    "keyword": {"type": "keyword"}
+                }
+            },
+            "email": {
+                "type": "text",
+                "fields": {
+                    "keyword": {"type": "keyword"}
+                }
+            },
+            "password_hash": {"type": "keyword", "index": False},
+            "created_at": {"type": "date"},
+            "last_login": {"type": "date"}
+        }
+    }
+}
+
+
+# API Keys Index Mapping
+API_KEYS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "label": {"type": "text"},
+            "key_hash": {"type": "keyword"},
+            "key_prefix": {"type": "keyword"},
+            "created_at": {"type": "date"},
+            "last_used": {"type": "date"}
+        }
+    }
+}
+
+
+# API Configurations Index Mapping
+API_CONFIGS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            "url": {"type": "keyword"},
+            "method": {"type": "keyword"},
+            "headers": {"type": "object", "enabled": False},
+            "auth_type": {"type": "keyword"},
+            "auth_token": {"type": "keyword", "index": False},
+            "template": {"type": "object", "enabled": False},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"},
+            "enabled": {"type": "boolean"}
+        }
+    }
+}
+
+
+# Webhooks Index Mapping
+WEBHOOKS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "url": {"type": "keyword"},
+            "events": {"type": "keyword"},
+            "enabled": {"type": "boolean"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Webhook Logs Index Mapping
+WEBHOOK_LOGS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "webhook_id": {"type": "keyword"},
+            "event_type": {"type": "keyword"},
+            "payload": {"type": "object", "enabled": False},
+            "status_code": {"type": "integer"},
+            "response_body": {"type": "text", "index": False},
+            "success": {"type": "boolean"},
+            "retry_count": {"type": "integer"},
+            "error_message": {"type": "text"},
+            "timestamp": {"type": "date"}
+        }
+    }
+}
+
+
+# Enrichment Cache Index Mapping
+ENRICHMENT_CACHE_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "ioc_value": {"type": "keyword"},
+            "api_config_id": {"type": "keyword"},
+            "result": {"type": "object", "enabled": False},
+            "cached_at": {"type": "date"},
+            "expires_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Import Jobs Index Mapping
+IMPORT_JOBS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "filename": {"type": "keyword"},
+            "file_type": {"type": "keyword"},
+            "status": {"type": "keyword"},
+            "progress": {"type": "integer"},
+            "total_items": {"type": "integer"},
+            "processed_items": {"type": "integer"},
+            "added": {"type": "integer"},
+            "updated": {"type": "integer"},
+            "duplicates": {"type": "integer"},
+            "errors": {"type": "integer"},
+            "error_details": {"type": "object", "enabled": False},
+            "started_at": {"type": "date"},
+            "completed_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Scan Results Index Mapping (WHOIS, Nmap)
+SCAN_RESULTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "tool": {"type": "keyword"},
+            "target": {"type": "keyword"},
+            "scan_type": {"type": "keyword"},
+            "ports": {"type": "keyword"},
+            "success": {"type": "boolean"},
+            "result": {"type": "object", "enabled": False},
+            "timestamp": {"type": "date"}
+        }
+    }
+}
+
+
+# IOC Relations Index Mapping
+IOC_RELATIONS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "source_id": {"type": "keyword"},
+            "target_id": {"type": "keyword"},
+            "relation_type": {"type": "keyword"},
+            "bidirectional": {"type": "boolean"},
+            "created_by": {"type": "keyword"},
+            "created_at": {"type": "date"}
+        }
+    }
+}
+
+
+# All indices with their mappings
+INDICES = {
+    "ioc_manager_ioc": IOC_MAPPING,
+    "ioc_manager_users": USERS_MAPPING,
+    "ioc_manager_api_keys": API_KEYS_MAPPING,
+    "ioc_manager_api_configs": API_CONFIGS_MAPPING,
+    "ioc_manager_webhooks": WEBHOOKS_MAPPING,
+    "ioc_manager_webhook_logs": WEBHOOK_LOGS_MAPPING,
+    "ioc_manager_enrichment_cache": ENRICHMENT_CACHE_MAPPING,
+    "ioc_manager_import_jobs": IMPORT_JOBS_MAPPING,
+    "ioc_manager_scan_results": SCAN_RESULTS_MAPPING,
+    "ioc_manager_ioc_relations": IOC_RELATIONS_MAPPING
+}

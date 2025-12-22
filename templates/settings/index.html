@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Settings</h4>
+        <small class="text-muted">Manage your account and configurations</small>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="#profile" data-section="profile"
+               class="list-group-item list-group-item-action active" onclick="switchSection('profile', event)">
+                <i class="bi bi-person me-2"></i> Profile
+            </a>
+            {% if current_user.is_admin %}
+            <a href="#site-config" data-section="site-config"
+               class="list-group-item list-group-item-action" onclick="switchSection('site-config', event)">
+                <i class="bi bi-gear me-2"></i> Site Configuration
+            </a>
+            <a href="{{ url_for('main.users_management') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-people me-2"></i> User Management
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.settings_api_keys') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-key me-2"></i> API Keys
+            </a>
+            <a href="{{ url_for('main.settings_external_apis') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-cloud me-2"></i> External APIs
+            </a>
+            <a href="{{ url_for('main.settings_webhooks') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-broadcast me-2"></i> Webhooks
+            </a>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <!-- Profile Section -->
+        <div id="profile-section">
+            <div class="card mb-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Profile Information</h6>
+                </div>
+                <div class="card-body">
+                    <form id="profileForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" 
+                                   value="{{ current_user.username }}" disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" 
+                                   value="{{ current_user.email or '' }}" 
+                                   placeholder="Optional email address">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Change Password -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Change Password</h6>
+                </div>
+                <div class="card-body">
+                    <form id="passwordForm">
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="currentPassword" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="newPassword" required minlength="8">
+                            <div class="form-text">Minimum 8 characters</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" required>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Change Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Site Configuration Section (Admin Only) -->
+        {% if current_user.is_admin %}
+        <div id="site-config-section" style="display: none;">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Site Configuration</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Customize your site appearance and branding</p>
+                    <form id="siteConfigForm">
+                        <div class="mb-3">
+                            <label for="siteName" class="form-label">Site Name</label>
+                            <input type="text" class="form-control" id="siteName" 
+                                   placeholder="e.g., IOC Manager" required>
+                            <div class="form-text">Displayed in the sidebar logo</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="siteTitle" class="form-label">Site Title</label>
+                            <input type="text" class="form-control" id="siteTitle" 
+                                   placeholder="e.g., IOC Manager" required>
+                            <div class="form-text">Used in browser tabs and page titles</div>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check me-1"></i> Save Configuration
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function switchSection(section, e) {
+    if (e) e.preventDefault();
+    
+    // Update active menu item
+    $('.list-group-item').removeClass('active');
+    $(`[data-section="${section}"]`).addClass('active');
+    
+    // Hide all sections
+    $('#profile-section').hide();
+    $('#site-config-section').hide();
+    
+    // Show selected section
+    if (section === 'site-config') {
+        $('#site-config-section').show();
+        // Load current settings
+        $.ajax({
+            url: '/api/settings',
+            method: 'GET',
+            success: function(data) {
+                $('#siteName').val(data.site_name);
+                $('#siteTitle').val(data.site_title);
+            }
+        });
+    } else {
+        $('#profile-section').show();
+    }
+}
+
+$('#profileForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: '/api/auth/profile',
+        method: 'PUT',
+        data: JSON.stringify({
+            email: $('#email').val()
+        }),
+        success: function() {
+            showAlert('Profile updated successfully', 'success');
+        },
+        error: function(xhr) {
+            showAlert('Failed to update profile', 'danger');
+        }
+    });
+});
+
+$('#passwordForm').submit(function(e) {
+    e.preventDefault();
+    
+    const newPass = $('#newPassword').val();
+    const confirmPass = $('#confirmPassword').val();
+    
+    if (newPass !== confirmPass) {
+        showAlert('Passwords do not match', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/auth/change-password',
+        method: 'POST',
+        data: JSON.stringify({
+            current_password: $('#currentPassword').val(),
+            new_password: newPass
+        }),
+        success: function() {
+            showAlert('Password changed successfully', 'success');
+            $('#passwordForm')[0].reset();
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to change password', 'danger');
+        }
+    });
+});
+
+$('#siteConfigForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: '/api/settings',
+        method: 'PUT',
+        data: JSON.stringify({
+            site_name: $('#siteName').val(),
+            site_title: $('#siteTitle').val()
+        }),
+        success: function(data) {
+            showAlert('Configuration saved successfully (reload page to see changes)', 'success');
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to save configuration', 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}

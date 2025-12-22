@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}IOCs - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <h4 class="mb-0">IOC List</h4>
+    <div class="d-flex align-items-center gap-3">
+        <div class="search-box">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control" id="quickSearch" placeholder="Quick search...">
+        </div>
+        <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add IOC
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <select class="form-select" id="filterType">
+                    <option value="">All Types</option>
+                    <option value="md5">MD5</option>
+                    <option value="sha1">SHA1</option>
+                    <option value="sha256">SHA256</option>
+                    <option value="ipv4">IPv4</option>
+                    <option value="domain">Domain</option>
+                    <option value="email">Email</option>
+                    <option value="url">URL</option>
+                    <option value="asn">ASN</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="filterLabels" placeholder="Filter by labels...">
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="filterSource" placeholder="Filter by source...">
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-outline-primary w-100" id="applyFilters">
+                    <i class="bi bi-funnel me-1"></i> Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- IOC Table -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0" id="iocTable">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Pattern / Value</th>
+                        <th>Labels</th>
+                        <th>Sources</th>
+                        <th>Links</th>
+                        <th>Created</th>
+                        <th width="100">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="iocTableBody">
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                Showing <span id="showingCount">0</span> of <span id="totalCount">0</span> IOCs
+            </div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination">
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+const perPage = 20;
+
+function loadIOCs(page = 1) {
+    currentPage = page;
+    const type = $('#filterType').val();
+    const labels = $('#filterLabels').val();
+    const source = $('#filterSource').val();
+    
+    let url = `/api/ioc?page=${page}&per_page=${perPage}`;
+    if (type) url += `&type=${type}`;
+    if (labels) url += `&labels=${encodeURIComponent(labels)}`;
+    if (source) url += `&source=${encodeURIComponent(source)}`;
+    
+    $.get(url, function(data) {
+        renderIOCs(data.items);
+        renderPagination(data.total, page);
+        $('#showingCount').text(data.items.length);
+        $('#totalCount').text(data.total);
+    });
+}
+
+function renderIOCs(iocs) {
+    const tbody = $('#iocTableBody');
+    tbody.empty();
+    
+    if (iocs.length === 0) {
+        tbody.append(`
+            <tr>
+                <td colspan="7" class="text-center py-4 text-muted">
+                    No IOCs found
+                </td>
+            </tr>
+        `);
+        return;
+    }
+    
+    iocs.forEach(ioc => {
+        const labels = (ioc.labels || []).slice(0, 3).map(l => 
+            `<span class="badge bg-light text-dark">${l}</span>`
+        ).join(' ');
+        const moreLabels = ioc.labels && ioc.labels.length > 3 ? 
+            `<span class="badge bg-secondary">+${ioc.labels.length - 3}</span>` : '';
+        
+        const relationsCount = ioc.relations_count || 0;
+        const relationsDisplay = relationsCount > 0 ? 
+            `<span class="badge bg-warning text-dark">${relationsCount}</span>` : 
+            '<span class="text-muted">-</span>';
+        
+        tbody.append(`
+            <tr>
+                <td><span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${(ioc.ioc_type || '').toUpperCase()}</span></td>
+                <td>
+                    <code class="pattern-text">${(ioc.pattern || '').substring(0, 60)}${ioc.pattern && ioc.pattern.length > 60 ? '...' : ''}</code>
+                </td>
+                <td>${labels} ${moreLabels}</td>
+                <td><span class="badge bg-info">${(ioc.sources || []).length}</span></td>
+                <td>${relationsDisplay}</td>
+                <td><small class="text-muted">${ioc.created ? ioc.created.substring(0, 10) : ''}</small></td>
+                <td>
+                    <a href="/iocs/${ioc.id}" class="btn btn-sm btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteIOC('${ioc.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+function renderPagination(total, current) {
+    const totalPages = Math.ceil(total / perPage);
+    const pagination = $('#pagination');
+    pagination.empty();
+    
+    if (totalPages <= 1) return;
+    
+    // Previous
+    pagination.append(`
+        <li class="page-item ${current === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadIOCs(${current - 1}); return false;">Previous</a>
+        </li>
+    `);
+    
+    // Page numbers
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        pagination.append(`
+            <li class="page-item ${i === current ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="loadIOCs(${i}); return false;">${i}</a>
+            </li>
+        `);
+    }
+    
+    // Next
+    pagination.append(`
+        <li class="page-item ${current === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadIOCs(${current + 1}); return false;">Next</a>
+        </li>
+    `);
+}
+
+function deleteIOC(id) {
+    if (!confirm('Are you sure you want to delete this IOC?')) return;
+    
+    $.ajax({
+        url: `/api/ioc/${id}`,
+        method: 'DELETE',
+        success: function() {
+            showAlert('IOC deleted successfully', 'success');
+            loadIOCs(currentPage);
+        },
+        error: function(xhr) {
+            showAlert('Failed to delete IOC', 'danger');
+        }
+    });
+}
+
+// Event handlers
+$('#applyFilters').click(function() {
+    loadIOCs(1);
+});
+
+$('#quickSearch').on('keyup', function(e) {
+    if (e.key === 'Enter') {
+        window.location.href = `/search?q=${encodeURIComponent($(this).val())}`;
+    }
+});
+
+// Initial load
+$(document).ready(function() {
+    loadIOCs(1);
+});
+</script>
+{% endblock %}
