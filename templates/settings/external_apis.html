@@ -113,6 +113,16 @@
                class="list-group-item list-group-item-action">
                 <i class="bi bi-person me-2"></i> Profile
             </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings') }}#site-config" data-section="site-config"
+               class="list-group-item list-group-item-action" onclick="switchSection('site-config', event)">
+                <i class="bi bi-gear me-2"></i> Site Configuration
+            </a>
+            <a href="{{ url_for('main.users_management') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-people me-2"></i> User Management
+            </a>
+            {% endif %}
             <a href="{{ url_for('main.settings_api_keys') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-key me-2"></i> API Keys
