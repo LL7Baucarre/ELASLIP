@@ -65,6 +65,67 @@ class EnrichmentService:
         
         return results
     
+    def enrich_value_with_apis(self, value: str, ioc_type: str = None, 
+                               user_id: str = None, api_ids: List[str] = None) -> List[Dict]:
+        """
+        Enrich an IOC value using specific external APIs.
+        
+        Args:
+            value: IOC value to enrich
+            ioc_type: Type of IOC (optional, will auto-detect)
+            user_id: User ID to get API configs for
+            api_ids: List of specific API IDs to use
+        
+        Returns:
+            List of enrichment results from requested APIs
+        """
+        if not ioc_type:
+            ioc_type = PatternGenerator.detect_type(value)
+        
+        results = []
+        
+        if not user_id or not api_ids:
+            return results
+        
+        # Get specific API configs
+        for api_id in api_ids:
+            try:
+                config = self.es.get('api_configs', api_id)
+                if not config:
+                    continue
+                
+                config_data = config['_source']
+                config_data['id'] = api_id
+                
+                # Check if API belongs to user and is enabled
+                if config_data.get('user_id') != user_id:
+                    continue
+                
+                if not config_data.get('enabled', True):
+                    continue
+                
+                try:
+                    result = self.call_external_api(config_data, value, ioc_type)
+                    result['api_name'] = config_data['name']
+                    result['api_id'] = api_id
+                    results.append(result)
+                except Exception as e:
+                    results.append({
+                        'api_name': config_data['name'],
+                        'api_id': api_id,
+                        'success': False,
+                        'error': str(e)
+                    })
+            except Exception as e:
+                results.append({
+                    'api_name': f'API {api_id}',
+                    'api_id': api_id,
+                    'success': False,
+                    'error': str(e)
+                })
+        
+        return results
+    
     def call_external_api(self, config: Dict, value: str, 
                           ioc_type: str = None) -> Dict:
         """
@@ -78,15 +139,24 @@ class EnrichmentService:
         Returns:
             Dictionary with raw response and transformed data
         """
-        # Check cache first
-        cache_key = self._get_cache_key(config['id'], value)
-        cached = self._get_from_cache(cache_key)
-        if cached:
-            cached['from_cache'] = True
-            return cached
+        # Get config ID (may not exist for new configs being tested)
+        config_id = config.get('id') or config.get('url', 'test')
+        
+        # Check cache first (only if config has an id)
+        if config.get('id'):
+            cache_key = self._get_cache_key(config['id'], value)
+            cached = self._get_from_cache(cache_key)
+            if cached:
+                cached['from_cache'] = True
+                return cached
         
         # Build request URL (replace {value} placeholder)
-        url = config['url'].replace('{value}', value)
+        # Support both 'url' and 'url_template' keys
+        url = config.get('url') or config.get('url_template')
+        if not url:
+            raise ValueError('url or url_template is required')
+            
+        url = url.replace('{value}', value)
         
         # Prepare headers
         headers = config.get('headers', {}).copy()
@@ -123,14 +193,15 @@ class EnrichmentService:
             raise Exception('API returned invalid JSON')
         
         # Transform response using template
-        template_config = config.get('template', {})
+        template_config = config.get('template', {}) or config.get('response_template', {})
         template = APITemplate(template_config)
         result = template.transform(response_data, value)
         result['success'] = True
         result['from_cache'] = False
         
-        # Cache the result
-        self._save_to_cache(cache_key, result, config['id'], value)
+        # Cache the result (only if config has an id)
+        if config.get('id'):
+            self._save_to_cache(cache_key, result, config['id'], value)
         
         return result
     

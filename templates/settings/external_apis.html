@@ -10,11 +10,87 @@
     min-height: 200px;
     resize: vertical;
 }
-.mapping-row {
-    background-color: #f8f9fa;
-    border-radius: 4px;
+
+.mapping-field {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
     padding: 10px;
-    margin-bottom: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mapping-field:hover {
+    background: #e7f3ff;
+    border-color: #007bff;
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.1);
+}
+
+.mapping-field .input-group-sm {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.mapping-field .input-group-sm .form-control {
+    border-radius: 4px;
+}
+
+.mapping-field .mapping-field-key {
+    flex: 0 0 25%;
+    min-width: 120px;
+}
+
+.mapping-field .mapping-field-path {
+    flex: 1;
+    min-width: 200px;
+}
+
+.mapping-field .btn-remove-field {
+    flex: 0 0 auto;
+    padding: 0.375rem 0.75rem;
+}
+
+.mapping-field .btn-remove-field:hover {
+    background-color: #fee;
+    border-color: #dc3545;
+}
+
+#addMappingField {
+    width: 100%;
+    border-style: dashed;
+    border-color: #6c757d;
+}
+
+#addMappingField:hover {
+    border-style: solid;
+    border-color: #0d6efd;
+    background-color: #e7f3ff;
+}
+
+#mappingFields {
+    min-height: 60px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+#mappingFieldTemplate {
+    display: none;
+}
+
+.add-field-link {
+    text-decoration: underline !important;
+    transition: all 0.2s ease;
+}
+
+.add-field-link:hover {
+    background-color: #fff3cd;
+    border-radius: 2px;
+    padding: 0 2px;
 }
 </style>
 {% endblock %}
@@ -25,7 +101,7 @@
         <h4 class="mb-0">External APIs</h4>
         <small class="text-muted">Configure external threat intelligence APIs for enrichment</small>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiModal">
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiModal" onclick="resetApiForm()">
         <i class="bi bi-plus-lg me-1"></i> Add API
     </button>
 </div>
@@ -130,24 +206,65 @@
                     </div>
                     
                     <hr>
-                    <h6>Response Mapping (JSONPath)</h6>
-                    <p class="text-muted small">Define how to extract data from the API response</p>
+                    <h6 class="mb-3">
+                        <i class="bi bi-diagram-3 me-2"></i>Response Field Mapping
+                    </h6>
                     
-                    <div class="mb-3">
-                        <label for="responseTemplate" class="form-label">Response Template (JSON)</label>
-                        <textarea class="form-control json-editor" id="responseTemplate" rows="8" 
-                                  placeholder='{
-    "malicious": "$.data.attributes.last_analysis_stats.malicious",
-    "reputation": "$.data.attributes.reputation",
-    "country": "$.data.attributes.country"
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="mapping-visual-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#mappingVisual" type="button">
+                                <i class="bi bi-palette me-1"></i> Visual Editor
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="mapping-json-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#mappingJson" type="button">
+                                <i class="bi bi-code-slash me-1"></i> JSON
+                            </button>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content">
+                        <!-- Visual Editor Tab -->
+                        <div class="tab-pane fade show active" id="mappingVisual" role="tabpanel">
+                            <p class="text-muted small mb-3">Create field mappings from the API response using a visual interface</p>
+                            
+                            <div id="mappingFields" class="mb-3"></div>
+                            
+                            <!-- Template for mapping field (hidden) -->
+                            <div class="mapping-field mb-2" id="mappingFieldTemplate" style="display: none;">
+                                <input type="text" class="form-control form-control-sm mapping-field-key" placeholder="Field name (e.g., reputation)">
+                                <input type="text" class="form-control form-control-sm mapping-field-path" placeholder="JSONPath (e.g., $.data.reputation)">
+                                <button class="btn btn-sm btn-outline-danger btn-remove-field" type="button" title="Remove field">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                            
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addMappingField">
+                                <i class="bi bi-plus-circle me-1"></i> Add Field
+                            </button>
+                            
+                            <div class="alert alert-info mt-3 small" role="alert">
+                                <strong>Common Fields:</strong><br>
+                                <code>reputation</code>, <code>country</code>, <code>threat_level</code>, 
+                                <code>malicious</code>, <code>abuse_count</code>, <code>last_seen</code>
+                            </div>
+                        </div>
+                        
+                        <!-- JSON Tab -->
+                        <div class="tab-pane fade" id="mappingJson" role="tabpanel">
+                            <p class="text-muted small mb-3">Edit the response mapping in JSON format</p>
+                            <textarea class="form-control json-editor" id="responseTemplate" rows="8" 
+                                      placeholder='{
+    "reputation": "$.data.reputation",
+    "country": "$.data.country",
+    "malicious": "$.data.attributes.last_analysis_stats.malicious"
 }'></textarea>
-                        <div class="form-text">
-                            Use JSONPath expressions to map response fields. 
-                            Example: <code>$.data.results[0].score</code>
                         </div>
                     </div>
                     
-                    <div class="form-check mb-3">
+                    <div class="form-check mb-3 mt-3">
                         <input class="form-check-input" type="checkbox" id="apiEnabled" checked>
                         <label class="form-check-label" for="apiEnabled">
                             Enabled
@@ -200,6 +317,38 @@
 <script>
 $(document).ready(function() {
     loadApis();
+    
+    // Event listener for Add Field button
+    $('#addMappingField').click(function(e) {
+        e.preventDefault();
+        addMappingField();
+    });
+    
+    // Event listeners for tab switching
+    $('#mapping-visual-tab').on('shown.bs.tab', function() {
+        // When switching to visual tab, sync JSON to visual
+        syncJsonToVisual();
+    });
+    
+    $('#mapping-json-tab').on('shown.bs.tab', function() {
+        // When switching to JSON tab, sync visual to JSON
+        syncVisualToJson();
+    });
+    
+    // Delegate event handler for add field links in test result
+    $(document).on('click', '.add-field-link', function(e) {
+        e.preventDefault();
+        const fieldPath = $(this).data('path');
+        addFieldFromTestResult(fieldPath);
+    });
+    
+    // Handle modal reset on close
+    $('#addApiModal').on('hidden.bs.modal', function() {
+        // Reset form when modal closes
+        $('#apiId').val('');
+        $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
+        $('#responseTemplate').val('');
+    });
 });
 
 function loadApis() {
@@ -283,20 +432,109 @@ $('#addApiModal').on('show.bs.modal', function(e) {
     }
 });
 
+// Visual Editor Functions
+function resetApiForm() {
+    $('#apiId').val('');
+    $('#apiName').val('');
+    $('#apiUrl').val('');
+    $('#apiMethod').val('GET');
+    $('#apiTimeout').val('30');
+    $('#apiHeaders').val('');
+    $('#responseTemplate').val('');
+    $('#apiEnabled').prop('checked', true);
+    $('#iocTypes').val([]);
+    
+    // Clear mapping fields
+    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
+    
+    // Reset modal title
+    $('#apiModalTitle').text('Add External API');
+}
+
+function addMappingField() {
+    const $template = $('#mappingFieldTemplate').clone();
+    $template.removeAttr('id');
+    $template.show();
+    $('#mappingFields').append($template);
+    
+    // Bind remove button
+    $template.find('.btn-remove-field').click(removeMappingField);
+}
+
+function removeMappingField(e) {
+    e.preventDefault();
+    $(this).closest('.mapping-field').remove();
+}
+
+function syncVisualToJson() {
+    const mapping = {};
+    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').each(function() {
+        const key = $(this).find('.mapping-field-key').val().trim();
+        const path = $(this).find('.mapping-field-path').val().trim();
+        if (key && path) {
+            mapping[key] = path;
+        }
+    });
+    $('#responseTemplate').val(JSON.stringify(mapping, null, 2));
+}
+
+function syncJsonToVisual() {
+    let mapping = {};
+    try {
+        const text = $('#responseTemplate').val().trim();
+        if (text) mapping = JSON.parse(text);
+    } catch (e) {
+        return; // Skip sync if invalid JSON
+    }
+    
+    // Clear existing fields
+    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
+    
+    // Add fields from mapping
+    for (const [key, path] of Object.entries(mapping)) {
+        const $template = $('#mappingFieldTemplate').clone();
+        $template.removeAttr('id');
+        $template.find('.mapping-field-key').val(key);
+        $template.find('.mapping-field-path').val(path);
+        $template.show();
+        $('#mappingFields').append($template);
+        $template.find('.btn-remove-field').click(removeMappingField);
+    }
+}
+
 function editApi(apiId) {
     $.ajax({
         url: `/api/external-apis/${apiId}`,
         method: 'GET',
         success: function(data) {
-            const api = data.config;
+            // data is the config object directly
+            const api = data;
             $('#apiId').val(api.id);
             $('#apiName').val(api.name);
-            $('#apiUrl').val(api.url_template);
+            $('#apiUrl').val(api.url_template || api.url || '');
             $('#apiMethod').val(api.method || 'GET');
             $('#apiTimeout').val(api.timeout || 30);
             $('#apiHeaders').val(api.headers ? JSON.stringify(api.headers, null, 2) : '');
-            $('#responseTemplate').val(api.response_template ? JSON.stringify(api.response_template, null, 2) : '');
-            $('#apiEnabled').prop('checked', api.is_enabled !== false);
+            
+            // Load response template and populate visual editor
+            const responseTemplate = api.response_template || api.template || {};
+            $('#responseTemplate').val(JSON.stringify(responseTemplate, null, 2));
+            
+            // Populate visual editor from template
+            $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
+            if (typeof responseTemplate === 'object' && Object.keys(responseTemplate).length > 0) {
+                for (const [key, path] of Object.entries(responseTemplate)) {
+                    const $template = $('#mappingFieldTemplate').clone();
+                    $template.removeAttr('id');
+                    $template.find('.mapping-field-key').val(key);
+                    $template.find('.mapping-field-path').val(path);
+                    $template.show();
+                    $('#mappingFields').append($template);
+                    $template.find('.btn-remove-field').click(removeMappingField);
+                }
+            }
+            
+            $('#apiEnabled').prop('checked', api.is_enabled !== false && api.enabled !== false);
             
             // Select IOC types
             $('#iocTypes option').prop('selected', false);
@@ -306,6 +544,9 @@ function editApi(apiId) {
             
             $('#apiModalTitle').text('Edit External API');
             $('#addApiModal').modal('show');
+        },
+        error: function(xhr) {
+            showAlert('Failed to load API: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
         }
     });
 }
@@ -323,6 +564,9 @@ $('#apiForm').submit(function(e) {
         showAlert('Invalid JSON in Headers field', 'warning');
         return;
     }
+    
+    // Sync visual editor to JSON before saving
+    syncVisualToJson();
     
     try {
         const templateText = $('#responseTemplate').val().trim();
@@ -424,6 +668,12 @@ $('#testApiBtn').click(function() {
             
             $('#testRawResponse').text(JSON.stringify(data.raw_response, null, 2));
             $('#testTransformed').text(JSON.stringify(data.transformed, null, 2));
+            
+            // Remove old interactive tree if exists
+            $('#testResult').find('.interactive-json-tree').remove();
+            
+            // Display interactive JSON tree for mapping
+            displayTestResultTree(data.raw_response);
         },
         error: function(xhr) {
             $('#testLoading').hide();
@@ -435,6 +685,100 @@ $('#testApiBtn').click(function() {
         }
     });
 });
+
+function displayTestResultTree(data, parentPath = '$') {
+    const treeHtml = jsonToClickableTree(data, parentPath);
+    const treeContainer = $('<div class="interactive-json-tree mt-3"><label class="form-label"><strong>Interactive JSON Mapping:</strong> Click any field to add to mapping</label><div class="bg-light p-3 rounded" style="max-height: 300px; overflow: auto; font-family: monospace; font-size: 0.85rem; border: 1px solid #dee2e6;"></div></div>');
+    treeContainer.find('div:last').html(treeHtml);
+    $('#testResult').append(treeContainer);
+}
+
+function jsonToClickableTree(obj, path = '$', depth = 0) {
+    const indentClass = depth > 0 ? 'ms-3' : '';
+    let html = '';
+    
+    if (obj === null) {
+        return '<span class="text-muted">null</span>';
+    }
+    
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+            return '<span class="text-muted">[]</span>';
+        }
+        html += '<div class="' + indentClass + '">';
+        html += '<span class="text-secondary">[</span>';
+        obj.forEach((item, index) => {
+            const itemPath = path + '[' + index + ']';
+            html += '<div class="ms-2">';
+            if (typeof item === 'object' && item !== null) {
+                html += '<span style="cursor: pointer; color: #6c757d;" class="add-field-link" data-path="' + escapeHtml(itemPath) + '" title="Click to add to mapping">[' + index + ']</span>: ' + jsonToClickableTree(item, itemPath, depth + 1);
+            } else {
+                html += '<span style="cursor: pointer; color: #6c757d;" class="add-field-link" data-path="' + escapeHtml(itemPath) + '" title="Click to add to mapping">[' + index + ']</span>: ' + formatValue(item);
+            }
+            html += '</div>';
+        });
+        html += '<span class="text-secondary">]</span>';
+        html += '</div>';
+    } else if (typeof obj === 'object') {
+        html += '<div class="' + indentClass + '">';
+        html += '<span class="text-secondary">{</span>';
+        Object.keys(obj).forEach((key) => {
+            const value = obj[key];
+            const keyPath = path + '.' + key;
+            html += '<div class="ms-2">';
+            html += '<span style="cursor: pointer; color: #d63384;" class="add-field-link" data-path="' + escapeHtml(keyPath) + '" title="Click to add to mapping"><strong>' + escapeHtml(key) + '</strong></span>: ';
+            
+            if (typeof value === 'object' && value !== null) {
+                html += jsonToClickableTree(value, keyPath, depth + 1);
+            } else {
+                html += formatValue(value);
+            }
+            html += '</div>';
+        });
+        html += '<span class="text-secondary">}</span>';
+        html += '</div>';
+    } else {
+        html = formatValue(obj);
+    }
+    
+    return html;
+}
+
+function formatValue(value) {
+    if (value === null) {
+        return '<span class="text-muted">null</span>';
+    } else if (typeof value === 'boolean') {
+        return '<span class="text-primary">' + value + '</span>';
+    } else if (typeof value === 'number') {
+        return '<span class="text-info">' + value + '</span>';
+    } else if (typeof value === 'string') {
+        return '<span class="text-success">"' + escapeHtml(value) + '"</span>';
+    } else {
+        return escapeHtml(String(value));
+    }
+}
+
+function addFieldFromTestResult(fieldPath) {
+    // Extract field name from path (last part after . or [])
+    let fieldName = fieldPath.split('.').pop();
+    fieldName = fieldName.replace(/\[.*?\]/g, '');
+    
+    // Prompt user for field name
+    const inputName = prompt('Enter a name for this field:', fieldName);
+    if (!inputName) return;
+    
+    // Add field to visual editor
+    const $template = $('#mappingFieldTemplate').clone();
+    $template.removeAttr('id');
+    $template.find('.mapping-field-key').val(inputName);
+    $template.find('.mapping-field-path').val(fieldPath);
+    $template.show();
+    $('#mappingFields').append($template);
+    $template.find('.btn-remove-field').click(removeMappingField);
+    
+    // Show success message
+    showAlert('Field "' + inputName + '" added to mapping with path: ' + fieldPath, 'info');
+}
 
 function escapeHtml(text) {
     const div = document.createElement('div');

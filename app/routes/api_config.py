@@ -26,11 +26,28 @@ def list_api_configs():
     configs = []
     for hit in result['hits']['hits']:
         config = hit['_source']
-        config['id'] = hit['_id']
-        # Don't expose auth token
-        if 'auth_token' in config:
-            config['auth_token'] = '***' if config['auth_token'] else None
-        configs.append(config)
+        config_id = hit['_id']
+        
+        # Map field names for backward compatibility with frontend
+        mapped_config = {
+            'id': config_id,
+            'name': config.get('name', ''),
+            'description': config.get('description', ''),
+            'url': config.get('url', ''),
+            'url_template': config.get('url', ''),  # Alias for UI
+            'method': config.get('method', 'GET'),
+            'headers': config.get('headers', {}),
+            'template': config.get('template', {}),
+            'response_template': config.get('template', {}),  # Alias for UI
+            'enabled': config.get('enabled', True),
+            'is_enabled': config.get('enabled', True),  # Alias for UI
+            'ioc_types': config.get('ioc_types', []),
+            'timeout': config.get('timeout', 30),
+            'created_at': config.get('created_at'),
+            'updated_at': config.get('updated_at'),
+            'auth_token': '***' if config.get('auth_token') else None
+        }
+        configs.append(mapped_config)
     
     return jsonify({'configs': configs})
 
@@ -44,7 +61,6 @@ def create_api_config():
     Expected JSON body:
     {
         "name": "VirusTotal",
-        "description": "VirusTotal API",
         "url": "https://www.virustotal.com/api/v3/files/{value}",
         "method": "GET",
         "headers": {"x-apikey": "your-api-key"},
@@ -64,10 +80,14 @@ def create_api_config():
     if not data:
         return jsonify({'error': 'JSON body required'}), 400
     
-    required_fields = ['name', 'url']
-    for field in required_fields:
-        if not data.get(field):
-            return jsonify({'error': f'{field} is required'}), 400
+    # Support both 'url' and 'url_template' field names
+    api_url = data.get('url') or data.get('url_template')
+    
+    required_fields = ['name', api_url]
+    if not data.get('name'):
+        return jsonify({'error': 'name is required'}), 400
+    if not api_url:
+        return jsonify({'error': 'url or url_template is required'}), 400
     
     es = ElasticsearchService()
     config_id = secrets.token_hex(16)
@@ -77,13 +97,15 @@ def create_api_config():
         'user_id': g.current_user.id,
         'name': data['name'],
         'description': data.get('description', ''),
-        'url': data['url'],
+        'url': api_url,
         'method': data.get('method', 'GET').upper(),
         'headers': data.get('headers', {}),
         'auth_type': data.get('auth_type', 'none'),
         'auth_token': data.get('auth_token'),
-        'template': data.get('template', {}),
-        'enabled': data.get('enabled', True),
+        'template': data.get('template', {}) or data.get('response_template', {}),
+        'enabled': data.get('enabled', True) or data.get('is_enabled', True),
+        'ioc_types': data.get('ioc_types', []),
+        'timeout': data.get('timeout', 30),
         'created_at': datetime.utcnow().isoformat(),
         'updated_at': datetime.utcnow().isoformat()
     }
@@ -121,7 +143,27 @@ def get_api_config(config_id):
     if config.get('auth_token'):
         config['auth_token'] = '***'
     
-    return jsonify(config)
+    # Map field names for backward compatibility with frontend
+    response = {
+        'id': config_id,
+        'name': config.get('name', ''),
+        'description': config.get('description', ''),
+        'url': config.get('url', ''),
+        'url_template': config.get('url', ''),  # Alias for UI
+        'method': config.get('method', 'GET'),
+        'headers': config.get('headers', {}),
+        'template': config.get('template', {}),
+        'response_template': config.get('template', {}),  # Alias for UI
+        'enabled': config.get('enabled', True),
+        'is_enabled': config.get('enabled', True),  # Alias for UI
+        'ioc_types': config.get('ioc_types', []),
+        'timeout': config.get('timeout', 30),
+        'created_at': config.get('created_at'),
+        'updated_at': config.get('updated_at'),
+        'auth_token': config.get('auth_token', '***')
+    }
+    
+    return jsonify(response)
 
 
 @api_config_bp.route('/<config_id>', methods=['PUT'])
@@ -146,13 +188,25 @@ def update_api_config(config_id):
         return jsonify({'error': 'Not authorized'}), 403
     
     # Update allowed fields
-    allowed_fields = ['name', 'description', 'url', 'method', 'headers', 
-                      'auth_type', 'auth_token', 'template', 'enabled']
+    # Support both 'url' and 'url_template' field names, and 'template'/'response_template'
+    allowed_fields = ['name', 'description', 'url', 'url_template', 'method', 'headers', 
+                      'auth_type', 'auth_token', 'template', 'response_template', 'enabled', 'is_enabled',
+                      'ioc_types', 'timeout']
     
     update_doc = {'updated_at': datetime.utcnow().isoformat()}
     for field in allowed_fields:
         if field in data:
-            update_doc[field] = data[field]
+            # Map url_template to url
+            if field == 'url_template':
+                update_doc['url'] = data[field]
+            # Map response_template to template
+            elif field == 'response_template':
+                update_doc['template'] = data[field]
+            # Map is_enabled to enabled
+            elif field == 'is_enabled':
+                update_doc['enabled'] = data[field]
+            else:
+                update_doc[field] = data[field]
     
     es.update('api_configs', config_id, {'doc': update_doc})
     
@@ -217,7 +271,8 @@ def test_api_config_template():
         return jsonify({
             'success': True,
             'raw_response': api_result.get('raw_response'),
-            'transformed': api_result.get('transformed')
+            'transformed': api_result.get('transformed'),
+            'stix_indicator': api_result.get('stix_indicator')
         })
     
     except Exception as e:
@@ -280,12 +335,13 @@ def test_api_config(config_id):
 @login_or_api_key_required
 def enrich_ioc():
     """
-    Enrich an IOC value using all enabled external APIs.
+    Enrich an IOC value using external APIs.
     
     Expected JSON body:
     {
         "value": "8.8.8.8",
-        "type": "ipv4" (optional)
+        "type": "ipv4" (optional),
+        "api_ids": ["api_id_1", "api_id_2"] (optional - specific APIs to use)
     }
     """
     data = request.get_json()
@@ -296,11 +352,24 @@ def enrich_ioc():
     enrichment = EnrichmentService()
     
     try:
-        results = enrichment.enrich_value(
-            value=data['value'],
-            ioc_type=data.get('type'),
-            user_id=g.current_user.id
-        )
+        # If specific APIs requested, use them; otherwise use all enabled
+        api_ids = data.get('api_ids', [])
+        
+        if api_ids:
+            # Enrich with specific APIs
+            results = enrichment.enrich_value_with_apis(
+                value=data['value'],
+                ioc_type=data.get('type'),
+                user_id=g.current_user.id,
+                api_ids=api_ids
+            )
+        else:
+            # Enrich with all enabled APIs
+            results = enrichment.enrich_value(
+                value=data['value'],
+                ioc_type=data.get('type'),
+                user_id=g.current_user.id
+            )
         
         return jsonify({
             'value': data['value'],
@@ -309,4 +378,6 @@ def enrich_ioc():
         })
     
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400

@@ -107,6 +107,33 @@ class APITemplate:
             labels = [labels]
         labels = [str(l).lower() for l in labels if l]
         
+        # If template is empty or no values extracted, try to auto-detect common fields
+        if not self.template or (not ioc_type and not name and not description):
+            # Auto-detect common response fields
+            if isinstance(response_data, dict):
+                # Common field names across APIs
+                common_fields = {
+                    'country': ['country', 'country_name', 'geo.country_name'],
+                    'reputation': ['reputation', 'threat_score', 'risk_score', 'score'],
+                    'abuse_count': ['abuse_count', 'abuse_reports'],
+                    'usage': ['usage', 'usage_type', 'usage_type_name'],
+                    'isp': ['isp', 'isp_name', 'organization'],
+                    'threat_level': ['threat_level', 'threat_types', 'threat'],
+                    'last_seen': ['last_seen', 'last_analysis_date', 'last_modified'],
+                    'first_seen': ['first_seen', 'first_submission_date'],
+                    'malicious': ['malicious', 'malicious_count', 'undetected_count'],
+                }
+                
+                # Search for these common fields in response
+                for api_field, possible_names in common_fields.items():
+                    for name_option in possible_names:
+                        if name_option in response_data:
+                            extra_fields[api_field] = response_data[name_option]
+                            break
+                
+                # Store the entire response for inspection
+                extra_fields['__api_response__'] = response_data
+        
         result['transformed'] = {
             'ioc_type': ioc_type,
             'value': value,
