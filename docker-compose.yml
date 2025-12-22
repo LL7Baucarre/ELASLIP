@@ -68,7 +68,7 @@ services:
       - xpack.security.enabled=true
       - xpack.security.enrollment.enabled=true
       - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms${ELASTICSEARCH_MEMORY_XMS:-256m} -Xmx${ELASTICSEARCH_MEMORY_XMX:-256m}"
     ports:
       - "9200:9200"
     volumes:
