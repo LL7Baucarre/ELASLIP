@@ -171,12 +171,25 @@ class STIXIndicator:
             raise ValueError(f"Failed to parse STIX data: {str(e)}")
     
     def add_source(self, source: Dict):
-        """Add a new source to this indicator."""
-        self.sources.append({
+        """Add a new source to this indicator (with deduplication)."""
+        if source is None:
+            source = {'name': 'unknown'}
+        
+        new_source = {
             'name': source.get('name', 'unknown'),
             'timestamp': source.get('timestamp', datetime.utcnow().isoformat()),
             'metadata': source.get('metadata', {})
-        })
+        }
+        
+        # Check if this source already exists (avoid duplicates)
+        source_exists = any(
+            s.get('name') == new_source['name'] and 
+            s.get('metadata') == new_source['metadata']
+            for s in self.sources
+        )
+        
+        if not source_exists:
+            self.sources.append(new_source)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for storage."""

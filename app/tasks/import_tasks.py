@@ -63,7 +63,6 @@ def process_import(self, job_id: str, file_content: str, file_type: str, user_id
                     result['added'] += 1
                 else:
                     result['duplicates'] += 1
-                    result['updated'] += 1
                 
             except Exception as e:
                 result['errors'] += 1

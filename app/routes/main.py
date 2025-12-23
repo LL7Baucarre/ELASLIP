@@ -218,6 +218,7 @@ def get_ioc_graph_data(ioc_id):
     
     nodes = []
     edges = []
+    edge_set = set()  # Track edges to avoid duplicates
     
     try:
         # Get the main IOC
@@ -256,26 +257,32 @@ def get_ioc_graph_data(ioc_id):
             # Check if this IOC is involved in the relation
             if source_id == ioc_id and target_id:
                 related_ioc_ids.add(target_id)
-                edges.append({
-                    'data': {
-                        'id': f"{source_id}-{target_id}",
-                        'source': source_id,
-                        'target': target_id,
-                        'label': relation_type
-                    },
-                    'classes': f"relation-{relation_type.replace('-', '_')}"
-                })
+                edge_id = f"{source_id}-{target_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': source_id,
+                            'target': target_id,
+                            'label': relation_type
+                        },
+                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                    })
             elif target_id == ioc_id and source_id:
                 related_ioc_ids.add(source_id)
-                edges.append({
-                    'data': {
-                        'id': f"{source_id}-{target_id}",
-                        'source': source_id,
-                        'target': target_id,
-                        'label': relation_type
-                    },
-                    'classes': f"relation-{relation_type.replace('-', '_')}"
-                })
+                edge_id = f"{source_id}-{target_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': source_id,
+                            'target': target_id,
+                            'label': relation_type
+                        },
+                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                    })
         
         # Load related IOCs
         for related_id in related_ioc_ids:

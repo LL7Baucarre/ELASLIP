@@ -180,6 +180,41 @@ def create_ioc_relation(ioc_id):
         if not target_ioc:
             continue  # Skip non-existent IOCs
         
+        # Check if relation already exists (avoid duplicates)
+        existing = es.search('ioc_relations', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'relation_type': relation_type}},
+                        {'bool': {
+                            'should': [
+                                {
+                                    'bool': {
+                                        'must': [
+                                            {'term': {'source_id': ioc_id}},
+                                            {'term': {'target_id': target_id}}
+                                        ]
+                                    }
+                                },
+                                {
+                                    'bool': {
+                                        'must': [
+                                            {'term': {'source_id': target_id}},
+                                            {'term': {'target_id': ioc_id}}
+                                        ]
+                                    }
+                                }
+                            ]
+                        }}
+                    ]
+                }
+            },
+            'size': 1
+        })
+        
+        if existing['hits']['total']['value'] > 0:
+            continue  # Relation already exists
+        
         # Create relation (bidirectional)
         relation_id = str(uuid.uuid4())
         relation = {

@@ -523,14 +523,22 @@ class IOCService:
         }
         
         sources = existing.get('sources', [])
-        sources.append(new_source)
         
-        self.es.update(self.index, existing['id'], {
-            'doc': {
-                'sources': sources,
-                'modified': datetime.utcnow().isoformat()
-            }
-        })
+        # Check if this source already exists (avoid duplicates)
+        source_exists = any(
+            s.get('name') == new_source['name'] and 
+            s.get('metadata') == new_source['metadata']
+            for s in sources
+        )
+        
+        if not source_exists:
+            sources.append(new_source)
+            self.es.update(self.index, existing['id'], {
+                'doc': {
+                    'sources': sources,
+                    'modified': datetime.utcnow().isoformat()
+                }
+            })
         
         updated = self.get(existing['id'])
         self._trigger_webhook('ioc.updated', updated)
