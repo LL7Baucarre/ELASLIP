@@ -191,7 +191,6 @@ def list_iocs():
         name: type
         schema:
           type: string
-          enum: [md5, sha1, sha256, ipv4, domain, email, url, asn]
         description: Filter by IOC type
       - in: query
         name: labels
@@ -199,10 +198,28 @@ def list_iocs():
           type: string
         description: Comma-separated labels to filter
       - in: query
-        name: source
+        name: tlp
         schema:
           type: string
-        description: Filter by source name
+          enum: [white, green, amber, red]
+        description: Filter by TLP level
+      - in: query
+        name: threat_level
+        schema:
+          type: string
+          enum: [unknown, low, medium, high, critical]
+        description: Filter by threat level
+      - in: query
+        name: confidence
+        schema:
+          type: string
+          enum: [low, medium, high, very-high]
+        description: Filter by confidence level
+      - in: query
+        name: campaigns
+        schema:
+          type: string
+        description: Filter by campaigns
     responses:
       200:
         description: List of IOCs
@@ -224,7 +241,10 @@ def list_iocs():
     per_page = min(request.args.get('per_page', 20, type=int), 100)
     ioc_type = request.args.get('type')
     labels = request.args.get('labels')
-    source = request.args.get('source')
+    tlp = request.args.get('tlp')
+    threat_level = request.args.get('threat_level')
+    confidence = request.args.get('confidence')
+    campaigns = request.args.get('campaigns')
     
     if labels:
         labels = [l.strip() for l in labels.split(',')]
@@ -235,7 +255,10 @@ def list_iocs():
         per_page=per_page,
         ioc_type=ioc_type,
         labels=labels,
-        source=source
+        tlp=tlp,
+        threat_level=threat_level,
+        confidence=confidence,
+        campaigns=campaigns
     )
     
     return jsonify(result)

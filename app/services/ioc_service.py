@@ -211,6 +211,10 @@ class IOCService:
              per_page: int = 20,
              ioc_type: str = None,
              labels: List[str] = None,
+             tlp: str = None,
+             threat_level: str = None,
+             confidence: str = None,
+             campaigns: str = None,
              source: str = None) -> Dict:
         """
         List IOCs with pagination and filters.
@@ -220,6 +224,10 @@ class IOCService:
             per_page: Items per page
             ioc_type: Filter by IOC type
             labels: Filter by labels
+            tlp: Filter by TLP level
+            threat_level: Filter by threat level
+            confidence: Filter by confidence level
+            campaigns: Filter by campaigns
             source: Filter by source name
         
         Returns:
@@ -233,6 +241,18 @@ class IOCService:
         if labels:
             for label in labels:
                 query["bool"]["must"].append({"term": {"labels": label}})
+        
+        if tlp:
+            query["bool"]["must"].append({"term": {"tlp": tlp}})
+        
+        if threat_level:
+            query["bool"]["must"].append({"term": {"threat_level": threat_level}})
+        
+        if confidence:
+            query["bool"]["must"].append({"term": {"confidence": confidence}})
+        
+        if campaigns:
+            query["bool"]["must"].append({"term": {"campaigns": campaigns}})
         
         if source:
             query["bool"]["must"].append({
