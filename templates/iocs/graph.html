@@ -56,8 +56,64 @@
         border-bottom-color: #3498db;
     }
 
-    .control-group {
+    .graph-controls.collapsed {
+        min-width: auto;
+        width: auto;
+        padding: 10px;
+    }
+
+    .graph-controls.collapsed > *:not(h5):not(#toggleControlsIcon) {
+        display: none;
+    }
+
+    #searchResultsDropdown {
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="dark"] #searchResultsDropdown {
+        background: #2d333b;
+        border-color: #3d4449;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-result-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    [data-theme="dark"] .search-result-item {
+        border-bottom-color: #3d4449;
+    }
+
+    .search-result-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    [data-theme="dark"] .search-result-item:hover {
+        background-color: #3d4449;
+    }
+
+    .search-result-item small {
+        display: block;
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+
+    .search-controls h5 {
         margin-bottom: 15px;
+    }
+
+    .control-group {
+        position: relative;
     }
 
     .control-group label {
@@ -368,15 +424,26 @@
 
 {% block content %}
 <div class="graph-container">
-    <div id="cy"></div>
+    <div id="cy">
+        <div id="emptyGraphMessage" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666; font-size: 16px; z-index: 10; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <p><i class="bi bi-search" style="font-size: 32px; display: block; margin-bottom: 10px;"></i></p>
+            <p>Please perform a search to display IOCs on the graph</p>
+        </div>
+    </div>
 
     <!-- Controls Panel -->
-<div class="graph-controls">
-    <h5>Graph Controls</h5>
+<div class="graph-controls" id="graphControls">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h5 style="margin: 0;">Graph Controls</h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick="toggleControlsPanel()" title="Hide/Show controls">
+            <i class="bi bi-chevron-left" id="toggleControlsIcon"></i>
+        </button>
+    </div>
     
     <div class="control-group">
-        <label for="limitInput">IOCs to Load:</label>
-        <input type="number" id="limitInput" value="100" min="10" max="500" step="10">
+        <label for="searchIOC">Search IOC:</label>
+        <input type="text" id="searchIOC" placeholder="Enter IOC value..." onkeyup="debouncedSearch()" autocomplete="off">
+        <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
     </div>
 
     <button class="btn-control btn-primary" onclick="loadGraph()">
@@ -386,6 +453,15 @@
     <button class="btn-control btn-outline-secondary" onclick="fitGraph()">
         <i class="bi bi-fullscreen me-1"></i> Fit to Screen
     </button>
+
+    <div class="control-group">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="onlyWithRelations" onchange="toggleOnlyWithRelations()">
+            <label class="form-check-label" for="onlyWithRelations">
+                Only IOCs with Relations
+            </label>
+        </div>
+    </div>
 
     <div class="control-group">
         <label for="layoutSelect">Layout:</label>
@@ -479,6 +555,8 @@ let currentLayout = 'cose';
 let showEdgeLabels = true;
 let allNodes = [];
 let allEdges = [];
+let filteredByRelations = false;
+let searchTimeout = null;
 
 function initGraph(nodes, edges) {
     if (cy) {
@@ -630,17 +708,18 @@ function initGraph(nodes, edges) {
 }
 
 function loadGraph() {
-    const limit = document.getElementById('limitInput').value;
-    
     $.ajax({
         url: '/api/iocs/graph-data',
         method: 'GET',
-        data: { limit: limit },
         success: function(response) {
             const nodes = response.nodes;
             const edges = response.edges;
             
             console.log(`Loaded ${nodes.length} nodes and ${edges.length} edges`);
+            
+            // Store all data for filtering
+            allNodes = nodes;
+            allEdges = edges;
             
             // Add color based on type
             nodes.forEach(node => {
@@ -654,6 +733,18 @@ function loadGraph() {
             });
 
             initGraph(nodes, edges);
+            
+            // Hide all nodes and edges initially (until user performs a search)
+            cy.nodes().hide();
+            cy.edges().hide();
+            
+            // Show the empty graph message
+            document.getElementById('emptyGraphMessage').style.display = 'block';
+            
+            // Apply filters if any are active
+            if (document.getElementById('onlyWithRelations').checked) {
+                applyRelationFilter();
+            }
             
             // Show stats in console
             const totalIOCs = nodes.length;
@@ -877,9 +968,234 @@ function getColorForRelation(type) {
     return colors[type] || '#95a5a6';
 }
 
+function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchIOC, 300);
+}
+
+function searchIOC() {
+    if (!cy) return;
+    
+    const searchTerm = document.getElementById('searchIOC').value.trim().toLowerCase();
+    const dropdown = document.getElementById('searchResultsDropdown');
+    
+    if (!searchTerm) {
+        dropdown.style.display = 'none';
+        applyRelationFilter();
+        return;
+    }
+    
+    // Use API search if term is at least 2 characters
+    if (searchTerm.length >= 2) {
+        $.ajax({
+            url: '/api/search',
+            method: 'GET',
+            data: {
+                q: searchTerm,
+                per_page: 10
+            },
+            success: function(response) {
+                const iocs = response.items || response.results || response.iocs || [];
+                
+                if (iocs.length === 0) {
+                    dropdown.innerHTML = '<div class="search-result-item text-muted text-center">No results found</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                // Build dropdown HTML with "Show All" option at the top
+                let html = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+                
+                for (const ioc of iocs) {
+                    const iocValue = ioc.value || ioc.ioc_value || '';
+                    const iocType = ioc.type || ioc.ioc_type || 'unknown';
+                    const iocId = ioc.id;
+                    
+                    html += `
+                        <div class="search-result-item" onclick="selectFromSearch('${iocId}', '${iocValue}', event)">
+                            <strong>${iocValue}</strong>
+                            <small class="text-muted">${iocType.toUpperCase()}</small>
+                        </div>
+                    `;
+                }
+                
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+                
+                // Highlight and filter the graph for the first result
+                const matchingIds = iocs.map(ioc => ioc.id);
+                filterGraphByIds(matchingIds);
+            },
+            error: function() {
+                dropdown.style.display = 'none';
+                localSearchIOC(searchTerm);
+            }
+        });
+    } else {
+        dropdown.style.display = 'none';
+        localSearchIOC(searchTerm);
+    }
+}
+
+function selectFromSearch(iocId, iocValue, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Set the input value
+    document.getElementById('searchIOC').value = iocValue;
+    
+    // Hide dropdown
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    // Filter graph to show this IOC and its neighbors
+    filterGraphByIds([iocId]);
+}
+
+function showAllIOCs(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Clear search input
+    document.getElementById('searchIOC').value = '';
+    
+    // Hide dropdown
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    if (!cy) return;
+    
+    // Show all nodes and edges
+    cy.nodes().show();
+    cy.edges().show();
+    
+    // Hide empty graph message
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+    
+    // Apply relation filter if enabled
+    if (document.getElementById('onlyWithRelations').checked) {
+        applyRelationFilter();
+    }
+    
+    // Fit to screen
+    cy.fit(null, 50);
+    
+    console.log('Showing all IOCs in graph');
+}
+
+function filterGraphByIds(iocIds) {
+    if (!cy) return;
+    
+    // Hide all nodes first
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    const matchingIds = new Set(iocIds);
+    
+    // Show matching nodes
+    const matchingNodes = cy.nodes().filter(n => matchingIds.has(n.id()));
+    matchingNodes.show();
+    
+    // Show all their connected edges and neighbors
+    matchingNodes.connectedEdges().show();
+    matchingNodes.neighborhood().show();
+    
+    // Hide empty graph message since we have results
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+    
+    console.log(`Filtered to ${matchingIds.size} IOCs`);
+}
+
+function localSearchIOC(searchTerm) {
+    if (!cy) return;
+    
+    // Hide all nodes first
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    // Find matching nodes locally
+    const matchingNodes = cy.nodes().filter(n => {
+        const value = (n.data('value') || '').toLowerCase();
+        const name = (n.data('name') || '').toLowerCase();
+        return value.includes(searchTerm) || name.includes(searchTerm);
+    });
+    
+    if (matchingNodes.length === 0) {
+        return;
+    }
+    
+    // Show matching nodes and their connected edges
+    matchingNodes.show();
+    matchingNodes.connectedEdges().show();
+    
+    // Show nodes connected to matching nodes
+    matchingNodes.neighborhood().show();
+}
+
+function toggleOnlyWithRelations() {
+    applyRelationFilter();
+}
+
+function applyRelationFilter() {
+    if (!cy) return;
+    
+    filteredByRelations = document.getElementById('onlyWithRelations').checked;
+    
+    const searchTerm = document.getElementById('searchIOC').value.toLowerCase();
+    
+    if (!filteredByRelations && !searchTerm) {
+        // Show all
+        cy.nodes().show();
+        cy.edges().show();
+        return;
+    }
+    
+    if (filteredByRelations) {
+        // Show only nodes with at least one edge
+        const nodesWithEdges = cy.edges().sources().union(cy.edges().targets());
+        const nodesWithoutEdges = cy.nodes().difference(nodesWithEdges);
+        
+        nodesWithoutEdges.hide();
+        cy.edges().show();
+        nodesWithEdges.show();
+    } else {
+        // Reset filtering
+        cy.nodes().show();
+        cy.edges().show();
+    }
+    
+    // Apply search filter if any
+    if (searchTerm) {
+        searchIOC();
+    }
+}
+
+function toggleControlsPanel() {
+    const controls = document.getElementById('graphControls');
+    const icon = document.getElementById('toggleControlsIcon');
+    
+    controls.classList.toggle('collapsed');
+    
+    if (controls.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+    } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+    }
+}
+
 // Load graph on page load
 $(document).ready(function() {
     loadGraph();
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('searchResultsDropdown');
+        const searchInput = document.getElementById('searchIOC');
+        
+        if (event.target !== searchInput && !dropdown.contains(event.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
 });
 </script>
 {% endblock %}
