@@ -403,6 +403,137 @@ def settings_webhooks():
     """Webhooks settings page."""
     return render_template('settings/webhooks.html')
 
+
+@main_bp.route('/settings/scheduled-tasks')
+@login_required
+@admin_required
+def settings_scheduled_tasks():
+    """Scheduled tasks settings page (admin only)."""
+    return render_template('settings/scheduled_tasks.html')
+
+
+@main_bp.route('/api/scheduled-tasks/run', methods=['POST'])
+@login_required
+@admin_required
+def run_scheduled_task():
+    """Run a scheduled task manually."""
+    from app.tasks.expiration_tasks import (
+        check_expired_iocs, check_expiring_soon, 
+        cleanup_old_versions, update_risk_scores, cleanup_old_audit_logs
+    )
+    from app.services.elasticsearch_service import ElasticsearchService
+    from datetime import datetime
+    
+    data = request.get_json()
+    task_name = data.get('task')
+    params = data.get('params', {})
+    
+    task_map = {
+        'check_expired_iocs': check_expired_iocs,
+        'check_expiring_soon': check_expiring_soon,
+        'cleanup_old_versions': cleanup_old_versions,
+        'update_risk_scores': update_risk_scores,
+        'cleanup_old_audit_logs': cleanup_old_audit_logs
+    }
+    
+    if task_name not in task_map:
+        return jsonify({'error': f'Unknown task: {task_name}'}), 400
+    
+    # Log task execution start
+    es = ElasticsearchService()
+    execution_id = f"{task_name}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    
+    try:
+        es.index('task_executions', execution_id, {
+            'task_name': task_name,
+            'status': 'running',
+            'started_at': datetime.utcnow().isoformat() + 'Z',
+            'started_by': current_user.username,
+            'params': params
+        })
+    except Exception:
+        pass
+    
+    # Run task asynchronously
+    try:
+        if params:
+            task_map[task_name].delay(**params)
+        else:
+            task_map[task_name].delay()
+        
+        return jsonify({
+            'message': f'Task {task_name} started',
+            'execution_id': execution_id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@main_bp.route('/api/scheduled-tasks/history', methods=['GET'])
+@login_required
+@admin_required
+def get_task_history():
+    """Get recent task execution history."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es = ElasticsearchService()
+    
+    try:
+        result = es.search('task_executions', {
+            'query': {'match_all': {}},
+            'sort': [{'started_at': {'order': 'desc'}}],
+            'size': 50
+        })
+        
+        executions = []
+        for hit in result.get('hits', {}).get('hits', []):
+            exec_data = hit['_source']
+            exec_data['id'] = hit['_id']
+            executions.append(exec_data)
+        
+        return jsonify({'executions': executions})
+    except Exception:
+        return jsonify({'executions': []})
+
+
+@main_bp.route('/api/scheduled-tasks/config', methods=['GET', 'PUT'])
+@login_required
+@admin_required
+def task_config():
+    """Get or update task configuration."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es = ElasticsearchService()
+    config_id = 'scheduled_tasks_config'
+    
+    if request.method == 'GET':
+        try:
+            result = es.get('app_config', config_id)
+            return jsonify({'config': result})
+        except Exception:
+            return jsonify({'config': {
+                'expiring_days': 7,
+                'keep_versions': 50,
+                'audit_retention': 90
+            }})
+    
+    # PUT - update config
+    data = request.get_json()
+    config = {
+        'expiring_days': data.get('expiring_days', 7),
+        'keep_versions': data.get('keep_versions', 50),
+        'audit_retention': data.get('audit_retention', 90),
+        'updated_at': request.json.get('updated_at', None) or __import__('datetime').datetime.utcnow().isoformat() + 'Z',
+        'updated_by': current_user.username
+    }
+    
+    try:
+        es.index('app_config', config_id, config)
+        return jsonify({'message': 'Configuration saved', 'config': config})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @main_bp.route('/api-docs')
 @login_required
 def api_docs():
@@ -433,7 +564,15 @@ def create_user():
     username = data.get('username', '').strip()
     email = data.get('email', '').strip()
     password = data.get('password', '').strip()
-    is_admin = data.get('is_admin', False)
+    role = data.get('role', 'viewer').strip()
+    
+    # Validate role
+    valid_roles = ['viewer', 'analyst', 'admin']
+    if role not in valid_roles:
+        if request.is_json:
+            return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
+        flash(f'Invalid role. Must be one of: {", ".join(valid_roles)}', 'error')
+        return redirect(url_for('main.users_management'))
     
     if not all([username, email, password]):
         if request.is_json:
@@ -447,11 +586,9 @@ def create_user():
         flash('Password must be at least 8 characters', 'error')
         return redirect(url_for('main.users_management'))
     
-    # Convert to boolean if it's a string
-    if isinstance(is_admin, str):
-        is_admin = is_admin.lower() in ['true', '1', 'yes', 'on']
-    
-    user, error = User.create(username, email, password, is_admin=is_admin)
+    # Create user with role
+    is_admin = role == 'admin'
+    user, error = User.create(username, email, password, is_admin=is_admin, role=role)
     
     if error:
         if request.is_json:
@@ -488,22 +625,30 @@ def edit_user(user_id):
     except:
         data = request.form.to_dict()
     
-    # Prevent editing own admin status
-    if user_id == current_user.id and 'is_admin' in data:
-        if data.get('is_admin') == False:
+    # Prevent editing own role status
+    if user_id == current_user.id and 'role' in data:
+        if data.get('role') != 'admin':
             if request.is_json:
-                return jsonify({'error': 'Cannot remove your own admin status'}), 400
-            flash('Cannot remove your own admin status', 'error')
+                return jsonify({'error': 'Cannot remove your own admin role'}), 400
+            flash('Cannot remove your own admin role', 'error')
             return redirect(url_for('main.users_management'))
     
     update_data = {}
     if 'email' in data:
         update_data['email'] = data.get('email', '').strip()
-    if 'is_admin' in data:
-        is_admin = data.get('is_admin')
-        if isinstance(is_admin, str):
-            is_admin = is_admin.lower() in ['true', '1', 'yes', 'on']
-        update_data['is_admin'] = is_admin
+    
+    # Handle role update
+    if 'role' in data:
+        role = data.get('role', '').strip()
+        valid_roles = ['viewer', 'analyst', 'admin']
+        if role not in valid_roles:
+            if request.is_json:
+                return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
+            flash(f'Invalid role. Must be one of: {", ".join(valid_roles)}', 'error')
+            return redirect(url_for('main.users_management'))
+        update_data['role'] = role
+        update_data['is_admin'] = (role == 'admin')
+    
     if 'password' in data:
         password = data.get('password', '').strip()
         if password:
@@ -549,3 +694,72 @@ def delete_user(user_id):
     
     flash(f'User {username} deleted successfully', 'success')
     return redirect(url_for('main.users_management'))
+
+
+# =====================================
+# CASES, INCIDENTS & SNIPPETS ROUTES
+# =====================================
+
+@main_bp.route('/cases')
+@login_required
+def cases_list():
+    """Cases listing page."""
+    return render_template('cases/list.html')
+
+
+@main_bp.route('/cases/new')
+@login_required
+def cases_new():
+    """Create new case page."""
+    return render_template('cases/new.html')
+
+
+@main_bp.route('/cases/<case_id>')
+@login_required
+def cases_detail(case_id):
+    """Case detail page."""
+    from app.services.case_service import CaseService
+    service = CaseService()
+    case = service.get_case(case_id)
+    
+    if not case:
+        flash('Case not found', 'error')
+        return redirect(url_for('main.cases_list'))
+    
+    return render_template('cases/detail.html', case=case)
+
+
+@main_bp.route('/incidents')
+@login_required
+def incidents_list():
+    """Incidents listing page."""
+    return render_template('incidents/list.html')
+
+
+@main_bp.route('/incidents/new')
+@login_required
+def incidents_new():
+    """Create new incident page."""
+    return render_template('incidents/new.html')
+
+
+@main_bp.route('/incidents/<incident_id>')
+@login_required
+def incidents_detail(incident_id):
+    """Incident detail page with report editor."""
+    from app.services.case_service import IncidentService
+    service = IncidentService()
+    incident = service.get_incident(incident_id)
+    
+    if not incident:
+        flash('Incident not found', 'error')
+        return redirect(url_for('main.incidents_list'))
+    
+    return render_template('incidents/detail.html', incident=incident)
+
+
+@main_bp.route('/snippets')
+@login_required
+def snippets_library():
+    """Markdown snippets library page."""
+    return render_template('snippets/library.html')

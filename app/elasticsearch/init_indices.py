@@ -44,8 +44,23 @@ def init_elasticsearch():
     # Create default admin user if it doesn't exist
     create_default_admin(es)
     
+    # Create default roles if they don't exist
+    create_default_roles(es)
+    
     print("Elasticsearch initialization complete")
     return True
+
+
+def create_default_roles(es):
+    """Create default roles if they don't exist."""
+    from app.services.rbac_service import RBACService
+    
+    try:
+        rbac = RBACService()
+        rbac.init_default_roles()
+        print("  Default roles initialized")
+    except Exception as e:
+        print(f"  Warning: Could not initialize default roles: {e}")
 
 
 def create_default_admin(es):
@@ -82,6 +97,7 @@ def create_default_admin(es):
             'email': f'{admin_username}@localhost',
             'password_hash': password_hash,
             'is_admin': True,
+            'role_id': 'admin',
             'created_at': datetime.utcnow().isoformat(),
             'last_login': None
         }

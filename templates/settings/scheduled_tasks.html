@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Scheduled Tasks - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Scheduled Tasks</h4>
+        <small class="text-muted">Configure and monitor background tasks</small>
+    </div>
+    <button class="btn btn-primary" onclick="runAllTasks()">
+        <i class="bi bi-play-fill me-1"></i> Run All Tasks
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('main.settings') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-person me-2"></i> Profile
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings') }}#site-config"
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-gear me-2"></i> Site Configuration
+            </a>
+            <a href="{{ url_for('main.users_management') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-people me-2"></i> User Management
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.settings_api_keys') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-key me-2"></i> API Keys
+            </a>
+            <a href="{{ url_for('main.settings_external_apis') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-cloud me-2"></i> External APIs
+            </a>
+            <a href="{{ url_for('main.settings_webhooks') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-broadcast me-2"></i> Webhooks
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings_scheduled_tasks') }}" 
+               class="list-group-item list-group-item-action active">
+                <i class="bi bi-clock-history me-2"></i> Scheduled Tasks
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <!-- Available Tasks -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-list-task me-2"></i>Available Tasks</h6>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Task</th>
+                            <th>Description</th>
+                            <th>Recommended Schedule</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <strong>check_expired_iocs</strong>
+                                <br><small class="text-muted">tasks.check_expired_iocs</small>
+                            </td>
+                            <td>Archive IOCs that have passed their valid_until date</td>
+                            <td><span class="badge bg-secondary">Daily at 00:00</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="runTask('check_expired_iocs')">
+                                    <i class="bi bi-play-fill"></i> Run
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>check_expiring_soon</strong>
+                                <br><small class="text-muted">tasks.check_expiring_soon</small>
+                            </td>
+                            <td>Notify about IOCs expiring within 7 days</td>
+                            <td><span class="badge bg-secondary">Daily at 08:00</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="runTask('check_expiring_soon', {days: 7})">
+                                    <i class="bi bi-play-fill"></i> Run
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>cleanup_old_versions</strong>
+                                <br><small class="text-muted">tasks.cleanup_old_versions</small>
+                            </td>
+                            <td>Clean up old IOC versions (keep last 50 per IOC)</td>
+                            <td><span class="badge bg-secondary">Weekly on Sunday</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="runTask('cleanup_old_versions', {keep_versions: 50})">
+                                    <i class="bi bi-play-fill"></i> Run
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>update_risk_scores</strong>
+                                <br><small class="text-muted">tasks.update_risk_scores</small>
+                            </td>
+                            <td>Recalculate risk scores for all IOCs</td>
+                            <td><span class="badge bg-secondary">Weekly on Sunday</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="runTask('update_risk_scores')">
+                                    <i class="bi bi-play-fill"></i> Run
+                                </button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                <strong>cleanup_old_audit_logs</strong>
+                                <br><small class="text-muted">tasks.cleanup_old_audit_logs</small>
+                            </td>
+                            <td>Remove audit logs older than 90 days</td>
+                            <td><span class="badge bg-secondary">Monthly on 1st</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="runTask('cleanup_old_audit_logs', {days: 90})">
+                                    <i class="bi bi-play-fill"></i> Run
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Task Configuration -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-sliders me-2"></i>Task Configuration</h6>
+            </div>
+            <div class="card-body">
+                <form id="taskConfigForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="expiringDays" class="form-label">Expiring Soon Threshold (days)</label>
+                                <input type="number" class="form-control" id="expiringDays" value="7" min="1" max="30">
+                                <div class="form-text">Number of days to consider IOC as "expiring soon"</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="keepVersions" class="form-label">Versions to Keep per IOC</label>
+                                <input type="number" class="form-control" id="keepVersions" value="50" min="5" max="1000">
+                                <div class="form-text">Maximum version history to retain</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="auditRetention" class="form-label">Audit Log Retention (days)</label>
+                                <input type="number" class="form-control" id="auditRetention" value="90" min="7" max="365">
+                                <div class="form-text">Days to keep audit logs before cleanup</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i> Save Configuration
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Task Executions -->
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-journal-text me-2"></i>Recent Task Executions</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadTaskHistory()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Task</th>
+                            <th>Status</th>
+                            <th>Started</th>
+                            <th>Duration</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+                    <tbody id="taskHistoryTable">
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <span class="spinner-border spinner-border-sm me-2"></span> Loading...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Celery Beat Configuration Info -->
+        <div class="card mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Celery Beat Configuration</h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-3">
+                    To enable automatic scheduling, configure Celery Beat with the following schedule in your deployment:
+                </p>
+                <pre class="bg-light p-3 rounded" style="font-size: 0.85rem;"><code># celeryconfig.py or in your app configuration
+
+from celery.schedules import crontab
+
+beat_schedule = {
+    'check-expired-iocs-daily': {
+        'task': 'tasks.check_expired_iocs',
+        'schedule': crontab(hour=0, minute=0),  # Every day at midnight
+    },
+    'check-expiring-soon-daily': {
+        'task': 'tasks.check_expiring_soon',
+        'schedule': crontab(hour=8, minute=0),  # Every day at 8 AM
+        'args': (7,),  # Days threshold
+    },
+    'cleanup-old-versions-weekly': {
+        'task': 'tasks.cleanup_old_versions',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday at 3 AM
+        'args': (50,),  # Keep last 50 versions
+    },
+    'update-risk-scores-weekly': {
+        'task': 'tasks.update_risk_scores',
+        'schedule': crontab(hour=4, minute=0, day_of_week=0),  # Sunday at 4 AM
+    },
+    'cleanup-audit-logs-monthly': {
+        'task': 'tasks.cleanup_old_audit_logs',
+        'schedule': crontab(hour=2, minute=0, day_of_month=1),  # 1st of month
+        'args': (90,),  # Keep 90 days
+    },
+}</code></pre>
+                <p class="text-muted mt-3 mb-0">
+                    <i class="bi bi-terminal me-1"></i> Run Celery Beat: 
+                    <code>celery -A app.celery_app beat --loglevel=info</code>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadTaskHistory();
+    loadTaskConfig();
+});
+
+function loadTaskHistory() {
+    $.ajax({
+        url: '/api/scheduled-tasks/history',
+        method: 'GET',
+        success: function(data) {
+            const tbody = $('#taskHistoryTable');
+            tbody.empty();
+            
+            if (!data.executions || data.executions.length === 0) {
+                tbody.html(`
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox me-2"></i> No task executions recorded
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+            
+            data.executions.forEach(exec => {
+                const statusClass = exec.status === 'success' ? 'success' : 
+                                   exec.status === 'failed' ? 'danger' : 
+                                   exec.status === 'running' ? 'warning' : 'secondary';
+                const statusIcon = exec.status === 'success' ? 'check-circle' :
+                                  exec.status === 'failed' ? 'x-circle' :
+                                  exec.status === 'running' ? 'arrow-repeat' : 'clock';
+                
+                tbody.append(`
+                    <tr>
+                        <td>
+                            <strong>${escapeHtml(exec.task_name)}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-${statusClass}">
+                                <i class="bi bi-${statusIcon} me-1"></i>${exec.status}
+                            </span>
+                        </td>
+                        <td><small>${exec.started_at ? new Date(exec.started_at).toLocaleString() : '-'}</small></td>
+                        <td><small>${exec.duration || '-'}</small></td>
+                        <td>
+                            ${exec.result ? `<code class="small">${escapeHtml(JSON.stringify(exec.result))}</code>` : '-'}
+                        </td>
+                    </tr>
+                `);
+            });
+        },
+        error: function() {
+            $('#taskHistoryTable').html(`
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox me-2"></i> No task executions recorded yet
+                    </td>
+                </tr>
+            `);
+        }
+    });
+}
+
+function loadTaskConfig() {
+    $.ajax({
+        url: '/api/scheduled-tasks/config',
+        method: 'GET',
+        success: function(data) {
+            if (data.config) {
+                $('#expiringDays').val(data.config.expiring_days || 7);
+                $('#keepVersions').val(data.config.keep_versions || 50);
+                $('#auditRetention').val(data.config.audit_retention || 90);
+            }
+        }
+    });
+}
+
+function runTask(taskName, params = {}) {
+    const btn = event.target.closest('button');
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    
+    $.ajax({
+        url: '/api/scheduled-tasks/run',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            task: taskName,
+            params: params
+        }),
+        success: function(data) {
+            showAlert(`Task "${taskName}" started successfully`, 'success');
+            setTimeout(loadTaskHistory, 2000);
+        },
+        error: function(xhr) {
+            showAlert('Failed to run task: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        },
+        complete: function() {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    });
+}
+
+function runAllTasks() {
+    if (!confirm('Are you sure you want to run all scheduled tasks now?')) {
+        return;
+    }
+    
+    const tasks = [
+        { name: 'check_expired_iocs', params: {} },
+        { name: 'check_expiring_soon', params: { days: parseInt($('#expiringDays').val()) || 7 } },
+        { name: 'update_risk_scores', params: {} }
+    ];
+    
+    tasks.forEach((task, index) => {
+        setTimeout(() => runTask(task.name, task.params), index * 500);
+    });
+}
+
+$('#taskConfigForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: '/api/scheduled-tasks/config',
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            expiring_days: parseInt($('#expiringDays').val()),
+            keep_versions: parseInt($('#keepVersions').val()),
+            audit_retention: parseInt($('#auditRetention').val())
+        }),
+        success: function() {
+            showAlert('Task configuration saved', 'success');
+        },
+        error: function(xhr) {
+            showAlert('Failed to save configuration: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+</script>
+{% endblock %}

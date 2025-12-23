@@ -1,0 +1,831 @@
+{% extends "base.html" %}
+
+{% block title %}{{ incident.title }} - Incidents - {{ SITE_NAME }}{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+.report-preview {
+    font-family: monospace;
+    line-height: 1.6;
+    padding: 1rem;
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.report-section {
+    border-left: 3px solid var(--secondary-color);
+    padding-left: 1rem;
+    margin-bottom: 1.5rem;
+}
+.report-section h5 {
+    cursor: pointer;
+}
+.report-section h5:hover {
+    color: var(--secondary-color);
+}
+.timeline-item {
+    position: relative;
+    padding-left: 30px;
+    margin-bottom: 20px;
+}
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 30px;
+    bottom: -20px;
+    width: 2px;
+    background: var(--border-color);
+}
+.timeline-item:last-child::before {
+    display: none;
+}
+.timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--secondary-color);
+    border: 3px solid var(--card-bg);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.incidents_list') }}">Incidents</a></li>
+                    <li class="breadcrumb-item active">{{ incident.title[:50] }}...</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0 mt-2">{{ incident.title }}</h1>
+            <div class="mt-2">
+                <span class="badge bg-{{ 'danger' if incident.severity == 'critical' else 'warning' if incident.severity == 'high' else 'info' }}">{{ incident.severity }}</span>
+                <span class="badge bg-secondary">{{ incident.status }}</span>
+                <span class="badge bg-dark">{{ incident.category }}</span>
+                <span class="badge tlp-{{ incident.tlp }}">TLP:{{ incident.tlp|upper }}</span>
+            </div>
+        </div>
+        <div class="btn-group">
+            <div class="dropdown">
+                <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="bi bi-arrow-right-circle me-1"></i> Status
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('new')">New</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('investigating')">Investigating</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('containment')">Containment</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('eradication')">Eradication</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('recovery')">Recovery</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('post-incident')">Post-Incident</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('closed')">Close Incident</a></li>
+                </ul>
+            </div>
+            <button class="btn btn-outline-success" onclick="exportReport()">
+                <i class="bi bi-download me-1"></i> Export Report
+            </button>
+            <button class="btn btn-outline-danger" onclick="deleteIncident()">
+                <i class="bi bi-trash"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#overview">Overview</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#report">Report</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#timeline">Timeline</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#iocs">IOCs <span class="badge bg-secondary" id="iocCount">0</span></button>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="overview">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Description</h6>
+                        </div>
+                        <div class="card-body">
+                            {{ incident.description or 'No description provided' }}
+                        </div>
+                    </div>
+
+                    <!-- MITRE ATT&CK -->
+                    {% if incident.mitre_tactics %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>MITRE ATT&CK Tactics</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for tactic in incident.mitre_tactics %}
+                                <span class="badge bg-dark me-1 mb-1">{{ tactic }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Comments -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Comments</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="commentsContainer">Loading...</div>
+                            <hr>
+                            <form id="commentForm">
+                                <textarea class="form-control mb-2" id="newComment" rows="2" placeholder="Add a comment..."></textarea>
+                                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send me-1"></i> Post</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Details</h6>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless mb-0">
+                                <tr><td class="text-muted">Status</td><td>{{ incident.status }}</td></tr>
+                                <tr><td class="text-muted">Severity</td><td>{{ incident.severity }}</td></tr>
+                                <tr><td class="text-muted">Category</td><td>{{ incident.category }}</td></tr>
+                                <tr><td class="text-muted">TLP</td><td>{{ incident.tlp|upper }}</td></tr>
+                                <tr><td class="text-muted">Created</td><td>{{ incident.created_at[:10] if incident.created_at else '-' }}</td></tr>
+                                <tr><td class="text-muted">Created By</td><td>{{ incident.created_by_name or '-' }}</td></tr>
+                                <tr><td class="text-muted">Detection</td><td>{{ incident.detection_time[:10] if incident.detection_time else '-' }}</td></tr>
+                                <tr><td class="text-muted">Occurrence</td><td>{{ incident.occurrence_time[:10] if incident.occurrence_time else '-' }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% if incident.tags %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-tags me-2"></i>Tags</h6>
+                        </div>
+                        <div class="card-body">
+                            {% for tag in incident.tags %}
+                                <span class="badge bg-secondary me-1 mb-1">{{ tag }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Tab -->
+        <div class="tab-pane fade" id="report">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-0 d-inline"><i class="bi bi-file-earmark-richtext me-2"></i>Incident Report</h6>
+                        <span class="ms-3">
+                            <button class="btn btn-sm" id="btnEditMode" onclick="switchMode('edit')" style="background: none; border: none; color: var(--secondary-color); font-weight: bold;">Edit</button>
+                            <span class="text-muted mx-1">|</span>
+                            <button class="btn btn-sm" id="btnPreviewMode" onclick="switchMode('preview')" style="background: none; border: none; color: #ccc;">Preview</button>
+                        </span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#snippetsModal">
+                            <i class="bi bi-file-earmark-text me-1"></i> Insert Snippet
+                        </button>
+                        <button class="btn btn-primary" onclick="saveReport()">
+                            <i class="bi bi-check-circle me-1"></i> Save
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="editorMode">
+                        <textarea id="reportMarkdownEditor" class="form-control" style="min-height: 500px;">{{ incident.report_content or '' }}</textarea>
+                    </div>
+                    <div id="previewMode" style="display: none; min-height: 500px;">
+                        <div id="reportPreview" class="report-preview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Tab -->
+        <div class="tab-pane fade" id="timeline">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Investigation Timeline</h6>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTimelineModal">
+                        <i class="bi bi-plus"></i> Add Event
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="timelineContainer">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IOCs Tab -->
+        <div class="tab-pane fade" id="iocs">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked IOCs</h6>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIocModal">
+                        <i class="bi bi-plus"></i> Link IOC
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="iocsContainer">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Section Modal -->
+<div class="modal fade" id="editSectionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSectionTitle">Edit Section</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="sectionEditor" class="form-control" rows="15"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveSection()">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Snippets Modal -->
+<div class="modal fade" id="snippetsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Snippets Library</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="form-control mb-3" id="snippetSearch" placeholder="Search snippets...">
+                <div id="snippetsList" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center text-muted py-3">Loading snippets...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Timeline Modal -->
+<div class="modal fade" id="addTimelineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Timeline Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Event Type</label>
+                    <select class="form-select" id="eventType">
+                        <option value="note">Note</option>
+                        <option value="discovery">Discovery</option>
+                        <option value="analysis">Analysis</option>
+                        <option value="action">Action Taken</option>
+                        <option value="escalation">Escalation</option>
+                        <option value="resolution">Resolution</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="eventTitle" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Event Time</label>
+                    <input type="datetime-local" class="form-control" id="eventTime">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addTimelineEvent()">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add IOC Modal -->
+<div class="modal fade" id="addIocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Link IOC to Incident</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Search IOCs</label>
+                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by value...">
+                </div>
+                <div id="iocSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted py-3">Search for IOCs to link</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@13/dist/markdown-it.min.js"></script>
+<script>
+const incidentId = '{{ incident.id }}';
+let currentSection = null;
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 4000);
+}
+
+// Status update
+function updateStatus(status) {
+    fetch(`/api/incidents/${incidentId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+    })
+    .then(r => { if (r.ok) location.reload(); });
+}
+
+// Report editing - markdown editor
+let reportEditor;
+
+function initReportEditor() {
+    const textarea = document.getElementById('reportMarkdownEditor');
+    if (textarea) textarea.focus();
+}
+
+function switchMode(mode) {
+    const editorMode = document.getElementById('editorMode');
+    const previewMode = document.getElementById('previewMode');
+    const btnEdit = document.getElementById('btnEditMode');
+    const btnPreview = document.getElementById('btnPreviewMode');
+    
+    if (mode === 'edit') {
+        editorMode.style.display = 'block';
+        previewMode.style.display = 'none';
+        btnEdit.style.color = '#007bff';
+        btnEdit.style.fontWeight = 'bold';
+        btnPreview.style.color = '#ccc';
+    } else {
+        const textarea = document.getElementById('reportMarkdownEditor');
+        const md = window.markdownit();
+        const html = md.render(textarea.value);
+        
+        // Ajouter la timeline formatée au preview
+        const timelineMarkdown = getFormattedTimeline();
+        const timelineHtml = md.render(`## Investigation Timeline\n\n${timelineMarkdown}`);
+        
+        document.getElementById('reportPreview').innerHTML = html + timelineHtml;
+        editorMode.style.display = 'none';
+        previewMode.style.display = 'block';
+        btnEdit.style.color = '#ccc';
+        btnPreview.style.color = '#007bff';
+        btnPreview.style.fontWeight = 'bold';
+    }
+}
+
+function saveReport() {
+    const textarea = document.getElementById('reportMarkdownEditor');
+    const content = textarea.value;
+    
+    fetch(`/api/incidents/${incidentId}/report`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error('Save failed')))
+    .then(() => showAlert('Report saved successfully', 'success'))
+    .catch(e => showAlert('Error: ' + e.message, 'danger'));
+}
+
+function insertSnippetIntoReport(snippetId) {
+    fetch(`/api/snippets/${snippetId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.content) {
+                const textarea = document.getElementById('reportMarkdownEditor');
+                textarea.value = textarea.value + '\n\n' + data.content;
+                const modal = bootstrap.Modal.getInstance(document.getElementById('snippetsModal'));
+                if (modal) modal.hide();
+            }
+        })
+        .catch(e => showAlert('Error: ' + e.message, 'danger'));
+}
+
+// Timeline
+function loadTimeline() {
+    fetch(`/api/timeline/incident/${incidentId}`)
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
+        .then(data => {
+            const container = document.getElementById('timelineContainer');
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3">No timeline events</div>';
+                return;
+            }
+            
+            container.innerHTML = data.items.map(e => `
+                <div class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${escapeHtml(e.title)}</strong>
+                            <p class="text-muted small mb-1">${escapeHtml(e.description || '')}</p>
+                            <small class="text-muted">by ${e.created_by_name} • ${formatDateTime(e.event_time)}</small>
+                        </div>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary" onclick="editTimelineEvent('${e.id}')"><i class="bi bi-pencil"></i></button>
+                            <button type="button" class="btn btn-outline-danger" onclick="deleteTimelineEvent('${e.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(err => {
+            console.error('Error loading timeline:', err);
+            const container = document.getElementById('timelineContainer');
+            if (container) {
+                container.innerHTML = '<div class="alert alert-danger">Error loading timeline: ' + err.message + '</div>';
+            }
+        });
+}
+
+function addTimelineEvent() {
+    fetch(`/api/timeline/incident/${incidentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            event_type: document.getElementById('eventType').value,
+            title: document.getElementById('eventTitle').value,
+            description: document.getElementById('eventDescription').value,
+            event_time: document.getElementById('eventTime').value || new Date().toISOString()
+        })
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTimelineModal')).hide();
+            document.getElementById('eventTitle').value = '';
+            document.getElementById('eventDescription').value = '';
+            loadTimeline();
+        }
+    });
+}
+
+function editTimelineEvent(eventId) {
+    fetch(`/api/timeline/event/${eventId}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('eventType').value = data.event_type || 'update';
+            document.getElementById('eventTitle').value = data.title || '';
+            document.getElementById('eventDescription').value = data.description || '';
+            document.getElementById('eventTime').value = data.event_time ? new Date(data.event_time).toISOString().slice(0, 16) : '';
+            
+            const saveBtn = document.querySelector('#addTimelineModal button[onclick="addTimelineEvent()"]');
+            saveBtn.onclick = () => saveTimelineEvent(eventId);
+            saveBtn.textContent = 'Update Event';
+            
+            new bootstrap.Modal(document.getElementById('addTimelineModal')).show();
+        });
+}
+
+function saveTimelineEvent(eventId) {
+    fetch(`/api/timeline/event/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            event_type: document.getElementById('eventType').value,
+            title: document.getElementById('eventTitle').value,
+            description: document.getElementById('eventDescription').value,
+            event_time: document.getElementById('eventTime').value || new Date().toISOString()
+        })
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTimelineModal')).hide();
+            const saveBtn = document.querySelector('#addTimelineModal button[onclick="addTimelineEvent()"]');
+            saveBtn.onclick = addTimelineEvent;
+            saveBtn.textContent = 'Add';
+            loadTimeline();
+        }
+    });
+}
+
+function deleteTimelineEvent(eventId) {
+    if (!confirm('Delete this timeline event?')) return;
+    
+    fetch(`/api/timeline/event/${eventId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) {
+                loadTimeline();
+            }
+        });
+}
+
+// IOCs
+function loadIOCs() {
+    const iocIds = {{ incident.ioc_ids | tojson | safe }};
+    document.getElementById('iocCount').textContent = iocIds.length;
+    
+    const container = document.getElementById('iocsContainer');
+    if (!iocIds || iocIds.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+        return;
+    }
+    
+    Promise.all(iocIds.map(id => fetch(`/api/ioc/${id}`).then(r => r.json()).catch(() => null)))
+        .then(iocs => {
+            const valid = iocs.filter(i => i);
+            container.innerHTML = `
+                <table class="table table-sm">
+                    <thead><tr><th>Value</th><th>Type</th><th>Threat Level</th><th></th></tr></thead>
+                    <tbody>
+                        ${valid.map(ioc => `
+                            <tr>
+                                <td><a href="/iocs/${ioc.id}">${escapeHtml(ioc.ioc_value || ioc.value)}</a></td>
+                                <td><span class="badge bg-secondary">${ioc.ioc_type}</span></td>
+                                <td>${ioc.threat_level || '-'}</td>
+                                <td><button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')"><i class="bi bi-x"></i></button></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        })
+        .catch(err => {
+            console.error('Error loading IOCs:', err);
+            container.innerHTML = '<div class="alert alert-warning">Error loading IOCs</div>';
+        });
+}
+
+function linkIOC(iocId) {
+    fetch(`/api/incidents/${incidentId}/iocs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ioc_id: iocId })
+    })
+    .then(r => { if (r.ok) location.reload(); });
+}
+
+function unlinkIOC(iocId) {
+    if (!confirm('Unlink this IOC?')) return;
+    fetch(`/api/incidents/${incidentId}/iocs/${iocId}`, { method: 'DELETE' })
+        .then(r => { if (r.ok) location.reload(); });
+}
+
+// Snippets
+function loadSnippets() {
+    fetch('/api/snippets')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('snippetsList').innerHTML = (data.items || []).map(s => `
+                <div class="card mb-2">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${escapeHtml(s.title)}</strong>
+                                <br><small class="text-muted">${s.category}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="insertSnippet('${s.id}')">Insert</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('') || '<div class="text-muted text-center">No snippets available</div>';
+        })
+        .catch(err => {
+            console.error('Error loading snippets:', err);
+            document.getElementById('snippetsList').innerHTML = '<div class="alert alert-warning">Error loading snippets</div>';
+        });
+}
+
+function insertSnippet(snippetId) {
+    insertSnippetIntoReport(snippetId);
+}
+
+// Comments
+function loadComments() {
+    fetch(`/api/comments/incident/${incidentId}`)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('commentsContainer').innerHTML = (data.items || []).length === 0 
+                ? '<div class="text-muted text-center">No comments</div>'
+                : data.items.map(c => `
+                    <div class="mb-3 p-2 bg-light rounded">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${escapeHtml(c.created_by_name)}</strong>
+                                <small class="text-muted ms-2">${formatDateTime(c.created_at)}</small>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteComment('${c.id}')"><i class="bi bi-trash"></i></button>
+                        </div>
+                        <p class="mb-0 mt-1">${escapeHtml(c.content)}</p>
+                    </div>
+                `).join('');
+        })
+        .catch(err => {
+            console.error('Error loading comments:', err);
+            document.getElementById('commentsContainer').innerHTML = '<div class="alert alert-warning">Error loading comments</div>';
+        });
+}
+
+// Export
+function getFormattedTimeline() {
+    const timelineContainer = document.getElementById('timelineContainer');
+    const items = timelineContainer.querySelectorAll('.timeline-item');
+    
+    if (items.length === 0) {
+        return '**No timeline events recorded**';
+    }
+    
+    let markdown = '';
+    items.forEach(item => {
+        const titleEl = item.querySelector('strong');
+        const descEl = item.querySelector('.text-muted.small');
+        const metaEl = item.querySelector('.text-muted:not(.small)');
+        
+        const title = titleEl ? titleEl.textContent : '';
+        const desc = descEl ? descEl.textContent : '';
+        const meta = metaEl ? metaEl.textContent : '';
+        
+        markdown += `### ${title}\n`;
+        if (desc) markdown += `${desc}\n`;
+        if (meta) markdown += `*${meta}*\n`;
+        markdown += '\n';
+    });
+    
+    return markdown;
+}
+
+function exportReport() {
+    const textarea = document.getElementById('reportMarkdownEditor');
+    const reportContent = textarea.value;
+    
+    // Format timeline nicely
+    const timelineMarkdown = getFormattedTimeline();
+    
+    const fullContent = `# Incident Report: {{ incident.title }}
+
+## Report
+
+${reportContent}
+
+## Investigation Timeline
+
+${timelineMarkdown}
+
+---
+
+Generated: ${new Date().toLocaleString()}
+Incident ID: {{ incident.id }}`;
+    
+    const blob = new Blob([fullContent], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `incident-report-{{ incident.id }}.md`;
+    a.click();
+}
+
+function deleteIncident() {
+    if (!confirm('Delete this incident? This cannot be undone.')) return;
+    fetch(`/api/incidents/${incidentId}`, { method: 'DELETE' })
+        .then(r => { if (r.ok) window.location.href = '/incidents'; });
+}
+
+function formatDateTime(dt) {
+    return dt ? new Date(dt).toLocaleString() : '-';
+}
+
+function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+    
+    fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) {
+                loadComments();
+            }
+        });
+}
+
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired');
+    
+    // Initialize editor
+    initReportEditor();
+    
+    // Load content
+    loadTimeline();
+    loadIOCs();
+    loadComments();
+    loadSnippets();
+    
+    // Attach event listeners
+    const commentForm = document.getElementById('commentForm');
+    if (commentForm) {
+        commentForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const content = document.getElementById('newComment').value.trim();
+            if (!content) return;
+            
+            fetch(`/api/comments/incident/${incidentId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            })
+            .then(r => {
+                if (r.ok) {
+                    document.getElementById('newComment').value = '';
+                    loadComments();
+                }
+            });
+        });
+    }
+    
+    // IOC Search
+    const iocSearch = document.getElementById('iocSearch');
+    if (iocSearch) {
+        iocSearch.addEventListener('input', debounce(function() {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for IOCs to link</div>';
+                return;
+            }
+            
+            fetch(`/api/search/iocs?q=${encodeURIComponent(query)}&size=10`)
+                .then(r => r.json())
+                .then(data => {
+                    const results = document.getElementById('iocSearchResults');
+                    const items = data.items || data.results || [];
+                    if (items.length === 0) {
+                        results.innerHTML = '<div class="text-center text-muted py-3">No IOCs found</div>';
+                        return;
+                    }
+                    
+                    results.innerHTML = items.map(ioc => `
+                        <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${ioc.id}')">
+                            <div class="fw-bold">${escapeHtml(ioc.value || ioc.ioc_value)}</div>
+                            <small class="text-muted">${ioc.type || ioc.ioc_type}</small>
+                        </button>
+                    `).join('');
+                });
+        }, 300));
+    }
+});
+</script>
+{% endblock %}

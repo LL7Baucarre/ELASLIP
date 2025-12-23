@@ -77,6 +77,26 @@ Risk scores are displayed as color-coded badges in the IOC list.
 - Theme preference saved in browser
 - Accessible from sidebar toggle
 
+#### Incident Management System
+- **Cases**: Create and manage investigation cases with detailed metadata
+- **Incidents**: Link incidents to cases for organized incident response
+- **Investigation Timeline**: Record and track events chronologically with timestamps and metadata
+- **IOC Linking**: Associate Indicators of Compromise with incidents for comprehensive analysis
+- **Comments**: Collaborative discussion on incidents with timestamped comments
+- **Incident Reports**: Markdown-based reports with:
+  - Simple markdown editor for flexible content creation
+  - Live preview with integrated timeline visualization
+  - Export to markdown files with full timeline and metadata
+  - Snippet insertion for reusable report templates
+- **Reusable Snippets**: 
+  - Create markdown snippets for common report sections
+  - User-defined categories (no predefined categories)
+  - Global snippets shareable across team
+  - Quick insertion into incident reports
+- **Status Management**: Track incident status through lifecycle (detected → contained → recovered → closed)
+- **Assignment**: Assign incidents to team members for accountability
+- **Audit Logging**: Complete audit trail of all incident activities
+
 #### Redis Caching
 - Cached IOC statistics for improved dashboard performance
 - Search results caching
@@ -403,6 +423,11 @@ flask run --debug
 - `enrichment_cache` - API response cache
 - `import_jobs` - Import job tracking
 - `audit_logs` - Activity timeline and audit trail
+- `cases` - Investigation cases with metadata
+- `incidents` - Security incidents with reports and metadata
+- `timeline_events` - Investigation timeline events
+- `comments` - Incident comments and discussions
+- `snippets` - Reusable report snippets
 
 ## API Endpoints
 
@@ -412,6 +437,52 @@ flask run --debug
 - `GET /api/ioc/<id>` - Get IOC details
 - `PUT /api/ioc/<id>` - Update IOC
 - `DELETE /api/ioc/<id>` - Delete IOC
+
+### Case Management
+- `POST /api/cases` - Create case
+- `GET /api/cases` - List cases with filters
+- `GET /api/cases/<id>` - Get case details
+- `PUT /api/cases/<id>` - Update case
+- `DELETE /api/cases/<id>` - Delete case
+
+### Incident Management
+- `POST /api/cases/<case_id>/incidents` - Create incident linked to case
+- `GET /api/cases/<case_id>/incidents` - List incidents for a case
+- `GET /api/incidents/<id>` - Get incident details
+- `PUT /api/incidents/<id>` - Update incident
+- `DELETE /api/incidents/<id>` - Delete incident
+- `PUT /api/incidents/<id>/status` - Update incident status
+- `PUT /api/incidents/<id>/report` - Update incident report (markdown)
+
+### Investigation Timeline
+- `GET /api/timeline/incident/<id>` - Get incident timeline events
+- `GET /api/timeline/case/<id>` - Get case timeline events
+- `POST /api/timeline/incident/<id>` - Add timeline event to incident
+- `POST /api/timeline/case/<id>` - Add timeline event to case
+- `GET /api/timeline/event/<id>` - Get timeline event details
+- `PUT /api/timeline/event/<id>` - Update timeline event
+- `DELETE /api/timeline/event/<id>` - Delete timeline event
+
+### IOC Linking to Incidents
+- `POST /api/incidents/<id>/iocs` - Link IOC to incident
+- `DELETE /api/incidents/<id>/iocs/<ioc_id>` - Unlink IOC from incident
+- `POST /api/cases/<id>/iocs` - Link IOC to case
+- `DELETE /api/cases/<id>/iocs/<ioc_id>` - Unlink IOC from case
+
+### Comments
+- `POST /api/comments/incident/<id>` - Add comment to incident
+- `GET /api/comments/incident/<id>` - Get incident comments
+- `DELETE /api/comments/<id>` - Delete comment
+
+### Snippets
+- `GET /api/snippets` - List snippets
+- `POST /api/snippets` - Create snippet
+- `GET /api/snippets/<id>` - Get snippet details
+- `PUT /api/snippets/<id>` - Update snippet
+- `DELETE /api/snippets/<id>` - Delete snippet
+- `GET /api/snippets/categories` - Get snippet categories with counts
+- `POST /api/snippets/<id>/use` - Increment snippet usage
+- `GET /api/snippets/<id>/export` - Export snippet as markdown
 
 ### Versioning
 - `GET /api/ioc/<id>/versions` - Get version history

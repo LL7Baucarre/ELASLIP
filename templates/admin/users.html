@@ -21,7 +21,7 @@
             <tr>
                 <th>Username</th>
                 <th>Email</th>
-                <th>Admin</th>
+                <th>Role</th>
                 <th>Created</th>
                 <th>Last Login</th>
                 <th>Actions</th>
@@ -36,17 +36,19 @@
                 </td>
                 <td>{{ user.email }}</td>
                 <td>
-                    {% if user.is_admin %}
-                        <span class="badge bg-warning text-dark">Admin</span>
+                    {% if user.role == 'admin' %}
+                        <span class="badge bg-danger">Admin</span>
+                    {% elif user.role == 'analyst' %}
+                        <span class="badge bg-warning text-dark">Analyst</span>
                     {% else %}
-                        <span class="badge bg-secondary">User</span>
+                        <span class="badge bg-secondary">{{ user.role | title }}</span>
                     {% endif %}
                 </td>
                 <td>{{ user.created_at[:10] if user.created_at else '-' }}</td>
                 <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
-                        <button class="btn btn-outline-primary" onclick="editUser('{{ user.id }}', '{{ user.username }}', '{{ user.email }}', {{ 'true' if user.is_admin else 'false' }})">
+                        <button class="btn btn-outline-primary" onclick="editUser('{{ user.id }}', '{{ user.username }}', '{{ user.email }}', '{{ user.role }}')">
                             <i class="bi bi-pencil"></i>
                         </button>
                         {% if user.id != current_user.id %}
@@ -89,9 +91,13 @@
                         <label for="addPassword" class="form-label">Password</label>
                         <input type="password" class="form-control" id="addPassword" name="password" placeholder="Min 8 characters" required>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="addIsAdmin" name="is_admin" value="true">
-                        <label class="form-check-label" for="addIsAdmin">Admin privileges</label>
+                    <div class="mb-3">
+                        <label for="addRole" class="form-label">Role</label>
+                        <select class="form-select" id="addRole" name="role" required>
+                            <option value="viewer">Viewer - Read-only access</option>
+                            <option value="analyst">Analyst - Full management access</option>
+                            <option value="admin">Administrator - All permissions</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -121,9 +127,13 @@
                         <label for="editPassword" class="form-label">Password (leave blank to keep current)</label>
                         <input type="password" class="form-control" id="editPassword" name="password" placeholder="Min 8 characters">
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="editIsAdmin" name="is_admin" value="true">
-                        <label class="form-check-label" for="editIsAdmin">Admin privileges</label>
+                    <div class="mb-3">
+                        <label for="editRole" class="form-label">Role</label>
+                        <select class="form-select" id="editRole" name="role" required>
+                            <option value="viewer">Viewer - Read-only access</option>
+                            <option value="analyst">Analyst - Full management access</option>
+                            <option value="admin">Administrator - All permissions</option>
+                        </select>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -165,7 +175,7 @@ $('#addUserForm').submit(function(e) {
         username: $('#addUsername').val(),
         email: $('#addEmail').val(),
         password: $('#addPassword').val(),
-        is_admin: $('#addIsAdmin').is(':checked')
+        role: $('#addRole').val()
     };
     
     $.ajax({
@@ -189,7 +199,7 @@ $('#editUserForm').submit(function(e) {
     
     const formData = {
         email: $('#editEmail').val(),
-        is_admin: $('#editIsAdmin').is(':checked')
+        role: $('#editRole').val()
     };
     
     if ($('#editPassword').val()) {
@@ -231,10 +241,10 @@ $('#deleteUserForm').submit(function(e) {
     });
 });
 
-function editUser(userId, username, email, isAdmin) {
+function editUser(userId, username, email, role) {
     document.getElementById('editUserForm').action = "{{ url_for('main.edit_user', user_id='USERID') }}".replace('USERID', userId);
     document.getElementById('editEmail').value = email;
-    document.getElementById('editIsAdmin').checked = isAdmin;
+    document.getElementById('editRole').value = role;
     document.getElementById('editPassword').value = '';
     
     const modal = new bootstrap.Modal(document.getElementById('editUserModal'));

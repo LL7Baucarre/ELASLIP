@@ -21,6 +21,29 @@ class User(UserMixin):
         self.created_at = user_data.get('created_at')
         self.last_login = user_data.get('last_login')
         self.is_admin = user_data.get('is_admin', False)
+        self.role = user_data.get('role', 'admin' if self.is_admin else 'viewer')
+        self._permissions = None
+    
+    @property
+    def permissions(self):
+        """Get user permissions (cached)."""
+        if self._permissions is None:
+            from app.services.rbac_service import RBACService
+            rbac = RBACService()
+            self._permissions = rbac.get_user_permissions(self)
+        return self._permissions
+    
+    def has_permission(self, permission):
+        """Check if user has a specific permission."""
+        return permission in self.permissions
+    
+    def has_any_permission(self, permissions):
+        """Check if user has any of the specified permissions."""
+        return any(p in self.permissions for p in permissions)
+    
+    def has_all_permissions(self, permissions):
+        """Check if user has all of the specified permissions."""
+        return all(p in self.permissions for p in permissions)
     
     def check_password(self, password):
         """Verify password against hash."""
@@ -38,7 +61,7 @@ class User(UserMixin):
         ).decode('utf-8')
     
     @classmethod
-    def create(cls, username, email, password, is_admin=False):
+    def create(cls, username, email, password, is_admin=False, role=None):
         """Create a new user."""
         es = ElasticsearchService()
         
@@ -57,6 +80,10 @@ class User(UserMixin):
         if existing['hits']['total']['value'] > 0:
             return None, "User already exists"
         
+        # Determine role
+        if role is None:
+            role = 'admin' if is_admin else 'viewer'
+        
         user_id = hashlib.sha256(username.encode()).hexdigest()[:16]
         user_data = {
             'id': user_id,
@@ -64,6 +91,7 @@ class User(UserMixin):
             'email': email,
             'password_hash': cls.hash_password(password),
             'is_admin': is_admin,
+            'role': role,
             'created_at': datetime.utcnow().isoformat(),
             'last_login': None
         }
@@ -132,6 +160,10 @@ class User(UserMixin):
         if 'is_admin' in kwargs:
             update_data['is_admin'] = kwargs['is_admin']
             self.is_admin = kwargs['is_admin']
+        if 'role' in kwargs:
+            update_data['role'] = kwargs['role']
+            self.role = kwargs['role']
+            self._permissions = None  # Reset cached permissions
         if 'password' in kwargs:
             update_data['password_hash'] = self.hash_password(kwargs['password'])
             self.password_hash = update_data['password_hash']
@@ -151,6 +183,8 @@ class User(UserMixin):
             'username': self.username,
             'email': self.email,
             'is_admin': self.is_admin,
+            'role': self.role,
+            'permissions': self.permissions,
             'created_at': self.created_at,
             'last_login': self.last_login
         }
@@ -326,3 +360,47 @@ def login_or_api_key_required(f):
         return jsonify({'error': 'Authentication required'}), 401
     
     return decorated_function
+
+
+def permission_required(*permissions):
+    """Decorator to require specific permissions."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user = getattr(g, 'current_user', None) or current_user
+            
+            if not user or not user.is_authenticated:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            # Check if user has any of the required permissions
+            if not user.has_any_permission(permissions):
+                return jsonify({
+                    'error': 'Permission denied',
+                    'required_permissions': list(permissions)
+                }), 403
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def permission_required_all(*permissions):
+    """Decorator to require ALL specified permissions."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            user = getattr(g, 'current_user', None) or current_user
+            
+            if not user or not user.is_authenticated:
+                return jsonify({'error': 'Authentication required'}), 401
+            
+            # Check if user has all of the required permissions
+            if not user.has_all_permissions(permissions):
+                return jsonify({
+                    'error': 'Permission denied',
+                    'required_permissions': list(permissions)
+                }), 403
+            
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator

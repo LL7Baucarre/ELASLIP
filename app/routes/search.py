@@ -8,6 +8,7 @@ from app.services.enrichment_service import EnrichmentService
 from app.utils.pattern_generator import PatternGenerator
 
 search_bp = Blueprint('search', __name__)
+es_service = ElasticsearchService()
 
 
 @search_bp.route('', methods=['GET', 'POST'])
@@ -303,6 +304,70 @@ def advanced_search():
             'items': items,
             'total': result['hits']['total']['value'],
             'aggregations': result.get('aggregations')
+        })
+    
+    except Exception as e:
+        return jsonify({'error': f'Search error: {str(e)}'}), 400
+
+
+@search_bp.route('/iocs', methods=['GET'])
+@login_or_api_key_required
+def search_iocs_api():
+    """
+    Search for IOCs - for linking/autocomplete.
+    
+    Query parameters:
+    - q: Query string to search
+    - size: Number of results (default: 10)
+    - type: IOC type filter (optional)
+    """
+    query = request.args.get('q', '').strip()
+    size = request.args.get('size', 10, type=int)
+    ioc_type = request.args.get('type', '').strip()
+    
+    if not query:
+        return jsonify({'items': [], 'total': 0}), 200
+    
+    try:
+        # Build search query - same format as main search
+        es_query = {"bool": {"must": [], "filter": []}}
+        
+        es_query["bool"]["must"].append({
+            "multi_match": {
+                "query": query,
+                "fields": ["pattern", "pattern.keyword", "ioc_value", "name", "value"],
+                "type": "best_fields"
+            }
+        })
+        
+        if ioc_type:
+            es_query["bool"]["filter"].append({"term": {"ioc_type": ioc_type.lower()}})
+        
+        if not es_query["bool"]["must"] and not es_query["bool"]["filter"]:
+            es_query = {"match_all": {}}
+        
+        es_result = es_service.search('ioc', {
+            "query": es_query,
+            "size": min(size, 100),
+            "_source": ["ioc_value", "value", "ioc_type", "type", "pattern", "name", "source", "sources"]
+        })
+        
+        items = []
+        for doc in es_result['hits']['hits']:
+            item = doc['_source']
+            item['id'] = doc['_id']
+            
+            # Add compatibility fields
+            if 'ioc_value' in item and 'value' not in item:
+                item['value'] = item['ioc_value']
+            if 'ioc_type' in item and 'type' not in item:
+                item['type'] = item['ioc_type']
+            
+            items.append(item)
+        
+        return jsonify({
+            'items': items,
+            'total': es_result['hits']['total']['value']
         })
     
     except Exception as e:

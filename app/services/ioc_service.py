@@ -272,10 +272,13 @@ class IOCService:
         
         # Increment version
         current_version = existing.get('current_version', 1)
-        update_doc['current_version'] = current_version + 1
+        new_version = current_version + 1
+        update_doc['current_version'] = new_version
         
-        # Create version snapshot before update
-        self._create_version_snapshot(ioc_id, existing, updates, user_id, username)
+        # Create version snapshot with the NEW version number
+        snapshot_for_version = existing.copy()
+        snapshot_for_version['current_version'] = new_version
+        self._create_version_snapshot(ioc_id, snapshot_for_version, updates, user_id, username)
         
         self.es.update(self.index, ioc_id, {'doc': update_doc})
         
@@ -574,9 +577,10 @@ class IOCService:
             'version_number': version_number,
             'snapshot': snapshot,
             'changes': changes,
-            'modified_by': user_id,
+            'modified_by': username or user_id or 'system',
             'modified_by_username': username or 'system',
-            'created_at': datetime.utcnow().isoformat()
+            'modified_at': datetime.utcnow().isoformat() + 'Z',
+            'created_at': datetime.utcnow().isoformat() + 'Z'
         }
         
         self.es.index('ioc_versions', version_id, version_doc)

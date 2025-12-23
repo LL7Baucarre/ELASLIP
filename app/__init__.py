@@ -101,6 +101,7 @@ def create_app(config_name=None):
     from app.routes.api_keys import api_keys_bp
     from app.routes.tools import tools_bp
     from app.routes.audit import audit_bp
+    from app.routes.cases import bp as cases_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -113,6 +114,7 @@ def create_app(config_name=None):
     app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
     app.register_blueprint(tools_bp, url_prefix='/api/tools')
     app.register_blueprint(audit_bp)
+    app.register_blueprint(cases_bp)
 
     
     # Health check endpoint

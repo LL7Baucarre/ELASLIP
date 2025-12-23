@@ -94,6 +94,9 @@ USERS_MAPPING = {
                 }
             },
             "password_hash": {"type": "keyword", "index": False},
+            "is_admin": {"type": "boolean"},
+            "role_id": {"type": "keyword"},
+            "custom_permissions": {"type": "keyword"},
             "created_at": {"type": "date"},
             "last_login": {"type": "date"}
         }
@@ -320,7 +323,172 @@ IOC_VERSIONS_MAPPING = {
             "changes": {"type": "object", "enabled": False},
             "modified_by": {"type": "keyword"},
             "modified_by_username": {"type": "keyword"},
+            "modified_at": {"type": "date"},
             "created_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Roles Index Mapping (RBAC)
+ROLES_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "name": {"type": "keyword"},
+            "display_name": {"type": "text"},
+            "description": {"type": "text"},
+            "permissions": {"type": "keyword"},  # Array of permission strings
+            "is_system": {"type": "boolean"},  # True for built-in roles
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Cases Index Mapping
+CASES_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            "status": {"type": "keyword"},  # open, in-progress, closed, on-hold
+            "priority": {"type": "keyword"},  # low, medium, high, critical
+            "severity": {"type": "keyword"},  # informational, low, medium, high, critical
+            "case_type": {"type": "keyword"},  # incident, investigation, threat-hunt, vulnerability
+            "assignee_id": {"type": "keyword"},
+            "assignee_name": {"type": "keyword"},
+            "created_by_id": {"type": "keyword"},
+            "created_by_name": {"type": "keyword"},
+            "tags": {"type": "keyword"},
+            "tlp": {"type": "keyword"},
+            "ioc_ids": {"type": "keyword"},  # Array of linked IOC IDs
+            "incident_ids": {"type": "keyword"},  # Array of linked incident IDs
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"},
+            "closed_at": {"type": "date"},
+            "due_date": {"type": "date"}
+        }
+    }
+}
+
+
+# Incidents Index Mapping
+INCIDENTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "case_id": {"type": "keyword"},  # Parent case
+            "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            "status": {"type": "keyword"},  # detected, analyzing, contained, eradicated, recovered, closed
+            "severity": {"type": "keyword"},
+            "category": {"type": "keyword"},  # malware, phishing, data-breach, ddos, unauthorized-access, etc.
+            "ioc_ids": {"type": "keyword"},  # Array of linked IOC IDs
+            "affected_assets": {"type": "text"},
+            "attack_vector": {"type": "keyword"},
+            "mitre_tactics": {"type": "keyword"},  # MITRE ATT&CK tactics
+            "mitre_techniques": {"type": "keyword"},  # MITRE ATT&CK techniques
+            "report_content": {"type": "text"},  # Markdown report content
+            "report_sections": {"type": "object", "enabled": False},  # Structured report sections
+            "created_by_id": {"type": "keyword"},
+            "created_by_name": {"type": "keyword"},
+            "assignee_id": {"type": "keyword"},
+            "assignee_name": {"type": "keyword"},
+            "detected_at": {"type": "date"},
+            "contained_at": {"type": "date"},
+            "resolved_at": {"type": "date"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Timeline Events Index Mapping
+TIMELINE_EVENTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "case_id": {"type": "keyword"},
+            "incident_id": {"type": "keyword"},
+            "event_type": {"type": "keyword"},  # detection, analysis, action, note, evidence, communication
+            "title": {"type": "text"},
+            "description": {"type": "text"},
+            "content": {"type": "text"},  # Markdown content
+            "attachments": {"type": "object", "enabled": False},
+            "ioc_ids": {"type": "keyword"},
+            "created_by_id": {"type": "keyword"},
+            "created_by_name": {"type": "keyword"},
+            "event_time": {"type": "date"},  # When the event actually occurred
+            "created_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Comments Index Mapping
+COMMENTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "entity_type": {"type": "keyword"},  # ioc, incident, case
+            "entity_id": {"type": "keyword"},
+            "parent_id": {"type": "keyword"},  # For threaded replies
+            "content": {"type": "text"},
+            "mentions": {"type": "keyword"},  # Array of mentioned user IDs
+            "created_by_id": {"type": "keyword"},
+            "created_by_name": {"type": "keyword"},
+            "edited": {"type": "boolean"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
+
+
+# Snippets Library Index Mapping
+SNIPPETS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            "content": {"type": "text"},  # Markdown content
+            "category": {"type": "keyword"},  # executive-summary, technical-analysis, recommendations, ioc-table, etc.
+            "tags": {"type": "keyword"},
+            "is_global": {"type": "boolean"},  # Available to all users
+            "created_by_id": {"type": "keyword"},
+            "created_by_name": {"type": "keyword"},
+            "usage_count": {"type": "integer"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
         }
     }
 }
@@ -339,5 +507,11 @@ INDICES = {
     "ioc_manager_scan_results": SCAN_RESULTS_MAPPING,
     "ioc_manager_ioc_relations": IOC_RELATIONS_MAPPING,
     "ioc_manager_audit_logs": AUDIT_LOGS_MAPPING,
-    "ioc_manager_ioc_versions": IOC_VERSIONS_MAPPING
+    "ioc_manager_ioc_versions": IOC_VERSIONS_MAPPING,
+    "ioc_manager_roles": ROLES_MAPPING,
+    "ioc_manager_cases": CASES_MAPPING,
+    "ioc_manager_incidents": INCIDENTS_MAPPING,
+    "ioc_manager_timeline_events": TIMELINE_EVENTS_MAPPING,
+    "ioc_manager_comments": COMMENTS_MAPPING,
+    "ioc_manager_snippets": SNIPPETS_MAPPING
 }

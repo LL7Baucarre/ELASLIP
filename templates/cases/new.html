@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}New Case - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.cases_list') }}">Cases</a></li>
+                    <li class="breadcrumb-item active">New Case</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0 mt-2"><i class="bi bi-plus-circle me-2"></i>Create New Case</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form id="caseForm">
+                        <!-- Title -->
+                        <div class="mb-3">
+                            <label class="form-label">Case Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" required placeholder="Enter case title">
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="4" placeholder="Describe the case..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Case Type</label>
+                                <select class="form-select" id="caseType">
+                                    <option value="investigation">Investigation</option>
+                                    <option value="incident-response">Incident Response</option>
+                                    <option value="threat-hunting">Threat Hunting</option>
+                                    <option value="vulnerability">Vulnerability Assessment</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">TLP</label>
+                                <select class="form-select" id="tlp">
+                                    <option value="white">TLP:WHITE</option>
+                                    <option value="green">TLP:GREEN</option>
+                                    <option value="amber" selected>TLP:AMBER</option>
+                                    <option value="red">TLP:RED</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="status">
+                                    <option value="open" selected>Open</option>
+                                    <option value="in-progress">In Progress</option>
+                                    <option value="on-hold">On Hold</option>
+                                    <option value="closed">Closed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Priority</label>
+                                <select class="form-select" id="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Severity</label>
+                                <select class="form-select" id="severity">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="tags" placeholder="Enter tags separated by commas">
+                            <div class="form-text">Example: malware, ransomware, phishing</div>
+                        </div>
+
+                        <!-- Assignee -->
+                        <div class="mb-3">
+                            <label class="form-label">Assign to</label>
+                            <input type="text" class="form-control" id="assignee" placeholder="Optionally assign this case">
+                            <div class="form-text">Leave empty to assign to yourself</div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('main.cases_list') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Create Case
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Tips</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0 small">
+                        <li class="mb-2">Use descriptive titles that clearly identify the case</li>
+                        <li class="mb-2">Set appropriate priority and severity levels</li>
+                        <li class="mb-2">Add relevant tags for easier searching</li>
+                        <li class="mb-2">You can add IOCs and incidents after creating the case</li>
+                        <li>Use TLP to control information sharing</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('caseForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const tags = document.getElementById('tags').value
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t);
+
+    const data = {
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value,
+        case_type: document.getElementById('caseType').value,
+        tlp: document.getElementById('tlp').value,
+        status: document.getElementById('status').value,
+        priority: document.getElementById('priority').value,
+        severity: document.getElementById('severity').value,
+        tags: tags,
+        assignee_name: document.getElementById('assignee').value.trim() || null
+    };
+
+    fetch('/api/cases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to create case');
+        return response.json();
+    })
+    .then(result => {
+        window.location.href = `/cases/${result.id}`;
+    })
+    .catch(error => {
+        alert('Error creating case: ' + error.message);
+    });
+});
+</script>
+{% endblock %}

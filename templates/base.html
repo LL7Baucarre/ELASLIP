@@ -150,6 +150,12 @@
             color: var(--text-muted) !important;
         }
         
+        [data-theme="dark"] .input-group-text {
+            background-color: var(--code-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
         [data-theme="dark"] p,
         [data-theme="dark"] span,
         [data-theme="dark"] label,
@@ -322,7 +328,7 @@
             position: fixed;
             top: 0;
             left: 0;
-            width: 250px;
+            width: 280px;
             height: 100vh;
             background: var(--sidebar-bg);
             z-index: 1000;
@@ -336,9 +342,11 @@
             color: white;
             font-size: 1.5rem;
             font-weight: bold;
-            padding: 20px;
+            padding: 15px 20px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
         }
         
         .sidebar .nav {
@@ -348,9 +356,24 @@
             flex: 1;
             overflow-y: auto;
             overflow-x: hidden;
-            display: flex !important;
-            flex-direction: column !important;
             width: 100%;
+        }
+        
+        .sidebar .nav::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .sidebar .nav::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .sidebar .nav::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+        
+        .sidebar .nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255,255,255,0.5);
         }
         
         .sidebar .nav-item {
@@ -362,12 +385,10 @@
         
         .sidebar .nav-link {
             color: rgba(255,255,255,0.7);
-            padding: 12px 20px;
-            display: flex !important;
-            align-items: center;
+            padding: 10px 20px;
+            display: block !important;
             transition: all 0.3s;
             text-decoration: none;
-            white-space: nowrap;
             width: 100%;
             box-sizing: border-box;
         }
@@ -380,8 +401,7 @@
         
         .sidebar .nav-link i {
             margin-right: 10px;
-            min-width: 20px;
-            flex-shrink: 0;
+            display: inline-block;
         }
         
         .sidebar .nav-section-title {
@@ -394,7 +414,6 @@
             margin: 0 !important;
             list-style: none;
             width: 100%;
-            display: block !important;
         }
         
         .sidebar .user-section {
@@ -436,7 +455,7 @@
         }
         
         .main-content {
-            margin-left: 250px;
+            margin-left: 280px;
             padding: 20px;
         }
         
@@ -603,6 +622,23 @@
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
                     <i class="bi bi-diagram-3"></i> IOC Graph
+                </a>
+            </li>
+            
+            <li class="nav-section-title">INVESTIGATIONS</li>
+            <li class="nav-item">
+                <a class="nav-link {% if 'cases' in request.endpoint %}active{% endif %}" href="{{ url_for('main.cases_list') }}">
+                    <i class="bi bi-folder2-open"></i> Cases
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if 'incidents' in request.endpoint %}active{% endif %}" href="{{ url_for('main.incidents_list') }}">
+                    <i class="bi bi-exclamation-triangle"></i> Incidents
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
+                    <i class="bi bi-file-earmark-text"></i> Snippets
                 </a>
             </li>
             

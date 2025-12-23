@@ -220,6 +220,184 @@
             </div>
         </div>
 
+        <!-- Cases Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Cases Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Cases</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/cases</code>
+                </div>
+                <p>Get paginated list of cases with filtering and search</p>
+                <p><strong>Query Parameters:</strong> page, per_page, status (open|in-progress|on-hold|closed), priority, search</p>
+
+                <h6 class="mt-4">Create Case</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/cases</code>
+                </div>
+                <p>Create a new investigation case</p>
+
+                <h6 class="mt-4">Get Case Details</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/cases/:case_id</code>
+                </div>
+
+                <h6 class="mt-4">Update Case</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/cases/:case_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete Case</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/cases/:case_id</code>
+                </div>
+
+                <h6 class="mt-4">Link IOC to Case</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/cases/:case_id/iocs</code>
+                </div>
+                <p><strong>Request Body:</strong> <code>{"ioc_id": "..."}</code></p>
+
+                <h6 class="mt-4">Case Statistics</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/cases/stats</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Incidents Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Incidents Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Incidents</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/incidents</code>
+                </div>
+                <p>Get paginated list of incidents with MITRE ATT&CK categorization</p>
+                <p><strong>Query Parameters:</strong> page, per_page, status, severity (critical|high|medium|low), search</p>
+
+                <h6 class="mt-4">Create Incident</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/incidents</code>
+                </div>
+                <p>Create a new security incident with detection and occurrence times</p>
+
+                <h6 class="mt-4">Update Incident Status</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/incidents/:incident_id/status</code>
+                </div>
+                <p><strong>Request Body:</strong> <code>{"status": "investigating|containment|eradication|recovery|closed"}</code></p>
+
+                <h6 class="mt-4">Update Incident Report</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/incidents/:incident_id/report</code>
+                </div>
+                <p><strong>Request Body:</strong> <code>{"section": "executive_summary|technical_analysis|ioc_summary|impact_assessment|recommendations|lessons_learned", "content": "markdown content"}</code></p>
+
+                <h6 class="mt-4">Link IOC to Incident</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/incidents/:incident_id/iocs</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Timeline Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Get Timeline Events</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/timeline/:entity_type/:entity_id</code>
+                </div>
+                <p>Get timeline events for a case or incident (entity_type: case|incident)</p>
+
+                <h6 class="mt-4">Add Timeline Event</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/timeline/:entity_type/:entity_id</code>
+                </div>
+                <p><strong>Request Body:</strong> <code>{"event_type": "note|discovery|analysis|action|escalation|resolution", "title": "...", "description": "...", "event_time": "ISO8601"}</code></p>
+
+                <h6 class="mt-4">Delete Timeline Event</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/timeline/event/:event_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comments Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Comments Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Get Comments</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/comments/:entity_type/:entity_id</code>
+                </div>
+                <p>Get comments for any entity (IOC, case, incident) with threading support</p>
+
+                <h6 class="mt-4">Create Comment</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/comments/:entity_type/:entity_id</code>
+                </div>
+                <p><strong>Request Body:</strong> <code>{"content": "...", "parent_id": "optional_reply_to"}</code></p>
+
+                <h6 class="mt-4">Update Comment</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/comments/:comment_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete Comment</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/comments/:comment_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Snippets Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Snippets Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Snippets</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/snippets</code>
+                </div>
+                <p>Get markdown snippets library with categories and search</p>
+                <p><strong>Query Parameters:</strong> page, per_page, category, search, include_global</p>
+
+                <h6 class="mt-4">Create Snippet</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/snippets</code>
+                </div>
+                <p>Create a reusable markdown template for reports</p>
+
+                <h6 class="mt-4">Get Snippet Categories</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/snippets/categories</code>
+                </div>
+
+                <h6 class="mt-4">Export Snippet</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/snippets/:snippet_id/export</code>
+                </div>
+                <p>Export snippet as markdown file</p>
+
+                <h6 class="mt-4">Import Snippet</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/snippets/import</code>
+                </div>
+                <p>Import markdown content as a new snippet</p>
+            </div>
+        </div>
+
         <!-- Error Responses -->
         <div class="card mb-4">
             <div class="card-header bg-white">
@@ -265,12 +443,22 @@
                     </li>
                     <li class="list-group-item">
                         <a href="http://{{ request.host }}/iocs">
-                            <i class="bi bi-list"></i> IOC List
+                            <i class="bi bi-list"></i> IOCs
                         </a>
                     </li>
                     <li class="list-group-item">
-                        <a href="http://{{ request.host }}/iocs/add">
-                            <i class="bi bi-plus-lg"></i> Add IOC
+                        <a href="http://{{ request.host }}/cases">
+                            <i class="bi bi-folder2-open"></i> Cases
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="http://{{ request.host }}/incidents">
+                            <i class="bi bi-exclamation-triangle"></i> Incidents
+                        </a>
+                    </li>
+                    <li class="list-group-item">
+                        <a href="http://{{ request.host }}/snippets">
+                            <i class="bi bi-file-earmark-text"></i> Snippets
                         </a>
                     </li>
                     <li class="list-group-item">

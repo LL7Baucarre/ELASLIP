@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}Cases - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0"><i class="bi bi-folder2-open me-2"></i>Cases</h1>
+            <p class="text-muted mb-0">Manage security investigation cases</p>
+        </div>
+        <a href="{{ url_for('main.cases_new') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> New Case
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchInput" placeholder="Search cases...">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">All Status</option>
+                        <option value="open">Open</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="on-hold">On Hold</option>
+                        <option value="closed">Closed</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="priorityFilter">
+                        <option value="">All Priority</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="severityFilter">
+                        <option value="">All Severity</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-outline-secondary w-100" onclick="resetFilters()">
+                        <i class="bi bi-x-circle me-1"></i> Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4" id="statsRow">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0" id="statTotal">0</h4>
+                    <small class="text-muted">Total Cases</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-success" id="statOpen">0</h4>
+                    <small class="text-muted">Open</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-warning" id="statInProgress">0</h4>
+                    <small class="text-muted">In Progress</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-info" id="statClosed">0</h4>
+                    <small class="text-muted">Closed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cases Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Case</th>
+                            <th>Status</th>
+                            <th>Priority</th>
+                            <th>Severity</th>
+                            <th>IOCs</th>
+                            <th>Assignee</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="casesTableBody">
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <nav id="pagination" class="d-flex justify-content-between align-items-center mt-3">
+                <div class="text-muted" id="paginationInfo">Showing 0 of 0</div>
+                <ul class="pagination mb-0" id="paginationList"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+const perPage = 20;
+
+function loadCases() {
+    const params = new URLSearchParams({
+        page: currentPage,
+        per_page: perPage,
+        status: document.getElementById('statusFilter').value,
+        priority: document.getElementById('priorityFilter').value,
+        search: document.getElementById('searchInput').value
+    });
+
+    // Remove empty params
+    for (const [key, value] of [...params.entries()]) {
+        if (!value) params.delete(key);
+    }
+
+    fetch(`/api/cases?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            renderCases(data.items || []);
+            renderPagination(data.total || 0, currentPage, perPage);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('casesTableBody').innerHTML = `
+                <tr><td colspan="8" class="text-center text-danger">Error loading cases</td></tr>
+            `;
+        });
+
+    // Load stats
+    fetch('/api/cases/stats')
+        .then(response => response.json())
+        .then(stats => {
+            document.getElementById('statTotal').textContent = stats.total || 0;
+            document.getElementById('statOpen').textContent = stats.by_status?.open || 0;
+            document.getElementById('statInProgress').textContent = stats.by_status?.['in-progress'] || 0;
+            document.getElementById('statClosed').textContent = stats.by_status?.closed || 0;
+        });
+}
+
+function renderCases(cases) {
+    const tbody = document.getElementById('casesTableBody');
+    
+    if (cases.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                    <i class="bi bi-folder-x display-4 d-block mb-2"></i>
+                    No cases found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = cases.map(c => `
+        <tr>
+            <td>
+                <a href="/cases/${c.id}" class="fw-semibold text-decoration-none">${escapeHtml(c.title)}</a>
+                <br><small class="text-muted">${c.case_type || 'investigation'}</small>
+            </td>
+            <td>${getStatusBadge(c.status)}</td>
+            <td>${getPriorityBadge(c.priority)}</td>
+            <td>${getSeverityBadge(c.severity)}</td>
+            <td><span class="badge bg-secondary">${(c.ioc_ids || []).length}</span></td>
+            <td>${c.assignee_name || '<span class="text-muted">Unassigned</span>'}</td>
+            <td><small>${formatDate(c.created_at)}</small></td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a href="/cases/${c.id}" class="btn btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" onclick="deleteCase('${c.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getStatusBadge(status) {
+    const colors = {
+        'open': 'success',
+        'in-progress': 'warning',
+        'on-hold': 'secondary',
+        'closed': 'info'
+    };
+    return `<span class="badge bg-${colors[status] || 'secondary'}">${status || 'unknown'}</span>`;
+}
+
+function getPriorityBadge(priority) {
+    const colors = {
+        'critical': 'danger',
+        'high': 'warning',
+        'medium': 'info',
+        'low': 'secondary'
+    };
+    return `<span class="badge bg-${colors[priority] || 'secondary'}">${priority || 'unknown'}</span>`;
+}
+
+function getSeverityBadge(severity) {
+    const colors = {
+        'critical': 'danger',
+        'high': 'warning', 
+        'medium': 'info',
+        'low': 'secondary'
+    };
+    return `<span class="badge bg-${colors[severity] || 'secondary'}">${severity || 'unknown'}</span>`;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function renderPagination(total, page, perPage) {
+    const totalPages = Math.ceil(total / perPage);
+    const start = (page - 1) * perPage + 1;
+    const end = Math.min(page * perPage, total);
+
+    document.getElementById('paginationInfo').textContent = 
+        total > 0 ? `Showing ${start}-${end} of ${total}` : 'No results';
+
+    const paginationList = document.getElementById('paginationList');
+    if (totalPages <= 1) {
+        paginationList.innerHTML = '';
+        return;
+    }
+
+    let html = `
+        <li class="page-item ${page === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${page - 1}); return false;">&laquo;</a>
+        </li>
+    `;
+
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        html += `
+            <li class="page-item ${page === i ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+
+    html += `
+        <li class="page-item ${page === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${page + 1}); return false;">&raquo;</a>
+        </li>
+    `;
+
+    paginationList.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadCases();
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    document.getElementById('severityFilter').value = '';
+    currentPage = 1;
+    loadCases();
+}
+
+function deleteCase(caseId) {
+    if (!confirm('Are you sure you want to delete this case?')) return;
+
+    fetch(`/api/cases/${caseId}`, { method: 'DELETE' })
+        .then(response => {
+            if (response.ok) {
+                loadCases();
+            } else {
+                alert('Failed to delete case');
+            }
+        });
+}
+
+// Event listeners
+document.getElementById('searchInput').addEventListener('input', debounce(loadCases, 300));
+document.getElementById('statusFilter').addEventListener('change', loadCases);
+document.getElementById('priorityFilter').addEventListener('change', loadCases);
+document.getElementById('severityFilter').addEventListener('change', loadCases);
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Initial load
+loadCases();
+</script>
+{% endblock %}

@@ -39,6 +39,12 @@
                class="list-group-item list-group-item-action">
                 <i class="bi bi-broadcast me-2"></i> Webhooks
             </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings_scheduled_tasks') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-clock-history me-2"></i> Scheduled Tasks
+            </a>
+            {% endif %}
         </div>
     </div>
     

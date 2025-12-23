@@ -161,6 +161,9 @@
         <small class="text-muted">{{ ioc.id }}</small>
     </div>
     <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" id="versionsBtn" data-bs-toggle="modal" data-bs-target="#versionsModal">
+            <i class="bi bi-clock-history me-1"></i> Versions
+        </button>
         <div class="btn-group" role="group">
             <button class="btn btn-outline-info" id="enrichBtn">
                 <i class="bi bi-search me-1"></i> Enrich
@@ -505,6 +508,80 @@
             </div>
             <div class="card-body">
                 <pre class="mb-0" style="max-height: 300px; overflow: auto; font-size: 0.75rem;" id="stixJson">{{ ioc|tojson(indent=2) }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div class="modal fade" id="versionsModal" tabindex="-1" aria-labelledby="versionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="versionsModalLabel">
+                    <i class="bi bi-clock-history me-2"></i>Version History
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="versionsLoading" class="text-center py-4">
+                    <span class="spinner-border spinner-border-sm me-2"></span> Loading versions...
+                </div>
+                <div id="versionsContent" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>Current Version:</strong> <span id="currentVersionNumber">-</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Version</th>
+                                    <th>Modified</th>
+                                    <th>Modified By</th>
+                                    <th>Changes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="versionsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <nav id="versionsPagination" aria-label="Version pagination" style="display: none;">
+                        <ul class="pagination justify-content-center">
+                        </ul>
+                    </nav>
+                </div>
+                <div id="versionsEmpty" style="display: none;" class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox me-2" style="font-size: 2rem;"></i>
+                    <p>No previous versions found</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version Detail Modal -->
+<div class="modal fade" id="versionDetailModal" tabindex="-1" aria-labelledby="versionDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="versionDetailModalLabel">Version Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="versionDetailContent">
+                    <pre class="bg-light p-3 rounded" style="max-height: 400px; overflow: auto;" id="versionJson"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-warning" id="restoreVersionBtn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Restore This Version
+                </button>
             </div>
         </div>
     </div>
@@ -1374,6 +1451,189 @@ $(document).ready(function() {
             });
         }
     });
+});
+
+// ========================================
+// VERSION HISTORY FUNCTIONS
+// ========================================
+
+let currentVersionsPage = 1;
+let selectedVersionNumber = null;
+
+// Load versions when modal opens
+$('#versionsModal').on('show.bs.modal', function() {
+    loadVersions(1);
+});
+
+function loadVersions(page = 1) {
+    currentVersionsPage = page;
+    
+    $('#versionsLoading').show();
+    $('#versionsContent').hide();
+    $('#versionsEmpty').hide();
+    
+    $.ajax({
+        url: `/api/ioc/${iocId}/versions`,
+        method: 'GET',
+        data: { page: page, per_page: 10 },
+        success: function(response) {
+            $('#versionsLoading').hide();
+            
+            const versions = response.versions || [];
+            const total = response.total || 0;
+            const currentVersion = response.current_version || 1;
+            
+            $('#currentVersionNumber').text(currentVersion);
+            
+            if (versions.length === 0) {
+                $('#versionsEmpty').show();
+                return;
+            }
+            
+            $('#versionsContent').show();
+            
+            const tbody = $('#versionsTableBody');
+            tbody.empty();
+            
+            versions.forEach(version => {
+                const modifiedDate = version.modified_at ? new Date(version.modified_at).toLocaleString() : '-';
+                const modifiedBy = version.modified_by || 'System';
+                const changesCount = version.changes ? Object.keys(version.changes).length : 0;
+                const changesText = changesCount > 0 ? `${changesCount} field(s)` : '-';
+                
+                const isCurrent = version.version_number === currentVersion;
+                
+                tbody.append(`
+                    <tr class="${isCurrent ? 'table-info' : ''}">
+                        <td>
+                            <strong>v${version.version_number}</strong>
+                            ${isCurrent ? '<span class="badge bg-primary ms-2">Current</span>' : ''}
+                        </td>
+                        <td><small>${modifiedDate}</small></td>
+                        <td><small>${escapeHtml(modifiedBy)}</small></td>
+                        <td><small>${changesText}</small></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="viewVersion(${version.version_number})">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            ${!isCurrent ? `
+                            <button class="btn btn-sm btn-outline-warning" onclick="confirmRestoreVersion(${version.version_number})">
+                                <i class="bi bi-arrow-counterclockwise"></i>
+                            </button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `);
+            });
+            
+            // Update pagination
+            updateVersionsPagination(total, page, 10);
+        },
+        error: function(xhr) {
+            $('#versionsLoading').hide();
+            $('#versionsEmpty').show();
+            console.error('Failed to load versions:', xhr.responseText);
+        }
+    });
+}
+
+function updateVersionsPagination(total, currentPage, perPage) {
+    const totalPages = Math.ceil(total / perPage);
+    const pagination = $('#versionsPagination');
+    const ul = pagination.find('ul');
+    ul.empty();
+    
+    if (totalPages <= 1) {
+        pagination.hide();
+        return;
+    }
+    
+    pagination.show();
+    
+    // Previous button
+    ul.append(`
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadVersions(${currentPage - 1}); return false;">Previous</a>
+        </li>
+    `);
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            ul.append(`
+                <li class="page-item ${i === currentPage ? 'active' : ''}">
+                    <a class="page-link" href="#" onclick="loadVersions(${i}); return false;">${i}</a>
+                </li>
+            `);
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            ul.append(`<li class="page-item disabled"><span class="page-link">...</span></li>`);
+        }
+    }
+    
+    // Next button
+    ul.append(`
+        <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="loadVersions(${currentPage + 1}); return false;">Next</a>
+        </li>
+    `);
+}
+
+function viewVersion(versionNumber) {
+    selectedVersionNumber = versionNumber;
+    
+    $.ajax({
+        url: `/api/ioc/${iocId}/versions`,
+        method: 'GET',
+        data: { page: 1, per_page: 100 },
+        success: function(response) {
+            const versions = response.versions || [];
+            const version = versions.find(v => v.version_number === versionNumber);
+            
+            if (version) {
+                $('#versionJson').text(JSON.stringify(version.snapshot || version, null, 2));
+                $('#versionDetailModalLabel').text(`Version ${versionNumber} Details`);
+                
+                // Show/hide restore button based on if it's current version
+                const isCurrent = versionNumber === response.current_version;
+                $('#restoreVersionBtn').toggle(!isCurrent);
+                
+                $('#versionDetailModal').modal('show');
+            } else {
+                showAlert('Version not found', 'warning');
+            }
+        },
+        error: function() {
+            showAlert('Failed to load version details', 'danger');
+        }
+    });
+}
+
+function confirmRestoreVersion(versionNumber) {
+    if (confirm(`Are you sure you want to restore this IOC to version ${versionNumber}? This will create a new version with the restored data.`)) {
+        restoreVersion(versionNumber);
+    }
+}
+
+function restoreVersion(versionNumber) {
+    $.ajax({
+        url: `/api/ioc/${iocId}/versions/${versionNumber}/restore`,
+        method: 'POST',
+        success: function(response) {
+            showAlert(`IOC restored to version ${versionNumber} successfully`, 'success');
+            $('#versionsModal').modal('hide');
+            $('#versionDetailModal').modal('hide');
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert('Failed to restore version: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+}
+
+$('#restoreVersionBtn').click(function() {
+    if (selectedVersionNumber) {
+        confirmRestoreVersion(selectedVersionNumber);
+    }
 });
 </script>
 {% endblock %}

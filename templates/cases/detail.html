@@ -1,0 +1,749 @@
+{% extends "base.html" %}
+
+{% block title %}{{ case.title }} - Cases - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ url_for('main.cases_list') }}">Cases</a></li>
+                    <li class="breadcrumb-item active">{{ case.title }}</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0 mt-2">{{ case.title }}</h1>
+            <div class="mt-2">
+                <span class="badge bg-{{ 'success' if case.status == 'open' else 'warning' if case.status == 'in-progress' else 'info' }}">{{ case.status }}</span>
+                <span class="badge bg-{{ 'danger' if case.priority == 'critical' else 'warning' if case.priority == 'high' else 'info' }}">{{ case.priority }} priority</span>
+                <span class="badge tlp-{{ case.tlp }}">TLP:{{ case.tlp|upper }}</span>
+            </div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCaseModal">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+            <button class="btn btn-outline-danger" onclick="deleteCase()">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Description -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Description</h6>
+                </div>
+                <div class="card-body">
+                    <div id="descriptionContent">{{ case.description or 'No description provided' }}</div>
+                </div>
+            </div>
+
+            <!-- Timeline -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Timeline</h6>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTimelineModal">
+                        <i class="bi bi-plus"></i> Add Event
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="timelineContainer">
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-clock display-4"></i>
+                            <p class="mt-2">Loading timeline...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IOCs -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked IOCs</h6>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIocModal">
+                        <i class="bi bi-plus"></i> Link IOC
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="iocsContainer">
+                        <div class="text-center text-muted py-3">Loading IOCs...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comments -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Comments</h6>
+                </div>
+                <div class="card-body">
+                    <div id="commentsContainer">
+                        <div class="text-center text-muted py-3">Loading comments...</div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <form id="commentForm">
+                        <div class="mb-2">
+                            <textarea class="form-control" id="newComment" rows="3" placeholder="Add a comment..."></textarea>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-send me-1"></i> Post Comment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Info Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Details</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted">Type</td>
+                            <td>{{ case.case_type or 'Investigation' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Severity</td>
+                            <td><span class="badge bg-{{ 'danger' if case.severity == 'critical' else 'warning' if case.severity == 'high' else 'info' }}">{{ case.severity }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Created</td>
+                            <td>{{ case.created_at[:10] if case.created_at else '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Created By</td>
+                            <td>{{ case.created_by_name or '-' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Assignee</td>
+                            <td>{{ case.assignee_name or 'Unassigned' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-tags me-2"></i>Tags</h6>
+                </div>
+                <div class="card-body">
+                    {% if case.tags %}
+                        {% for tag in case.tags %}
+                            <span class="badge bg-secondary me-1 mb-1">{{ tag }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="text-muted">No tags</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Linked Incidents -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Linked Incidents</h6>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#linkIncidentModal">
+                        <i class="bi bi-plus"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="incidentsContainer">
+                        <span class="text-muted">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Timeline Event Modal -->
+<div class="modal fade" id="addTimelineModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Timeline Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="timelineForm">
+                    <div class="mb-3">
+                        <label class="form-label">Event Type</label>
+                        <select class="form-select" id="eventType">
+                            <option value="note">Note</option>
+                            <option value="discovery">Discovery</option>
+                            <option value="analysis">Analysis</option>
+                            <option value="action">Action Taken</option>
+                            <option value="escalation">Escalation</option>
+                            <option value="resolution">Resolution</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="eventTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="eventDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Event Time</label>
+                        <input type="datetime-local" class="form-control" id="eventTime">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addTimelineEvent()">Add Event</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add IOC Modal -->
+<div class="modal fade" id="addIocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Link IOC to Case</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Search IOCs</label>
+                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by value...">
+                </div>
+                <div id="iocSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted py-3">Search for IOCs to link</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Case Modal -->
+<div class="modal fade" id="editCaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Case</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editCaseForm">
+                    <div class="mb-3">
+                        <label class="form-label">Title</label>
+                        <input type="text" class="form-control" id="editTitle" value="{{ case.title }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" rows="4">{{ case.description or '' }}</textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Status</label>
+                            <select class="form-select" id="editStatus">
+                                <option value="open" {% if case.status == 'open' %}selected{% endif %}>Open</option>
+                                <option value="in-progress" {% if case.status == 'in-progress' %}selected{% endif %}>In Progress</option>
+                                <option value="on-hold" {% if case.status == 'on-hold' %}selected{% endif %}>On Hold</option>
+                                <option value="closed" {% if case.status == 'closed' %}selected{% endif %}>Closed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Priority</label>
+                            <select class="form-select" id="editPriority">
+                                <option value="low" {% if case.priority == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if case.priority == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if case.priority == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if case.priority == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Severity</label>
+                            <select class="form-select" id="editSeverity">
+                                <option value="low" {% if case.severity == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if case.severity == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if case.severity == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if case.severity == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assignee</label>
+                        <input type="text" class="form-control" id="editAssignee" value="{{ case.assignee_name or '' }}" placeholder="Leave empty for unassigned">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveCase()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Link Incident Modal -->
+<div class="modal fade" id="linkIncidentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Link Incident to Case</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Search Incidents</label>
+                    <input type="text" class="form-control" id="incidentSearch" placeholder="Search by title...">
+                </div>
+                <div id="incidentSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted py-3">Search for incidents to link</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Timeline Event Modal -->
+<div class="modal fade" id="editTimelineEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Timeline Event</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editEventId">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="editEventTitle" placeholder="Event title">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" id="editEventDescription" rows="3" placeholder="Event description"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" id="editEventType">
+                        <option value="note">Note</option>
+                        <option value="analysis">Analysis</option>
+                        <option value="finding">Finding</option>
+                        <option value="investigation">Investigation</option>
+                        <option value="alert">Alert</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTimelineEvent()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const caseId = '{{ case.id }}';
+
+// Load Timeline
+function loadTimeline() {
+    fetch(`/api/timeline/case/${caseId}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('timelineContainer');
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3">No timeline events yet</div>';
+                return;
+            }
+            
+            container.innerHTML = data.items.map(e => `
+                <div class="d-flex mb-3">
+                    <div class="me-3">
+                        <span class="badge bg-${getEventColor(e.event_type)} rounded-circle p-2">
+                            <i class="bi bi-${getEventIcon(e.event_type)}"></i>
+                        </span>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${escapeHtml(e.title)}</strong>
+                                <div class="small text-muted">${formatDateTime(e.event_time)}</div>
+                            </div>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-secondary" onclick="editTimelineEvent('${e.id}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="deleteTimelineEvent('${e.id}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <p class="mb-1 text-muted small">${escapeHtml(e.description || '')}</p>
+                        <small class="text-muted">by ${e.created_by_name}</small>
+                    </div>
+                </div>
+            `).join('');
+        });
+}
+
+function getEventColor(type) {
+    const colors = { discovery: 'info', analysis: 'primary', action: 'success', escalation: 'warning', resolution: 'secondary' };
+    return colors[type] || 'secondary';
+}
+
+function getEventIcon(type) {
+    const icons = { discovery: 'search', analysis: 'graph-up', action: 'check-circle', escalation: 'arrow-up-circle', resolution: 'flag' };
+    return icons[type] || 'circle';
+}
+
+// Load IOCs
+function loadIOCs() {
+    const iocIds = {{ case.ioc_ids | tojson | safe }};
+    const container = document.getElementById('iocsContainer');
+    
+    if (!iocIds || iocIds.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+        return;
+    }
+    
+    // Fetch each IOC
+    Promise.all(iocIds.map(id => fetch(`/api/ioc/${id}`).then(r => r.json()).catch(() => null)))
+        .then(iocs => {
+            const validIocs = iocs.filter(i => i);
+            if (validIocs.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div class="list-group">
+                    ${validIocs.map(ioc => `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <a href="/iocs/${ioc.id}">${escapeHtml(ioc.ioc_value || ioc.value)}</a>
+                                <br><small class="text-muted">${ioc.ioc_type}</small>
+                            </div>
+                            <button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        });
+}
+
+// Load Comments
+function loadComments() {
+    fetch(`/api/comments/case/${caseId}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('commentsContainer');
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3">No comments yet</div>';
+                return;
+            }
+            
+            container.innerHTML = data.items.map(c => `
+                <div class="mb-3 p-3 bg-light rounded">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>${escapeHtml(c.created_by_name)}</strong>
+                            <small class="text-muted ms-2">${formatDateTime(c.created_at)}</small>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteComment('${c.id}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <p class="mb-0 mt-2">${escapeHtml(c.content)}</p>
+                </div>
+            `).join('');
+        });
+}
+
+// Add comment
+document.getElementById('commentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const content = document.getElementById('newComment').value.trim();
+    if (!content) return;
+    
+    fetch(`/api/comments/case/${caseId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+    })
+    .then(r => {
+        if (r.ok) {
+            document.getElementById('newComment').value = '';
+            loadComments();
+        }
+    });
+});
+
+// Add timeline event
+function addTimelineEvent() {
+    const data = {
+        event_type: document.getElementById('eventType').value,
+        title: document.getElementById('eventTitle').value,
+        description: document.getElementById('eventDescription').value,
+        event_time: document.getElementById('eventTime').value || new Date().toISOString()
+    };
+    
+    fetch(`/api/timeline/case/${caseId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addTimelineModal')).hide();
+            loadTimeline();
+        }
+    });
+}
+
+// Search IOCs
+document.getElementById('iocSearch').addEventListener('input', debounce(function() {
+    const query = this.value.trim();
+    if (query.length < 2) {
+        document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for IOCs to link</div>';
+        return;
+    }
+    
+    fetch(`/api/search/iocs?q=${encodeURIComponent(query)}&size=10`)
+        .then(r => r.json())
+        .then(data => {
+            const results = document.getElementById('iocSearchResults');
+            const items = data.items || data.results || [];
+            if (items.length === 0) {
+                results.innerHTML = '<div class="text-center text-muted py-3">No IOCs found</div>';
+                return;
+            }
+            
+            results.innerHTML = items.map(ioc => `
+                <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${ioc.id}')">
+                    <div class="fw-bold">${escapeHtml(ioc.value || ioc.ioc_value)}</div>
+                    <small class="text-muted">${ioc.type || ioc.ioc_type}</small>
+                </button>
+            `).join('');
+        });
+}, 300));
+
+function linkIOC(iocId) {
+    fetch(`/api/cases/${caseId}/iocs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ioc_id: iocId })
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addIocModal')).hide();
+            location.reload();
+        }
+    });
+}
+
+function unlinkIOC(iocId) {
+    if (!confirm('Unlink this IOC from the case?')) return;
+    
+    fetch(`/api/cases/${caseId}/iocs/${iocId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) location.reload();
+        });
+}
+
+function saveCase() {
+    const data = {
+        title: document.getElementById('editTitle').value,
+        description: document.getElementById('editDescription').value,
+        status: document.getElementById('editStatus').value,
+        priority: document.getElementById('editPriority').value,
+        severity: document.getElementById('editSeverity').value,
+        assignee_name: document.getElementById('editAssignee').value.trim() || null
+    };
+    
+    fetch(`/api/cases/${caseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => {
+        if (r.ok) location.reload();
+    });
+}
+
+function deleteCase() {
+    if (!confirm('Delete this case? This cannot be undone.')) return;
+    
+    fetch(`/api/cases/${caseId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) window.location.href = '/cases';
+        });
+}
+
+function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+    
+    fetch(`/api/comments/${commentId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) {
+                showAlert('Comment deleted', 'success');
+                loadComments();
+            } else {
+                showAlert('Failed to delete comment', 'danger');
+            }
+        });
+}
+
+function formatDateTime(dt) {
+    if (!dt) return '-';
+    return new Date(dt).toLocaleString();
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Timeline Event Actions
+function editTimelineEvent(eventId) {
+    fetch(`/api/timeline/event/${eventId}`)
+        .then(r => r.json())
+        .then(event => {
+            document.getElementById('editEventId').value = eventId;
+            document.getElementById('editEventTitle').value = event.title || '';
+            document.getElementById('editEventDescription').value = event.description || '';
+            document.getElementById('editEventType').value = event.event_type || 'note';
+            
+            new bootstrap.Modal(document.getElementById('editTimelineEventModal')).show();
+        });
+}
+
+function saveTimelineEvent() {
+    const eventId = document.getElementById('editEventId').value;
+    const data = {
+        title: document.getElementById('editEventTitle').value,
+        description: document.getElementById('editEventDescription').value,
+        event_type: document.getElementById('editEventType').value
+    };
+    
+    fetch(`/api/timeline/event/${eventId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('editTimelineEventModal')).hide();
+            loadTimeline();
+            showAlert('Timeline event updated', 'success');
+        } else {
+            showAlert('Failed to update event', 'danger');
+        }
+    });
+}
+
+function deleteTimelineEvent(eventId) {
+    if (!confirm('Delete this timeline event?')) return;
+    
+    fetch(`/api/timeline/event/${eventId}`, { method: 'DELETE' })
+        .then(r => {
+            if (r.ok) {
+                loadTimeline();
+                showAlert('Timeline event deleted', 'success');
+            } else {
+                showAlert('Failed to delete event', 'danger');
+            }
+        });
+}
+
+// Incident Search and Link
+document.getElementById('incidentSearch')?.addEventListener('input', debounce(function(e) {
+    const query = e.target.value.trim();
+    if (query.length < 2) {
+        document.getElementById('incidentSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for incidents to link</div>';
+        return;
+    }
+    
+    fetch(`/api/incidents?search=${encodeURIComponent(query)}&per_page=10`)
+        .then(r => r.json())
+        .then(data => {
+            const results = document.getElementById('incidentSearchResults');
+            const items = data.items || [];
+            if (items.length === 0) {
+                results.innerHTML = '<div class="text-center text-muted py-3">No incidents found</div>';
+                return;
+            }
+            
+            results.innerHTML = items.map(inc => `
+                <button type="button" class="list-group-item list-group-item-action text-start" onclick="linkIncident('${inc.id}')">
+                    <div class="fw-bold">${escapeHtml(inc.title)}</div>
+                    <small class="text-muted">${inc.status} - ${inc.severity}</small>
+                </button>
+            `).join('');
+        });
+}, 300));
+
+function linkIncident(incidentId) {
+    fetch(`/api/cases/${caseId}/incidents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ incident_id: incidentId })
+    })
+    .then(r => {
+        if (r.ok) {
+            showAlert('Incident linked successfully', 'success');
+            document.querySelector('[data-bs-dismiss="modal"]').click();
+            loadIncidents();
+        } else {
+            showAlert('Failed to link incident', 'danger');
+        }
+    });
+}
+
+function loadIncidents() {
+    fetch(`/api/cases/${caseId}/incidents`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('incidentsContainer');
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-3">No linked incidents</div>';
+                return;
+            }
+            
+            container.innerHTML = data.items.map(inc => `
+                <div class="badge bg-warning me-2 mb-2">
+                    ${escapeHtml(inc.title)}
+                </div>
+            `).join('');
+        });
+}
+
+// Initial load
+loadTimeline();
+loadIOCs();
+loadComments();
+loadIncidents();
+</script>
+{% endblock %}

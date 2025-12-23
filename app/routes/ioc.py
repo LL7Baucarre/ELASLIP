@@ -216,7 +216,20 @@ def get_versions(ioc_id):
     
     versions = service.get_versions(ioc_id, page=page, per_page=per_page)
     
-    return jsonify(versions), 200
+    # Get current IOC to include current_version
+    current_ioc = service.get(ioc_id)
+    current_version = current_ioc.get('current_version', 1) if current_ioc else 1
+    
+    # Transform response to match frontend expectations
+    response = {
+        'versions': versions.get('items', []),
+        'total': versions.get('total', 0),
+        'current_version': current_version,
+        'page': versions.get('page', page),
+        'per_page': versions.get('per_page', per_page)
+    }
+    
+    return jsonify(response), 200
 
 
 @ioc_bp.route('/<ioc_id>/versions/<int:version>/restore', methods=['POST'])
@@ -819,7 +832,11 @@ def update_ioc(ioc_id):
         return jsonify({'error': 'JSON body required'}), 400
     
     service = IOCService()
-    ioc = service.update(ioc_id, data)
+    
+    user_id = str(g.current_user.id)
+    username = g.current_user.username
+    
+    ioc = service.update(ioc_id, data, user_id=user_id, username=username)
     
     if not ioc:
         return jsonify({'error': 'IOC not found'}), 404
