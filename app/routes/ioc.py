@@ -146,7 +146,9 @@ def create_ioc():
             threat_level=data.get('threat_level', 'unknown'),
             confidence=data.get('confidence'),
             tlp=data.get('tlp'),
-            campaigns=data.get('campaigns', [])
+            campaigns=data.get('campaigns', []),
+            valid_from=data.get('valid_from'),
+            valid_until=data.get('valid_until')
         )
         
         status_code = 201 if is_new else 200

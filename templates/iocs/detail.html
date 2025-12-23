@@ -3,6 +3,7 @@
 {% block title %}IOC Detail - {{ SITE_TITLE }}{% endblock %}
 
 {% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
 <style>
 .json-tree {
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -139,6 +140,10 @@
 .json-tree-item.array > .toggle::before {
     content: '[]';
     font-size: 0.9em;
+}
+
+#miniCyGraph {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
 </style>
 {% endblock %}
@@ -281,6 +286,18 @@
             </div>
         </div>
         
+        <!-- IOC Relationship Graph -->
+        <div class="card mb-4" id="iocGraphCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="miniCyGraph" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px;"></div>
+            </div>
+        </div>
+        
         <!-- Related IOCs -->
         <div class="card mb-4" id="relatedIocsCard" style="display: none;">
             <div class="card-header bg-white">
@@ -338,6 +355,31 @@
                             <input type="text" class="form-control" id="editCampaigns" 
                                    value="{{ (ioc.campaigns or [])|join(', ') }}"
                                    placeholder="Comma-separated campaigns">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editValidFrom" class="form-label">Valid From</label>
+                        <input type="datetime-local" class="form-control" id="editValidFrom" 
+                               value="{% if ioc.valid_from %}{{ ioc.valid_from[:16] }}{% endif %}">
+                        <div class="form-text">Indicator validity start date (STIX)</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="editAddValidUntil" 
+                               {% if ioc.valid_until %}checked{% endif %} 
+                               onchange="toggleEditValidUntil()">
+                        <label class="form-check-label" for="editAddValidUntil">
+                            Add expiration date
+                        </label>
+                    </div>
+
+                    <div id="editValidUntilWrapper" {% if not ioc.valid_until %}style="display: none; margin-left: 20px;"{% else %}style="margin-left: 20px;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="editValidUntil" class="form-label">Valid Until</label>
+                            <input type="datetime-local" class="form-control" id="editValidUntil" 
+                                   value="{% if ioc.valid_until %}{{ ioc.valid_until[:16] }}{% endif %}">
+                            <div class="form-text">Indicator validity end date (STIX)</div>
                         </div>
                     </div>
                     
@@ -449,6 +491,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
 <script>
 const iocId = '{{ ioc.id }}';
 const iocValue = '{{ ioc.ioc_value }}';
@@ -748,7 +791,9 @@ $(document).ready(function() {
             tlp: $('#editTlp').val() || null,
             campaigns: $('#editCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
             labels: $('#editLabels').val().split(',').map(l => l.trim()).filter(l => l),
-            description: $('#editDescription').val()
+            description: $('#editDescription').val(),
+            valid_from: $('#editValidFrom').val() ? new Date($('#editValidFrom').val()).toISOString() : null,
+            valid_until: $('#editValidUntil').val() ? new Date($('#editValidUntil').val()).toISOString() : null
         };
         
         $.ajax({
@@ -847,6 +892,162 @@ $(document).ready(function() {
                 showAlert('Failed to create relation: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
             }
         });
+    });
+
+    // Load and initialize relationship graph
+    let miniCy = null;
+
+    function toggleEditValidUntil() {
+        const checkbox = $('#editAddValidUntil');
+        const wrapper = $('#editValidUntilWrapper');
+        const input = $('#editValidUntil');
+        
+        if (checkbox.is(':checked')) {
+            wrapper.show();
+        } else {
+            wrapper.hide();
+            input.val(''); // Clear the value when unchecked
+        }
+    }
+
+    function initMiniGraph(nodes, edges) {
+        if (miniCy) {
+            miniCy.destroy();
+        }
+
+        miniCy = cytoscape({
+            container: document.getElementById('miniCyGraph'),
+            elements: { nodes: nodes, edges: edges },
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'content': 'data(label)',
+                        'background-color': 'data(color)',
+                        'width': 40,
+                        'height': 40,
+                        'border-width': 2,
+                        'border-color': '#333',
+                        'font-size': 10,
+                        'color': 'white',
+                        'text-outline-width': 1,
+                        'text-outline-color': '#333',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'padding': 3
+                    }
+                },
+                {
+                    selector: 'node[id="' + iocId + '"]',
+                    style: {
+                        'border-width': 3,
+                        'border-color': '#FFD700',
+                        'width': 50,
+                        'height': 50
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'line-color': '#999',
+                        'target-arrow-color': '#999',
+                        'target-arrow-shape': 'triangle',
+                        'curve-style': 'bezier',
+                        'width': 2,
+                        'opacity': 0.8,
+                        'font-size': 8,
+                        'color': '#333',
+                        'content': 'data(label)',
+                        'text-background-color': '#fff',
+                        'text-background-opacity': 0.8,
+                        'text-background-padding': '2px'
+                    }
+                }
+            ],
+            layout: {
+                name: 'cose',
+                animate: true,
+                animationDuration: 400,
+                randomize: false,
+                nodeSpacing: 30,
+                padding: 40,
+                fit: true,
+                directed: true,
+                avoidOverlap: true,
+                avoidOverlapPadding: 10,
+                minNodeSpacing: 40
+            },
+            wheelSensitivity: 0.1,
+            minZoom: 0.5,
+            maxZoom: 2
+        });
+
+        // Attendre que le layout soit fini pour bien centrer
+        setTimeout(function() {
+            if (miniCy && miniCy.elements().length > 0) {
+                miniCy.fit(miniCy.elements(), 40);
+                miniCy.center();
+            }
+        }, 500);
+
+        // Click on node to navigate to IOC
+        miniCy.on('tap', 'node', function(e) {
+            const nodeId = e.target.id();
+            if (nodeId !== iocId) {
+                window.location.href = `/iocs/${nodeId}`;
+            }
+        });
+    }
+
+    function loadIOCGraph() {
+        $.ajax({
+            url: `/api/iocs/${iocId}/graph-data`,
+            method: 'GET',
+            success: function(response) {
+                const nodes = response.nodes;
+                const edges = response.edges;
+
+                // Add colors
+                nodes.forEach(node => {
+                    const type = node.data.type.replace('-', '_');
+                    node.data.color = getColorForType(type);
+                });
+
+                if (nodes.length > 1) {
+                    initMiniGraph(nodes, edges);
+                    document.getElementById('iocGraphCard').style.display = 'block';
+                }
+            },
+            error: function() {
+                console.log('No related IOCs for graph');
+            }
+        });
+    }
+
+    function getColorForType(type) {
+        const colors = {
+            'ipv4': '#FF6B6B',
+            'ipv6': '#FF5252',
+            'domain': '#4ECDC4',
+            'email': '#95E1D3',
+            'url': '#FFE66D',
+            'md5': '#A8E6CF',
+            'sha1': '#FFD3B6',
+            'sha256': '#FFAAA5',
+            'asn': '#C7CEEA',
+            'file_path': '#FF8B94',
+            'process_name': '#FFA07A',
+            'registry_key': '#DDA0DD',
+            'windows_registry_key': '#BA55D3',
+            'mutex': '#9370DB',
+            'certificate_serial': '#87CEEB'
+        };
+        return colors[type] || '#888';
+    }
+
+    // Load graph on page load
+    $(document).ready(function() {
+        loadIOCGraph();
     });
 });
 </script>

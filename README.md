@@ -8,6 +8,8 @@ A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with
 - **Multi-format Import**: Bulk import from STIX, MISP JSON, OpenIOC, and IODEF files
 - **Simple IOC Entry**: Form-based input with automatic STIX pattern generation
 - **IOC Relationships**: Link IOCs with relationship types (related-to, indicates, etc.)
+- **IOC Metadata**: Track confidence levels, TLP (Traffic Light Protocol), and related campaigns
+- **Interactive Graph Visualization**: Visualize IOC relationships with graph view
 - **Deduplication**: Automatic deduplication with source tracking
 - **External API Integration**: Enrich IOCs with configurable external APIs (VirusTotal, AbuseIPDB, etc.)
 - **Webhooks**: Real-time notifications on IOC events
@@ -41,6 +43,35 @@ A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with
 - Windows Registry Key - Windows registry keys with HKEY prefix
 - Mutex - Mutex identifiers (e.g., `Global\MyMutex`)
 - Certificate Serial - X.509 certificate serial numbers (e.g., `01:23:45:67:89:AB:CD:EF`)
+
+## IOC Metadata
+
+Each IOC can include the following metadata:
+
+### Threat Level
+Severity assessment of the indicator:
+- `critical` - Imminent threat
+- `high` - Significant threat
+- `medium` - Moderate threat
+- `low` - Minor threat
+- `unknown` - Not assessed
+
+### Confidence Level
+Trust in the accuracy of the indicator:
+- `low` - Low confidence
+- `medium` - Medium confidence
+- `high` - High confidence
+- `very-high` - Very high confidence
+
+### TLP (Traffic Light Protocol)
+Classification for sharing restrictions:
+- `white` - Unlimited distribution
+- `green` - Community distribution
+- `amber` - Restricted to organization
+- `red` - Not for distribution
+
+### Campaigns
+Related campaigns or operations (comma-separated list of campaign names)
 
 ## Quick Start
 
@@ -86,8 +117,31 @@ ELASTICSEARCH_PASSWORD=your-password
 4. Access the application:
 - Web UI: http://localhost:5000
 - API Documentation: http://localhost:5000/apidocs (requires login)
+- IOC Graph: http://localhost:5000/iocs/graph (requires login)
 
 5. Create your first admin user by running the initialization script or contact your administrator
+
+## Graph Visualization
+
+The IOC Graph view provides an interactive visualization of IOC relationships using Cytoscape.js:
+
+### Features
+- **Visual Relationships**: See connections between IOCs with directional arrows
+- **Color-Coded Types**: Each IOC type has a distinct color for easy identification
+- **Threat Level Highlighting**: Visual indication of IOC threat levels
+- **Relation Labels**: Display relationship types on edges (toggle with checkbox)
+- **Type Filtering**: Filter to view IOCs of specific types and their relationships
+- **Layout Options**: Switch between multiple layout algorithms (COSE, Circle, Grid, etc.)
+- **Node Information**: Click any IOC to view metadata (threat level, confidence, TLP, campaigns)
+- **Zoom & Pan**: Full control over graph navigation
+- **Threat Highlighting**: Quickly identify critical and high-threat indicators
+
+### Accessing the Graph
+1. Navigate to "IOC Graph" in the main menu
+2. Load IOCs using the "Reload Graph" button
+3. Use controls to adjust layout, toggle labels, and filter by type
+4. Click any node to see detailed information
+5. Double-click to navigate to the IOC detail page
 
 ## Admin Features
 

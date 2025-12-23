@@ -152,6 +152,27 @@
                                        placeholder="campaign-name, operation-x (comma-separated)">
                                 <div class="form-text">Associate with campaigns or operations</div>
                             </div>
+
+                            <div class="mb-3">
+                                <label for="iocValidFrom" class="form-label">Valid From</label>
+                                <input type="datetime-local" class="form-control" id="iocValidFrom" name="valid_from">
+                                <div class="form-text">Indicator validity start date (STIX)</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="addValidUntil" onchange="toggleValidUntil()">
+                                <label class="form-check-label" for="addValidUntil">
+                                    Add expiration date
+                                </label>
+                            </div>
+
+                            <div id="validUntilWrapper" style="display: none; margin-left: 20px;">
+                                <div class="mb-3">
+                                    <label for="iocValidUntil" class="form-label">Valid Until</label>
+                                    <input type="datetime-local" class="form-control" id="iocValidUntil" name="valid_until">
+                                    <div class="form-text">Indicator validity end date (STIX)</div>
+                                </div>
+                            </div>
                             
                             <div class="mb-3">
                                 <label for="iocName" class="form-label">Name</label>
@@ -570,6 +591,38 @@ $('#stixJsonForm').submit(function(e) {
     });
 });
 
+// Page initialization
+$(document).ready(function() {
+    // Set valid_from to current date/time
+    const now = new Date();
+    const localDateTime = now.toISOString().slice(0, 16);
+    $('#iocValidFrom').val(localDateTime);
+    
+    // Optional: Set valid_until to 1 year from now (when checkbox is enabled)
+    const oneYearLater = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const validUntilDateTime = oneYearLater.toISOString().slice(0, 16);
+    
+    // Store the pre-calculated value for use when checkbox is checked
+    $('#iocValidUntil').data('default-value', validUntilDateTime);
+});
+
+function toggleValidUntil() {
+    const checkbox = $('#addValidUntil');
+    const wrapper = $('#validUntilWrapper');
+    const input = $('#iocValidUntil');
+    
+    if (checkbox.is(':checked')) {
+        wrapper.show();
+        // Set to pre-calculated 1 year later if empty
+        if (!input.val()) {
+            input.val(input.data('default-value'));
+        }
+    } else {
+        wrapper.hide();
+        input.val(''); // Clear the value when unchecked
+    }
+}
+
 // Linked IOCs functionality
 let selectedLinkedIocs = {};
 
@@ -750,6 +803,8 @@ $('#addIocForm').submit(function(e) {
         confidence: $('#iocConfidence').val() || null,
         tlp: $('#iocTlp').val() || null,
         campaigns: $('#iocCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
+        valid_from: $('#iocValidFrom').val() ? new Date($('#iocValidFrom').val()).toISOString() : null,
+        valid_until: $('#iocValidUntil').val() ? new Date($('#iocValidUntil').val()).toISOString() : null,
         name: $('#iocName').val(),
         description: $('#iocDescription').val()
     };
