@@ -87,6 +87,62 @@
     </div>
 </div>
 
+<!-- Bulk Actions Toolbar -->
+<div class="card mb-3 d-none" id="bulkActionsBar">
+    <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <span class="me-3"><strong id="selectedCount">0</strong> items selected</span>
+                <button class="btn btn-sm btn-outline-secondary me-2" onclick="selectAllVisible()">
+                    <i class="bi bi-check-all me-1"></i> Select All
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                    <i class="bi bi-x-lg me-1"></i> Clear
+                </button>
+            </div>
+            <div>
+                <div class="btn-group me-2">
+                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-tag me-1"></i> Set TLP
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('tlp', 'white')">White</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('tlp', 'green')">Green</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('tlp', 'amber')">Amber</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('tlp', 'red')">Red</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group me-2">
+                    <button class="btn btn-sm btn-outline-warning dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-exclamation-triangle me-1"></i> Set Threat
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('threat_level', 'low')">Low</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('threat_level', 'medium')">Medium</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('threat_level', 'high')">High</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('threat_level', 'critical')">Critical</a></li>
+                    </ul>
+                </div>
+                <div class="btn-group me-2">
+                    <button class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="bi bi-shield me-1"></i> Set Status
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('status', 'active')">Active</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="bulkSetField('status', 'archived')">Archived</a></li>
+                    </ul>
+                </div>
+                <button class="btn btn-sm btn-outline-success me-2" onclick="bulkExport()">
+                    <i class="bi bi-download me-1"></i> Export
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                    <i class="bi bi-trash me-1"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- IOC Table -->
 <div class="card">
     <div class="card-body p-0">
@@ -94,8 +150,10 @@
             <table class="table table-hover mb-0" id="iocTable">
                 <thead>
                     <tr>
+                        <th width="40"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
                         <th>Type</th>
                         <th>Pattern / Value</th>
+                        <th>Risk</th>
                         <th>Labels</th>
                         <th>TLP</th>
                         <th>Threat</th>
@@ -108,7 +166,7 @@
                 </thead>
                 <tbody id="iocTableBody">
                     <tr>
-                        <td colspan="10" class="text-center py-4">
+                        <td colspan="12" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -169,7 +227,7 @@ function renderIOCs(iocs) {
     if (iocs.length === 0) {
         tbody.append(`
             <tr>
-                <td colspan="10" class="text-center py-4 text-muted">
+                <td colspan="12" class="text-center py-4 text-muted">
                     No IOCs found
                 </td>
             </tr>
@@ -200,6 +258,14 @@ function renderIOCs(iocs) {
         'very-high': 'primary'
     };
     
+    function getRiskScoreClass(score) {
+        if (score >= 80) return 'danger';
+        if (score >= 60) return 'warning';
+        if (score >= 40) return 'info';
+        if (score >= 20) return 'secondary';
+        return 'light';
+    }
+    
     iocs.forEach(ioc => {
         const labels = (ioc.labels || []).slice(0, 3).map(l => 
             `<span class="badge bg-light text-dark">${l}</span>`
@@ -224,12 +290,20 @@ function renderIOCs(iocs) {
             `<span class="badge bg-warning text-dark">${relationsCount}</span>` : 
             '<span class="text-muted">-</span>';
         
+        const riskScore = ioc.risk_score || 0;
+        const riskScoreClass = getRiskScoreClass(riskScore);
+        const riskScoreBadge = `<span class="badge bg-${riskScoreClass}" title="Risk Score">${riskScore}</span>`;
+        
+        const isSelected = selectedIOCs.has(ioc.id);
+        
         tbody.append(`
-            <tr>
+            <tr data-ioc-id="${ioc.id}">
+                <td><input type="checkbox" class="ioc-checkbox" value="${ioc.id}" ${isSelected ? 'checked' : ''} onchange="toggleIOCSelection('${ioc.id}')"></td>
                 <td><span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${(ioc.ioc_type || '').toUpperCase()}</span></td>
                 <td>
                     <code class="pattern-text">${(ioc.pattern || '').substring(0, 60)}${ioc.pattern && ioc.pattern.length > 60 ? '...' : ''}</code>
                 </td>
+                <td>${riskScoreBadge}</td>
                 <td>${labels} ${moreLabels}</td>
                 <td>${tlpBadge}</td>
                 <td>${threatBadge}</td>
@@ -293,6 +367,144 @@ function deleteIOC(id) {
         },
         error: function(xhr) {
             showAlert('Failed to delete IOC', 'danger');
+        }
+    });
+}
+
+// Bulk Selection
+const selectedIOCs = new Set();
+
+function toggleIOCSelection(id) {
+    if (selectedIOCs.has(id)) {
+        selectedIOCs.delete(id);
+    } else {
+        selectedIOCs.add(id);
+    }
+    updateBulkActionsBar();
+}
+
+function toggleSelectAll() {
+    const isChecked = $('#selectAllCheckbox').prop('checked');
+    if (isChecked) {
+        $('.ioc-checkbox').each(function() {
+            selectedIOCs.add($(this).val());
+            $(this).prop('checked', true);
+        });
+    } else {
+        $('.ioc-checkbox').each(function() {
+            selectedIOCs.delete($(this).val());
+            $(this).prop('checked', false);
+        });
+    }
+    updateBulkActionsBar();
+}
+
+function selectAllVisible() {
+    $('.ioc-checkbox').each(function() {
+        selectedIOCs.add($(this).val());
+        $(this).prop('checked', true);
+    });
+    $('#selectAllCheckbox').prop('checked', true);
+    updateBulkActionsBar();
+}
+
+function clearSelection() {
+    selectedIOCs.clear();
+    $('.ioc-checkbox').prop('checked', false);
+    $('#selectAllCheckbox').prop('checked', false);
+    updateBulkActionsBar();
+}
+
+function updateBulkActionsBar() {
+    const count = selectedIOCs.size;
+    $('#selectedCount').text(count);
+    if (count > 0) {
+        $('#bulkActionsBar').removeClass('d-none');
+    } else {
+        $('#bulkActionsBar').addClass('d-none');
+    }
+}
+
+function bulkSetField(field, value) {
+    if (selectedIOCs.size === 0) {
+        showAlert('No IOCs selected', 'warning');
+        return;
+    }
+    
+    const updates = {};
+    updates[field] = value;
+    
+    $.ajax({
+        url: '/api/ioc/bulk/update',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            ioc_ids: Array.from(selectedIOCs),
+            updates: updates
+        }),
+        success: function(data) {
+            showAlert(`Updated ${data.updated} IOCs`, 'success');
+            clearSelection();
+            loadIOCs(currentPage);
+        },
+        error: function(xhr) {
+            showAlert('Bulk update failed', 'danger');
+        }
+    });
+}
+
+function bulkDelete() {
+    if (selectedIOCs.size === 0) {
+        showAlert('No IOCs selected', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedIOCs.size} IOCs?`)) return;
+    
+    $.ajax({
+        url: '/api/ioc/bulk/delete',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            ioc_ids: Array.from(selectedIOCs)
+        }),
+        success: function(data) {
+            showAlert(`Deleted ${data.deleted} IOCs`, 'success');
+            clearSelection();
+            loadIOCs(currentPage);
+        },
+        error: function(xhr) {
+            showAlert('Bulk delete failed', 'danger');
+        }
+    });
+}
+
+function bulkExport() {
+    if (selectedIOCs.size === 0) {
+        showAlert('No IOCs selected', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/ioc/bulk/export',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            ioc_ids: Array.from(selectedIOCs),
+            format: 'json'
+        }),
+        success: function(data) {
+            // Download as file
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'iocs_export.json';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        },
+        error: function(xhr) {
+            showAlert('Export failed', 'danger');
         }
     });
 }

@@ -18,6 +18,7 @@ stix2==3.0.1
 # Security
 bcrypt==4.1.2
 PyJWT==2.8.0
+cryptography==41.0.7
 
 # HTTP requests
 requests==2.31.0

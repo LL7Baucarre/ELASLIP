@@ -62,7 +62,11 @@ IOC_MAPPING = {
             },
             "pattern_hash": {"type": "keyword"},
             "ioc_type": {"type": "keyword"},
-            "ioc_value": {"type": "keyword"}
+            "ioc_value": {"type": "keyword"},
+            "risk_score": {"type": "integer"},
+            "status": {"type": "keyword"},
+            "current_version": {"type": "integer"},
+            "last_reviewed": {"type": "date"}
         }
     }
 }
@@ -275,6 +279,53 @@ IOC_RELATIONS_MAPPING = {
 }
 
 
+# Audit Logs Index Mapping
+AUDIT_LOGS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "username": {"type": "keyword"},
+            "action": {"type": "keyword"},
+            "entity_type": {"type": "keyword"},
+            "entity_id": {"type": "keyword"},
+            "entity_name": {"type": "text"},
+            "changes": {"type": "object", "enabled": False},
+            "old_values": {"type": "object", "enabled": False},
+            "new_values": {"type": "object", "enabled": False},
+            "ip_address": {"type": "keyword"},
+            "user_agent": {"type": "text", "index": False},
+            "timestamp": {"type": "date"}
+        }
+    }
+}
+
+
+# IOC Versions Index Mapping
+IOC_VERSIONS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "ioc_id": {"type": "keyword"},
+            "version_number": {"type": "integer"},
+            "snapshot": {"type": "object", "enabled": False},
+            "changes": {"type": "object", "enabled": False},
+            "modified_by": {"type": "keyword"},
+            "modified_by_username": {"type": "keyword"},
+            "created_at": {"type": "date"}
+        }
+    }
+}
+
+
 # All indices with their mappings
 INDICES = {
     "ioc_manager_ioc": IOC_MAPPING,
@@ -286,5 +337,7 @@ INDICES = {
     "ioc_manager_enrichment_cache": ENRICHMENT_CACHE_MAPPING,
     "ioc_manager_import_jobs": IMPORT_JOBS_MAPPING,
     "ioc_manager_scan_results": SCAN_RESULTS_MAPPING,
-    "ioc_manager_ioc_relations": IOC_RELATIONS_MAPPING
+    "ioc_manager_ioc_relations": IOC_RELATIONS_MAPPING,
+    "ioc_manager_audit_logs": AUDIT_LOGS_MAPPING,
+    "ioc_manager_ioc_versions": IOC_VERSIONS_MAPPING
 }

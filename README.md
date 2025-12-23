@@ -4,6 +4,7 @@ A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with
 
 ## Features
 
+### Core Features
 - **STIX 2.1 Native**: Uses STIX 2.1 as internal format with strict validation
 - **Multi-format Import**: Bulk import from STIX, MISP JSON, OpenIOC, and IODEF files
 - **Simple IOC Entry**: Form-based input with automatic STIX pattern generation
@@ -20,6 +21,55 @@ A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with
 - **Site Configuration**: Customizable site name and title
 - **Password Management**: Secure password change functionality
 - **Dockerized**: Complete Docker Compose setup for easy deployment
+
+### Advanced Features
+
+#### Risk Scoring
+Automatic composite risk score calculation (0-100) based on:
+- **Threat Level** (45% weight): unknown=0, low=20, medium=50, high=80, critical=100
+- **Confidence** (35% weight): low=25, medium=50, high=75, very-high=100
+- **TLP** (20% weight): white=25, green=50, amber=75, red=100
+
+Risk scores are displayed as color-coded badges in the IOC list.
+
+#### IOC Versioning
+- Full version history for each IOC
+- View changes between versions
+- Restore IOCs to any previous version
+- Audit trail for all modifications
+
+#### Bulk Operations
+- Select multiple IOCs using checkboxes
+- Bulk update TLP, threat level, or status
+- Bulk delete selected IOCs
+- Bulk export to JSON, CSV, or STIX format
+
+#### IOC Expiration Automation
+- Set validity dates (valid_from, valid_until) for IOCs
+- Automatic detection of expired IOCs
+- View IOCs expiring soon (within N days)
+- Automatic archival of expired IOCs via scheduled task
+
+#### Activity Timeline
+- Real-time activity feed showing all user actions
+- Filter by action type, entity type, user, or date range
+- View audit statistics and trends
+- Track entity history over time
+
+#### Dark Mode
+- Toggle between light and dark themes
+- Theme preference saved in browser
+- Accessible from sidebar toggle
+
+#### Redis Caching
+- Cached IOC statistics for improved dashboard performance
+- Search results caching
+- Automatic cache invalidation on IOC changes
+
+#### Encryption at Rest
+- API tokens encrypted using Fernet symmetric encryption
+- Key derived from SECRET_KEY using PBKDF2
+- Transparent encryption/decryption for sensitive data
 
 ## Supported IOC Types
 
@@ -196,6 +246,7 @@ Access admin features through the "Admin" section in the navigation menu (visibl
 | `DEBUG` | Debug mode | `false` |
 | `SITE_NAME` | Site name displayed in UI | `ElasMISP` |
 | `SITE_TITLE` | Site title in browser tab | `ElasMISP` |
+| `ENCRYPTION_KEY` | Key for encrypting sensitive data | Falls back to SECRET_KEY |
 
 ## API Documentation
 
@@ -277,8 +328,9 @@ flask run --debug
 
 ## Elasticsearch Indices
 
-- `ioc` - IOC indicators
+- `ioc` - IOC indicators (includes risk_score, status, current_version fields)
 - `ioc_relations` - IOC relationship mappings
+- `ioc_versions` - IOC version history and snapshots
 - `users` - User accounts
 - `api_keys` - API keys
 - `api_configs` - External API configurations
@@ -286,6 +338,48 @@ flask run --debug
 - `webhook_logs` - Webhook delivery logs
 - `enrichment_cache` - API response cache
 - `import_jobs` - Import job tracking
+- `audit_logs` - Activity timeline and audit trail
+
+## API Endpoints
+
+### IOC Management
+- `POST /api/ioc` - Create IOC
+- `GET /api/ioc` - List IOCs with filters
+- `GET /api/ioc/<id>` - Get IOC details
+- `PUT /api/ioc/<id>` - Update IOC
+- `DELETE /api/ioc/<id>` - Delete IOC
+
+### Versioning
+- `GET /api/ioc/<id>/versions` - Get version history
+- `POST /api/ioc/<id>/versions/<version>/restore` - Restore to version
+
+### Bulk Operations
+- `POST /api/ioc/bulk/update` - Bulk update IOCs
+- `POST /api/ioc/bulk/delete` - Bulk delete IOCs
+- `POST /api/ioc/bulk/export` - Bulk export IOCs
+
+### Expiration
+- `GET /api/ioc/expired` - List expired IOCs
+- `GET /api/ioc/expiring-soon?days=7` - IOCs expiring soon
+- `POST /api/ioc/archive-expired` - Archive expired IOCs
+
+### Audit & Timeline
+- `GET /api/audit/logs` - List audit logs
+- `GET /api/audit/entity/<type>/<id>` - Entity history
+- `GET /api/audit/my-activity` - Current user's activity
+- `GET /api/audit/stats` - Audit statistics
+
+## Scheduled Tasks
+
+The following Celery tasks can be scheduled:
+
+| Task | Description | Recommended Schedule |
+|------|-------------|---------------------|
+| `tasks.check_expired_iocs` | Archive expired IOCs | Daily |
+| `tasks.check_expiring_soon` | Notify about expiring IOCs | Daily |
+| `tasks.cleanup_old_versions` | Remove old version snapshots | Weekly |
+| `tasks.update_risk_scores` | Recalculate all risk scores | On demand |
+| `tasks.cleanup_old_audit_logs` | Remove old audit logs | Monthly |
 
 ## License
 

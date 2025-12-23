@@ -14,7 +14,7 @@ def list_keys():
     
     if request.is_json or request.headers.get('Accept') == 'application/json':
         return jsonify({
-            'keys': [key.to_dict() for key in keys]
+            'api_keys': [key.to_dict() for key in keys]
         })
     
     return render_template('settings/api_keys.html', keys=keys)

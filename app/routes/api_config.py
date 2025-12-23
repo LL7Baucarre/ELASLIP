@@ -8,6 +8,7 @@ from flask import Blueprint, request, jsonify, g
 from app.auth import login_or_api_key_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.enrichment_service import EnrichmentService
+from app.services.encryption_service import EncryptionService
 
 api_config_bp = Blueprint('api_config', __name__)
 
@@ -101,7 +102,7 @@ def create_api_config():
         'method': data.get('method', 'GET').upper(),
         'headers': data.get('headers', {}),
         'auth_type': data.get('auth_type', 'none'),
-        'auth_token': data.get('auth_token'),
+        'auth_token': EncryptionService().encrypt(data.get('auth_token')) if data.get('auth_token') else None,
         'template': data.get('template', {}) or data.get('response_template', {}),
         'enabled': data.get('enabled', True) or data.get('is_enabled', True),
         'ioc_types': data.get('ioc_types', []),
