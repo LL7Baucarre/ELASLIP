@@ -10,6 +10,7 @@ import requests
 from redis import Redis
 
 from app.services.elasticsearch_service import ElasticsearchService
+from app.services.encryption_service import EncryptionService
 from app.models.api_template import APITemplate
 from app.utils.pattern_generator import PatternGenerator
 
@@ -21,6 +22,7 @@ class EnrichmentService:
         self.es = ElasticsearchService()
         self.redis = Redis.from_url(os.getenv('REDIS_URL', 'redis://localhost:6379/0'))
         self.cache_ttl = int(os.getenv('ENRICHMENT_CACHE_TTL', 3600))
+        self.encryption = EncryptionService()
     
     def enrich_value(self, value: str, ioc_type: str = None, 
                      user_id: str = None) -> List[Dict]:
@@ -164,6 +166,10 @@ class EnrichmentService:
         # Add auth if configured
         auth_type = config.get('auth_type', 'none')
         auth_token = config.get('auth_token')
+        
+        # Decrypt auth token if encrypted
+        if auth_token:
+            auth_token = self.encryption.decrypt_if_needed(auth_token)
         
         if auth_type == 'bearer' and auth_token:
             headers['Authorization'] = f'Bearer {auth_token}'

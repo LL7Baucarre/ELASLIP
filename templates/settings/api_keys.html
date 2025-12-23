@@ -149,10 +149,14 @@ function loadApiKeys() {
     $.ajax({
         url: '/api/api-keys',
         method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        },
         success: function(data) {
             displayApiKeys(data.api_keys || []);
         },
-        error: function() {
+        error: function(xhr) {
+            console.error('Failed to load API keys:', xhr);
             $('#apiKeysTable').html('<tr><td colspan="6" class="text-center text-danger">Failed to load API keys</td></tr>');
         }
     });
@@ -203,6 +207,7 @@ $('#createKeyForm').submit(function(e) {
     $.ajax({
         url: '/api/api-keys',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({
             name: $('#keyName').val()
         }),

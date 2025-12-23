@@ -80,6 +80,13 @@ def iocs_graph():
     return render_template('iocs/graph.html')
 
 
+@main_bp.route('/activity')
+@login_required
+def activity_timeline():
+    """Activity timeline page."""
+    return render_template('activity.html')
+
+
 @main_bp.route('/api/iocs/graph-data')
 @login_required
 def get_graph_data():

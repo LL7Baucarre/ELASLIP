@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Timeline - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-history me-2"></i>Activity Timeline</h2>
+    <div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="refreshTimeline()">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form id="filter-form" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Action</label>
+                <select id="filter-action" class="form-select form-select-sm">
+                    <option value="">All Actions</option>
+                    <option value="create">Create</option>
+                    <option value="update">Update</option>
+                    <option value="delete">Delete</option>
+                    <option value="import">Import</option>
+                    <option value="export">Export</option>
+                    <option value="bulk_update">Bulk Update</option>
+                    <option value="bulk_delete">Bulk Delete</option>
+                    <option value="restore">Restore</option>
+                    <option value="archive">Archive</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Entity Type</label>
+                <select id="filter-entity-type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    <option value="ioc">IOC</option>
+                    <option value="relation">Relation</option>
+                    <option value="webhook">Webhook</option>
+                    <option value="api_config">API Config</option>
+                    <option value="user">User</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">From Date</label>
+                <input type="date" id="filter-from-date" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">To Date</label>
+                <input type="date" id="filter-to-date" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">User</label>
+                <input type="text" id="filter-user" class="form-control form-control-sm" placeholder="Username">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="button" class="btn btn-primary btn-sm w-100" onclick="applyFilters()">
+                    <i class="fas fa-filter me-1"></i> Apply
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row mb-3 g-2" id="stats-row">
+    <div class="col-md-3">
+        <div class="card bg-primary bg-opacity-10">
+            <div class="card-body text-center py-2">
+                <h5 id="stat-total-actions" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                <small class="text-muted">Total Actions (30 days)</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success bg-opacity-10">
+            <div class="card-body text-center py-2">
+                <h5 id="stat-creates" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                <small class="text-muted">Created</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning bg-opacity-10">
+            <div class="card-body text-center py-2">
+                <h5 id="stat-updates" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                <small class="text-muted">Updated</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger bg-opacity-10">
+            <div class="card-body text-center py-2">
+                <h4 id="stat-deletes" class="mb-0" style="font-size: 1.1rem;">-</h4>
+                <small class="text-muted">Deleted</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline -->
+<div class="card">
+    <div class="card-body p-0">
+        <div id="timeline-container" class="timeline-container">
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="d-flex justify-content-between align-items-center">
+            <span id="timeline-info" class="text-muted"></span>
+            <nav aria-label="Timeline pagination">
+                <ul class="pagination pagination-sm mb-0" id="timeline-pagination"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.timeline-item {
+    position: relative;
+    padding: 8px 12px 8px 40px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.timeline-item:last-child {
+    border-bottom: none;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 18px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border-color);
+}
+
+.timeline-item::after {
+    content: '';
+    position: absolute;
+    left: 14px;
+    top: 12px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bs-primary);
+}
+
+.timeline-item.action-create::after {
+    background: var(--bs-success);
+}
+
+.timeline-item.action-update::after {
+    background: var(--bs-warning);
+}
+
+.timeline-item.action-delete::after {
+    background: var(--bs-danger);
+}
+
+.timeline-item.action-import::after {
+    background: var(--bs-info);
+}
+
+.timeline-item.action-export::after {
+    background: var(--bs-secondary);
+}
+
+.timeline-item.action-restore::after {
+    background: var(--bs-purple);
+}
+
+.timeline-item:first-child::before {
+    top: 12px;
+}
+
+.timeline-item:last-child::before {
+    bottom: auto;
+    height: 12px;
+}
+
+.timeline-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.timeline-action {
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.timeline-entity {
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.timeline-entity:hover {
+    text-decoration: none;
+    color: inherit;
+}
+
+.timeline-changes {
+    font-size: 0.75rem;
+    margin-top: 3px;
+    padding: 4px 6px;
+    background: var(--card-bg);
+    border-radius: 3px;
+}
+
+.timeline-user {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.timeline-ip {
+    font-family: monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+</style>
+
+<script>
+let currentPage = 1;
+const perPage = 50;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadTimeline();
+    loadStats();
+});
+
+function refreshTimeline() {
+    loadTimeline();
+    loadStats();
+}
+
+function applyFilters() {
+    currentPage = 1;
+    loadTimeline();
+}
+
+function loadTimeline() {
+    const container = document.getElementById('timeline-container');
+    container.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    let params = new URLSearchParams({
+        page: currentPage,
+        per_page: perPage
+    });
+    
+    const action = document.getElementById('filter-action').value;
+    const entityType = document.getElementById('filter-entity-type').value;
+    const fromDate = document.getElementById('filter-from-date').value;
+    const toDate = document.getElementById('filter-to-date').value;
+    const user = document.getElementById('filter-user').value;
+    
+    if (action) params.append('action', action);
+    if (entityType) params.append('entity_type', entityType);
+    if (fromDate) params.append('from_date', fromDate + 'T00:00:00Z');
+    if (toDate) params.append('to_date', toDate + 'T23:59:59Z');
+    if (user) params.append('user_id', user);
+    
+    fetch(`/api/audit/logs?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            renderTimeline(data);
+        })
+        .catch(error => {
+            console.error('Error loading timeline:', error);
+            container.innerHTML = `
+                <div class="text-center text-danger p-4">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Failed to load timeline</p>
+                </div>
+            `;
+        });
+}
+
+function loadStats() {
+    fetch('/api/audit/stats?days=30')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('stat-total-actions').textContent = data.total || 0;
+            
+            const byAction = data.by_action || {};
+            document.getElementById('stat-creates').textContent = byAction.create || 0;
+            document.getElementById('stat-updates').textContent = byAction.update || 0;
+            document.getElementById('stat-deletes').textContent = byAction.delete || 0;
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+function renderTimeline(data) {
+    const container = document.getElementById('timeline-container');
+    const logs = data.items || [];
+    
+    if (logs.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted p-4">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>No activity found</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    logs.forEach(log => {
+        const actionClass = `action-${log.action}`;
+        const time = new Date(log.timestamp).toLocaleString();
+        const timeAgo = getTimeAgo(log.timestamp);
+        
+        // Build entity name (text only, no links)
+        let entityHtml = `<span class="timeline-entity">${log.entity_name || log.entity_id}</span>`;
+        
+        // Action badge
+        const actionBadges = {
+            'create': '<span class="badge bg-success">Created</span>',
+            'update': '<span class="badge bg-warning text-dark">Updated</span>',
+            'delete': '<span class="badge bg-danger">Deleted</span>',
+            'import': '<span class="badge bg-info">Imported</span>',
+            'export': '<span class="badge bg-secondary">Exported</span>',
+            'bulk_update': '<span class="badge bg-warning text-dark">Bulk Updated</span>',
+            'bulk_delete': '<span class="badge bg-danger">Bulk Deleted</span>',
+            'restore': '<span class="badge bg-purple text-white">Restored</span>',
+            'archive': '<span class="badge bg-secondary">Archived</span>'
+        };
+        
+        const actionBadge = actionBadges[log.action] || `<span class="badge bg-secondary">${log.action}</span>`;
+        
+        // Changes section
+        let changesHtml = '';
+        if (log.changes && Object.keys(log.changes).length > 0) {
+            changesHtml = '<div class="timeline-changes">';
+            for (const [key, value] of Object.entries(log.changes)) {
+                changesHtml += `<span class="badge bg-light text-dark me-1">${key}: ${JSON.stringify(value)}</span>`;
+            }
+            changesHtml += '</div>';
+        }
+        
+        html += `
+            <div class="timeline-item ${actionClass}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="timeline-action">${actionBadge}</span>
+                        <span class="ms-2">${log.entity_type}</span>
+                        <span class="ms-1">${entityHtml}</span>
+                    </div>
+                    <div class="timeline-time" title="${time}">${timeAgo}</div>
+                </div>
+                <div class="mt-1">
+                    <span class="timeline-user">
+                        <i class="fas fa-user me-1"></i>${log.username || 'system'}
+                    </span>
+                    ${log.ip_address ? `<span class="timeline-ip ms-2"><i class="fas fa-network-wired me-1"></i>${log.ip_address}</span>` : ''}
+                </div>
+                ${changesHtml}
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Update info and pagination
+    const total = data.total || 0;
+    const totalPages = Math.ceil(total / perPage);
+    
+    document.getElementById('timeline-info').textContent = 
+        `Showing ${logs.length} of ${total} activities`;
+    
+    renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+    const pagination = document.getElementById('timeline-pagination');
+    let html = '';
+    
+    // Previous button
+    html += `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage - 1}); return false;">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+        </li>
+    `;
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    // Next button
+    html += `
+        <li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage + 1}); return false;">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+    `;
+    
+    pagination.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadTimeline();
+}
+
+function getTimeAgo(timestamp) {
+    const now = new Date();
+    const date = new Date(timestamp);
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return 'Just now';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+    
+    return date.toLocaleDateString();
+}
+</script>
+{% endblock %}

@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
 from app.services.ioc_service import IOCService
+from app.services.audit_service import AuditService
 from app.utils.pattern_generator import PatternGenerator
 
 ioc_bp = Blueprint('ioc', __name__, url_prefix=None)
@@ -171,6 +172,449 @@ def create_ioc():
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
+
+# ============================================================
+# VERSIONING ENDPOINTS
+# ============================================================
+
+@ioc_bp.route('/<ioc_id>/versions', methods=['GET'])
+@login_or_api_key_required
+def get_versions(ioc_id):
+    """
+    Get version history for an IOC.
+    ---
+    tags:
+      - IOC Versioning
+    summary: Get version history of an IOC
+    parameters:
+      - in: path
+        name: ioc_id
+        required: true
+        schema:
+          type: string
+        description: IOC ID
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+        description: Page number
+      - in: query
+        name: per_page
+        schema:
+          type: integer
+          default: 20
+        description: Items per page
+    responses:
+      200:
+        description: Version history retrieved
+    """
+    service = IOCService()
+    
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    
+    versions = service.get_versions(ioc_id, page=page, per_page=per_page)
+    
+    return jsonify(versions), 200
+
+
+@ioc_bp.route('/<ioc_id>/versions/<int:version>/restore', methods=['POST'])
+@login_or_api_key_required
+def restore_version(ioc_id, version):
+    """
+    Restore an IOC to a previous version.
+    ---
+    tags:
+      - IOC Versioning
+    summary: Restore IOC to a previous version
+    parameters:
+      - in: path
+        name: ioc_id
+        required: true
+        schema:
+          type: string
+        description: IOC ID
+      - in: path
+        name: version
+        required: true
+        schema:
+          type: integer
+        description: Version number to restore
+    responses:
+      200:
+        description: IOC restored successfully
+      404:
+        description: Version not found
+    """
+    service = IOCService()
+    
+    user_id = str(g.current_user.id)
+    username = g.current_user.username
+    
+    result = service.restore_version(ioc_id, version, user_id=user_id, username=username)
+    
+    if not result:
+        return jsonify({'error': 'Version not found'}), 404
+    
+    return jsonify({
+        'message': f'IOC restored to version {version}',
+        'ioc': result
+    }), 200
+
+
+# ============================================================
+# BULK OPERATIONS ENDPOINTS
+# ============================================================
+
+@ioc_bp.route('/bulk/update', methods=['POST'])
+@login_or_api_key_required
+def bulk_update():
+    """
+    Update multiple IOCs at once.
+    ---
+    tags:
+      - Bulk Operations
+    summary: Bulk update IOCs
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ioc_ids
+              - updates
+            properties:
+              ioc_ids:
+                type: array
+                items:
+                  type: string
+                description: List of IOC IDs to update
+              updates:
+                type: object
+                properties:
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                  threat_level:
+                    type: string
+                    enum: [unknown, low, medium, high, critical]
+                  confidence:
+                    type: string
+                    enum: [low, medium, high, very-high]
+                  tlp:
+                    type: string
+                    enum: [white, green, amber, red]
+                  status:
+                    type: string
+                    enum: [active, archived, expired]
+    responses:
+      200:
+        description: Bulk update completed
+    """
+    data = request.get_json()
+    
+    if not data or 'ioc_ids' not in data or 'updates' not in data:
+        return jsonify({'error': 'ioc_ids and updates are required'}), 400
+    
+    ioc_ids = data['ioc_ids']
+    updates = data['updates']
+    
+    if not isinstance(ioc_ids, list) or len(ioc_ids) == 0:
+        return jsonify({'error': 'ioc_ids must be a non-empty array'}), 400
+    
+    service = IOCService()
+    
+    user_id = str(g.current_user.id)
+    username = g.current_user.username
+    
+    result = service.bulk_update(ioc_ids, updates, user_id=user_id, username=username)
+    
+    # Log bulk operation to audit trail
+    try:
+        audit = AuditService()
+        audit.log(
+            action='bulk_update',
+            entity_type='ioc',
+            entity_id='bulk',
+            entity_name=f'Bulk update {len(ioc_ids)} IOCs',
+            changes=updates,
+            user_id=user_id,
+            username=username
+        )
+    except Exception:
+        pass
+    
+    return jsonify(result), 200
+
+
+@ioc_bp.route('/bulk/delete', methods=['POST'])
+@login_or_api_key_required
+def bulk_delete():
+    """
+    Delete multiple IOCs at once.
+    ---
+    tags:
+      - Bulk Operations
+    summary: Bulk delete IOCs
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ioc_ids
+            properties:
+              ioc_ids:
+                type: array
+                items:
+                  type: string
+                description: List of IOC IDs to delete
+    responses:
+      200:
+        description: Bulk delete completed
+    """
+    data = request.get_json()
+    
+    if not data or 'ioc_ids' not in data:
+        return jsonify({'error': 'ioc_ids is required'}), 400
+    
+    ioc_ids = data['ioc_ids']
+    
+    if not isinstance(ioc_ids, list) or len(ioc_ids) == 0:
+        return jsonify({'error': 'ioc_ids must be a non-empty array'}), 400
+    
+    service = IOCService()
+    
+    user_id = str(g.current_user.id)
+    username = g.current_user.username
+    
+    result = service.bulk_delete(ioc_ids, user_id=user_id, username=username)
+    
+    # Log bulk operation to audit trail
+    try:
+        audit = AuditService()
+        audit.log(
+            action='bulk_delete',
+            entity_type='ioc',
+            entity_id='bulk',
+            entity_name=f'Bulk delete {len(ioc_ids)} IOCs',
+            changes={'deleted': True},
+            user_id=user_id,
+            username=username
+        )
+    except Exception:
+        pass
+    
+    return jsonify(result), 200
+
+
+@ioc_bp.route('/bulk/export', methods=['POST'])
+@login_or_api_key_required
+def bulk_export():
+    """
+    Export multiple IOCs based on filters.
+    ---
+    tags:
+      - Bulk Operations
+    summary: Bulk export IOCs
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              ioc_ids:
+                type: array
+                items:
+                  type: string
+                description: Specific IOC IDs to export (optional)
+              filters:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  labels:
+                    type: array
+                    items:
+                      type: string
+                  threat_level:
+                    type: string
+                  tlp:
+                    type: string
+                  status:
+                    type: string
+              format:
+                type: string
+                enum: [json, stix, csv]
+                default: json
+    responses:
+      200:
+        description: Export data
+    """
+    data = request.get_json() or {}
+    
+    service = IOCService()
+    
+    ioc_ids = data.get('ioc_ids')
+    filters = data.get('filters', {})
+    export_format = data.get('format', 'json')
+    
+    iocs = service.bulk_export(ioc_ids=ioc_ids, filters=filters)
+    
+    # Log bulk operation to audit trail
+    try:
+        audit = AuditService()
+        user_id = str(g.current_user.id) if hasattr(g, 'current_user') else 'system'
+        username = g.current_user.username if hasattr(g, 'current_user') else 'system'
+        audit.log(
+            action='bulk_export',
+            entity_type='ioc',
+            entity_id='bulk',
+            entity_name=f'Bulk export {len(iocs)} IOCs as {export_format}',
+            changes={'format': export_format, 'count': len(iocs)},
+            user_id=user_id,
+            username=username
+        )
+    except Exception:
+        pass
+    
+    if export_format == 'csv':
+        # Generate CSV
+        import csv
+        from io import StringIO
+        
+        output = StringIO()
+        if iocs:
+            fieldnames = ['id', 'type', 'value', 'threat_level', 'confidence', 'tlp', 'risk_score', 'status', 'created']
+            writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
+            for ioc in iocs:
+                writer.writerow(ioc)
+        
+        from flask import Response
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={'Content-Disposition': 'attachment; filename=iocs_export.csv'}
+        )
+    
+    elif export_format == 'stix':
+        # Convert to STIX bundle
+        from datetime import datetime
+        
+        stix_objects = []
+        for ioc in iocs:
+            stix_obj = {
+                'type': 'indicator',
+                'spec_version': '2.1',
+                'id': f"indicator--{ioc['id']}",
+                'created': ioc.get('created', datetime.utcnow().isoformat()),
+                'modified': ioc.get('modified', datetime.utcnow().isoformat()),
+                'indicator_types': ioc.get('labels', ['unknown']),
+                'pattern': ioc.get('pattern', f"[file:hashes.'{ioc['type']}' = '{ioc['value']}']"),
+                'pattern_type': 'stix',
+                'valid_from': ioc.get('valid_from', ioc.get('created'))
+            }
+            if ioc.get('name'):
+                stix_obj['name'] = ioc['name']
+            if ioc.get('description'):
+                stix_obj['description'] = ioc['description']
+            stix_objects.append(stix_obj)
+        
+        bundle = {
+            'type': 'bundle',
+            'id': f"bundle--{str(__import__('uuid').uuid4())}",
+            'objects': stix_objects
+        }
+        
+        return jsonify(bundle), 200
+    
+    # Default: JSON
+    return jsonify({'iocs': iocs, 'count': len(iocs)}), 200
+
+
+# ============================================================
+# EXPIRATION ENDPOINTS
+# ============================================================
+
+@ioc_bp.route('/expired', methods=['GET'])
+@login_or_api_key_required
+def get_expired():
+    """
+    Get all expired IOCs.
+    ---
+    tags:
+      - IOC Expiration
+    summary: Get expired IOCs
+    responses:
+      200:
+        description: List of expired IOCs
+    """
+    service = IOCService()
+    
+    expired = service.get_expired_iocs()
+    
+    return jsonify({
+        'expired': expired,
+        'count': len(expired)
+    }), 200
+
+
+@ioc_bp.route('/expiring-soon', methods=['GET'])
+@login_or_api_key_required
+def get_expiring_soon():
+    """
+    Get IOCs expiring soon.
+    ---
+    tags:
+      - IOC Expiration
+    summary: Get IOCs expiring within specified days
+    parameters:
+      - in: query
+        name: days
+        schema:
+          type: integer
+          default: 7
+        description: Number of days to check
+    responses:
+      200:
+        description: List of expiring IOCs
+    """
+    service = IOCService()
+    
+    days = request.args.get('days', 7, type=int)
+    expiring = service.get_expiring_soon(days=days)
+    
+    return jsonify({
+        'expiring_soon': expiring,
+        'count': len(expiring),
+        'days': days
+    }), 200
+
+
+@ioc_bp.route('/archive-expired', methods=['POST'])
+@login_or_api_key_required
+def archive_expired():
+    """
+    Archive all expired IOCs.
+    ---
+    tags:
+      - IOC Expiration
+    summary: Archive expired IOCs
+    responses:
+      200:
+        description: Archive operation completed
+    """
+    service = IOCService()
+    
+    result = service.archive_expired_iocs()
+    
+    return jsonify(result), 200
 
 @ioc_bp.route('', methods=['GET'])
 @login_or_api_key_required

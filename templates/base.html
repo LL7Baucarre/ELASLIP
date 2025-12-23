@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,10 +13,309 @@
             --success-color: #27ae60;
             --danger-color: #e74c3c;
             --warning-color: #f39c12;
+            --bg-color: #f8f9fa;
+            --card-bg: #ffffff;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+            --border-color: #dee2e6;
+            --sidebar-bg: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+            --code-bg: #f8f9fa;
+            --table-hover: rgba(0,0,0,0.02);
+        }
+        
+        [data-theme="dark"] {
+            --primary-color: #3498db;
+            --secondary-color: #5dade2;
+            --bg-color: #1a1d21;
+            --card-bg: #22262a;
+            --text-color: #e9ecef;
+            --text-muted: #adb5bd;
+            --border-color: #3d4449;
+            --sidebar-bg: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
+            --code-bg: #2d333b;
+            --table-hover: rgba(255,255,255,0.02);
+        }
+        
+        [data-theme="dark"] body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .card {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .card-header {
+            background-color: var(--card-bg) !important;
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .table {
+            color: var(--text-color);
+            --bs-table-bg: var(--card-bg);
+            --bs-table-hover-bg: var(--table-hover);
+        }
+        
+        [data-theme="dark"] .table th,
+        [data-theme="dark"] .table td {
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select {
+            background-color: var(--code-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .form-control:focus,
+        [data-theme="dark"] .form-select:focus {
+            background-color: var(--code-bg);
+            border-color: var(--secondary-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .top-bar {
+            background-color: var(--card-bg);
+        }
+        
+        [data-theme="dark"] .bg-white {
+            background-color: var(--card-bg) !important;
+        }
+        
+        [data-theme="dark"] .bg-light {
+            background-color: var(--code-bg) !important;
+        }
+        
+        [data-theme="dark"] .text-dark {
+            color: var(--text-color) !important;
+        }
+        
+        [data-theme="dark"] .text-muted {
+            color: var(--text-muted) !important;
+        }
+        
+        [data-theme="dark"] .pattern-text {
+            background: var(--code-bg);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] h1,
+        [data-theme="dark"] h2,
+        [data-theme="dark"] h3,
+        [data-theme="dark"] h4,
+        [data-theme="dark"] h5,
+        [data-theme="dark"] h6 {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] strong,
+        [data-theme="dark"] b,
+        [data-theme="dark"] .fw-bold {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .alert {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .alert-info {
+            background-color: rgba(52, 152, 219, 0.1);
+            border-color: #3498db;
+        }
+        
+        [data-theme="dark"] .alert-success {
+            background-color: rgba(39, 174, 96, 0.1);
+            border-color: #27ae60;
+        }
+        
+        [data-theme="dark"] .alert-warning {
+            background-color: rgba(243, 156, 18, 0.1);
+            border-color: #f39c12;
+        }
+        
+        [data-theme="dark"] .alert-danger {
+            background-color: rgba(231, 76, 60, 0.1);
+            border-color: #e74c3c;
+        }
+        
+        [data-theme="dark"] input::placeholder,
+        [data-theme="dark"] textarea::placeholder {
+            color: var(--text-muted) !important;
+            opacity: 1;
+        }
+        
+        [data-theme="dark"] .form-control::placeholder {
+            color: var(--text-muted) !important;
+        }
+        
+        [data-theme="dark"] p,
+        [data-theme="dark"] span,
+        [data-theme="dark"] label,
+        [data-theme="dark"] li,
+        [data-theme="dark"] a {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .text-secondary {
+            color: var(--text-muted) !important;
+        }
+        
+        [data-theme="dark"] .navbar {
+            background-color: var(--card-bg) !important;
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .nav-tabs {
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .nav-tabs .nav-link {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .nav-tabs .nav-link.active {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .breadcrumb {
+            background-color: var(--code-bg);
+        }
+        
+        [data-theme="dark"] .breadcrumb-item {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .breadcrumb-item.active {
+            color: var(--text-muted);
+        }
+        
+        [data-theme="dark"] .modal-content {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .modal-header {
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .modal-footer {
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .close {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .pagination .page-link {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .pagination .page-link:hover {
+            background-color: var(--code-bg);
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .table td,
+        [data-theme="dark"] .table th {
+            color: var(--text-color) !important;
+        }
+        
+        [data-theme="dark"] .table tbody tr {
+            background-color: var(--card-bg);
+        }
+        
+        [data-theme="dark"] .table tbody tr:hover {
+            background-color: var(--code-bg);
+        }
+        
+        [data-theme="dark"] .badge {
+            background-color: var(--secondary-color) !important;
+            color: white !important;
+        }
+        
+        [data-theme="dark"] .btn {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .btn-outline-primary,
+        [data-theme="dark"] .btn-outline-secondary,
+        [data-theme="dark"] .btn-outline-success,
+        [data-theme="dark"] .btn-outline-danger,
+        [data-theme="dark"] .btn-outline-warning,
+        [data-theme="dark"] .btn-outline-info {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .dropdown-menu {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .dropdown-item {
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .dropdown-item:hover {
+            background-color: var(--code-bg);
+        }
+        
+        [data-theme="dark"] .list-group-item {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .modal-content {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] .modal-header,
+        [data-theme="dark"] .modal-footer {
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .btn-close {
+            filter: invert(1);
+        }
+        
+        [data-theme="dark"] .nav-tabs .nav-link {
+            color: var(--text-muted);
+        }
+        
+        [data-theme="dark"] .nav-tabs .nav-link.active {
+            background-color: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-color);
+        }
+        
+        [data-theme="dark"] pre,
+        [data-theme="dark"] code {
+            background-color: var(--code-bg);
+            color: #e9ecef;
+        }
+        
+        .theme-toggle {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .theme-toggle:hover {
+            background: rgba(255,255,255,0.1);
         }
         
         body {
-            background-color: #f8f9fa;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
         
         .sidebar {
@@ -25,7 +324,7 @@
             left: 0;
             height: 100vh;
             width: 250px;
-            background: linear-gradient(135deg, var(--primary-color) 0%, #1a252f 100%);
+            background: var(--sidebar-bg);
             padding-top: 20px;
             z-index: 1000;
         }
@@ -55,6 +354,22 @@
         .sidebar .nav-link i {
             margin-right: 10px;
             width: 20px;
+        }
+        
+        .sidebar .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            padding: 12px 20px 8px 20px;
+            text-transform: uppercase;
+            margin-top: 15px;
+            display: list-item;
+            list-style: none;
+        }
+        
+        .sidebar .nav-section-title.mt-3 {
+            margin-top: 15px;
         }
         
         .main-content {
@@ -211,6 +526,7 @@
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
         <ul class="nav flex-column mt-3">
+            <li class="nav-section-title">MANAGEMENT</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
@@ -226,6 +542,7 @@
                     <i class="bi bi-diagram-3"></i> IOC Graph
                 </a>
             </li>
+            <li class="nav-section-title mt-3">TOOLS</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
                     <i class="bi bi-search"></i> Search
@@ -241,12 +558,19 @@
                     <i class="bi bi-terminal"></i> Tools
                 </a>
             </li>
+            <li class="nav-section-title mt-3">MONITORING</li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
+                    <i class="bi bi-clock-history"></i> Activity
+                </a>
+            </li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
                     <i class="bi bi-file-earmark-code"></i> API Docs
                 </a>
             </li>
-            <li class="nav-item mt-4">
+            <li class="nav-section-title mt-3">CONFIG</li>
+            <li class="nav-item">
                 <a class="nav-link {% if 'settings' in request.endpoint %}active{% endif %}" href="{{ url_for('main.settings') }}">
                     <i class="bi bi-gear"></i> Settings
                 </a>
@@ -260,9 +584,14 @@
             {% endif %}
         </ul>
         <div class="position-absolute bottom-0 w-100 p-3 border-top border-secondary">
-            <div class="d-flex align-items-center text-white-50 mb-2">
-                <i class="bi bi-person-circle me-2"></i>
-                <span class="small">{{ current_user.username }}</span>
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center text-white-50">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span class="small">{{ current_user.username }}</span>
+                </div>
+                <div class="theme-toggle text-white-50" onclick="toggleTheme()" title="Toggle Dark Mode">
+                    <i class="bi bi-moon-fill" id="themeIcon"></i>
+                </div>
             </div>
             <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout">
                 <i class="bi bi-box-arrow-right"></i> <span class="small">Logout</span>
@@ -293,6 +622,31 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+        
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+        
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+            }
+        }
+        
+        // Initialize theme on page load
+        initTheme();
+        
         // Global AJAX setup
         $.ajaxSetup({
             contentType: 'application/json',
