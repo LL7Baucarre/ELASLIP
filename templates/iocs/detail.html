@@ -145,6 +145,12 @@
 #miniCyGraph {
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 }
+
+.full-width-card {
+    margin-left: calc(-1 * var(--bs-gutter-x) / 2);
+    margin-right: calc(-1 * var(--bs-gutter-x) / 2);
+    width: calc(100% + var(--bs-gutter-x));
+}
 </style>
 {% endblock %}
 
@@ -278,44 +284,22 @@
         </div>
         
         <!-- Enrichment Information -->
-        {% set enrichment_fields = [] %}
-        {% for key, value in ioc.items() %}
-            {% if key.startswith('enrichment_') %}
-                {% set _ = enrichment_fields.append((key.replace('enrichment_', ''), value)) %}
-            {% endif %}
-        {% endfor %}
-        
-        {% if enrichment_fields|length > 0 %}
-        <div class="card mb-4">
+        <div class="card mb-4" id="enrichmentInfoCard" style="display: none;">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0"><i class="bi bi-sparkles me-2"></i>Enrichment Information</h6>
+                <button class="btn btn-sm btn-outline-secondary edit-enrichment-btn" style="display: none;">
+                    <i class="bi bi-pencil me-1"></i> Edit
+                </button>
             </div>
             <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    {% for field_name, field_value in enrichment_fields %}
-                    <tr class="enrichment-row" data-field="{{ field_name }}">
-                        <th width="25%">
-                            <span class="enrichment-field-name">{{ field_name }}</span>
-                            <button class="btn btn-xs btn-link rename-enrichment-field" data-field="{{ field_name }}" style="padding: 0; font-size: 0.8rem;">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                        </th>
-                        <td>
-                            {% if field_value is string %}
-                                <code class="enrichment-field-value">{{ field_value[:200] }}{% if field_value|length > 200 %}...{% endif %}</code>
-                            {% else %}
-                                <code class="enrichment-field-value">{{ field_value|tojson }}</code>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </table>
+                <div id="enrichmentInfoContent">
+                    <p class="text-muted">No enrichment data available</p>
+                </div>
             </div>
         </div>
-        {% endif %}
         
         <!-- Enrichment Results -->
-        <div class="card mb-4" id="enrichmentCard" style="display: none;">
+        <div class="card mb-4 full-width-card" id="enrichmentCard" style="display: none;">
             <div class="card-header bg-white">
                 <h6 class="mb-0">Enrichment Results</h6>
             </div>
@@ -1290,7 +1274,69 @@ $(document).ready(function() {
     // Load graph on page load
     $(document).ready(function() {
         loadIOCGraph();
+        loadEnrichmentInfo();
     });
+    
+    // Load and display enrichment information
+    function loadEnrichmentInfo() {
+        const enrichmentFields = {};
+        const iocData = {
+            'name': '{{ ioc.get("name", "") }}',
+            'description': '{{ ioc.get("description", "") }}',
+            'labels': {{ ioc.get('labels', [])|tojson }},
+            'threat_level': '{{ ioc.get("threat_level", "") }}',
+            'confidence': '{{ ioc.get("confidence", "") }}',
+            'tlp': '{{ ioc.get("tlp", "") }}',
+            'risk_score': '{{ ioc.get("risk_score", "") }}',
+            'severity': '{{ ioc.get("severity", "") }}',
+            'reputation': '{{ ioc.get("reputation", "") }}',
+            'malware_family': '{{ ioc.get("malware_family", "") }}',
+            'country': '{{ ioc.get("country", "") }}',
+            'asn': '{{ ioc.get("asn", "") }}',
+            'registrar': '{{ ioc.get("registrar", "") }}',
+            'last_seen': '{{ ioc.get("last_seen", "") }}',
+            'first_seen': '{{ ioc.get("first_seen", "") }}',
+            'detection_ratio': '{{ ioc.get("detection_ratio", "") }}',
+            'attributes': {{ ioc.get('attributes', {})|tojson }},
+            'metadata': {{ ioc.get('metadata', {})|tojson }}
+        };
+        
+        // Collect all enrichment_* fields
+        const allFields = {{ ioc|tojson|safe }};
+        for (const [key, value] of Object.entries(allFields)) {
+            if (key.startsWith('enrichment_')) {
+                const fieldName = key.replace('enrichment_', '');
+                enrichmentFields[fieldName] = value;
+            }
+        }
+        
+        if (Object.keys(enrichmentFields).length === 0) {
+            $('#enrichmentInfoCard').hide();
+            return;
+        }
+        
+        // Display enrichment fields
+        let html = '<table class="table table-borderless mb-0">';
+        Object.entries(enrichmentFields).forEach(([key, value]) => {
+            const displayValue = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value || '-');
+            const truncated = displayValue.length > 200 ? displayValue.substring(0, 200) + '...' : displayValue;
+            html += `<tr class="enrichment-row" data-field="${key}">
+                <th width="25%">
+                    <span class="enrichment-field-name">${escapeHtml(key)}</span>
+                    <button class="btn btn-xs btn-link rename-enrichment-field" data-field="${key}" style="padding: 0; font-size: 0.8rem;">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </th>
+                <td>
+                    <code class="enrichment-field-value">${escapeHtml(truncated)}</code>
+                </td>
+            </tr>`;
+        });
+        html += '</table>';
+        
+        $('#enrichmentInfoContent').html(html);
+        $('#enrichmentInfoCard').show();
+    }
     
     // Rename enrichment field
     $(document).on('click', '.rename-enrichment-field', function(e) {

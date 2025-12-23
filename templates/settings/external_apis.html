@@ -194,6 +194,13 @@
                         <div class="form-text">Use <code>{value}</code> as placeholder for the IOC value</div>
                     </div>
                     
+                    <div class="mb-3">
+                        <label for="responseTemplate" class="form-label">Response Template (JSONPath)</label>
+                        <textarea class="form-control json-editor" id="responseTemplate" rows="4" 
+                                  placeholder='{"asn": "$.asn", "description": "$.flag_title", "name": "$.name"}'></textarea>
+                        <div class="form-text">Map API response fields using JSONPath (e.g., $.asn, $.data.country). Optional - leave empty for auto-detection.</div>
+                    </div>
+                    
                     <hr>
                     
                     <div class="form-check mb-3">
@@ -399,42 +406,6 @@ function resetApiForm() {
     $('#apiModalTitle').text('Add External API');
 }
 
-function syncVisualToJson() {
-    const mapping = {};
-    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').each(function() {
-        const key = $(this).find('.mapping-field-key').val().trim();
-        const path = $(this).find('.mapping-field-path').val().trim();
-        if (key && path) {
-            mapping[key] = path;
-        }
-    });
-    $('#responseTemplate').val(JSON.stringify(mapping, null, 2));
-}
-
-function syncJsonToVisual() {
-    let mapping = {};
-    try {
-        const text = $('#responseTemplate').val().trim();
-        if (text) mapping = JSON.parse(text);
-    } catch (e) {
-        return; // Skip sync if invalid JSON
-    }
-    
-    // Clear existing fields
-    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
-    
-    // Add fields from mapping
-    for (const [key, path] of Object.entries(mapping)) {
-        const $template = $('#mappingFieldTemplate').clone();
-        $template.removeAttr('id');
-        $template.find('.mapping-field-key').val(key);
-        $template.find('.mapping-field-path').val(path);
-        $template.show();
-        $('#mappingFields').append($template);
-        $template.find('.btn-remove-field').click(removeMappingField);
-    }
-}
-
 function editApi(apiId) {
     console.log('[editApi] Called with apiId:', apiId);
     $.ajax({
@@ -469,22 +440,12 @@ function editApi(apiId) {
             // Show/hide POST body field based on method
             updatePostBodyVisibility();
             
-            // Load response template and populate visual editor
+            // Load response template
             const responseTemplate = api.response_template || api.template || {};
-            $('#responseTemplate').val(JSON.stringify(responseTemplate, null, 2));
-            
-            // Populate visual editor from template
-            $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
-            if (typeof responseTemplate === 'object' && Object.keys(responseTemplate).length > 0) {
-                for (const [key, path] of Object.entries(responseTemplate)) {
-                    const $template = $('#mappingFieldTemplate').clone();
-                    $template.removeAttr('id');
-                    $template.find('.mapping-field-key').val(key);
-                    $template.find('.mapping-field-path').val(path);
-                    $template.show();
-                    $('#mappingFields').append($template);
-                    $template.find('.btn-remove-field').click(removeMappingField);
-                }
+            if (Object.keys(responseTemplate).length > 0) {
+                $('#responseTemplate').val(JSON.stringify(responseTemplate, null, 2));
+            } else {
+                $('#responseTemplate').val('');
             }
             
             $('#apiEnabled').prop('checked', api.is_enabled !== false && api.enabled !== false);
@@ -529,9 +490,6 @@ $('#apiForm').submit(function(e) {
         showAlert('Invalid JSON in Headers field', 'warning');
         return;
     }
-    
-    // Sync visual editor to JSON before saving
-    syncVisualToJson();
     
     try {
         const templateText = $('#responseTemplate').val().trim();
