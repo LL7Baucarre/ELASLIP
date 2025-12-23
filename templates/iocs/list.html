@@ -10,6 +10,9 @@
             <i class="bi bi-search"></i>
             <input type="text" class="form-control" id="quickSearch" placeholder="Quick search...">
         </div>
+        <a href="{{ url_for('main.iocs_graph') }}" class="btn btn-outline-info">
+            <i class="bi bi-diagram-3 me-1"></i> Graph View
+        </a>
         <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> Add IOC
         </a>
@@ -20,7 +23,7 @@
 <div class="card mb-4">
     <div class="card-body">
         <div class="row g-3">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <select class="form-select" id="filterType">
                     <option value="">All Types</option>
                     <option value="md5">MD5</option>
@@ -31,18 +34,54 @@
                     <option value="email">Email</option>
                     <option value="url">URL</option>
                     <option value="asn">ASN</option>
+                    <option value="file-path">File Path</option>
+                    <option value="process-name">Process Name</option>
+                    <option value="registry-key">Registry Key</option>
+                    <option value="windows-registry-key">Windows Registry</option>
+                    <option value="mutex">Mutex</option>
+                    <option value="certificate-serial">Cert Serial</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                <input type="text" class="form-control" id="filterLabels" placeholder="Filter by labels...">
+            <div class="col-md-2">
+                <select class="form-select" id="filterTLP">
+                    <option value="">All TLP</option>
+                    <option value="white">White</option>
+                    <option value="green">Green</option>
+                    <option value="amber">Amber</option>
+                    <option value="red">Red</option>
+                </select>
             </div>
-            <div class="col-md-3">
-                <input type="text" class="form-control" id="filterSource" placeholder="Filter by source...">
+            <div class="col-md-2">
+                <select class="form-select" id="filterThreatLevel">
+                    <option value="">All Threat Levels</option>
+                    <option value="unknown">Unknown</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <select class="form-select" id="filterConfidence">
+                    <option value="">All Confidence</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="very-high">Very High</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="text" class="form-control" id="filterCampaigns" placeholder="Filter by campaigns...">
+            </div>
+            <div class="col-md-2">
                 <button class="btn btn-outline-primary w-100" id="applyFilters">
-                    <i class="bi bi-funnel me-1"></i> Apply Filters
+                    <i class="bi bi-funnel me-1"></i> Apply
                 </button>
+            </div>
+        </div>
+        <div class="row g-3 mt-2">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="filterLabels" placeholder="Filter by labels (comma-separated)...">
             </div>
         </div>
     </div>
@@ -58,6 +97,9 @@
                         <th>Type</th>
                         <th>Pattern / Value</th>
                         <th>Labels</th>
+                        <th>TLP</th>
+                        <th>Threat</th>
+                        <th>Confidence</th>
                         <th>Sources</th>
                         <th>Links</th>
                         <th>Created</th>
@@ -66,7 +108,7 @@
                 </thead>
                 <tbody id="iocTableBody">
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="10" class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
@@ -98,13 +140,19 @@ const perPage = 20;
 function loadIOCs(page = 1) {
     currentPage = page;
     const type = $('#filterType').val();
+    const tlp = $('#filterTLP').val();
+    const threatLevel = $('#filterThreatLevel').val();
+    const confidence = $('#filterConfidence').val();
+    const campaigns = $('#filterCampaigns').val();
     const labels = $('#filterLabels').val();
-    const source = $('#filterSource').val();
     
     let url = `/api/ioc?page=${page}&per_page=${perPage}`;
     if (type) url += `&type=${type}`;
+    if (tlp) url += `&tlp=${tlp}`;
+    if (threatLevel) url += `&threat_level=${threatLevel}`;
+    if (confidence) url += `&confidence=${confidence}`;
+    if (campaigns) url += `&campaigns=${encodeURIComponent(campaigns)}`;
     if (labels) url += `&labels=${encodeURIComponent(labels)}`;
-    if (source) url += `&source=${encodeURIComponent(source)}`;
     
     $.get(url, function(data) {
         renderIOCs(data.items);
@@ -121,7 +169,7 @@ function renderIOCs(iocs) {
     if (iocs.length === 0) {
         tbody.append(`
             <tr>
-                <td colspan="7" class="text-center py-4 text-muted">
+                <td colspan="10" class="text-center py-4 text-muted">
                     No IOCs found
                 </td>
             </tr>
@@ -129,12 +177,47 @@ function renderIOCs(iocs) {
         return;
     }
     
+    // Color mappings
+    const tlpColors = {
+        'white': 'secondary',
+        'green': 'success',
+        'amber': 'warning',
+        'red': 'danger'
+    };
+    
+    const threatColors = {
+        'unknown': 'secondary',
+        'low': 'info',
+        'medium': 'warning',
+        'high': 'danger',
+        'critical': 'dark'
+    };
+    
+    const confidenceColors = {
+        'low': 'secondary',
+        'medium': 'info',
+        'high': 'success',
+        'very-high': 'primary'
+    };
+    
     iocs.forEach(ioc => {
         const labels = (ioc.labels || []).slice(0, 3).map(l => 
             `<span class="badge bg-light text-dark">${l}</span>`
         ).join(' ');
         const moreLabels = ioc.labels && ioc.labels.length > 3 ? 
             `<span class="badge bg-secondary">+${ioc.labels.length - 3}</span>` : '';
+        
+        const tlpBadge = ioc.tlp ? 
+            `<span class="badge bg-${tlpColors[ioc.tlp] || 'secondary'}">${ioc.tlp.toUpperCase()}</span>` : 
+            '<span class="text-muted">-</span>';
+        
+        const threatBadge = ioc.threat_level ? 
+            `<span class="badge bg-${threatColors[ioc.threat_level] || 'secondary'}">${ioc.threat_level}</span>` : 
+            '<span class="text-muted">-</span>';
+        
+        const confidenceBadge = ioc.confidence ? 
+            `<span class="badge bg-${confidenceColors[ioc.confidence] || 'secondary'}">${ioc.confidence}</span>` : 
+            '<span class="text-muted">-</span>';
         
         const relationsCount = ioc.relations_count || 0;
         const relationsDisplay = relationsCount > 0 ? 
@@ -148,6 +231,9 @@ function renderIOCs(iocs) {
                     <code class="pattern-text">${(ioc.pattern || '').substring(0, 60)}${ioc.pattern && ioc.pattern.length > 60 ? '...' : ''}</code>
                 </td>
                 <td>${labels} ${moreLabels}</td>
+                <td>${tlpBadge}</td>
+                <td>${threatBadge}</td>
+                <td>${confidenceBadge}</td>
                 <td><span class="badge bg-info">${(ioc.sources || []).length}</span></td>
                 <td>${relationsDisplay}</td>
                 <td><small class="text-muted">${ioc.created ? ioc.created.substring(0, 10) : ''}</small></td>

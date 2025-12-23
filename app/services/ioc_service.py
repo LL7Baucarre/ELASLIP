@@ -25,7 +25,9 @@ class IOCService:
                threat_level: str = None,
                confidence: str = None,
                tlp: str = None,
-               campaigns: List[str] = None) -> Tuple[Dict, bool]:
+               campaigns: List[str] = None,
+               valid_from: str = None,
+               valid_until: str = None) -> Tuple[Dict, bool]:
         """
         Create a new IOC or update existing one with new source.
         
@@ -85,6 +87,13 @@ class IOCService:
         # Add campaigns if provided
         if campaigns:
             ioc_doc['campaigns'] = campaigns
+        
+        # Add validity dates if provided
+        if valid_from:
+            ioc_doc['valid_from'] = valid_from
+        
+        if valid_until:
+            ioc_doc['valid_until'] = valid_until
         
         self.es.index(self.index, indicator.id, ioc_doc)
         
@@ -160,7 +169,7 @@ class IOCService:
         
         Args:
             ioc_id: IOC ID
-            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns)
+            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns, valid_from, valid_until)
         
         Returns:
             Updated IOC or None if not found
@@ -170,7 +179,7 @@ class IOCService:
             return None
         
         # Only allow updating certain fields
-        allowed_fields = ['labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns']
+        allowed_fields = ['labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns', 'valid_from', 'valid_until']
         update_doc = {
             k: v for k, v in updates.items() 
             if k in allowed_fields
@@ -202,6 +211,10 @@ class IOCService:
              per_page: int = 20,
              ioc_type: str = None,
              labels: List[str] = None,
+             tlp: str = None,
+             threat_level: str = None,
+             confidence: str = None,
+             campaigns: str = None,
              source: str = None) -> Dict:
         """
         List IOCs with pagination and filters.
@@ -211,6 +224,10 @@ class IOCService:
             per_page: Items per page
             ioc_type: Filter by IOC type
             labels: Filter by labels
+            tlp: Filter by TLP level
+            threat_level: Filter by threat level
+            confidence: Filter by confidence level
+            campaigns: Filter by campaigns
             source: Filter by source name
         
         Returns:
@@ -224,6 +241,18 @@ class IOCService:
         if labels:
             for label in labels:
                 query["bool"]["must"].append({"term": {"labels": label}})
+        
+        if tlp:
+            query["bool"]["must"].append({"term": {"tlp": tlp}})
+        
+        if threat_level:
+            query["bool"]["must"].append({"term": {"threat_level": threat_level}})
+        
+        if confidence:
+            query["bool"]["must"].append({"term": {"confidence": confidence}})
+        
+        if campaigns:
+            query["bool"]["must"].append({"term": {"campaigns": campaigns}})
         
         if source:
             query["bool"]["must"].append({

@@ -73,6 +73,236 @@ def iocs_detail(ioc_id):
     return render_template('iocs/detail.html', ioc=ioc)
 
 
+@main_bp.route('/iocs/graph')
+@login_required
+def iocs_graph():
+    """IOC graph visualization page."""
+    return render_template('iocs/graph.html')
+
+
+@main_bp.route('/api/iocs/graph-data')
+@login_required
+def get_graph_data():
+    """Get IOCs and relationships for graph visualization."""
+    service = IOCService()
+    
+    # Get all IOCs with limit
+    limit = request.args.get('limit', default=100, type=int)
+    all_iocs = service.list(page=1, per_page=limit)
+    
+    nodes = []
+    edges = []
+    node_ids = {}
+    edge_set = set()
+    
+    # Create nodes from IOCs
+    for ioc in all_iocs.get('items', []):
+        node_id = ioc.get('id')
+        node_ids[node_id] = ioc
+        nodes.append({
+            'data': {
+                'id': node_id,
+                'label': ioc.get('ioc_value', ioc.get('value', 'Unknown')),
+                'type': ioc.get('ioc_type', ''),
+                'threat_level': ioc.get('threat_level', 'unknown'),
+                'confidence': ioc.get('confidence', ''),
+                'tlp': ioc.get('tlp', '')
+            },
+            'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+        })
+    
+    # Get relationships from Elasticsearch
+    try:
+        # First, try to get all relations from the index
+        all_relations = service.es.search(
+            'ioc_relations',
+            {
+                'size': 10000,
+                'query': {'match_all': {}}
+            }
+        )
+        
+        total_relations = all_relations.get('hits', {}).get('total', {}).get('value', 0)
+        current_app.logger.info(f"Total relations found in index: {total_relations}")
+        
+        # Log details of loaded IOCs
+        current_app.logger.info(f"Loaded IOC IDs: {list(node_ids.keys())}")
+        
+        # Create edges from relationships
+        for rel in all_relations.get('hits', {}).get('hits', []):
+            rel_data = rel.get('_source', {})
+            rel_id = rel.get('_id', '')
+            
+            # Try both naming conventions
+            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
+            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
+            relation_type = rel_data.get('relation_type', 'related-to')
+            
+            current_app.logger.debug(f"Relation {rel_id}: {source_id} -> {target_id} ({relation_type})")
+            current_app.logger.debug(f"Source in nodes: {source_id in node_ids}, Target in nodes: {target_id in node_ids}")
+            
+            # Only add edge if both nodes exist and edge not already added
+            if source_id and target_id and source_id in node_ids and target_id in node_ids:
+                edge_id = f"{source_id}-{target_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': source_id,
+                            'target': target_id,
+                            'label': relation_type
+                        },
+                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                    })
+                    current_app.logger.info(f"Added edge: {edge_id}")
+        
+        current_app.logger.info(f"Final: {len(edges)} edges created for graph")
+    except Exception as e:
+        # Relations index might not exist, continue without relations
+        import traceback
+        current_app.logger.error(f"Could not fetch relations: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+    
+    return jsonify({
+        'nodes': nodes,
+        'edges': edges,
+        'count': len(nodes),
+        'relations_count': len(edges)
+    })
+
+
+@main_bp.route('/api/debug/relations')
+@login_required
+def debug_relations():
+    """Debug endpoint to check relations in Elasticsearch."""
+    service = IOCService()
+    
+    try:
+        all_relations = service.es.search(
+            'ioc_relations',
+            {'size': 100, 'query': {'match_all': {}}}
+        )
+        
+        relations_list = []
+        for rel in all_relations.get('hits', {}).get('hits', []):
+            relations_list.append({
+                'id': rel.get('_id'),
+                'data': rel.get('_source', {})
+            })
+        
+        return jsonify({
+            'total': all_relations.get('hits', {}).get('total', {}).get('value', 0),
+            'relations': relations_list
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        })
+
+
+@main_bp.route('/api/iocs/<ioc_id>/graph-data')
+@login_required
+def get_ioc_graph_data(ioc_id):
+    """Get graph data for a specific IOC and its relations."""
+    service = IOCService()
+    
+    nodes = []
+    edges = []
+    
+    try:
+        # Get the main IOC
+        main_ioc = service.get(ioc_id)
+        if not main_ioc:
+            return jsonify({'error': 'IOC not found'}), 404
+        
+        # Add main IOC as central node
+        nodes.append({
+            'data': {
+                'id': main_ioc['id'],
+                'label': main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown')),
+                'type': main_ioc.get('ioc_type', ''),
+                'threat_level': main_ioc.get('threat_level', 'unknown'),
+                'confidence': main_ioc.get('confidence', ''),
+                'tlp': main_ioc.get('tlp', '')
+            },
+            'classes': f"ioc-{main_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+        })
+        
+        # Get all relations for this IOC
+        all_relations = service.es.search(
+            'ioc_relations',
+            {'size': 10000, 'query': {'match_all': {}}}
+        )
+        
+        related_ioc_ids = set()
+        
+        # Find relations where this IOC is source or target
+        for rel in all_relations.get('hits', {}).get('hits', []):
+            rel_data = rel.get('_source', {})
+            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
+            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
+            relation_type = rel_data.get('relation_type', 'related-to')
+            
+            # Check if this IOC is involved in the relation
+            if source_id == ioc_id and target_id:
+                related_ioc_ids.add(target_id)
+                edges.append({
+                    'data': {
+                        'id': f"{source_id}-{target_id}",
+                        'source': source_id,
+                        'target': target_id,
+                        'label': relation_type
+                    },
+                    'classes': f"relation-{relation_type.replace('-', '_')}"
+                })
+            elif target_id == ioc_id and source_id:
+                related_ioc_ids.add(source_id)
+                edges.append({
+                    'data': {
+                        'id': f"{source_id}-{target_id}",
+                        'source': source_id,
+                        'target': target_id,
+                        'label': relation_type
+                    },
+                    'classes': f"relation-{relation_type.replace('-', '_')}"
+                })
+        
+        # Load related IOCs
+        for related_id in related_ioc_ids:
+            try:
+                related_ioc = service.get(related_id)
+                if related_ioc:
+                    nodes.append({
+                        'data': {
+                            'id': related_ioc['id'],
+                            'label': related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown')),
+                            'type': related_ioc.get('ioc_type', ''),
+                            'threat_level': related_ioc.get('threat_level', 'unknown'),
+                            'confidence': related_ioc.get('confidence', ''),
+                            'tlp': related_ioc.get('tlp', '')
+                        },
+                        'classes': f"ioc-{related_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+                    })
+            except:
+                pass
+        
+        return jsonify({
+            'nodes': nodes,
+            'edges': edges,
+            'count': len(nodes)
+        })
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error getting IOC graph data: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'nodes': [],
+            'edges': []
+        })
+
 @main_bp.route('/search')
 @login_required
 def search_page():

@@ -217,8 +217,13 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link {% if 'iocs' in request.endpoint %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
+                <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
                     <i class="bi bi-list-ul"></i> IOCs
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
+                    <i class="bi bi-diagram-3"></i> IOC Graph
                 </a>
             </li>
             <li class="nav-item">

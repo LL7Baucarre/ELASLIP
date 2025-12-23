@@ -1,0 +1,822 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Graph - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
+<style>
+    .graph-container {
+        position: relative;
+        width: 100%;
+        height: calc(100vh - 40px);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    #cy {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    .graph-controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        min-width: 250px;
+    }
+
+    .graph-controls h5 {
+        margin-bottom: 15px;
+        margin-top: 0;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+
+    .control-group {
+        margin-bottom: 15px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .control-group input,
+    .control-group select {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+
+    .btn-control {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        font-size: 0.85rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-control:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        font-size: 0.85rem;
+    }
+
+    .legend-item {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #333;
+    }
+
+    .info-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .info-panel h5 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+
+    .info-item {
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }
+
+    .info-item strong {
+        display: block;
+        color: #666;
+    }
+
+    .badge-small {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 4px;
+    }
+
+    /* IOC Type Colors */
+    .ioc-ipv4 {
+        background-color: #FF6B6B !important;
+    }
+
+    .ioc-ipv6 {
+        background-color: #FF5252 !important;
+    }
+
+    .ioc-domain {
+        background-color: #4ECDC4 !important;
+    }
+
+    .ioc-email {
+        background-color: #95E1D3 !important;
+    }
+
+    .ioc-url {
+        background-color: #FFE66D !important;
+        color: #333 !important;
+    }
+
+    .ioc-md5 {
+        background-color: #A8E6CF !important;
+    }
+
+    .ioc-sha1 {
+        background-color: #FFD3B6 !important;
+        color: #333 !important;
+    }
+
+    .ioc-sha256 {
+        background-color: #FFAAA5 !important;
+    }
+
+    .ioc-asn {
+        background-color: #C7CEEA !important;
+    }
+
+    .ioc-file_path {
+        background-color: #FF8B94 !important;
+    }
+
+    .ioc-process_name {
+        background-color: #FFA07A !important;
+        color: #333 !important;
+    }
+
+    .ioc-registry_key {
+        background-color: #DDA0DD !important;
+    }
+
+    .ioc-windows_registry_key {
+        background-color: #BA55D3 !important;
+    }
+
+    .ioc-mutex {
+        background-color: #9370DB !important;
+    }
+
+    .ioc-certificate_serial {
+        background-color: #87CEEB !important;
+        color: #333 !important;
+    }
+
+    /* Threat Level Colors */
+    .threat-critical {
+        box-shadow: 0 0 0 3px #dc3545 !important;
+    }
+
+    .threat-high {
+        box-shadow: 0 0 0 3px #fd7e14 !important;
+    }
+
+    .threat-medium {
+        box-shadow: 0 0 0 3px #17a2b8 !important;
+    }
+
+    .threat-low {
+        box-shadow: 0 0 0 3px #6c757d !important;
+    }
+
+    /* Node styling */
+    node {
+        content: data(label);
+        font-size: 10px;
+        text-valign: center;
+        text-halign: center;
+        background-color: #555;
+        width: 30px;
+        height: 30px;
+        border-width: 2px;
+        border-color: #333;
+        color: white;
+        padding: 2px;
+    }
+
+    node:selected {
+        border-color: #FFD700;
+        border-width: 3px;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+
+    /* Edge styling */
+    edge {
+        line-color: #ccc;
+        target-arrow-color: #ccc;
+        target-arrow-shape: triangle;
+        curve-style: bezier;
+        width: 1px;
+        font-size: 8px;
+    }
+
+    edge:selected {
+        line-color: #FFD700;
+        target-arrow-color: #FFD700;
+        width: 3px;
+    }
+
+    /* Relation type colors */
+    .relation-related_to {
+        line-color: #95a5a6;
+        target-arrow-color: #95a5a6;
+    }
+
+    .relation-indicates {
+        line-color: #e74c3c;
+        target-arrow-color: #e74c3c;
+        width: 2px;
+    }
+
+    .relation-resolves_to {
+        line-color: #3498db;
+        target-arrow-color: #3498db;
+    }
+
+    .relation-communicates_with {
+        line-color: #f39c12;
+        target-arrow-color: #f39c12;
+        width: 2px;
+    }
+
+    .relation-uses {
+        line-color: #27ae60;
+        target-arrow-color: #27ae60;
+    }
+
+    .relation-attributed_to {
+        line-color: #9b59b6;
+        target-arrow-color: #9b59b6;
+        width: 2px;
+    }
+
+    .spinner {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .spinner-border {
+        color: #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="graph-container">
+    <div id="cy"></div>
+
+    <!-- Controls Panel -->
+<div class="graph-controls">
+    <h5>Graph Controls</h5>
+    
+    <div class="control-group">
+        <label for="limitInput">IOCs to Load:</label>
+        <input type="number" id="limitInput" value="100" min="10" max="500" step="10">
+    </div>
+
+    <button class="btn-control btn-primary" onclick="loadGraph()">
+        <i class="bi bi-arrow-repeat me-1"></i> Reload Graph
+    </button>
+
+    <button class="btn-control btn-outline-secondary" onclick="fitGraph()">
+        <i class="bi bi-fullscreen me-1"></i> Fit to Screen
+    </button>
+
+    <div class="control-group">
+        <label for="layoutSelect">Layout:</label>
+        <select id="layoutSelect" onchange="changeLayout()">
+            <option value="cose">COSE</option>
+            <option value="circle">Circle</option>
+            <option value="grid">Grid</option>
+            <option value="breadthfirst">Breadth-First</option>
+            <option value="concentric">Concentric</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showLabels" checked onchange="toggleEdgeLabels()">
+            <label class="form-check-label" for="showLabels">
+                Show Relation Labels
+            </label>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label for="filterIOCType">Filter by IOC Type:</label>
+        <select id="filterIOCType" onchange="filterByIOCType()">
+            <option value="">All Types</option>
+            <option value="ipv4">IPv4</option>
+            <option value="ipv6">IPv6</option>
+            <option value="domain">Domain</option>
+            <option value="email">Email</option>
+            <option value="url">URL</option>
+            <option value="md5">MD5</option>
+            <option value="sha1">SHA1</option>
+            <option value="sha256">SHA256</option>
+            <option value="asn">ASN</option>
+            <option value="file-path">File Path</option>
+            <option value="process-name">Process Name</option>
+            <option value="registry-key">Registry Key</option>
+            <option value="windows-registry-key">Windows Registry Key</option>
+            <option value="mutex">Mutex</option>
+            <option value="certificate-serial">Certificate Serial</option>
+        </select>
+    </div>
+
+    <button class="btn-control btn-outline-secondary" onclick="highlightThreatLevel()">
+        <i class="bi bi-shield-check me-1"></i> Highlight by Threat
+    </button>
+
+    <button class="btn-control btn-outline-danger" onclick="clearSelection()">
+        <i class="bi bi-x-circle me-1"></i> Clear Selection
+    </button>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+    <h6 style="margin-top: 0; margin-bottom: 10px;">IOC Types</h6>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF6B6B;"></div>
+        <span>IPv4</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4ECDC4;"></div>
+        <span>Domain</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #A8E6CF;"></div>
+        <span>MD5</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFD3B6;"></div>
+        <span>SHA1</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFE66D;"></div>
+        <span>URL</span>
+    </div>
+</div>
+
+<!-- Info Panel -->
+<div class="info-panel" id="infoPanel" style="display: none;">
+    <h5>Node Information</h5>
+    <div id="nodeInfo"></div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<script>
+let cy = null;
+let currentLayout = 'cose';
+let showEdgeLabels = true;
+let allNodes = [];
+let allEdges = [];
+
+function initGraph(nodes, edges) {
+    if (cy) {
+        cy.destroy();
+    }
+
+    cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: {
+            nodes: nodes,
+            edges: edges
+        },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'background-color': 'data(color)',
+                    'width': 35,
+                    'height': 35,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'font-size': 11,
+                    'color': 'white',
+                    'text-outline-width': 1,
+                    'text-outline-color': '#333',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'padding': 3
+                }
+            },
+            {
+                selector: 'node:selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#999',
+                    'target-arrow-color': '#999',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 3,
+                    'opacity': 0.8,
+                    'font-size': 9,
+                    'color': '#333',
+                    'line-style': 'solid',
+                    'text-background-color': '#fff',
+                    'text-background-opacity': 0.8,
+                    'text-background-padding': '2px',
+                    'content': 'data(label)',
+                    'text-valign': 'center',
+                    'text-halign': 'center'
+                }
+            },
+            {
+                selector: 'edge.relation-indicates',
+                style: {
+                    'line-color': '#e74c3c',
+                    'target-arrow-color': '#e74c3c',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge.relation-related_to',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-resolves_to',
+                style: {
+                    'line-color': '#3498db',
+                    'target-arrow-color': '#3498db',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-communicates_with',
+                style: {
+                    'line-color': '#f39c12',
+                    'target-arrow-color': '#f39c12',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge.relation-uses',
+                style: {
+                    'line-color': '#27ae60',
+                    'target-arrow-color': '#27ae60',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-attributed_to',
+                style: {
+                    'line-color': '#9b59b6',
+                    'target-arrow-color': '#9b59b6',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge:selected',
+                style: {
+                    'line-color': '#FFD700',
+                    'target-arrow-color': '#FFD700',
+                    'width': 4,
+                    'opacity': 1
+                }
+            }
+        ],
+        layout: {
+            name: currentLayout,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        },
+        wheelSensitivity: 0.1,
+        minZoom: 0.1,
+        maxZoom: 3
+    });
+
+    // Event handlers
+    cy.on('tap', 'node', function(e) {
+        const node = e.target;
+        showNodeInfo(node);
+    });
+
+    cy.on('tap', function(e) {
+        if (e.target === cy) {
+            document.getElementById('infoPanel').style.display = 'none';
+        }
+    });
+
+    // Double-click to navigate to IOC
+    cy.on('dblclick', 'node', function(e) {
+        const nodeId = e.target.id();
+        window.location.href = `/iocs/${nodeId}`;
+    });
+
+    fitGraph();
+}
+
+function loadGraph() {
+    const limit = document.getElementById('limitInput').value;
+    
+    $.ajax({
+        url: '/api/iocs/graph-data',
+        method: 'GET',
+        data: { limit: limit },
+        success: function(response) {
+            const nodes = response.nodes;
+            const edges = response.edges;
+            
+            console.log(`Loaded ${nodes.length} nodes and ${edges.length} edges`);
+            
+            // Add color based on type
+            nodes.forEach(node => {
+                const type = node.data.type.replace('-', '_');
+                node.data.color = getColorForType(type);
+            });
+
+            // Add color to edges
+            edges.forEach(edge => {
+                edge.data.color = getColorForRelation(edge.data.label);
+            });
+
+            initGraph(nodes, edges);
+            
+            // Show stats in console
+            const totalIOCs = nodes.length;
+            const totalRelations = edges.length;
+            console.log(`Graph initialized: ${totalIOCs} IOCs with ${totalRelations} relations`);
+        },
+        error: function(xhr) {
+            console.error('Error loading graph data:', xhr);
+            alert('Failed to load graph data');
+        }
+    });
+}
+
+function fitGraph() {
+    if (cy) {
+        cy.fit(null, 50);
+    }
+}
+
+function changeLayout() {
+    const layoutName = document.getElementById('layoutSelect').value;
+    currentLayout = layoutName;
+    
+    if (cy) {
+        const layout = cy.layout({
+            name: layoutName,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        });
+        layout.run();
+    }
+}
+
+function clearSelection() {
+    if (cy) {
+        cy.elements().unselect();
+        document.getElementById('infoPanel').style.display = 'none';
+    }
+}
+
+function highlightThreatLevel() {
+    if (!cy) return;
+    
+    // Reset colors
+    cy.nodes().style('opacity', 1);
+    cy.edges().style('opacity', 0.3);
+    
+    // Highlight by threat level
+    const critical = cy.nodes().filter(n => n.data('threat_level') === 'critical');
+    critical.style({
+        'border-width': 3,
+        'border-color': '#dc3545'
+    });
+
+    const high = cy.nodes().filter(n => n.data('threat_level') === 'high');
+    high.style({
+        'border-width': 2,
+        'border-color': '#fd7e14'
+    });
+}
+
+function toggleEdgeLabels() {
+    if (!cy) return;
+    
+    showEdgeLabels = document.getElementById('showLabels').checked;
+    cy.edges().style({
+        'opacity': showEdgeLabels ? 0.8 : 0.5,
+        'font-size': showEdgeLabels ? 9 : 0
+    });
+}
+
+function filterByIOCType() {
+    if (!cy) return;
+    
+    const selectedType = document.getElementById('filterIOCType').value;
+    
+    if (!selectedType) {
+        // Show all nodes and edges
+        cy.nodes().show();
+        cy.edges().show();
+    } else {
+        // Hide all nodes first
+        cy.nodes().hide();
+        cy.edges().hide();
+        
+        // Show selected type nodes
+        const selectedNodes = cy.nodes().filter(n => n.data('type') === selectedType);
+        selectedNodes.show();
+        
+        // Show edges connected to selected nodes
+        const connectedEdges = selectedNodes.connectedEdges();
+        connectedEdges.show();
+    }
+    
+    // Fit to visible elements
+    if (cy.elements(':visible').length > 0) {
+        cy.fit(cy.elements(':visible'), 50);
+    }
+}
+
+function showNodeInfo(node) {
+    const data = node.data();
+    const infoPanel = document.getElementById('infoPanel');
+    const nodeInfo = document.getElementById('nodeInfo');
+    
+    let html = `
+        <div class="info-item">
+            <strong>Value:</strong>
+            <code>${data.label}</code>
+        </div>
+        <div class="info-item">
+            <strong>Type:</strong>
+            <span class="badge badge-primary">${data.type}</span>
+        </div>
+    `;
+
+    if (data.threat_level && data.threat_level !== 'unknown') {
+        const threatColor = {
+            'critical': 'danger',
+            'high': 'warning',
+            'medium': 'info',
+            'low': 'secondary'
+        }[data.threat_level] || 'secondary';
+        html += `
+            <div class="info-item">
+                <strong>Threat:</strong>
+                <span class="badge bg-${threatColor}">${data.threat_level.toUpperCase()}</span>
+            </div>
+        `;
+    }
+
+    if (data.confidence) {
+        html += `
+            <div class="info-item">
+                <strong>Confidence:</strong>
+                <span class="badge badge-success">${data.confidence}</span>
+            </div>
+        `;
+    }
+
+    if (data.tlp) {
+        const tlpColor = {
+            'white': 'light',
+            'green': 'success',
+            'amber': 'warning',
+            'red': 'danger'
+        }[data.tlp] || 'secondary';
+        html += `
+            <div class="info-item">
+                <strong>TLP:</strong>
+                <span class="badge bg-${tlpColor}">${data.tlp.toUpperCase()}</span>
+            </div>
+        `;
+    }
+
+    // Show relations
+    const edges = node.connectedEdges();
+    if (edges.length > 0) {
+        html += `
+            <div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <strong>Relations (${edges.length}):</strong>
+                <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
+        `;
+        edges.forEach(edge => {
+            const relationLabel = edge.data('label');
+            const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
+            html += `<li>${relationLabel}: ${otherNode.data('label')}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    html += `
+        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+            <a href="/iocs/${data.id}" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-eye me-1"></i> View IOC
+            </a>
+        </div>
+    `;
+    
+    nodeInfo.innerHTML = html;
+    infoPanel.style.display = 'block';
+}
+
+function getColorForType(type) {
+    const colors = {
+        'ipv4': '#FF6B6B',
+        'ipv6': '#FF5252',
+        'domain': '#4ECDC4',
+        'email': '#95E1D3',
+        'url': '#FFE66D',
+        'md5': '#A8E6CF',
+        'sha1': '#FFD3B6',
+        'sha256': '#FFAAA5',
+        'asn': '#C7CEEA',
+        'file_path': '#FF8B94',
+        'process_name': '#FFA07A',
+        'registry_key': '#DDA0DD',
+        'windows_registry_key': '#BA55D3',
+        'mutex': '#9370DB',
+        'certificate_serial': '#87CEEB'
+    };
+    return colors[type] || '#888';
+}
+
+function getColorForRelation(type) {
+    const colors = {
+        'related-to': '#95a5a6',
+        'indicates': '#e74c3c',
+        'resolves-to': '#3498db',
+        'communicates-with': '#f39c12',
+        'uses': '#27ae60',
+        'attributed-to': '#9b59b6',
+        'located-at': '#1abc9c',
+        'exploits': '#e67e22',
+        'based-on': '#34495e',
+        'created-by': '#2980b9'
+    };
+    return colors[type] || '#95a5a6';
+}
+
+// Load graph on page load
+$(document).ready(function() {
+    loadGraph();
+});
+</script>
+{% endblock %}
