@@ -442,7 +442,7 @@
     
     <div class="control-group">
         <label for="searchIOC">Search IOC:</label>
-        <input type="text" id="searchIOC" placeholder="Enter IOC value..." onkeyup="debouncedSearch()" autocomplete="off">
+        <input type="text" id="searchIOC" placeholder="Enter IOC value..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
         <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
     </div>
 
@@ -971,6 +971,13 @@ function getColorForRelation(type) {
 function debouncedSearch() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(searchIOC, 300);
+}
+
+function showShowAllOption() {
+    // Display "Show All IOCs" immediately when input is focused
+    const dropdown = document.getElementById('searchResultsDropdown');
+    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+    dropdown.style.display = 'block';
 }
 
 function searchIOC() {

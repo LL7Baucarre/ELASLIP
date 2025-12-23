@@ -2,6 +2,22 @@
 
 A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with Elasticsearch backend. Supports STIX 2.1, MISP, OpenIOC, and IODEF formats.
 
+![ElasMISP Demo](.github/demo.gif)
+
+## Key Highlights
+
+✨ **What's Included:**
+- 📊 **Interactive Dashboard** - Real-time IOC statistics and metrics
+- 🔍 **Advanced Search** - Full-text and pattern-based search capabilities
+- 📈 **IOC Graph** - Visual relationship mapping with Cytoscape.js
+- 🎯 **Risk Scoring** - Automatic composite risk score calculation
+- 📋 **Bulk Operations** - Manage multiple IOCs at once
+- 🔐 **Secure API** - Token-based authentication with encrypted keys
+- 📅 **Versioning** - Complete version history with restore capabilities
+- 🚨 **Activity Timeline** - Comprehensive audit trail of all actions
+- 🌙 **Dark Mode** - Eye-friendly dark theme support
+- 📦 **Import/Export** - Support for STIX, MISP, OpenIOC, and IODEF formats
+
 ## Features
 
 ### Core Features
@@ -165,11 +181,29 @@ ELASTICSEARCH_PASSWORD=your-password
 ```
 
 4. Access the application:
-- Web UI: http://localhost:5000
-- API Documentation: http://localhost:5000/apidocs (requires login)
-- IOC Graph: http://localhost:5000/iocs/graph (requires login)
+- **Web UI**: http://localhost:5000
+- **API Documentation**: http://localhost:5000/apidocs (requires login)
+- **IOC Graph**: http://localhost:5000/iocs/graph (requires login)
+- **Dashboard**: Shows real-time IOC statistics and recent activities
 
-5. Create your first admin user by running the initialization script or contact your administrator
+5. Create your first admin user:
+```bash
+docker-compose exec app python scripts/create_admin.py
+```
+
+6. **Generate Demo Data** (optional, for testing):
+```bash
+# Enable demo data in .env
+export DEMO_DATA_ENABLED=true
+docker-compose exec app python scripts/demo_data.py
+```
+This will create 100 realistic IOCs with various types, campaigns, and relationships.
+
+### Default Credentials
+
+After running the admin script, you can log in with the credentials you set.
+
+> **Note**: No public registration is available. Only admins can create new user accounts.
 
 ## Graph Visualization
 
@@ -185,13 +219,43 @@ The IOC Graph view provides an interactive visualization of IOC relationships us
 - **Node Information**: Click any IOC to view metadata (threat level, confidence, TLP, campaigns)
 - **Zoom & Pan**: Full control over graph navigation
 - **Threat Highlighting**: Quickly identify critical and high-threat indicators
+- **Smart Search**: Find IOCs quickly with intelligent search and dropdown results
+- **Show All IOCs**: Display entire IOC dataset in one view
+- **Relation Filtering**: Option to show only IOCs with active relationships
+- **Guided Workflow**: Empty graph on load with guidance - search drives visualization
 
 ### Accessing the Graph
 1. Navigate to "IOC Graph" in the main menu
-2. Load IOCs using the "Reload Graph" button
-3. Use controls to adjust layout, toggle labels, and filter by type
-4. Click any node to see detailed information
-5. Double-click to navigate to the IOC detail page
+2. Click the search input to see the "Show All IOCs" option
+3. Type to search for specific IOCs (10 results shown with auto-complete)
+4. Select an IOC or click "Show All IOCs" to populate the graph
+5. Use controls to adjust layout, toggle labels, and filter by type
+6. Click any node to see detailed information
+7. Double-click to navigate to the IOC detail page
+
+## IOC List Features
+
+The IOC list provides comprehensive management capabilities:
+
+### Column Sorting
+Click any column header to sort:
+- **Type** - IOC type (IPv4, Domain, Email, etc.)
+- **Pattern / Value** - The IOC indicator value
+- **Risk Score** - Calculated risk severity (0-100)
+- **TLP** - Traffic Light Protocol classification
+- **Threat Level** - Severity assessment
+- **Confidence** - Indicator accuracy confidence
+- **Sources** - Number of sources referencing the IOC
+- **Links** - Number of relationships with other IOCs
+- **Created** - Creation timestamp
+
+Sort order toggles between ascending and descending with visual indicators.
+
+### Bulk Actions
+- Select multiple IOCs using checkboxes
+- Bulk update TLP, threat level, or status
+- Bulk delete selected IOCs
+- Bulk export to JSON format
 
 ## Admin Features
 
@@ -380,6 +444,53 @@ The following Celery tasks can be scheduled:
 | `tasks.cleanup_old_versions` | Remove old version snapshots | Weekly |
 | `tasks.update_risk_scores` | Recalculate all risk scores | On demand |
 | `tasks.cleanup_old_audit_logs` | Remove old audit logs | Monthly |
+
+## Troubleshooting
+
+### Common Issues
+
+**Port Already in Use**
+```bash
+# Change the port in docker-compose.yml or use environment variable
+docker-compose -e "FLASK_PORT=5001" up -d
+```
+
+**Elasticsearch Connection Error**
+```bash
+# Check if Elasticsearch is running
+docker-compose logs elasticsearch
+
+# Verify connection
+curl -u elastic:elastic123 http://localhost:9200
+```
+
+**IOC Creation Fails with STIX Pattern Error**
+- Ensure the IOC value format is valid for its type
+- Supported types are: `ipv4`, `domain`, `email`, `url`, `md5`, `sha1`, `sha256`, `asn`
+- Other types (process-name, registry-key, etc.) are not supported in this version
+
+**Demo Data Generation Issues**
+```bash
+# Ensure DEMO_DATA_ENABLED is set
+docker-compose exec app python scripts/demo_data.py
+
+# Check container logs for details
+docker-compose logs app
+```
+
+### Getting Help
+
+1. Check the [API Documentation](http://localhost:5000/apidocs)
+2. Review [Activity Timeline](http://localhost:5000/activity) for error details
+3. Check Docker logs: `docker-compose logs app`
+4. Enable debug mode in `.env`: `DEBUG=true`
+
+## Performance Tips
+
+- **Large Datasets**: Use the graph's search and filter features instead of loading all IOCs
+- **Caching**: Risk scores are cached automatically - force refresh via admin panel if needed
+- **Elasticsearch**: Allocate more memory in `.env` for better performance with 10k+ IOCs
+- **Database**: Regular cleanup of old versions keeps indices lean
 
 ## License
 
