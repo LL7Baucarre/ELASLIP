@@ -96,78 +96,36 @@
 {% endblock %}
 
 {% block content %}
-<div class="top-bar">
-    <div>
-        <h4 class="mb-0">External APIs</h4>
-        <small class="text-muted">Configure external threat intelligence APIs for enrichment</small>
-    </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiModal" onclick="resetApiForm()">
-        <i class="bi bi-plus-lg me-1"></i> Add API
-    </button>
-</div>
-
-<div class="row">
-    <div class="col-md-3">
-        <div class="list-group">
-            <a href="{{ url_for('main.settings') }}" 
-               class="list-group-item list-group-item-action">
-                <i class="bi bi-person me-2"></i> Profile
-            </a>
-            {% if current_user.is_admin %}
-            <a href="{{ url_for('main.settings') }}#site-config" data-section="site-config"
-               class="list-group-item list-group-item-action" onclick="switchSection('site-config', event)">
-                <i class="bi bi-gear me-2"></i> Site Configuration
-            </a>
-            <a href="{{ url_for('main.users_management') }}" 
-               class="list-group-item list-group-item-action">
-                <i class="bi bi-people me-2"></i> User Management
-            </a>
-            {% endif %}
-            <a href="{{ url_for('main.settings_api_keys') }}" 
-               class="list-group-item list-group-item-action">
-                <i class="bi bi-key me-2"></i> API Keys
-            </a>
-            <a href="{{ url_for('main.settings_external_apis') }}" 
-               class="list-group-item list-group-item-action active">
-                <i class="bi bi-cloud me-2"></i> External APIs
-            </a>
-            <a href="{{ url_for('main.settings_webhooks') }}" 
-               class="list-group-item list-group-item-action">
-                <i class="bi bi-broadcast me-2"></i> Webhooks
-            </a>
+<div class="row" style="height: calc(100vh - 200px);">
+    <div class="col-md-4" style="overflow-y: auto; border-right: 1px solid #e9ecef;">
+        <div class="mb-3">
+            <button class="btn btn-primary w-100" onclick="newApi()" style="margin-bottom: 15px;">
+                <i class="bi bi-plus-lg me-1"></i> Add API
+            </button>
         </div>
-    </div>
-    
-    <div class="col-md-9">
         <div id="apiList">
             <div class="text-center py-4">
                 <span class="spinner-border spinner-border-sm"></span> Loading...
             </div>
         </div>
     </div>
-</div>
-
-<!-- Add/Edit API Modal -->
-<div class="modal fade" id="addApiModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="apiModalTitle">Add External API</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
+    
+    <div class="col-md-8" style="display: flex; overflow: hidden;">
+        <!-- Form Panel -->
+        <div id="apiFormPanel" style="flex: 1; overflow-y: auto; padding: 20px; display: none; border-right: 1px solid #e9ecef;">
+            <h5 id="apiFormTitle" class="mb-4">Add External API</h5>
             <form id="apiForm">
-                <div class="modal-body">
-                    <input type="hidden" id="apiId">
+                <input type="hidden" id="apiId">
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="apiName" class="form-label">API Name *</label>
                                 <input type="text" class="form-control" id="apiName" required
                                        placeholder="e.g., VirusTotal, AbuseIPDB">
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="iocTypes" class="form-label">IOC Types *</label>
                                 <select class="form-select" id="iocTypes" multiple required>
@@ -206,7 +164,7 @@
                     </div>
                     
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="apiMethod" class="form-label">HTTP Method</label>
                                 <select class="form-select" id="apiMethod">
@@ -215,7 +173,7 @@
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <div class="mb-3">
                                 <label for="apiTimeout" class="form-label">Timeout (seconds)</label>
                                 <input type="number" class="form-control" id="apiTimeout" value="30" min="5" max="120">
@@ -229,84 +187,66 @@
                                   placeholder='{"Authorization": "Bearer YOUR_API_KEY", "Accept": "application/json"}'></textarea>
                     </div>
                     
-                    <hr>
-                    <h6 class="mb-3">
-                        <i class="bi bi-diagram-3 me-2"></i>Response Field Mapping
-                    </h6>
-                    
-                    <ul class="nav nav-tabs mb-3" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="mapping-visual-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#mappingVisual" type="button">
-                                <i class="bi bi-palette me-1"></i> Visual Editor
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="mapping-json-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#mappingJson" type="button">
-                                <i class="bi bi-code-slash me-1"></i> JSON
-                            </button>
-                        </li>
-                    </ul>
-                    
-                    <div class="tab-content">
-                        <!-- Visual Editor Tab -->
-                        <div class="tab-pane fade show active" id="mappingVisual" role="tabpanel">
-                            <p class="text-muted small mb-3">Create field mappings from the API response using a visual interface</p>
-                            
-                            <div id="mappingFields" class="mb-3"></div>
-                            
-                            <!-- Template for mapping field (hidden) -->
-                            <div class="mapping-field mb-2" id="mappingFieldTemplate" style="display: none;">
-                                <input type="text" class="form-control form-control-sm mapping-field-key" placeholder="Field name (e.g., reputation)">
-                                <input type="text" class="form-control form-control-sm mapping-field-path" placeholder="JSONPath (e.g., $.data.reputation)">
-                                <button class="btn btn-sm btn-outline-danger btn-remove-field" type="button" title="Remove field">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
-                            
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="addMappingField">
-                                <i class="bi bi-plus-circle me-1"></i> Add Field
-                            </button>
-                            
-                            <div class="alert alert-info mt-3 small" role="alert">
-                                <strong>Common Fields:</strong><br>
-                                <code>reputation</code>, <code>country</code>, <code>threat_level</code>, 
-                                <code>malicious</code>, <code>abuse_count</code>, <code>last_seen</code>
-                            </div>
-                        </div>
-                        
-                        <!-- JSON Tab -->
-                        <div class="tab-pane fade" id="mappingJson" role="tabpanel">
-                            <p class="text-muted small mb-3">Edit the response mapping in JSON format</p>
-                            <textarea class="form-control json-editor" id="responseTemplate" rows="8" 
-                                      placeholder='{
-    "reputation": "$.data.reputation",
-    "country": "$.data.country",
-    "malicious": "$.data.attributes.last_analysis_stats.malicious"
-}'></textarea>
-                        </div>
+                    <div class="mb-3" id="postBodyGroup" style="display: none;">
+                        <label for="apiPostBody" class="form-label">POST Body (JSON)</label>
+                        <textarea class="form-control json-editor" id="apiPostBody" rows="4" 
+                                  placeholder='{"query": "{value}", "limit": 10}'></textarea>
+                        <div class="form-text">Use <code>{value}</code> as placeholder for the IOC value</div>
                     </div>
                     
-                    <div class="form-check mb-3 mt-3">
+                    <hr>
+                    
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="apiEnabled" checked>
                         <label class="form-check-label" for="apiEnabled">
                             Enabled
                         </label>
                     </div>
+                    
+                    <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-secondary" onclick="closeApiForm()">Cancel</button>
+                        <button type="button" class="btn btn-outline-info" id="testApiBtn">Test API</button>
+                        <button type="submit" class="btn btn-primary ms-auto">Save</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Test Result Panel -->
+            <div id="testResultPanel" style="flex: 1; overflow-y: auto; padding: 20px; background: #f8f9fa; display: none;">
+                <h6 class="mb-3">
+                    <i class="bi bi-flask me-2"></i>Test Result
+                    <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="$('#testResultPanel').hide(); $('#apiFormPanel').css('flex', '1').css('border-right', 'none');">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </h6>
+                
+                <div id="testLoading" class="text-center py-4" style="display: none;">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <p class="mt-2 small">Testing API...</p>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-outline-info" id="testApiBtn">Test API</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
+                
+                <div id="testResult" style="display: none;">
+                    <div class="alert small" id="testStatus" style="margin-bottom: 15px;"></div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small"><strong>Raw Response</strong></label>
+                        <pre class="bg-light p-2 rounded small" id="testRawResponse" 
+                             style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label small"><strong>Transformed Result</strong></label>
+                        <pre class="bg-light p-2 rounded small" id="testTransformed"
+                             style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
+                    </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>
 
-<!-- Test Result Modal -->
-<div class="modal fade" id="testResultModal" tabindex="-1">
+<!-- Test Result Modal (hidden, will not be used) -->
+<div class="modal fade" id="testResultModal" tabindex="-1" style="display: none;">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -335,6 +275,7 @@
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -342,35 +283,10 @@
 $(document).ready(function() {
     loadApis();
     
-    // Event listener for Add Field button
-    $('#addMappingField').click(function(e) {
-        e.preventDefault();
-        addMappingField();
-    });
-    
-    // Event listeners for tab switching
-    $('#mapping-visual-tab').on('shown.bs.tab', function() {
-        // When switching to visual tab, sync JSON to visual
-        syncJsonToVisual();
-    });
-    
-    $('#mapping-json-tab').on('shown.bs.tab', function() {
-        // When switching to JSON tab, sync visual to JSON
-        syncVisualToJson();
-    });
-    
-    // Delegate event handler for add field links in test result
-    $(document).on('click', '.add-field-link', function(e) {
-        e.preventDefault();
-        const fieldPath = $(this).data('path');
-        addFieldFromTestResult(fieldPath);
-    });
-    
     // Handle modal reset on close
     $('#addApiModal').on('hidden.bs.modal', function() {
         // Reset form when modal closes
         $('#apiId').val('');
-        $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
         $('#responseTemplate').val('');
     });
 });
@@ -399,7 +315,7 @@ function displayApis(apis) {
                     <i class="bi bi-cloud-slash display-4 text-muted"></i>
                     <h5 class="mt-3">No External APIs Configured</h5>
                     <p class="text-muted">Add external APIs to enrich IOCs with threat intelligence data</p>
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiModal">
+                    <button class="btn btn-primary" onclick="newApi()">
                         <i class="bi bi-plus-lg me-1"></i> Add Your First API
                     </button>
                 </div>
@@ -427,7 +343,7 @@ function displayApis(apis) {
                             <div>${typeBadges}</div>
                         </div>
                         <div class="btn-group">
-                            <button class="btn btn-sm btn-outline-primary" onclick="editApi('${api.id}')">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editApi('${api.id}')" data-edit="true">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <button class="btn btn-sm btn-outline-danger" onclick="deleteApi('${api.id}')">
@@ -447,14 +363,21 @@ function resetForm() {
     $('#apiHeaders').val('');
     $('#responseTemplate').val('');
     $('#apiEnabled').prop('checked', true);
-    $('#apiModalTitle').text('Add External API');
+    $('#apiFormTitle').text('Add External API');
 }
 
-$('#addApiModal').on('show.bs.modal', function(e) {
-    if (!$(e.relatedTarget).length || !$(e.relatedTarget).data('edit')) {
-        resetForm();
-    }
-});
+function newApi() {
+    resetApiForm();
+    $('#apiFormTitle').text('Add External API');
+    $('#apiFormPanel').show();
+    $('#testResultPanel').hide();
+    $('#apiFormPanel').css('flex', '1').css('border-right', 'none');
+}
+
+function closeApiForm() {
+    $('#apiFormPanel').hide();
+    $('#testResultPanel').hide();
+}
 
 // Visual Editor Functions
 function resetApiForm() {
@@ -464,30 +387,16 @@ function resetApiForm() {
     $('#apiMethod').val('GET');
     $('#apiTimeout').val('30');
     $('#apiHeaders').val('');
+    $('#apiPostBody').val('');
     $('#responseTemplate').val('');
     $('#apiEnabled').prop('checked', true);
     $('#iocTypes').val([]);
     
-    // Clear mapping fields
-    $('#mappingFields .mapping-field:not(#mappingFieldTemplate)').remove();
+    // Hide POST body group since default method is GET
+    $('#postBodyGroup').hide();
     
     // Reset modal title
     $('#apiModalTitle').text('Add External API');
-}
-
-function addMappingField() {
-    const $template = $('#mappingFieldTemplate').clone();
-    $template.removeAttr('id');
-    $template.show();
-    $('#mappingFields').append($template);
-    
-    // Bind remove button
-    $template.find('.btn-remove-field').click(removeMappingField);
-}
-
-function removeMappingField(e) {
-    e.preventDefault();
-    $(this).closest('.mapping-field').remove();
 }
 
 function syncVisualToJson() {
@@ -527,18 +436,38 @@ function syncJsonToVisual() {
 }
 
 function editApi(apiId) {
+    console.log('[editApi] Called with apiId:', apiId);
     $.ajax({
         url: `/api/external-apis/${apiId}`,
         method: 'GET',
         success: function(data) {
+            console.log('[editApi] API Response:', data);
             // data is the config object directly
             const api = data;
+            
+            // Check if elements exist
+            console.log('[editApi] apiName element exists:', $('#apiName').length > 0);
+            console.log('[editApi] apiName value before:', $('#apiName').val());
+            
+            // Set form values
             $('#apiId').val(api.id);
+            console.log('[editApi] Set apiId to:', api.id);
+            
             $('#apiName').val(api.name);
+            console.log('[editApi] Set apiName to:', api.name, ' actual value:', $('#apiName').val());
+            
             $('#apiUrl').val(api.url_template || api.url || '');
+            console.log('[editApi] Set apiUrl to:', api.url_template || api.url);
+            
             $('#apiMethod').val(api.method || 'GET');
+            console.log('[editApi] Set apiMethod to:', api.method);
+            
             $('#apiTimeout').val(api.timeout || 30);
             $('#apiHeaders').val(api.headers ? JSON.stringify(api.headers, null, 2) : '');
+            $('#apiPostBody').val(api.post_body ? JSON.stringify(api.post_body, null, 2) : '');
+            
+            // Show/hide POST body field based on method
+            updatePostBodyVisibility();
             
             // Load response template and populate visual editor
             const responseTemplate = api.response_template || api.template || {};
@@ -566,10 +495,22 @@ function editApi(apiId) {
                 $(`#iocTypes option[value="${t}"]`).prop('selected', true);
             });
             
-            $('#apiModalTitle').text('Edit External API');
-            $('#addApiModal').modal('show');
+            $('#apiFormTitle').text('Edit External API');
+            console.log('[editApi] About to show panel');
+            
+            // Show the form panel
+            $('#apiFormPanel').show();
+            $('#testResultPanel').hide();
+            $('#apiFormPanel').css('flex', '1').css('border-right', 'none');
+            
+            console.log('[editApi] Panel shown, verify form values:', {
+                name: $('#apiName').val(),
+                url: $('#apiUrl').val(),
+                method: $('#apiMethod').val()
+            });
         },
         error: function(xhr) {
+            console.error('[editApi] Error loading API:', xhr);
             showAlert('Failed to load API: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
         }
     });
@@ -600,6 +541,18 @@ $('#apiForm').submit(function(e) {
         return;
     }
     
+    // Handle POST body if method is POST
+    let postBody = null;
+    if ($('#apiMethod').val() === 'POST') {
+        try {
+            const postBodyText = $('#apiPostBody').val().trim();
+            if (postBodyText) postBody = JSON.parse(postBodyText);
+        } catch (e) {
+            showAlert('Invalid JSON in POST Body field', 'warning');
+            return;
+        }
+    }
+    
     const apiData = {
         name: $('#apiName').val(),
         url_template: $('#apiUrl').val(),
@@ -611,6 +564,11 @@ $('#apiForm').submit(function(e) {
         is_enabled: $('#apiEnabled').is(':checked')
     };
     
+    // Add POST body if present
+    if (postBody) {
+        apiData.post_body = postBody;
+    }
+    
     const apiId = $('#apiId').val();
     const method = apiId ? 'PUT' : 'POST';
     const url = apiId ? `/api/external-apis/${apiId}` : '/api/external-apis';
@@ -618,9 +576,10 @@ $('#apiForm').submit(function(e) {
     $.ajax({
         url: url,
         method: method,
+        contentType: 'application/json',
         data: JSON.stringify(apiData),
         success: function() {
-            $('#addApiModal').modal('hide');
+            closeApiForm();
             showAlert('API configuration saved', 'success');
             loadApis();
         },
@@ -650,9 +609,13 @@ $('#testApiBtn').click(function() {
     const testValue = prompt('Enter a test IOC value (e.g., 8.8.8.8 for IP):');
     if (!testValue) return;
     
+    // Show test panel
+    $('#testResultPanel').show();
+    $('#apiFormPanel').css('flex', '0.6').css('border-right', '1px solid #e9ecef');
+    
+    // Show loading
     $('#testLoading').show();
     $('#testResult').hide();
-    $('#testResultModal').modal('show');
     
     let headers = {};
     let responseTemplate = {};
@@ -685,9 +648,9 @@ $('#testApiBtn').click(function() {
             $('#testResult').show();
             
             if (data.success) {
-                $('#testStatus').removeClass().addClass('alert alert-success').text('API test successful');
+                $('#testStatus').removeClass().addClass('alert alert-success').text('✓ API test successful');
             } else {
-                $('#testStatus').removeClass().addClass('alert alert-warning').text('API returned error: ' + (data.error || 'Unknown'));
+                $('#testStatus').removeClass().addClass('alert alert-warning').text('⚠ API returned error: ' + (data.error || 'Unknown'));
             }
             
             $('#testRawResponse').text(JSON.stringify(data.raw_response, null, 2));
@@ -703,7 +666,7 @@ $('#testApiBtn').click(function() {
             $('#testLoading').hide();
             $('#testResult').show();
             $('#testStatus').removeClass().addClass('alert alert-danger')
-                .text('Test failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
+                .text('✗ Test failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
             $('#testRawResponse').text('N/A');
             $('#testTransformed').text('N/A');
         }
@@ -787,21 +750,12 @@ function addFieldFromTestResult(fieldPath) {
     let fieldName = fieldPath.split('.').pop();
     fieldName = fieldName.replace(/\[.*?\]/g, '');
     
-    // Prompt user for field name
-    const inputName = prompt('Enter a name for this field:', fieldName);
-    if (!inputName) return;
+    // Store the field path so we can use it when user selects a TAXII field
+    window.selectedFieldPath = fieldPath;
+    window.isSelectingFromTestResult = true;
     
-    // Add field to visual editor
-    const $template = $('#mappingFieldTemplate').clone();
-    $template.removeAttr('id');
-    $template.find('.mapping-field-key').val(inputName);
-    $template.find('.mapping-field-path').val(fieldPath);
-    $template.show();
-    $('#mappingFields').append($template);
-    $template.find('.btn-remove-field').click(removeMappingField);
-    
-    // Show success message
-    showAlert('Field "' + inputName + '" added to mapping with path: ' + fieldPath, 'info');
+    // Show TAXII selector modal
+    new bootstrap.Modal(document.getElementById('taxiiFieldSelectorModal')).show();
 }
 
 function escapeHtml(text) {
@@ -809,5 +763,20 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+function updatePostBodyVisibility() {
+    const method = $('#apiMethod').val();
+    if (method === 'POST') {
+        $('#postBodyGroup').show();
+    } else {
+        $('#postBodyGroup').hide();
+        $('#apiPostBody').val('');
+    }
+}
+
+// Event listener for method change
+$(document).on('change', '#apiMethod', function() {
+    updatePostBodyVisibility();
+});
 </script>
 {% endblock %}

@@ -3,6 +3,7 @@
 import os
 import json
 import hashlib
+import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 
@@ -13,6 +14,8 @@ from app.services.elasticsearch_service import ElasticsearchService
 from app.services.encryption_service import EncryptionService
 from app.models.api_template import APITemplate
 from app.utils.pattern_generator import PatternGenerator
+
+logger = logging.getLogger(__name__)
 
 
 class EnrichmentService:
@@ -143,12 +146,17 @@ class EnrichmentService:
         """
         # Get config ID (may not exist for new configs being tested)
         config_id = config.get('id') or config.get('url', 'test')
+        api_name = config.get('name', 'Unknown')
+        
+        logger.info(f'[ENRICH] Starting enrichment for "{value}" with API "{api_name}" (ID: {config_id})')
         
         # Check cache first (only if config has an id)
         if config.get('id'):
+            logger.debug(f'[ENRICH] Checking cache for {config_id}')
             cache_key = self._get_cache_key(config['id'], value)
             cached = self._get_from_cache(cache_key)
             if cached:
+                logger.info(f'[ENRICH] Cache hit for {api_name}')
                 cached['from_cache'] = True
                 return cached
         
@@ -156,9 +164,11 @@ class EnrichmentService:
         # Support both 'url' and 'url_template' keys
         url = config.get('url') or config.get('url_template')
         if not url:
+            logger.error(f'[ENRICH] No URL configured for {api_name}')
             raise ValueError('url or url_template is required')
             
         url = url.replace('{value}', value)
+        logger.info(f'[ENRICH] API URL: {url}')
         
         # Prepare headers
         headers = config.get('headers', {}).copy()
@@ -180,39 +190,66 @@ class EnrichmentService:
         
         # Make request
         method = config.get('method', 'GET').upper()
+        timeout = config.get('timeout', 60)  # Default 60 seconds instead of 30
+        
+        # Ensure timeout is reasonable (min 5 sec, max 300 sec)
+        if not isinstance(timeout, (int, float)):
+            timeout = 60
+        timeout = max(5, min(300, timeout))
+        
+        logger.info(f'[ENRICH] Making {method} request to {api_name} with {timeout}s timeout')
         
         try:
+            import time
+            start_time = time.time()
+            
             if method == 'GET':
-                response = requests.get(url, headers=headers, timeout=30)
+                logger.debug(f'[ENRICH] GET request to: {url}')
+                response = requests.get(url, headers=headers, timeout=timeout)
             elif method == 'POST':
+                logger.debug(f'[ENRICH] POST request to: {url}')
                 response = requests.post(url, headers=headers, 
-                                        json={'value': value}, timeout=30)
+                                        json={'value': value}, timeout=timeout)
             else:
                 raise ValueError(f'Unsupported HTTP method: {method}')
             
+            elapsed = time.time() - start_time
+            logger.info(f'[ENRICH] Got response from {api_name} in {elapsed:.2f}s - Status: {response.status_code}')
+            
             response.raise_for_status()
             response_data = response.json()
+            logger.debug(f'[ENRICH] Response data: {json.dumps(response_data)[:500]}...')  # Log first 500 chars
             
+        except requests.exceptions.Timeout as e:
+            logger.error(f'[ENRICH] Timeout from {api_name} after {timeout}s: {str(e)}')
+            raise Exception(f'API request timed out after {timeout} seconds')
         except requests.exceptions.RequestException as e:
+            logger.error(f'[ENRICH] Request failed for {api_name}: {str(e)}')
             raise Exception(f'API request failed: {str(e)}')
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            logger.error(f'[ENRICH] JSON decode error from {api_name}: {str(e)}')
             raise Exception('API returned invalid JSON')
         
         # Transform response using template
+        logger.info(f'[ENRICH] Transforming response from {api_name}')
         template_config = config.get('template', {}) or config.get('response_template', {})
+        logger.debug(f'[ENRICH] Template config: {template_config}')
         template = APITemplate(template_config)
         result = template.transform(response_data, value)
         result['success'] = True
         result['from_cache'] = False
+        
+        logger.info(f'[ENRICH] Successfully enriched "{value}" with {api_name}')
         
         # Cache the result (only if config has an id)
         if config.get('id'):
             self._save_to_cache(cache_key, result, config['id'], value)
         
         return result
-    
+        
     def _get_user_api_configs(self, user_id: str) -> List[Dict]:
         """Get all API configurations for a user."""
+        logger.debug(f'[ENRICH] Loading API configs for user {user_id}')
         result = self.es.search('api_configs', {
             'query': {
                 'bool': {
@@ -231,6 +268,7 @@ class EnrichmentService:
             config['id'] = hit['_id']
             configs.append(config)
         
+        logger.info(f'[ENRICH] Found {len(configs)} enabled API configs for user {user_id}')
         return configs
     
     def _get_cache_key(self, config_id: str, value: str) -> str:

@@ -322,27 +322,54 @@
             position: fixed;
             top: 0;
             left: 0;
-            height: 100vh;
             width: 250px;
+            height: 100vh;
             background: var(--sidebar-bg);
-            padding-top: 20px;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
         }
         
         .sidebar .logo {
             color: white;
             font-size: 1.5rem;
             font-weight: bold;
-            padding: 0 20px 20px;
+            padding: 20px;
             border-bottom: 1px solid rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        
+        .sidebar .nav {
+            list-style: none !important;
+            padding: 10px 0 !important;
+            margin: 0 !important;
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100%;
+        }
+        
+        .sidebar .nav-item {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100%;
+            display: block !important;
         }
         
         .sidebar .nav-link {
             color: rgba(255,255,255,0.7);
             padding: 12px 20px;
-            display: flex;
+            display: flex !important;
             align-items: center;
             transition: all 0.3s;
+            text-decoration: none;
+            white-space: nowrap;
+            width: 100%;
+            box-sizing: border-box;
         }
         
         .sidebar .nav-link:hover,
@@ -353,7 +380,8 @@
         
         .sidebar .nav-link i {
             margin-right: 10px;
-            width: 20px;
+            min-width: 20px;
+            flex-shrink: 0;
         }
         
         .sidebar .nav-section-title {
@@ -361,15 +389,50 @@
             font-weight: 700;
             letter-spacing: 1px;
             color: rgba(255,255,255,0.5);
-            padding: 12px 20px 8px 20px;
+            padding: 15px 20px 8px 20px;
             text-transform: uppercase;
-            margin-top: 15px;
-            display: list-item;
+            margin: 0 !important;
             list-style: none;
+            width: 100%;
+            display: block !important;
         }
         
-        .sidebar .nav-section-title.mt-3 {
-            margin-top: 15px;
+        .sidebar .user-section {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 15px 20px;
+            flex-shrink: 0;
+            background: rgba(0,0,0,0.2);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .sidebar .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .sidebar .user-info .user-name {
+            display: flex;
+            align-items: center;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .sidebar .user-info .theme-toggle {
+            cursor: pointer;
+            color: rgba(255,255,255,0.7);
+            transition: color 0.3s;
+            flex-shrink: 0;
+        }
+        
+        .sidebar .user-info .theme-toggle:hover {
+            color: white;
         }
         
         .main-content {
@@ -525,7 +588,7 @@
         <div class="logo">
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
-        <ul class="nav flex-column mt-3">
+        <ul class="nav">
             <li class="nav-section-title">MANAGEMENT</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
@@ -542,7 +605,8 @@
                     <i class="bi bi-diagram-3"></i> IOC Graph
                 </a>
             </li>
-            <li class="nav-section-title mt-3">TOOLS</li>
+            
+            <li class="nav-section-title">TOOLS</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
                     <i class="bi bi-search"></i> Search
@@ -558,7 +622,8 @@
                     <i class="bi bi-terminal"></i> Tools
                 </a>
             </li>
-            <li class="nav-section-title mt-3">MONITORING</li>
+            
+            <li class="nav-section-title">MONITORING</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
                     <i class="bi bi-clock-history"></i> Activity
@@ -569,7 +634,8 @@
                     <i class="bi bi-file-earmark-code"></i> API Docs
                 </a>
             </li>
-            <li class="nav-section-title mt-3">CONFIG</li>
+            
+            <li class="nav-section-title">CONFIG</li>
             <li class="nav-item">
                 <a class="nav-link {% if 'settings' in request.endpoint %}active{% endif %}" href="{{ url_for('main.settings') }}">
                     <i class="bi bi-gear"></i> Settings
@@ -583,18 +649,19 @@
             </li>
             {% endif %}
         </ul>
-        <div class="position-absolute bottom-0 w-100 p-3 border-top border-secondary">
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <div class="d-flex align-items-center text-white-50">
+        
+        <div class="user-section">
+            <div class="user-info">
+                <div class="user-name">
                     <i class="bi bi-person-circle me-2"></i>
-                    <span class="small">{{ current_user.username }}</span>
+                    <span>{{ current_user.username }}</span>
                 </div>
-                <div class="theme-toggle text-white-50" onclick="toggleTheme()" title="Toggle Dark Mode">
+                <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                     <i class="bi bi-moon-fill" id="themeIcon"></i>
                 </div>
             </div>
-            <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout">
-                <i class="bi bi-box-arrow-right"></i> <span class="small">Logout</span>
+            <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 8px 0; margin-left: 0;">
+                <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
             </a>
         </div>
     </nav>
