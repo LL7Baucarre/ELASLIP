@@ -1,10 +1,13 @@
 """API Template Model for mapping external API responses to STIX."""
 
 from typing import Dict, Any, Optional, List
+import logging
 from jsonpath_ng import parse as jsonpath_parse
 from jsonpath_ng.exceptions import JsonPathParserError
 
 from app.utils.pattern_generator import PatternGenerator
+
+logger = logging.getLogger(__name__)
 
 
 class APITemplate:
@@ -37,8 +40,9 @@ class APITemplate:
             if isinstance(path, str) and path.startswith('$'):
                 try:
                     self._compiled_paths[key] = jsonpath_parse(path)
-                except JsonPathParserError:
-                    pass
+                    logger.debug(f'[TEMPLATE] Compiled JSONPath for "{key}": {path}')
+                except JsonPathParserError as e:
+                    logger.warning(f'[TEMPLATE] Failed to parse JSONPath for "{key}": {path} - {str(e)}')
             elif isinstance(path, dict):
                 # Handle nested mappings like extra_fields
                 self._compiled_paths[key] = {}
@@ -46,12 +50,14 @@ class APITemplate:
                     if isinstance(subpath, str) and subpath.startswith('$'):
                         try:
                             self._compiled_paths[key][subkey] = jsonpath_parse(subpath)
-                        except JsonPathParserError:
-                            pass
+                            logger.debug(f'[TEMPLATE] Compiled JSONPath for "{key}.{subkey}": {subpath}')
+                        except JsonPathParserError as e:
+                            logger.warning(f'[TEMPLATE] Failed to parse JSONPath for "{key}.{subkey}": {subpath} - {str(e)}')
     
     def extract_value(self, data: Dict, path_key: str) -> Any:
         """Extract a value from data using compiled JSONPath."""
         if path_key not in self._compiled_paths:
+            logger.info(f'[TEMPLATE] Path key "{path_key}" not found in compiled paths. Available: {list(self._compiled_paths.keys())}')
             return None
         
         compiled = self._compiled_paths[path_key]
@@ -68,6 +74,7 @@ class APITemplate:
     def _extract_single(self, data: Dict, compiled) -> Any:
         """Extract a single value using compiled path."""
         matches = compiled.find(data)
+        logger.info(f'[TEMPLATE] JSONPath search found {len(matches) if matches else 0} matches: {[m.value for m in matches] if matches else "none"}')
         if not matches:
             return None
         
@@ -87,6 +94,9 @@ class APITemplate:
         Returns:
             Dictionary with IOC data ready for STIX conversion
         """
+        logger.debug(f'[TEMPLATE] Transforming response with template keys: {list(self.template.keys())}')
+        logger.debug(f'[TEMPLATE] Compiled paths keys: {list(self._compiled_paths.keys())}')
+        
         result = {
             'raw_response': response_data,
             'transformed': {},
@@ -102,37 +112,74 @@ class APITemplate:
         confidence = self.extract_value(response_data, 'confidence')
         extra_fields = self.extract_value(response_data, 'extra_fields') or {}
         
+        logger.info(f'[TEMPLATE] Extracted - type: {ioc_type}, value: {value}, name: {name}, description: {description}')
+        
         # Normalize labels
         if isinstance(labels, str):
             labels = [labels]
         labels = [str(l).lower() for l in labels if l]
         
-        # If template is empty or no values extracted, try to auto-detect common fields
-        if not self.template or (not ioc_type and not name and not description):
+        # Build final transformed data with all STIX fields
+        transformed_data = {}
+        
+        # Always try to extract all STIX fields from both template and auto-detection
+        stix_fields = {
+            'threat_level': self.extract_value(response_data, 'threat_level'),
+            'confidence': confidence or self.extract_value(response_data, 'confidence'),
+            'tlp': self.extract_value(response_data, 'tlp'),
+            'risk_score': self.extract_value(response_data, 'risk_score'),
+            'severity': self.extract_value(response_data, 'severity'),
+            'reputation': self.extract_value(response_data, 'reputation'),
+            'malware_family': self.extract_value(response_data, 'malware_family'),
+            'country': self.extract_value(response_data, 'country'),
+            'asn': self.extract_value(response_data, 'asn'),
+            'registrar': self.extract_value(response_data, 'registrar'),
+            'last_seen': self.extract_value(response_data, 'last_seen'),
+            'first_seen': self.extract_value(response_data, 'first_seen'),
+            'detection_ratio': self.extract_value(response_data, 'detection_ratio'),
+            'attributes': self.extract_value(response_data, 'attributes'),
+            'metadata': self.extract_value(response_data, 'metadata'),
+        }
+        
+        # Add all non-null STIX fields to transformed data
+        for field, value in stix_fields.items():
+            if value is not None:
+                transformed_data[field] = value
+        
+        # If template is empty or no STIX values extracted, try to auto-detect common fields
+        if not self.template or (not ioc_type and not name and not description and not transformed_data):
+            logger.debug(f'[TEMPLATE] Template empty or no values extracted, using auto-detection')
             # Auto-detect common response fields
             if isinstance(response_data, dict):
-                # Common field names across APIs
-                common_fields = {
-                    'country': ['country', 'country_name', 'geo.country_name'],
-                    'reputation': ['reputation', 'threat_score', 'risk_score', 'score'],
-                    'abuse_count': ['abuse_count', 'abuse_reports'],
+                # Common field names across APIs for STIX fields
+                common_field_mappings = {
+                    'threat_level': ['threat_level', 'threat_types', 'threat', 'severity_level'],
+                    'confidence': ['confidence', 'confidence_score', 'certainty'],
+                    'tlp': ['tlp', 'tlp_level', 'traffic_light_protocol'],
+                    'risk_score': ['risk_score', 'risk', 'score', 'risk_level'],
+                    'severity': ['severity', 'severity_level', 'severity_score'],
+                    'reputation': ['reputation', 'reputation_score', 'threat_score', 'malicious_score'],
+                    'country': ['country', 'country_name', 'country_code', 'geo.country_name'],
+                    'asn': ['asn', 'asn_number', 'as_number', 'autonomous_system'],
+                    'registrar': ['registrar', 'registrar_name', 'domain_registrar'],
+                    'last_seen': ['last_seen', 'last_analysis_date', 'last_modified', 'last_checked'],
+                    'first_seen': ['first_seen', 'first_submission_date', 'first_checked', 'discovered_date'],
+                    'detection_ratio': ['detection_ratio', 'detection_rate', 'detection_count', 'detections'],
+                    'malware_family': ['malware_family', 'malware_name', 'family', 'malware_type'],
+                    'isp': ['isp', 'isp_name', 'organization', 'org_name'],
                     'usage': ['usage', 'usage_type', 'usage_type_name'],
-                    'isp': ['isp', 'isp_name', 'organization'],
-                    'threat_level': ['threat_level', 'threat_types', 'threat'],
-                    'last_seen': ['last_seen', 'last_analysis_date', 'last_modified'],
-                    'first_seen': ['first_seen', 'first_submission_date'],
-                    'malicious': ['malicious', 'malicious_count', 'undetected_count'],
                 }
                 
                 # Search for these common fields in response
-                for api_field, possible_names in common_fields.items():
-                    for name_option in possible_names:
-                        if name_option in response_data:
-                            extra_fields[api_field] = response_data[name_option]
-                            break
+                for api_field, possible_names in common_field_mappings.items():
+                    if api_field not in transformed_data:  # Don't overwrite extracted values
+                        for name_option in possible_names:
+                            if name_option in response_data:
+                                transformed_data[api_field] = response_data[name_option]
+                                break
                 
                 # Store the entire response for inspection
-                extra_fields['__api_response__'] = response_data
+                transformed_data['__api_response__'] = response_data
         
         result['transformed'] = {
             'ioc_type': ioc_type,
@@ -140,10 +187,11 @@ class APITemplate:
             'labels': labels,
             'name': name,
             'description': description,
-            'confidence': confidence,
-            'extra_fields': extra_fields
+            **transformed_data  # Include all STIX fields
         }
         
+        logger.info(f'[TEMPLATE] Final transformed result keys: {list(result["transformed"].keys())}')
+        logger.info(f'[TEMPLATE] Final transformed result: {result["transformed"]}')
         # Try to create STIX indicator
         if value:
             # Detect type if not provided
@@ -180,11 +228,8 @@ class APITemplate:
         if not isinstance(template, dict):
             return ['Template must be a dictionary']
         
-        # Check required path
-        if 'value' not in template and 'ioc_type' not in template:
-            errors.append('Template should have at least "value" or "ioc_type" mapping')
-        
-        # Validate JSONPath expressions
+        # Template can be empty - auto-detection will be used
+        # Only validate JSONPath expressions that are provided
         for key, path in template.items():
             if isinstance(path, str) and path.startswith('$'):
                 try:

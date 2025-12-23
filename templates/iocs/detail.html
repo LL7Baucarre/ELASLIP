@@ -277,6 +277,43 @@
             </div>
         </div>
         
+        <!-- Enrichment Information -->
+        {% set enrichment_fields = [] %}
+        {% for key, value in ioc.items() %}
+            {% if key.startswith('enrichment_') %}
+                {% set _ = enrichment_fields.append((key.replace('enrichment_', ''), value)) %}
+            {% endif %}
+        {% endfor %}
+        
+        {% if enrichment_fields|length > 0 %}
+        <div class="card mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-sparkles me-2"></i>Enrichment Information</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    {% for field_name, field_value in enrichment_fields %}
+                    <tr class="enrichment-row" data-field="{{ field_name }}">
+                        <th width="25%">
+                            <span class="enrichment-field-name">{{ field_name }}</span>
+                            <button class="btn btn-xs btn-link rename-enrichment-field" data-field="{{ field_name }}" style="padding: 0; font-size: 0.8rem;">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                        </th>
+                        <td>
+                            {% if field_value is string %}
+                                <code class="enrichment-field-value">{{ field_value[:200] }}{% if field_value|length > 200 %}...{% endif %}</code>
+                            {% else %}
+                                <code class="enrichment-field-value">{{ field_value|tojson }}</code>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        </div>
+        {% endif %}
+        
         <!-- Enrichment Results -->
         <div class="card mb-4" id="enrichmentCard" style="display: none;">
             <div class="card-header bg-white">
@@ -567,7 +604,7 @@ function performEnrich(apiIds = null) {
         contentType: 'application/json',
         dataType: 'json',
         data: JSON.stringify(payload),
-        timeout: 30000,
+        timeout: 120000,  // Increased to 120 seconds to account for slow APIs
         success: function(data) {
             console.log('Enrichment success:', data);
             displayEnrichment(data.results);
@@ -585,6 +622,79 @@ function performEnrich(apiIds = null) {
     // Load APIs when page loads
 $(document).ready(function() {
     loadAvailableAPIs();
+    
+    // Import enrichment data button handler (delegated)
+    $(document).on('click', '.import-enrichment-btn', function(e) {
+        e.preventDefault();
+        const encodedData = $(this).data('enrichment');
+        const transformedData = JSON.parse(atob(encodedData)); // Decode from base64
+        importEnrichmentData(transformedData);
+    });
+    
+    // Handle adding selected fields from raw response
+    $(document).on('click', '.add-selected-fields-btn', function(e) {
+        e.preventDefault();
+        
+        const index = $(this).data('index');
+        const enrichmentPanel = $(`.enrichment-result[data-index="${index}"]`);
+        const rawResponseEncoded = enrichmentPanel.data('raw-response-encoded');
+        
+        if (!rawResponseEncoded) {
+            showAlert('No raw response data available', 'warning');
+            return;
+        }
+        
+        // Decode raw response from base64
+        let rawResponse;
+        try {
+            rawResponse = JSON.parse(atob(rawResponseEncoded));
+        } catch(err) {
+            showAlert('Failed to parse raw response data', 'danger');
+            return;
+        }
+        
+        // Actually get selected from all checkboxes with correct selector
+        const selectedFieldsActual = $(`.field-picker-checkbox[data-index="${index}"]:checked`)
+            .map(function() {
+                return $(this).data('field');
+            }).get();
+        
+        if (selectedFieldsActual.length === 0) {
+            showAlert('Please select at least one field', 'warning');
+            return;
+        }
+        
+        // Build updates object with selected fields
+        const updates = {};
+        selectedFieldsActual.forEach(field => {
+            if (field in rawResponse) {
+                const value = rawResponse[field];
+                // Store as enrichment_* field if not a standard IOC field
+                const fieldName = 'enrichment_' + field;
+                updates[fieldName] = value;
+            }
+        });
+        
+        if (Object.keys(updates).length === 0) {
+            showAlert('Selected fields not found in raw response', 'warning');
+            return;
+        }
+        
+        // Send PATCH request to update IOC
+        $.ajax({
+            url: `/api/ioc/${iocId}`,
+            method: 'PATCH',
+            data: JSON.stringify(updates),
+            contentType: 'application/json',
+            success: function(response) {
+                showAlert(`Added ${Object.keys(updates).length} fields to IOC`, 'success');
+                setTimeout(() => location.reload(), 1500);
+            },
+            error: function(xhr) {
+                showAlert('Failed to add fields: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+            }
+        });
+    });
     
     // Delete button handler
     $('#deleteBtn').click(function(e) {
@@ -623,42 +733,149 @@ function displayEnrichment(results) {
         return;
     }
     
-    results.forEach(result => {
-        let html = `<div class="border rounded p-3 mb-3">
+    results.forEach((result, index) => {
+        const rawResponseJSON = btoa(JSON.stringify(result.raw_response || {})); // Base64 encode raw response
+        let html = `<div class="border rounded p-3 mb-3 enrichment-result" data-index="${index}" data-raw-response-encoded="${rawResponseJSON}">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <h6 class="mb-0">${result.api_name}</h6>`;
+                <h6 class="mb-0">${result.api_name}</h6>
+                <div>`;
         
         if (result.from_cache) {
-            html += '<small class="text-muted"><i class="bi bi-clock"></i> From cache</small>';
+            html += '<small class="text-muted me-2"><i class="bi bi-clock"></i> From cache</small>';
         }
         
-        html += '</div>';
+        // Add import button if there's transformed data
+        if (result.success && result.transformed && Object.keys(result.transformed).length > 0) {
+            const dataAttr = btoa(JSON.stringify(result.transformed)); // Base64 encode to avoid escaping issues
+            html += `<button class="btn btn-sm btn-outline-success import-enrichment-btn" data-enrichment="${dataAttr}">
+                <i class="bi bi-download me-1"></i> Import Data
+            </button>`;
+        }
+        
+        html += '</div></div>';
         
         if (result.success) {
-            if (result.transformed) {
-                html += '<div class="json-tree">' + 
-                    jsonToTree(result.transformed, 'transformed', true) + 
-                    '</div>';
-            }
+            // Raw response in accordion with field picker
             if (result.raw_response && Object.keys(result.raw_response).length > 0) {
-                html += '<div class="mt-2 text-muted small"><em>Raw API response stored in data</em></div>';
+                const rawId = `raw-${index}-${Date.now()}`;
+                const pickerId = `picker-${index}-${Date.now()}`;
+                
+                // Get all top-level fields from raw response (excluding nested objects)
+                const topLevelFields = Object.keys(result.raw_response)
+                    .filter(key => !key.startsWith('_') && key !== 'raw_response')
+                    .sort();
+                
+                html += `<div class="accordion mt-3" id="accordion-${index}">
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#${rawId}" aria-expanded="false">
+                                <i class="bi bi-plus-circle me-2"></i> Pick Fields to Enrich IOC
+                            </button>
+                        </h2>
+                        <div id="${rawId}" class="accordion-collapse collapse" data-bs-parent="#accordion-${index}">
+                            <div class="accordion-body">
+                                <div class="row">
+                                    <!-- Field Picker -->
+                                    <div class="col-md-4">
+                                        <h6 class="mb-3"><i class="bi bi-hand-index me-2"></i>Select Fields to Add</h6>
+                                        <div id="${pickerId}" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 10px;">
+                                            ${topLevelFields.map(field => `
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input field-picker-checkbox" type="checkbox" id="field-${field}-${index}" data-field="${field}" data-index="${index}">
+                                                    <label class="form-check-label" for="field-${field}-${index}" style="cursor: pointer; word-break: break-word;">
+                                                        <small>${field}</small>
+                                                    </label>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                        <button class="btn btn-sm btn-primary mt-2 w-100 add-selected-fields-btn" data-index="${index}">
+                                            <i class="bi bi-plus-circle me-1"></i> Add Selected Fields
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Raw Response JSON -->
+                                    <div class="col-md-8">
+                                        <h6 class="mb-3"><i class="bi bi-braces me-2"></i>Full API Response</h6>
+                                        <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; margin: 0; max-height: 400px; overflow-y: auto;"><code>${escapeHtml(JSON.stringify(result.raw_response, null, 2))}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             }
         } else {
-            html += `<p class="text-danger mb-0"><strong>Error:</strong> ${result.error}</p>`;
+            html += `<p class="text-danger mb-0"><strong>Error:</strong> ${escapeHtml(result.error)}</p>`;
         }
         
         html += '</div>';
         container.append(html);
     });
     
-    // Setup toggle functionality
-    container.find('.toggle').click(function(e) {
-        e.stopPropagation();
-        $(this).toggleClass('expanded');
-        $(this).parent().find('> .collapsed-content').slideToggle(150);
+    card.show();
+}
+
+function importEnrichmentData(transformedData) {
+    // Map transformed data to IOC fields
+    const updates = {};
+    
+    // Standard IOC fields to import (both direct and enrichment)
+    const fieldMapping = {
+        'name': 'name',
+        'description': 'description',
+        'labels': 'labels',
+        'threat_level': 'threat_level',
+        'confidence': 'confidence',
+        'tlp': 'tlp',
+        'risk_score': 'risk_score',
+        'severity': 'severity',
+        'reputation': 'reputation',
+        'malware_family': 'malware_family',
+        'country': 'country',
+        'asn': 'asn',
+        'registrar': 'registrar',
+        'last_seen': 'last_seen',
+        'first_seen': 'first_seen',
+        'detection_ratio': 'detection_ratio',
+        'attributes': 'attributes',
+        'metadata': 'metadata'
+    };
+    
+    // Import known fields
+    Object.entries(fieldMapping).forEach(([apiField, iocField]) => {
+        if (apiField in transformedData) {
+            updates[iocField] = transformedData[apiField];
+        }
     });
     
-    card.show();
+    // Import unmapped fields as enrichment_* fields
+    Object.entries(transformedData).forEach(([key, value]) => {
+        if (!fieldMapping[key] && !Object.values(fieldMapping).includes(key)) {
+            // Store as enrichment field
+            updates[`enrichment_${key}`] = value;
+        }
+    });
+    
+    if (Object.keys(updates).length === 0) {
+        showAlert('No mappable data found in enrichment result', 'warning');
+        return;
+    }
+    
+    // Send update to API
+    $.ajax({
+        url: `/api/ioc/${iocId}`,
+        method: 'PATCH',
+        data: JSON.stringify(updates),
+        contentType: 'application/json',
+        success: function(response) {
+            showAlert('IOC updated with enrichment data (' + Object.keys(updates).length + ' fields)', 'success');
+            // Reload the page to show updated data
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            showAlert('Failed to import enrichment data: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
 }
 
 function jsonToTree(obj, key = null, isRoot = false) {
@@ -1073,6 +1290,43 @@ $(document).ready(function() {
     // Load graph on page load
     $(document).ready(function() {
         loadIOCGraph();
+    });
+    
+    // Rename enrichment field
+    $(document).on('click', '.rename-enrichment-field', function(e) {
+        e.preventDefault();
+        const field = $(this).data('field');
+        const row = $(`.enrichment-row[data-field="${field}"]`);
+        const fieldNameSpan = row.find('.enrichment-field-name');
+        const currentName = fieldNameSpan.text();
+        
+        const newName = prompt('Enter new field name:', currentName);
+        if (newName && newName !== currentName) {
+            const updates = {};
+            // Get the current value
+            const currentValue = window.iocData && window.iocData['enrichment_' + field];
+            
+            // If renaming, we need to:
+            // 1. Add the new field name with the value
+            // 2. Remove the old field name
+            updates['enrichment_' + newName] = currentValue;
+            // Mark old field for deletion by setting to null
+            updates['enrichment_' + field] = null;
+            
+            $.ajax({
+                url: `/api/ioc/${iocId}`,
+                method: 'PATCH',
+                data: JSON.stringify(updates),
+                contentType: 'application/json',
+                success: function(response) {
+                    showAlert(`Field renamed from "${currentName}" to "${newName}"`, 'success');
+                    setTimeout(() => location.reload(), 1500);
+                },
+                error: function(xhr) {
+                    showAlert('Failed to rename field: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+                }
+            });
+        }
     });
 });
 </script>

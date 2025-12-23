@@ -38,6 +38,7 @@ def list_api_configs():
             'url_template': config.get('url', ''),  # Alias for UI
             'method': config.get('method', 'GET'),
             'headers': config.get('headers', {}),
+            'post_body': config.get('post_body'),  # Include POST body
             'template': config.get('template', {}),
             'response_template': config.get('template', {}),  # Alias for UI
             'enabled': config.get('enabled', True),
@@ -93,6 +94,14 @@ def create_api_config():
     es = ElasticsearchService()
     config_id = secrets.token_hex(16)
     
+    # Validate template if provided
+    from app.models.api_template import APITemplate
+    template_to_validate = data.get('template') or data.get('response_template') or {}
+    if template_to_validate:
+        errors = APITemplate.validate_template(template_to_validate)
+        if errors:
+            return jsonify({'error': 'Invalid template: ' + '; '.join(errors)}), 400
+    
     config = {
         'id': config_id,
         'user_id': g.current_user.id,
@@ -101,6 +110,7 @@ def create_api_config():
         'url': api_url,
         'method': data.get('method', 'GET').upper(),
         'headers': data.get('headers', {}),
+        'post_body': data.get('post_body'),  # Include POST body
         'auth_type': data.get('auth_type', 'none'),
         'auth_token': EncryptionService().encrypt(data.get('auth_token')) if data.get('auth_token') else None,
         'template': data.get('template', {}) or data.get('response_template', {}),
@@ -153,6 +163,7 @@ def get_api_config(config_id):
         'url_template': config.get('url', ''),  # Alias for UI
         'method': config.get('method', 'GET'),
         'headers': config.get('headers', {}),
+        'post_body': config.get('post_body'),  # Include POST body
         'template': config.get('template', {}),
         'response_template': config.get('template', {}),  # Alias for UI
         'enabled': config.get('enabled', True),
@@ -190,9 +201,17 @@ def update_api_config(config_id):
     
     # Update allowed fields
     # Support both 'url' and 'url_template' field names, and 'template'/'response_template'
-    allowed_fields = ['name', 'description', 'url', 'url_template', 'method', 'headers', 
+    allowed_fields = ['name', 'description', 'url', 'url_template', 'method', 'headers', 'post_body',
                       'auth_type', 'auth_token', 'template', 'response_template', 'enabled', 'is_enabled',
                       'ioc_types', 'timeout']
+    
+    # Validate template if provided
+    from app.models.api_template import APITemplate
+    template_to_validate = data.get('template') or data.get('response_template') or {}
+    if template_to_validate:
+        errors = APITemplate.validate_template(template_to_validate)
+        if errors:
+            return jsonify({'error': 'Invalid template: ' + '; '.join(errors)}), 400
     
     update_doc = {'updated_at': datetime.utcnow().isoformat()}
     for field in allowed_fields:
@@ -345,10 +364,15 @@ def enrich_ioc():
         "api_ids": ["api_id_1", "api_id_2"] (optional - specific APIs to use)
     }
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    
     data = request.get_json()
     
     if not data or not data.get('value'):
         return jsonify({'error': 'value is required'}), 400
+    
+    logger.info(f'[API] Enrichment request for value: {data["value"]}, type: {data.get("type", "auto")}, user: {g.current_user.id}')
     
     enrichment = EnrichmentService()
     
@@ -357,6 +381,7 @@ def enrich_ioc():
         api_ids = data.get('api_ids', [])
         
         if api_ids:
+            logger.info(f'[API] Enriching with specific APIs: {api_ids}')
             # Enrich with specific APIs
             results = enrichment.enrich_value_with_apis(
                 value=data['value'],
@@ -365,12 +390,15 @@ def enrich_ioc():
                 api_ids=api_ids
             )
         else:
+            logger.info(f'[API] Enriching with all enabled APIs')
             # Enrich with all enabled APIs
             results = enrichment.enrich_value(
                 value=data['value'],
                 ioc_type=data.get('type'),
                 user_id=g.current_user.id
             )
+        
+        logger.info(f'[API] Enrichment completed with {len(results)} results')
         
         return jsonify({
             'value': data['value'],
@@ -380,5 +408,6 @@ def enrich_ioc():
     
     except Exception as e:
         import traceback
+        logger.error(f'[API] Enrichment error: {str(e)}', exc_info=True)
         traceback.print_exc()
         return jsonify({'error': str(e)}), 400

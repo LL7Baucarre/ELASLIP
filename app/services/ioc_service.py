@@ -251,11 +251,17 @@ class IOCService:
             return None
         
         # Only allow updating certain fields
-        allowed_fields = ['labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns', 'valid_from', 'valid_until', 'status', 'last_reviewed']
-        update_doc = {
-            k: v for k, v in updates.items() 
-            if k in allowed_fields
-        }
+        allowed_fields = [
+            'labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns',
+            'valid_from', 'valid_until', 'status', 'last_reviewed', 'risk_score',
+            'last_seen', 'first_seen', 'detection_ratio', 'severity', 'reputation',
+            'malware_family', 'country', 'asn', 'registrar', 'attributes', 'metadata'
+        ]
+        update_doc = {}
+        for k, v in updates.items():
+            # Allow standard fields or any custom enrichment field
+            if k in allowed_fields or k.startswith('enrichment_'):
+                update_doc[k] = v
         update_doc['modified'] = datetime.utcnow().isoformat()
         
         # Recalculate risk score if relevant fields changed
