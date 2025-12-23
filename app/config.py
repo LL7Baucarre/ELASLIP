@@ -20,6 +20,7 @@ class Config:
     ELASTICSEARCH_USER = os.getenv('ELASTICSEARCH_USER', 'elastic')
     ELASTICSEARCH_PASSWORD = os.getenv('ELASTICSEARCH_PASSWORD', 'elastic123')
     
+    
     # Redis
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
     
