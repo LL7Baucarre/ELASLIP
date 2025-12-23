@@ -163,14 +163,15 @@
                         <td><span class="ioc-type-badge ioc-type-{{ ioc.ioc_type }}">{{ ioc.ioc_type|upper }}</span></td>
                         <td><code class="pattern-text">{{ ioc.pattern[:80] }}{% if ioc.pattern|length > 80 %}...{% endif %}</code></td>
                         <td>
-                            {% for label in ioc.labels[:3] %}
+                            {% set ioc_labels = ioc.get('labels', []) if ioc is mapping else ioc.labels %}
+                            {% for label in ioc_labels[:3] %}
                             <span class="badge bg-light text-dark">{{ label }}</span>
                             {% endfor %}
-                            {% if ioc.labels|length > 3 %}
-                            <span class="badge bg-secondary">+{{ ioc.labels|length - 3 }}</span>
+                            {% if ioc_labels|length > 3 %}
+                            <span class="badge bg-secondary">+{{ ioc_labels|length - 3 }}</span>
                             {% endif %}
                         </td>
-                        <td><span class="badge bg-info">{{ ioc.sources|length }}</span></td>
+                        <td><span class="badge bg-info">{{ (ioc.get('sources', []) if ioc is mapping else ioc.sources)|length }}</span></td>
                         <td><small class="text-muted">{{ ioc.created[:10] }}</small></td>
                     </tr>
                     {% else %}
