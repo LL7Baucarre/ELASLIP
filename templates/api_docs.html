@@ -60,7 +60,10 @@
                     <li><code>per_page</code> (int, default: 20, max: 100) - Items per page</li>
                     <li><code>type</code> (string) - Filter by IOC type (md5, sha1, sha256, ipv4, ipv6, domain, email, url, asn, file-path, process-name, registry-key, windows-registry-key, mutex, certificate-serial)</li>
                     <li><code>labels</code> (string) - Comma-separated labels to filter</li>
-                    <li><code>source</code> (string) - Filter by source name</li>
+                    <li><code>tlp</code> (string) - Filter by TLP level (white, green, amber, red)</li>
+                    <li><code>threat_level</code> (string) - Filter by threat level (unknown, low, medium, high, critical)</li>
+                    <li><code>confidence</code> (string) - Filter by confidence level (low, medium, high, very-high)</li>
+                    <li><code>campaigns</code> (string) - Filter by campaigns</li>
                 </ul>
 
                 <!-- POST /api/ioc -->
@@ -80,7 +83,9 @@
   "threat_level": "high",
   "confidence": "high",
   "tlp": "amber",
-  "campaigns": ["operation-2024"]
+  "campaigns": ["operation-2024"],
+  "valid_from": "2025-12-23T08:47:00Z",
+  "valid_until": "2026-12-23T08:47:00Z"
 }</code></pre>
 
                 <!-- GET /api/ioc/:id -->
@@ -95,11 +100,17 @@
                 <div class="bg-light p-3 rounded mb-3">
                     <code class="text-warning">PUT</code> <code>/api/ioc/:id</code>
                 </div>
-                <p>Update an IOC's labels and description</p>
+                <p>Update an IOC's metadata and validity dates</p>
                 <p><strong>Request Body:</strong></p>
                 <pre><code>{
   "labels": ["updated", "labels"],
-  "description": "Updated description"
+  "description": "Updated description",
+  "threat_level": "high",
+  "confidence": "high",
+  "tlp": "amber",
+  "campaigns": ["operation-2024"],
+  "valid_from": "2025-12-23T08:47:00Z",
+  "valid_until": "2026-12-23T08:47:00Z"
 }</code></pre>
 
                 <!-- DELETE /api/ioc/:id -->
@@ -277,14 +288,28 @@
                 <h6 class="mb-0">Supported IOC Types</h6>
             </div>
             <div class="card-body">
+                <strong>Hash Types:</strong><br>
                 <div class="badge bg-primary mb-2">md5</div>
                 <div class="badge bg-primary mb-2">sha1</div>
                 <div class="badge bg-primary mb-2">sha256</div>
+                
+                <br><strong>Network:</strong><br>
                 <div class="badge bg-success mb-2">ipv4</div>
+                <div class="badge bg-success mb-2">ipv6</div>
                 <div class="badge bg-success mb-2">domain</div>
-                <div class="badge bg-info mb-2">email</div>
-                <div class="badge bg-info mb-2">url</div>
-                <div class="badge bg-warning mb-2">asn</div>
+                <div class="badge bg-success mb-2">url</div>
+                <div class="badge bg-success mb-2">email</div>
+                <div class="badge bg-success mb-2">asn</div>
+                
+                <br><strong>File System:</strong><br>
+                <div class="badge bg-warning mb-2">file-path</div>
+                <div class="badge bg-warning mb-2">certificate-serial</div>
+                
+                <br><strong>Process & Registry:</strong><br>
+                <div class="badge bg-info mb-2">process-name</div>
+                <div class="badge bg-info mb-2">registry-key</div>
+                <div class="badge bg-info mb-2">windows-registry-key</div>
+                <div class="badge bg-info mb-2">mutex</div>
             </div>
         </div>
 
@@ -309,6 +334,52 @@
                     </li>
                     <li class="mb-2">
                         <span class="badge bg-danger">critical</span> Critical threat level
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- TLP Levels -->
+        <div class="card mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Traffic Light Protocol (TLP)</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <span class="badge bg-secondary">white</span> White - Shareable with everyone
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-success">green</span> Green - Shareable with community
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-warning">amber</span> Amber - Limited sharing
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-danger">red</span> Red - Not shareable
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Confidence Levels -->
+        <div class="card mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Confidence Levels</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <span class="badge bg-secondary">low</span> Low confidence in indicator
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-info">medium</span> Medium confidence in indicator
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-success">high</span> High confidence in indicator
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-primary">very-high</span> Very high confidence in indicator
                     </li>
                 </ul>
             </div>

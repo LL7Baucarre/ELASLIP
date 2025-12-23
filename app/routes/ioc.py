@@ -74,6 +74,14 @@ def create_ioc():
                 items:
                   type: string
                 description: Related campaigns or operations
+              valid_from:
+                type: string
+                format: date-time
+                description: Validity start date (ISO 8601 format)
+              valid_until:
+                type: string
+                format: date-time
+                description: Validity end date (ISO 8601 format)
     responses:
       201:
         description: IOC created successfully
