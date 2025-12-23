@@ -1,5 +1,7 @@
 """IOC API Routes."""
 
+import re
+from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
@@ -157,7 +159,9 @@ def create_ioc():
             tlp=data.get('tlp'),
             campaigns=data.get('campaigns', []),
             valid_from=data.get('valid_from'),
-            valid_until=data.get('valid_until')
+            valid_until=data.get('valid_until'),
+            user_id=g.current_user.id,
+            username=g.current_user.username
         )
         
         status_code = 201 if is_new else 200
@@ -757,6 +761,7 @@ def get_ioc(ioc_id):
     if not ioc:
         return jsonify({'error': 'IOC not found'}), 404
     
+    # Return STIX 2.1 pure format
     return jsonify(ioc)
 
 
@@ -1046,3 +1051,206 @@ def create_from_stix():
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+
+
+# ============================================================
+# ENRICHMENT ENDPOINT (STIX 2.1 COMPLIANT)
+# ============================================================
+
+@ioc_bp.route('/<ioc_id>/enrich', methods=['POST'])
+@login_or_api_key_required
+def enrich_ioc(ioc_id):
+    """
+    Enrich an IOC and return raw API results for user selection (STIX 2.1 compliant).
+    
+    User can then select which fields to add to x_enrichment via separate endpoint.
+    
+    Expected JSON body:
+    {
+        "api_ids": ["optional", "list", "of", "api", "ids"]  # If omitted, uses all enabled APIs
+    }
+    
+    Response: Raw API results formatted for field selection in template
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    from app.services.enrichment_service import EnrichmentService
+    from app.services.ioc_service import IOCService
+    
+    data = request.get_json() or {}
+    
+    logger.info(f'[Enrich IOC] Request for IOC {ioc_id}, user: {g.current_user.id}')
+    
+    # Get IOC from service
+    ioc_service = IOCService()
+    ioc = ioc_service.get(ioc_id)
+    
+    if not ioc:
+        return jsonify({'error': f'IOC {ioc_id} not found'}), 404
+    
+    # Extract value from x_metadata.ioc_value or pattern
+    value = None
+    ioc_type = None
+    
+    if 'x_metadata' in ioc:
+        value = ioc['x_metadata'].get('ioc_value')
+        ioc_type = ioc['x_metadata'].get('ioc_type')
+    
+    # Fallback: extract from pattern
+    if not value and 'pattern' in ioc:
+        pattern = ioc['pattern']
+        # Try to extract value from STIX pattern
+        pattern_extractors = {
+            'ipv4': re.compile(r"\[ipv4-addr:value = '([^']+)'\]"),
+            'ipv6': re.compile(r"\[ipv6-addr:value = '([^']+)'\]"),
+            'domain': re.compile(r"\[domain-name:value = '([^']+)'\]"),
+            'url': re.compile(r"\[url:value = '([^']+)'\]"),
+            'email': re.compile(r"\[email-addr:value = '([^']+)'\]"),
+            'hash': re.compile(r"\[file:hashes\.'[A-Z0-9]+' = '([^']+)'\]"),
+            'md5': re.compile(r"\[file:hashes\.'MD5' = '([^']+)'\]"),
+            'sha1': re.compile(r"\[file:hashes\.'SHA-1' = '([^']+)'\]"),
+            'sha256': re.compile(r"\[file:hashes\.'SHA-256' = '([^']+)'\]"),
+            'asn': re.compile(r"\[autonomous-system:value = '(AS?\d+)'\]"),
+            'file': re.compile(r"\[file:name = '([^']+)'\]")
+        }
+        
+        for t, regex in pattern_extractors.items():
+            match = regex.search(pattern)
+            if match:
+                ioc_type = t
+                value = match.group(1)
+                break
+    
+    if not value:
+        return jsonify({'error': 'Could not extract IOC value from pattern or x_metadata'}), 400
+    
+    logger.info(f'[Enrich IOC] Extracted value: {value}, type: {ioc_type}')
+    
+    # Enrich using external APIs
+    enrichment_service = EnrichmentService()
+    
+    try:
+        api_ids = data.get('api_ids', [])
+        
+        if api_ids:
+            logger.info(f'[Enrich IOC] Enriching with specific APIs: {api_ids}')
+            results = enrichment_service.enrich_value_with_apis(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(g.current_user.id),
+                api_ids=api_ids
+            )
+        else:
+            logger.info(f'[Enrich IOC] Enriching with all enabled APIs')
+            results = enrichment_service.enrich_value(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(g.current_user.id)
+            )
+        
+        logger.info(f'[Enrich IOC] Enrichment completed with {len(results)} results')
+        
+        # Return results in template-friendly format (NOT storing yet)
+        return jsonify({
+            'value': value,
+            'type': ioc_type,
+            'results': results  # User selects fields from these results
+        }), 200
+    
+    except Exception as e:
+        logger.error(f'[Enrich IOC] Enrichment error: {str(e)}', exc_info=True)
+        return jsonify({'error': f'Enrichment failed: {str(e)}'}), 400
+
+
+@ioc_bp.route('/<ioc_id>/store-enrichment', methods=['POST'])
+@login_or_api_key_required
+def store_enrichment(ioc_id):
+    """
+    Store selected enrichment fields into IOC's x_enrichment object.
+    
+    Expected JSON body:
+    {
+        "api_name": "API name",
+        "api_id": "api_id",
+        "selected_fields": {
+            "field1": "value1",
+            "field2": "value2",
+            ...
+        }
+    }
+    
+    Response: Updated STIX 2.1 indicator with x_enrichment
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    from app.services.ioc_service import IOCService
+    
+    data = request.get_json()
+    
+    if not data or 'selected_fields' not in data:
+        return jsonify({'error': 'selected_fields is required'}), 400
+    
+    api_name = data.get('api_name', 'Unknown API')
+    api_id = data.get('api_id', '')
+    selected_fields = data['selected_fields']
+    
+    logger.info(f'[Store Enrichment] Storing fields for IOC {ioc_id} from {api_name}')
+    
+    ioc_service = IOCService()
+    ioc = ioc_service.get(ioc_id)
+    
+    if not ioc:
+        return jsonify({'error': f'IOC {ioc_id} not found'}), 404
+    
+    # Create or update x_enrichment
+    x_enrichment = ioc.get('x_enrichment', {})
+    if not isinstance(x_enrichment, dict):
+        x_enrichment = {}
+    
+    # Ensure api_results array exists
+    if 'api_results' not in x_enrichment:
+        x_enrichment['api_results'] = []
+    
+    # Create result object with selected fields
+    result = {
+        'api_name': api_name,
+        'api_id': api_id,
+        'enriched_at': datetime.utcnow().isoformat() + 'Z',
+        'enriched_by': g.current_user.username
+    }
+    result.update(selected_fields)
+    
+    # Add or merge result
+    if len(x_enrichment['api_results']) > 0:
+        # Find existing result from same API and merge
+        found = False
+        for stored_result in x_enrichment['api_results']:
+            if stored_result.get('api_id') == api_id:
+                stored_result.update(result)
+                found = True
+                break
+        
+        if not found:
+            x_enrichment['api_results'].append(result)
+    else:
+        x_enrichment['api_results'].append(result)
+    
+    # Update IOC
+    update_data = {'x_enrichment': x_enrichment}
+    
+    updated_ioc = ioc_service.update(
+        ioc_id,
+        update_data,
+        user_id=str(g.current_user.id),
+        username=g.current_user.username
+    )
+    
+    logger.info(f'[Store Enrichment] Stored enrichment from {api_name} for IOC {ioc_id}')
+    
+    return jsonify({
+        'message': f'Enrichment from {api_name} stored successfully',
+        'ioc': updated_ioc
+    }), 200
+

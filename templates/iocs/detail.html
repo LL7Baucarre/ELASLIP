@@ -198,13 +198,13 @@
         <div class="card mb-4">
             <div class="card-header bg-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">Indicator Information</h6>
-                <span class="ioc-type-badge ioc-type-{{ ioc.ioc_type }}">{{ ioc.ioc_type|upper }}</span>
+                <span class="ioc-type-badge ioc-type-{{ ioc.x_metadata.ioc_type }}">{{ ioc.x_metadata.ioc_type|upper }}</span>
             </div>
             <div class="card-body">
                 <table class="table table-borderless mb-0">
                     <tr>
                         <th width="25%">Value</th>
-                        <td><code class="pattern-text">{{ ioc.ioc_value }}</code></td>
+                        <td><code class="pattern-text">{{ ioc.x_metadata.ioc_value }}</code></td>
                     </tr>
                     <tr>
                         <th>STIX Pattern</th>
@@ -592,8 +592,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
 <script>
 const iocId = '{{ ioc.id }}';
-const iocValue = '{{ ioc.ioc_value }}';
-const iocType = '{{ ioc.ioc_type }}';
+const iocValue = '{{ ioc.ioc_value or ioc.x_metadata.ioc_value }}';
+const iocType = '{{ ioc.ioc_type or ioc.x_metadata.ioc_type }}';
+
+// Enrichment data passed from backend
+const enrichmentData = {% if enrichment_data %}{{ enrichment_data | tojson }}{% else %}null{% endif %};
 
 // Helper function to escape HTML
 function escapeHtml(text) {
@@ -644,23 +647,181 @@ function enrichWithAPI(apiId, apiName, event) {
     performEnrich([apiId]);
 }
 
+// Display enrichment results with field selection checkboxes
+function displayEnrichmentWithSelection(results) {
+    const card = $('#enrichmentCard');
+    const container = $('#enrichmentResults');
+    
+    if (!card.length || !container.length) {
+        console.error('Enrichment card or container not found');
+        return;
+    }
+    
+    container.empty();
+    
+    results.forEach((result, index) => {
+        const apiName = result.api_name || 'Unknown API';
+        const apiId = result.api_id || 'unknown';
+        const rawResponse = result.raw_response || {};
+        
+        // Create field list from raw_response
+        const fields = Object.keys(rawResponse).filter(key => {
+            // Skip internal/metadata fields
+            return !key.startsWith('_') && !['id', 'type', 'api_name', 'api_id', 'enriched_at', 'enriched_by'].includes(key);
+        });
+        
+        // Create field selection panel
+        let fieldCheckboxes = '';
+        if (fields.length > 0) {
+            fieldCheckboxes = fields.map(field => {
+                const value = rawResponse[field];
+                const displayValue = typeof value === 'object' 
+                    ? JSON.stringify(value).substring(0, 50) + '...'
+                    : String(value).substring(0, 50);
+                
+                return `
+                    <div class="form-check">
+                        <input class="form-check-input enrich-field-checkbox" type="checkbox" 
+                               id="field_${index}_${field}" 
+                               data-index="${index}" data-field="${field}" 
+                               value="${escapeHtml(displayValue)}">
+                        <label class="form-check-label" for="field_${index}_${field}">
+                            <strong>${escapeHtml(field)}</strong>: 
+                            <small class="text-muted">${escapeHtml(displayValue)}</small>
+                        </label>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            fieldCheckboxes = '<p class="text-muted small">No fields available to select</p>';
+        }
+        
+        // Encode raw response for later retrieval
+        const rawResponseEncoded = btoa(JSON.stringify(rawResponse));
+        
+        const statusIcon = result.success ? '<i class="bi bi-check-circle text-success"></i>' : '<i class="bi bi-x-circle text-danger"></i>';
+        const cacheInfo = result.from_cache ? '<span class="badge bg-secondary">Cached</span>' : '<span class="badge bg-primary">Live</span>';
+        
+        const panelHtml = `
+            <div class="card mb-3 enrichment-result" data-index="${index}" data-raw-response-encoded="${rawResponseEncoded}" data-api-id="${apiId}" data-api-name="${escapeHtml(apiName)}">
+                <div class="card-header bg-light">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            ${statusIcon}
+                            <strong class="ms-2">${escapeHtml(apiName)}</strong>
+                            ${cacheInfo}
+                        </div>
+                        <small class="text-muted">${result.success ? fields.length + ' fields' : 'Failed'}</small>
+                    </div>
+                </div>
+                <div class="card-body">
+                    ${result.success ? `
+                        <p class="mb-3"><small class="text-muted">Select fields to store in IOC enrichment:</small></p>
+                        <div class="field-selection">
+                            ${fieldCheckboxes}
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-sm btn-primary store-selected-fields-btn" 
+                                    data-index="${index}" 
+                                    data-api-name="${escapeHtml(apiName)}" 
+                                    data-api-id="${apiId}">
+                                <i class="bi bi-check2 me-1"></i> Store Selected Fields
+                            </button>
+                        </div>
+                    ` : `
+                        <p class="text-danger"><small>Enrichment failed. Check API configuration and try again.</small></p>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        container.append(panelHtml);
+    });
+    
+    card.show();
+}
+
+// Handle storing selected fields
+$(document).on('click', '.store-selected-fields-btn', function(e) {
+    e.preventDefault();
+    
+    const btn = $(this);
+    const index = btn.data('index');
+    const apiName = btn.data('api-name');
+    const apiId = btn.data('api-id');
+    
+    const enrichmentPanel = $(`.enrichment-result[data-index="${index}"]`);
+    const rawResponseEncoded = enrichmentPanel.data('raw-response-encoded');
+    
+    if (!rawResponseEncoded) {
+        showAlert('No raw response data available', 'warning');
+        return;
+    }
+    
+    // Decode raw response
+    let rawResponse;
+    try {
+        rawResponse = JSON.parse(atob(rawResponseEncoded));
+    } catch(err) {
+        showAlert('Failed to parse raw response data', 'danger');
+        return;
+    }
+    
+    // Get selected fields
+    const selectedFields = {};
+    $(`.enrich-field-checkbox[data-index="${index}"]:checked`).each(function() {
+        const field = $(this).data('field');
+        if (field in rawResponse) {
+            selectedFields[field] = rawResponse[field];
+        }
+    });
+    
+    if (Object.keys(selectedFields).length === 0) {
+        showAlert('Please select at least one field', 'warning');
+        return;
+    }
+    
+    // Send to store-enrichment endpoint
+    btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Storing...');
+    
+    $.ajax({
+        url: `/api/ioc/${iocId}/store-enrichment`,
+        method: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
+            api_name: apiName,
+            api_id: apiId,
+            selected_fields: selectedFields
+        }),
+        success: function(response) {
+            showAlert(`Stored ${Object.keys(selectedFields).length} fields from ${apiName}`, 'success');
+            
+            // Reload page to show updated enrichment
+            setTimeout(() => location.reload(), 1500);
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.error || 'Unknown error';
+            showAlert('Failed to store enrichment: ' + errorMsg, 'danger');
+            btn.prop('disabled', false).html('<i class="bi bi-check2 me-1"></i> Store Selected Fields');
+        }
+    });
+});
+
 function performEnrich(apiIds = null) {
     const btn = $('#enrichBtn');
     btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Enriching...');
     
-    const payload = {
-        value: iocValue,
-        type: iocType
-    };
+    const payload = {};
     
     if (apiIds && apiIds.length > 0) {
         payload.api_ids = apiIds;
     }
     
-    console.log('Enriching with payload:', payload);
+    console.log('Enriching IOC with payload:', payload);
     
     $.ajax({
-        url: '/api/external-apis/enrich',
+        url: `/api/ioc/${iocId}/enrich`,  // Note: /api/ioc (singular), not /api/iocs
         method: 'POST',
         contentType: 'application/json',
         dataType: 'json',
@@ -668,7 +829,17 @@ function performEnrich(apiIds = null) {
         timeout: 120000,  // Increased to 120 seconds to account for slow APIs
         success: function(data) {
             console.log('Enrichment success:', data);
-            displayEnrichment(data.results);
+            
+            // New endpoint returns: {value, type, results}
+            // results is array of {api_name, api_id, success, from_cache, raw_response, transformed}
+            if (data.results && data.results.length > 0) {
+                // Display raw results with field selection UI
+                displayEnrichmentWithSelection(data.results);
+                showAlert('Enrichment completed. Select fields to store.', 'info');
+            } else {
+                showAlert('Enrichment completed but no results to display', 'info');
+            }
+            
             btn.prop('disabled', false).html('<i class="bi bi-search me-1"></i> Enrich');
         },
         error: function(xhr, status, error) {
@@ -683,6 +854,32 @@ function performEnrich(apiIds = null) {
     // Load APIs when page loads
 $(document).ready(function() {
     loadAvailableAPIs();
+    
+    // Display existing enrichment data if available
+    if (enrichmentData && enrichmentData.api_results && enrichmentData.api_results.length > 0) {
+        // Transform existing enrichment data to match the format expected by displayEnrichment
+        const results = enrichmentData.api_results.map((result, index) => ({
+            api_name: result.api_name || 'Unknown API',
+            api_id: result.api_id || '',
+            success: true,
+            from_cache: true,  // Mark as stored data
+            raw_response: result,
+            transformed: {}  // No transformation needed for stored data
+        }));
+        displayEnrichment(results);
+        
+        // Show enrichment info card
+        const enrichmentInfoCard = $('#enrichmentInfoCard');
+        const enrichmentInfoContent = $('#enrichmentInfoContent');
+        enrichmentInfoContent.html(`
+            <p><small class="text-muted">
+                <i class="bi bi-info-circle me-2"></i>
+                Enriched on <strong>${enrichmentData.enriched_at || 'Unknown'}</strong> 
+                by <strong>${enrichmentData.enriched_by || 'Unknown'}</strong>
+            </small></p>
+        `);
+        enrichmentInfoCard.show();
+    }
     
     // Import enrichment data button handler (delegated)
     $(document).on('click', '.import-enrichment-btn', function(e) {

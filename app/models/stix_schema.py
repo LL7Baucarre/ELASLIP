@@ -192,19 +192,99 @@ class STIXIndicator:
             self.sources.append(new_source)
     
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for storage."""
+        """
+        Convert to dictionary for storage.
+        Returns STIX 2.1 compliant format with custom properties prefixed with x_.
+        """
         indicator_dict = dict(self.indicator)
         
-        # Convert datetime objects to ISO format strings
+        # Convert datetime objects to ISO 8601 format with Z suffix (UTC)
         for key in ['created', 'modified', 'valid_from', 'valid_until']:
             if key in indicator_dict and indicator_dict[key]:
                 if hasattr(indicator_dict[key], 'isoformat'):
-                    indicator_dict[key] = indicator_dict[key].isoformat()
+                    iso_str = indicator_dict[key].isoformat()
+                    # Ensure Z suffix for UTC timestamps
+                    if iso_str.endswith('+00:00'):
+                        iso_str = iso_str[:-6] + 'Z'
+                    elif not iso_str.endswith('Z') and '+' not in iso_str:
+                        iso_str = iso_str + 'Z'
+                    indicator_dict[key] = iso_str
         
-        return {
-            **indicator_dict,
-            'sources': self.sources
-        }
+        # Ensure indicator_types exists (STIX 2.1 required for indicators)
+        if 'indicator_types' not in indicator_dict or not indicator_dict.get('indicator_types'):
+            indicator_dict['indicator_types'] = ['malicious-activity']
+        
+        # Add sources as external_references (STIX compliant)
+        # Only include source_name and description, NOT metadata
+        if self.sources:
+            external_refs = []
+            for source in self.sources:
+                ref = {
+                    'source_name': source.get('name', 'unknown'),
+                }
+                # Only add description if there's user metadata (user_id, username)
+                if source.get('metadata', {}).get('user_id') or source.get('metadata', {}).get('username'):
+                    ref['description'] = f"Added by {source.get('metadata', {}).get('username', 'unknown')} ({source.get('metadata', {}).get('user_id', 'unknown')})"
+                external_refs.append(ref)
+            if external_refs:
+                indicator_dict['external_references'] = external_refs
+        
+        return indicator_dict
+    
+    def to_dict_with_metadata(self, ioc_type: str = None, ioc_value: str = None, 
+                              pattern_hash: str = None, threat_level: str = None,
+                              confidence: int = None, tlp: str = None, 
+                              campaigns: List[str] = None, risk_score: int = None,
+                              status: str = None, current_version: int = None,
+                              user_id: str = None, username: str = None) -> Dict[str, Any]:
+        """
+        Convert to dictionary with STIX 2.1 custom properties (x_* prefix).
+        Separates STIX-reserved fields from custom domain fields.
+        
+        Args:
+            user_id: User ID who created/modified this indicator
+            username: Username who created/modified this indicator
+        """
+        indicator_dict = self.to_dict()
+        
+        # Add custom properties with x_ prefix (STIX 2.1 compliant)
+        custom_props = {}
+        
+        if ioc_type:
+            custom_props['ioc_type'] = ioc_type
+        if ioc_value:
+            custom_props['ioc_value'] = ioc_value
+        if pattern_hash:
+            custom_props['pattern_hash'] = pattern_hash
+        if threat_level:
+            custom_props['threat_level'] = threat_level
+        if tlp:
+            custom_props['tlp'] = tlp
+        if campaigns:
+            custom_props['campaigns'] = campaigns
+        if risk_score is not None:
+            custom_props['risk_score'] = risk_score
+        if status:
+            custom_props['status'] = status
+        if current_version is not None:
+            custom_props['current_version'] = current_version
+        
+        # Add user information to metadata
+        if user_id or username:
+            custom_props['created_by'] = {
+                'user_id': user_id,
+                'username': username
+            }
+        
+        # Add all custom properties under x_metadata (STIX 2.1 custom object)
+        if custom_props:
+            indicator_dict['x_metadata'] = custom_props
+        
+        # Ensure confidence is an integer 0-100 (STIX reserved field)
+        if confidence is not None:
+            indicator_dict['confidence'] = confidence
+        
+        return indicator_dict
     
     def to_stix(self) -> Indicator:
         """Return the underlying STIX Indicator."""
@@ -228,6 +308,31 @@ class STIXIndicator:
     def labels(self) -> List[str]:
         """Get the indicator labels."""
         return list(self.indicator.labels) if hasattr(self.indicator, 'labels') and self.indicator.labels else []
+    
+    @property
+    def value(self) -> Optional[str]:
+        """
+        Extract the IOC value from the STIX pattern.
+        Pattern format: [domain-name:value = 'example.com']
+        Returns the extracted value or None.
+        """
+        import re
+        if not self.indicator.pattern:
+            return None
+        
+        # Try to extract value from pattern
+        # Supports formats like: [domain-name:value = 'value'] or [file:hashes.MD5 = 'hash']
+        match = re.search(r"['\"]([^'\"]+)['\"]", self.indicator.pattern)
+        if match:
+            return match.group(1)
+        
+        # If no quoted value found, try to extract from pattern
+        # e.g., [autonomous-system:number = 1234]
+        match = re.search(r"=\s*(\d+)", self.indicator.pattern)
+        if match:
+            return match.group(1)
+        
+        return None
 
 
 class STIXBundle:

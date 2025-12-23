@@ -804,7 +804,7 @@ def clear_scans():
     # Delete all scans for this user
     try:
         index_name = es._get_index_name('scan_results')
-        es._client.delete_by_query(
+        es.client.delete_by_query(
             index=index_name,
             body={
                 'query': {

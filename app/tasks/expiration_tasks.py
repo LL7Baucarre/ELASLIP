@@ -156,7 +156,7 @@ def cleanup_old_audit_logs(days: int = 90):
     cutoff_date = (datetime.utcnow() - timedelta(days=days)).isoformat()
     
     # Delete old logs
-    result = es.es.delete_by_query(
+    result = es.client.delete_by_query(
         index=es._get_index_name('audit_logs'),
         body={
             'query': {

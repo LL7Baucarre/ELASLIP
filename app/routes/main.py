@@ -11,6 +11,73 @@ from app.auth import User
 main_bp = Blueprint('main', __name__)
 
 
+def make_ioc_template_friendly(ioc):
+    """
+    Add convenience properties to STIX 2.1 IOC for template access.
+    
+    This adds convenience accessors at the root level for template compatibility
+    while keeping the actual IOC storage STIX 2.1 compliant.
+    
+    The original data is in x_metadata, but templates can access via ioc.ioc_type etc.
+    """
+    if not isinstance(ioc, dict):
+        return ioc
+    
+    # Create a wrapper that provides both STIX structure and convenience access
+    class IOCWrapper(dict):
+        def __getattribute__(self, name):
+            # Avoid infinite recursion with internal methods
+            if name.startswith('_') or name in ('get', 'keys', 'values', 'items', 'pop', 'update', 'clear'):
+                return super().__getattribute__(name)
+            
+            # Try direct dict access first
+            try:
+                return dict.__getitem__(self, name)
+            except KeyError:
+                pass
+            
+            # Then try x_metadata for custom fields
+            try:
+                x_metadata = dict.__getitem__(self, 'x_metadata')
+                if isinstance(x_metadata, dict) and name in x_metadata:
+                    return x_metadata[name]
+            except KeyError:
+                pass
+            
+            # Finally, call parent __getattr__ for special methods
+            return super().__getattribute__(name)
+        
+        def __getitem__(self, key):
+            # Direct key access from dict
+            try:
+                return dict.__getitem__(self, key)
+            except KeyError:
+                pass
+            
+            # Try x_metadata for convenience fields (custom STIX properties)
+            convenience_fields = {'ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 
+                                'risk_score', 'status', 'created_by', 'asn', 'country'}
+            if key in convenience_fields:
+                try:
+                    x_metadata = dict.__getitem__(self, 'x_metadata')
+                    if isinstance(x_metadata, dict) and key in x_metadata:
+                        return x_metadata[key]
+                except KeyError:
+                    pass
+            
+            raise KeyError(key)
+        
+        def get(self, key, default=None):
+            try:
+                return self[key]
+            except KeyError:
+                return default
+    
+    # Create wrapper from existing IOC dict
+    wrapped = IOCWrapper(ioc)
+    return wrapped
+
+
 def admin_required(f):
     """Decorator to require admin privileges."""
     from functools import wraps
@@ -41,9 +108,12 @@ def dashboard():
     # Get recent IOCs
     recent = service.list(page=1, per_page=10)
     
+    # Make IOCs template-friendly
+    template_iocs = [make_ioc_template_friendly(ioc) for ioc in recent['items']]
+    
     return render_template('dashboard.html', 
                           stats=stats, 
-                          recent_iocs=recent['items'])
+                          recent_iocs=template_iocs)
 
 
 @main_bp.route('/iocs')
@@ -70,7 +140,21 @@ def iocs_detail(ioc_id):
     if not ioc:
         return render_template('errors/404.html'), 404
     
-    return render_template('iocs/detail.html', ioc=ioc)
+    # Make IOC template-friendly
+    ioc = make_ioc_template_friendly(ioc)
+    
+    # Extract enrichment data for template display
+    enrichment_data = None
+    if isinstance(ioc, dict) and 'x_enrichment' in ioc:
+        x_enrichment = ioc['x_enrichment']
+        if isinstance(x_enrichment, dict):
+            enrichment_data = {
+                'enriched_at': x_enrichment.get('enriched_at'),
+                'enriched_by': x_enrichment.get('enriched_by'),
+                'api_results': x_enrichment.get('api_results', [])
+            }
+    
+    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data)
 
 
 @main_bp.route('/iocs/graph')

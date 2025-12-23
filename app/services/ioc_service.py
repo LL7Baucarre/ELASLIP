@@ -42,6 +42,143 @@ class IOCService:
         self.audit = AuditService()
         self.index = 'ioc'
     
+    @staticmethod
+    def _sanitize_stix_indicator(ioc: Dict) -> Dict:
+        """
+        Sanitize IOC document to strict STIX 2.1 compliance.
+        
+        This method:
+        1. Removes all enrichment_* fields from root (they should be in x_enrichment)
+        2. Ensures timestamps have UTC 'Z' suffix
+        3. Removes invalid/duplicate fields
+        4. Groups enrichment data into x_enrichment object
+        
+        Args:
+            ioc: Raw IOC document from Elasticsearch
+        
+        Returns:
+            Sanitized STIX 2.1 compliant document
+        """
+        if not isinstance(ioc, dict):
+            return ioc
+        
+        # STIX 2.1 Indicator valid properties
+        STIX_2_1_PROPERTIES = {
+            # Core properties
+            'type', 'id', 'spec_version', 'created', 'modified',
+            # Indicator-specific
+            'pattern', 'pattern_type', 'valid_from', 'valid_until',
+            'indicator_types', 'confidence',
+            # Common properties
+            'created_by_ref', 'revoked', 'labels', 'name', 'description',
+            'object_marking_refs', 'marking_definitions', 'external_references',
+            'granular_markings',
+            # Custom STIX properties (with x_ prefix)
+            'x_metadata', 'x_enrichment'
+        }
+        
+        sanitized = {}
+        enrichment_fields = {}
+        
+        for key, value in ioc.items():
+            # Skip enrichment_* fields at root - they go to x_enrichment
+            if key.startswith('enrichment_'):
+                enrichment_fields[key.replace('enrichment_', '')] = value
+                continue
+            
+            # Skip invalid root-level custom fields (not STIX-compliant)
+            if key in ['risk_score', 'current_version', 'threat_level', 'tlp', 
+                      'campaigns', 'status', 'asn', 'country', 'ioc_type', 'ioc_value',
+                      'pattern_hash', 'sources']:
+                # These go to x_metadata, not root
+                continue
+            
+            # Keep only valid STIX properties
+            if key in STIX_2_1_PROPERTIES:
+                # Fix timestamp format - ensure UTC 'Z' suffix
+                if key in ['created', 'modified'] and isinstance(value, str):
+                    # Remove milliseconds if present and ensure Z suffix
+                    value = IOCService._ensure_timestamp_format(value)
+                
+                sanitized[key] = value
+        
+        # Ensure x_metadata exists and is valid, preserve from original
+        if 'x_metadata' in ioc and isinstance(ioc['x_metadata'], dict):
+            sanitized['x_metadata'] = ioc['x_metadata'].copy()
+        else:
+            sanitized['x_metadata'] = {}
+        
+        # If we found enrichment fields, group them in x_enrichment
+        if enrichment_fields:
+            # Create or update x_enrichment
+            if 'x_enrichment' not in sanitized:
+                sanitized['x_enrichment'] = {}
+            
+            # Ensure x_enrichment is a dict
+            if not isinstance(sanitized['x_enrichment'], dict):
+                sanitized['x_enrichment'] = {}
+            
+            # Create api_results array if it doesn't exist
+            if 'api_results' not in sanitized['x_enrichment']:
+                sanitized['x_enrichment']['api_results'] = []
+            
+            # Create a single result object with all enrichment data
+            api_result = {}
+            for key, value in enrichment_fields.items():
+                api_result[key] = value
+            
+            # Add or update the first result
+            if isinstance(sanitized['x_enrichment']['api_results'], list):
+                if len(sanitized['x_enrichment']['api_results']) > 0:
+                    # Merge with existing first result
+                    sanitized['x_enrichment']['api_results'][0].update(api_result)
+                else:
+                    # Add new result
+                    sanitized['x_enrichment']['api_results'].append(api_result)
+        else:
+            # Preserve x_enrichment if it exists
+            if 'x_enrichment' in ioc and isinstance(ioc['x_enrichment'], dict):
+                sanitized['x_enrichment'] = ioc['x_enrichment'].copy()
+        
+        return sanitized
+    
+    @staticmethod
+    def _ensure_timestamp_format(timestamp: str) -> str:
+        """
+        Ensure timestamp has proper ISO 8601 + UTC format with 'Z' suffix.
+        
+        Converts formats like:
+        - 2025-12-23T22:07:20.198861 -> 2025-12-23T22:07:20.198861Z
+        - 2025-12-23T22:07:20.283791 -> 2025-12-23T22:07:20.283791Z
+        - 2025-12-23T22:07:20Z -> 2025-12-23T22:07:20Z (already good)
+        """
+        if not isinstance(timestamp, str):
+            return timestamp
+        
+        # Already has Z suffix
+        if timestamp.endswith('Z'):
+            return timestamp
+        
+        # Has timezone offset (+00:00 or -05:00)
+        if '+' in timestamp or (timestamp.count('-') > 2):
+            # Extract just the datetime part before timezone
+            base = timestamp.split('+')[0].split('-')[0] if '+' in timestamp else timestamp.split('+')[0]
+            return base + 'Z'
+        
+        # No timezone indicator - add Z
+        return timestamp + 'Z'
+
+    
+    @classmethod
+    def _convert_confidence_to_int(cls, confidence: str) -> Optional[int]:
+        """Convert confidence string to STIX 2.1 integer (0-100)."""
+        if confidence is None:
+            return None
+        if isinstance(confidence, int):
+            return confidence
+        # Map text confidence to integer
+        return cls.CONFIDENCE_SCORES.get(confidence.lower() if isinstance(confidence, str) else None)
+    
     @classmethod
     def calculate_risk_score(cls, threat_level: str = None, confidence: str = None, tlp: str = None) -> int:
         """
@@ -73,7 +210,9 @@ class IOCService:
                tlp: str = None,
                campaigns: List[str] = None,
                valid_from: str = None,
-               valid_until: str = None) -> Tuple[Dict, bool]:
+               valid_until: str = None,
+               user_id: str = None,
+               username: str = None) -> Tuple[Dict, bool]:
         """
         Create a new IOC or update existing one with new source.
         
@@ -88,6 +227,8 @@ class IOCService:
             confidence: Optional confidence level (low|medium|high|very-high)
             tlp: Optional TLP level (white|green|amber|red)
             campaigns: Optional list of related campaigns
+            user_id: User ID who created this IOC
+            username: Username who created this IOC
         
         Returns:
             Tuple of (IOC dict, is_new) where is_new is False if deduplicated
@@ -112,45 +253,26 @@ class IOCService:
             # Add new source to existing IOC
             return self._add_source_to_existing(existing, source), False
         
-        # Create new IOC
-        ioc_doc = indicator.to_dict()
-        ioc_doc['pattern_hash'] = pattern_hash
-        ioc_doc['ioc_type'] = ioc_type
-        ioc_doc['ioc_value'] = value.lower() if ioc_type in ['md5', 'sha1', 'sha256'] else value
-        
-        # Add threat_level if provided
-        if threat_level:
-            ioc_doc['threat_level'] = threat_level
-        
-        # Add confidence if provided
-        if confidence:
-            ioc_doc['confidence'] = confidence
-        
-        # Add TLP if provided
-        if tlp:
-            ioc_doc['tlp'] = tlp
-        
-        # Add campaigns if provided
-        if campaigns:
-            ioc_doc['campaigns'] = campaigns
-        
-        # Add validity dates if provided
-        if valid_from:
-            ioc_doc['valid_from'] = valid_from
-        
-        if valid_until:
-            ioc_doc['valid_until'] = valid_until
-        
-        # Calculate and store risk score
-        ioc_doc['risk_score'] = self.calculate_risk_score(threat_level, confidence, tlp)
-        
-        # Set initial status and version
-        ioc_doc['status'] = 'active'
-        ioc_doc['current_version'] = 1
+        # Create new IOC with STIX 2.1 compliant structure
+        # Use to_dict_with_metadata to include custom properties with x_ prefix
+        ioc_doc = indicator.to_dict_with_metadata(
+            ioc_type=ioc_type,
+            ioc_value=value.lower() if ioc_type in ['md5', 'sha1', 'sha256'] else value,
+            pattern_hash=pattern_hash,
+            threat_level=threat_level,
+            confidence=self._convert_confidence_to_int(confidence),  # Convert to 0-100
+            tlp=tlp,
+            campaigns=campaigns,
+            risk_score=self.calculate_risk_score(threat_level, confidence, tlp),
+            status='active',
+            current_version=1,
+            user_id=user_id,
+            username=username
+        )
         
         self.es.index(self.index, indicator.id, ioc_doc)
         
-        # Create initial version snapshot
+        # Create initial version snapshot (with metadata)
         self._create_version_snapshot(indicator.id, ioc_doc, None, 'system')
         
         # Log to audit trail
@@ -230,6 +352,8 @@ class IOCService:
         if result:
             doc = result['_source']
             doc['id'] = result['_id']
+            # Sanitize to STIX 2.1 compliance
+            doc = self._sanitize_stix_indicator(doc)
             return doc
         return None
     
@@ -239,7 +363,7 @@ class IOCService:
         
         Args:
             ioc_id: IOC ID
-            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns, valid_from, valid_until, status)
+            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns, valid_from, valid_until, status, x_enrichment, x_metadata)
             user_id: User ID making the update (for audit trail)
             username: Username making the update
         
@@ -250,19 +374,26 @@ class IOCService:
         if not existing:
             return None
         
-        # Only allow updating certain fields
+        # Allow updating both standard fields and custom STIX fields with x_ prefix
+        # STIX 2.1 compliant: only x_* and specific root properties are allowed
         allowed_fields = [
-            'labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns',
-            'valid_from', 'valid_until', 'status', 'last_reviewed', 'risk_score',
-            'last_seen', 'first_seen', 'detection_ratio', 'severity', 'reputation',
-            'malware_family', 'country', 'asn', 'registrar', 'attributes', 'metadata'
+            'labels', 'name', 'description', 'valid_from', 'valid_until',
+            'x_enrichment', 'x_metadata'  # STIX 2.1 custom properties
         ]
         update_doc = {}
         for k, v in updates.items():
-            # Allow standard fields or any custom enrichment field
-            if k in allowed_fields or k.startswith('enrichment_'):
+            # REJECT enrichment_* fields at root (they violate STIX 2.1)
+            if k.startswith('enrichment_'):
+                # Skip these - they should go in x_enrichment
+                continue
+            
+            # Allow only STIX-compliant fields
+            if k in allowed_fields or k.startswith('x_'):
                 update_doc[k] = v
-        update_doc['modified'] = datetime.utcnow().isoformat()
+        
+        # Ensure modified timestamp has Z suffix
+        modified_ts = datetime.utcnow().isoformat() + 'Z'
+        update_doc['modified'] = modified_ts
         
         # Recalculate risk score if relevant fields changed
         threat_level = updates.get('threat_level', existing.get('threat_level'))
@@ -406,6 +537,9 @@ class IOCService:
             doc = hit['_source']
             doc['id'] = hit['_id']
             
+            # Sanitize to STIX 2.1 compliance
+            doc = self._sanitize_stix_indicator(doc)
+            
             # Get count of relations for this IOC
             relations = self.es.search('ioc_relations', {
                 'query': {
@@ -525,7 +659,9 @@ class IOCService:
             'metadata': source.get('metadata', {})
         }
         
-        sources = existing.get('sources', [])
+        # Get sources and metadata from x_metadata
+        x_metadata = existing.get('x_metadata', {})
+        sources = x_metadata.get('sources', [])
         
         # Check if this source already exists (avoid duplicates)
         source_exists = any(
@@ -536,10 +672,23 @@ class IOCService:
         
         if not source_exists:
             sources.append(new_source)
+            x_metadata['sources'] = sources
+            
+            # Update external_references in STIX object
+            external_refs = []
+            for s in sources:
+                ref = {
+                    'source_name': s.get('name', 'unknown'),
+                }
+                if s.get('metadata'):
+                    ref['description'] = 'Metadata from source'
+                external_refs.append(ref)
+            
             self.es.update(self.index, existing['id'], {
                 'doc': {
-                    'sources': sources,
-                    'modified': datetime.utcnow().isoformat()
+                    'x_metadata': x_metadata,
+                    'external_references': external_refs,
+                    'modified': datetime.utcnow().isoformat() + 'Z'
                 }
             })
         

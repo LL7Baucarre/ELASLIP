@@ -52,21 +52,36 @@ IOC_MAPPING = {
             },
             "object_marking_refs": {"type": "keyword"},
             "granular_markings": {"type": "nested"},
-            "sources": {
-                "type": "nested",
+            "indicator_types": {"type": "keyword"},
+            "x_metadata": {
+                "type": "object",
                 "properties": {
-                    "name": {"type": "keyword"},
-                    "timestamp": {"type": "date"},
-                    "metadata": {"type": "object", "enabled": False}
+                    "ioc_type": {"type": "keyword"},
+                    "ioc_value": {"type": "keyword"},
+                    "pattern_hash": {"type": "keyword"},
+                    "threat_level": {"type": "keyword"},
+                    "tlp": {"type": "keyword"},
+                    "campaigns": {"type": "keyword"},
+                    "risk_score": {"type": "integer"},
+                    "status": {"type": "keyword"},
+                    "current_version": {"type": "integer"},
+                    "created_by": {
+                        "type": "object",
+                        "properties": {
+                            "user_id": {"type": "keyword"},
+                            "username": {"type": "keyword"}
+                        }
+                    },
+                    "sources": {
+                        "type": "nested",
+                        "properties": {
+                            "name": {"type": "keyword"},
+                            "timestamp": {"type": "date"},
+                            "metadata": {"type": "object", "enabled": False}
+                        }
+                    }
                 }
-            },
-            "pattern_hash": {"type": "keyword"},
-            "ioc_type": {"type": "keyword"},
-            "ioc_value": {"type": "keyword"},
-            "risk_score": {"type": "integer"},
-            "status": {"type": "keyword"},
-            "current_version": {"type": "integer"},
-            "last_reviewed": {"type": "date"}
+            }
         }
     }
 }
