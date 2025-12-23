@@ -356,6 +356,22 @@
             width: 20px;
         }
         
+        .sidebar .nav-section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: rgba(255,255,255,0.5);
+            padding: 12px 20px 8px 20px;
+            text-transform: uppercase;
+            margin-top: 15px;
+            display: list-item;
+            list-style: none;
+        }
+        
+        .sidebar .nav-section-title.mt-3 {
+            margin-top: 15px;
+        }
+        
         .main-content {
             margin-left: 250px;
             padding: 20px;
@@ -510,6 +526,7 @@
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
         <ul class="nav flex-column mt-3">
+            <li class="nav-section-title">MANAGEMENT</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
@@ -525,6 +542,7 @@
                     <i class="bi bi-diagram-3"></i> IOC Graph
                 </a>
             </li>
+            <li class="nav-section-title mt-3">TOOLS</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
                     <i class="bi bi-search"></i> Search
@@ -540,6 +558,7 @@
                     <i class="bi bi-terminal"></i> Tools
                 </a>
             </li>
+            <li class="nav-section-title mt-3">MONITORING</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
                     <i class="bi bi-clock-history"></i> Activity
@@ -550,7 +569,8 @@
                     <i class="bi bi-file-earmark-code"></i> API Docs
                 </a>
             </li>
-            <li class="nav-item mt-4">
+            <li class="nav-section-title mt-3">CONFIG</li>
+            <li class="nav-item">
                 <a class="nav-link {% if 'settings' in request.endpoint %}active{% endif %}" href="{{ url_for('main.settings') }}">
                     <i class="bi bi-gear"></i> Settings
                 </a>
