@@ -171,13 +171,27 @@
                             <div class="mb-3">
                                 <label for="iocTypes" class="form-label">IOC Types *</label>
                                 <select class="form-select" id="iocTypes" multiple required>
-                                    <option value="ipv4">IPv4</option>
-                                    <option value="domain">Domain</option>
-                                    <option value="md5">MD5</option>
-                                    <option value="sha1">SHA1</option>
-                                    <option value="sha256">SHA256</option>
-                                    <option value="url">URL</option>
-                                    <option value="email">Email</option>
+                                    <optgroup label="File Hashes">
+                                        <option value="md5">MD5</option>
+                                        <option value="sha1">SHA1</option>
+                                        <option value="sha256">SHA256</option>
+                                    </optgroup>
+                                    <optgroup label="Network Indicators">
+                                        <option value="ipv4">IPv4</option>
+                                        <option value="ipv6">IPv6</option>
+                                        <option value="domain">Domain</option>
+                                        <option value="email">Email</option>
+                                        <option value="url">URL</option>
+                                        <option value="asn">ASN</option>
+                                    </optgroup>
+                                    <optgroup label="TAXII Indicators">
+                                        <option value="file-path">File Path</option>
+                                        <option value="process-name">Process Name</option>
+                                        <option value="registry-key">Registry Key</option>
+                                        <option value="windows-registry-key">Windows Registry Key</option>
+                                        <option value="mutex">Mutex</option>
+                                        <option value="certificate-serial">Certificate Serial</option>
+                                    </optgroup>
                                 </select>
                                 <div class="form-text">Hold Ctrl/Cmd to select multiple</div>
                             </div>

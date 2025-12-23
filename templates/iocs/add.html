@@ -64,14 +64,27 @@
                                 <label for="iocType" class="form-label">Type <span class="text-danger">*</span></label>
                                 <select class="form-select" id="iocType" name="type" required>
                                     <option value="">Select IOC Type...</option>
-                                    <option value="md5">MD5 Hash</option>
-                                    <option value="sha1">SHA1 Hash</option>
-                                    <option value="sha256">SHA256 Hash</option>
-                                    <option value="ipv4">IPv4 Address</option>
-                                    <option value="domain">Domain</option>
-                                    <option value="email">Email Address</option>
-                                    <option value="url">URL</option>
-                                    <option value="asn">ASN (Autonomous System)</option>
+                                    <optgroup label="File Hashes">
+                                        <option value="md5">MD5 Hash</option>
+                                        <option value="sha1">SHA1 Hash</option>
+                                        <option value="sha256">SHA256 Hash</option>
+                                    </optgroup>
+                                    <optgroup label="Network Indicators">
+                                        <option value="ipv4">IPv4 Address</option>
+                                        <option value="ipv6">IPv6 Address</option>
+                                        <option value="domain">Domain</option>
+                                        <option value="email">Email Address</option>
+                                        <option value="url">URL</option>
+                                        <option value="asn">ASN (Autonomous System)</option>
+                                    </optgroup>
+                                    <optgroup label="TAXII Indicators">
+                                        <option value="file-path">File Path</option>
+                                        <option value="process-name">Process Name</option>
+                                        <option value="registry-key">Registry Key</option>
+                                        <option value="windows-registry-key">Windows Registry Key</option>
+                                        <option value="mutex">Mutex</option>
+                                        <option value="certificate-serial">Certificate Serial</option>
+                                    </optgroup>
                                 </select>
                             </div>
                             
@@ -105,6 +118,39 @@
                                     <option value="critical">Critical</option>
                                 </select>
                                 <div class="form-text">Assess the threat level associated with this IOC</div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="iocConfidence" class="form-label">Confidence</label>
+                                    <select class="form-select" id="iocConfidence" name="confidence">
+                                        <option value="">Select confidence...</option>
+                                        <option value="low">Low (0-30%)</option>
+                                        <option value="medium">Medium (30-70%)</option>
+                                        <option value="high">High (70-90%)</option>
+                                        <option value="very-high">Very High (90-100%)</option>
+                                    </select>
+                                    <div class="form-text">Confidence level in this indicator</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="iocTlp" class="form-label">TLP (Traffic Light Protocol)</label>
+                                    <select class="form-select" id="iocTlp" name="tlp">
+                                        <option value="">Select TLP level...</option>
+                                        <option value="white">White - Unrestricted</option>
+                                        <option value="green">Green - Community</option>
+                                        <option value="amber">Amber - Limited</option>
+                                        <option value="red">Red - Restricted</option>
+                                    </select>
+                                    <div class="form-text">How this indicator can be shared</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocCampaigns" class="form-label">Related Campaigns</label>
+                                <input type="text" class="form-control" id="iocCampaigns" name="campaigns" 
+                                       placeholder="campaign-name, operation-x (comma-separated)">
+                                <div class="form-text">Associate with campaigns or operations</div>
                             </div>
                             
                             <div class="mb-3">
@@ -302,10 +348,17 @@ const validators = {
     sha1: /^[a-fA-F0-9]{40}$/,
     sha256: /^[a-fA-F0-9]{64}$/,
     ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
+    ipv6: /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/,
     domain: /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
     email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
     url: /^https?:\/\/[^\s/$.?#].[^\s]*$/i,
-    asn: /^AS\d+$/i
+    asn: /^AS\d+$/i,
+    'file-path': /^[a-zA-Z0-9\-\._\\\/: ]+\.[a-zA-Z0-9]+$/,
+    'process-name': /^[a-zA-Z0-9\-_.]+\.exe$/i,
+    'registry-key': /^[A-Z]+\\[a-zA-Z0-9\-_\\]+$/,
+    'windows-registry-key': /^(HKEY_|HK)[A-Z_]+\\[a-zA-Z0-9\-_\\]+$/,
+    'mutex': /^[a-zA-Z0-9\-_{}\.]+$/,
+    'certificate-serial': /^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2})*$/
 };
 
 const patternTemplates = {
@@ -313,10 +366,17 @@ const patternTemplates = {
     sha1: "[file:hashes.SHA1 = '{}']",
     sha256: "[file:hashes.SHA256 = '{}']",
     ipv4: "[ipv4-addr:value = '{}']",
+    ipv6: "[ipv6-addr:value = '{}']",
     domain: "[domain-name:value = '{}']",
     email: "[email-addr:value = '{}']",
     url: "[url:value = '{}']",
-    asn: "[autonomous-system:number = {}]"
+    asn: "[autonomous-system:number = {}]",
+    'file-path': "[file:name = '{}']",
+    'process-name': "[process:name = '{}']",
+    'registry-key': "[windows-registry-key:key = '{}']",
+    'windows-registry-key': "[windows-registry-key:key = '{}']",
+    'mutex': "[process:mutex = '{}']",
+    'certificate-serial': "[x509-certificate:serial_number = '{}']"
 };
 
 // Sample STIX indicator
@@ -687,6 +747,9 @@ $('#addIocForm').submit(function(e) {
         labels: $('#iocLabels').val().split(',').map(l => l.trim()).filter(l => l),
         source: $('#iocSource').val() || 'manual',
         threat_level: $('#iocThreatLevel').val() || 'unknown',
+        confidence: $('#iocConfidence').val() || null,
+        tlp: $('#iocTlp').val() || null,
+        campaigns: $('#iocCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
         name: $('#iocName').val(),
         description: $('#iocDescription').val()
     };

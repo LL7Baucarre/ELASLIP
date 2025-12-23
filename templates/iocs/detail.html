@@ -209,6 +209,48 @@
                         <td>{{ ioc.description or '-' }}</td>
                     </tr>
                     <tr>
+                        <th>Threat Level</th>
+                        <td>
+                            <span class="badge bg-{{ 'danger' if ioc.threat_level == 'critical' else 'warning' if ioc.threat_level == 'high' else 'info' if ioc.threat_level == 'medium' else 'secondary' }}">
+                                {{ ioc.threat_level|default('Unknown')|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Confidence</th>
+                        <td>
+                            {% if ioc.confidence %}
+                            <span class="badge bg-{{ 'success' if ioc.confidence == 'very-high' else 'info' if ioc.confidence == 'high' else 'warning' if ioc.confidence == 'medium' else 'secondary' }}">
+                                {{ ioc.confidence|title }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>TLP (Traffic Light Protocol)</th>
+                        <td>
+                            {% if ioc.tlp %}
+                            <span class="badge bg-{{ 'dark' if ioc.tlp == 'red' else 'warning' if ioc.tlp == 'amber' else 'success' if ioc.tlp == 'green' else 'light text-dark' }}">
+                                {{ ioc.tlp|upper }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Related Campaigns</th>
+                        <td>
+                            {% for campaign in ioc.campaigns or [] %}
+                            <span class="badge bg-light text-dark me-1">{{ campaign }}</span>
+                            {% else %}
+                            <span class="text-muted">No campaigns</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Labels</th>
                         <td>
                             {% for label in ioc.labels or [] %}
@@ -257,6 +299,48 @@
             </div>
             <div class="card-body">
                 <form id="editForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editThreatLevel" class="form-label">Threat Level</label>
+                            <select class="form-select" id="editThreatLevel">
+                                <option value="unknown" {% if ioc.threat_level == 'unknown' %}selected{% endif %}>Unknown</option>
+                                <option value="low" {% if ioc.threat_level == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if ioc.threat_level == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if ioc.threat_level == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if ioc.threat_level == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editConfidence" class="form-label">Confidence</label>
+                            <select class="form-select" id="editConfidence">
+                                <option value="" {% if not ioc.confidence %}selected{% endif %}>Select confidence...</option>
+                                <option value="low" {% if ioc.confidence == 'low' %}selected{% endif %}>Low (0-30%)</option>
+                                <option value="medium" {% if ioc.confidence == 'medium' %}selected{% endif %}>Medium (30-70%)</option>
+                                <option value="high" {% if ioc.confidence == 'high' %}selected{% endif %}>High (70-90%)</option>
+                                <option value="very-high" {% if ioc.confidence == 'very-high' %}selected{% endif %}>Very High (90-100%)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editTlp" class="form-label">TLP (Traffic Light Protocol)</label>
+                            <select class="form-select" id="editTlp">
+                                <option value="" {% if not ioc.tlp %}selected{% endif %}>Select TLP level...</option>
+                                <option value="white" {% if ioc.tlp == 'white' %}selected{% endif %}>White - Unrestricted</option>
+                                <option value="green" {% if ioc.tlp == 'green' %}selected{% endif %}>Green - Community</option>
+                                <option value="amber" {% if ioc.tlp == 'amber' %}selected{% endif %}>Amber - Limited</option>
+                                <option value="red" {% if ioc.tlp == 'red' %}selected{% endif %}>Red - Restricted</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editCampaigns" class="form-label">Related Campaigns</label>
+                            <input type="text" class="form-control" id="editCampaigns" 
+                                   value="{{ (ioc.campaigns or [])|join(', ') }}"
+                                   placeholder="Comma-separated campaigns">
+                        </div>
+                    </div>
+                    
                     <div class="mb-3">
                         <label for="editLabels" class="form-label">Labels</label>
                         <input type="text" class="form-control" id="editLabels" 
@@ -653,6 +737,34 @@ function loadRelatedIOCs() {
 // Load related IOCs on page load
 $(document).ready(function() {
     loadRelatedIOCs();
+    
+    // Edit form submission
+    $('#editForm').submit(function(e) {
+        e.preventDefault();
+        
+        const updateData = {
+            threat_level: $('#editThreatLevel').val(),
+            confidence: $('#editConfidence').val() || null,
+            tlp: $('#editTlp').val() || null,
+            campaigns: $('#editCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
+            labels: $('#editLabels').val().split(',').map(l => l.trim()).filter(l => l),
+            description: $('#editDescription').val()
+        };
+        
+        $.ajax({
+            url: `/api/ioc/${iocId}`,
+            method: 'PUT',
+            contentType: 'application/json',
+            data: JSON.stringify(updateData),
+            success: function() {
+                showAlert('IOC updated successfully', 'success');
+                setTimeout(() => location.reload(), 500);
+            },
+            error: function(xhr) {
+                showAlert('Failed to update IOC: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+            }
+        });
+    });
     
     // IOC search for creating relations
     $('#relationIOC').on('input', function() {

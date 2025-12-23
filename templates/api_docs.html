@@ -58,7 +58,7 @@
                 <ul>
                     <li><code>page</code> (int, default: 1) - Page number</li>
                     <li><code>per_page</code> (int, default: 20, max: 100) - Items per page</li>
-                    <li><code>type</code> (string) - Filter by IOC type (md5, sha1, sha256, ipv4, domain, email, url, asn)</li>
+                    <li><code>type</code> (string) - Filter by IOC type (md5, sha1, sha256, ipv4, ipv6, domain, email, url, asn, file-path, process-name, registry-key, windows-registry-key, mutex, certificate-serial)</li>
                     <li><code>labels</code> (string) - Comma-separated labels to filter</li>
                     <li><code>source</code> (string) - Filter by source name</li>
                 </ul>
@@ -71,13 +71,16 @@
                 <p>Create a new IOC</p>
                 <p><strong>Request Body:</strong></p>
                 <pre><code>{
-  "type": "ipv4|domain|md5|sha1|sha256|email|url|asn",
+  "type": "ipv4|ipv6|domain|md5|sha1|sha256|email|url|asn|file-path|process-name|registry-key|windows-registry-key|mutex|certificate-serial",
   "value": "10.0.0.1",
   "labels": ["malware", "c2"],
   "source": "internal-analysis",
   "name": "Suspicious IP",
   "description": "Known C2 server",
-  "threat_level": "high"
+  "threat_level": "high",
+  "confidence": "high",
+  "tlp": "amber",
+  "campaigns": ["operation-2024"]
 }</code></pre>
 
                 <!-- GET /api/ioc/:id -->

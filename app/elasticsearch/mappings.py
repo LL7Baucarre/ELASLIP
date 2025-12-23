@@ -37,7 +37,10 @@ IOC_MAPPING = {
             "valid_from": {"type": "date"},
             "valid_until": {"type": "date"},
             "labels": {"type": "keyword"},
-            "confidence": {"type": "integer"},
+            "confidence": {"type": "keyword"},
+            "threat_level": {"type": "keyword"},
+            "tlp": {"type": "keyword"},
+            "campaigns": {"type": "keyword"},
             "lang": {"type": "keyword"},
             "external_references": {
                 "type": "nested",

@@ -22,18 +22,24 @@ class IOCService:
                source: Dict = None,
                name: str = None,
                description: str = None,
-               threat_level: str = None) -> Tuple[Dict, bool]:
+               threat_level: str = None,
+               confidence: str = None,
+               tlp: str = None,
+               campaigns: List[str] = None) -> Tuple[Dict, bool]:
         """
         Create a new IOC or update existing one with new source.
         
         Args:
-            ioc_type: Type of IOC (md5, sha1, sha256, ipv4, domain, email, url, asn)
+            ioc_type: Type of IOC (md5, sha1, sha256, ipv4, ipv6, domain, email, url, asn, file-path, process-name, registry-key, windows-registry-key, mutex, certificate-serial)
             value: The IOC value
             labels: List of labels/tags
             source: Source information
             name: Optional indicator name
             description: Optional description
             threat_level: Optional threat level (unknown|low|medium|high|critical)
+            confidence: Optional confidence level (low|medium|high|very-high)
+            tlp: Optional TLP level (white|green|amber|red)
+            campaigns: Optional list of related campaigns
         
         Returns:
             Tuple of (IOC dict, is_new) where is_new is False if deduplicated
@@ -67,6 +73,18 @@ class IOCService:
         # Add threat_level if provided
         if threat_level:
             ioc_doc['threat_level'] = threat_level
+        
+        # Add confidence if provided
+        if confidence:
+            ioc_doc['confidence'] = confidence
+        
+        # Add TLP if provided
+        if tlp:
+            ioc_doc['tlp'] = tlp
+        
+        # Add campaigns if provided
+        if campaigns:
+            ioc_doc['campaigns'] = campaigns
         
         self.es.index(self.index, indicator.id, ioc_doc)
         
@@ -142,7 +160,7 @@ class IOCService:
         
         Args:
             ioc_id: IOC ID
-            updates: Fields to update (labels, name, description)
+            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns)
         
         Returns:
             Updated IOC or None if not found
@@ -152,7 +170,7 @@ class IOCService:
             return None
         
         # Only allow updating certain fields
-        allowed_fields = ['labels', 'name', 'description']
+        allowed_fields = ['labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns']
         update_doc = {
             k: v for k, v in updates.items() 
             if k in allowed_fields

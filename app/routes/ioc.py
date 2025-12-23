@@ -38,7 +38,7 @@ def create_ioc():
             properties:
               type:
                 type: string
-                enum: [md5, sha1, sha256, ipv4, domain, email, url, asn]
+                enum: [md5, sha1, sha256, ipv4, ipv6, domain, email, url, asn, file-path, process-name, registry-key, windows-registry-key, mutex, certificate-serial]
                 description: IOC type
               value:
                 type: string
@@ -61,6 +61,19 @@ def create_ioc():
                 type: string
                 enum: [unknown, low, medium, high, critical]
                 description: Threat level assessment
+              confidence:
+                type: string
+                enum: [low, medium, high, very-high]
+                description: Confidence level in the indicator
+              tlp:
+                type: string
+                enum: [white, green, amber, red]
+                description: Traffic Light Protocol level
+              campaigns:
+                type: array
+                items:
+                  type: string
+                description: Related campaigns or operations
     responses:
       201:
         description: IOC created successfully
@@ -130,7 +143,10 @@ def create_ioc():
             source=source,
             name=data.get('name'),
             description=data.get('description'),
-            threat_level=data.get('threat_level', 'unknown')
+            threat_level=data.get('threat_level', 'unknown'),
+            confidence=data.get('confidence'),
+            tlp=data.get('tlp'),
+            campaigns=data.get('campaigns', [])
         )
         
         status_code = 201 if is_new else 200
@@ -288,6 +304,23 @@ def update_ioc(ioc_id):
                 items:
                   type: string
                 description: IOC labels/tags
+              threat_level:
+                type: string
+                enum: [unknown, low, medium, high, critical]
+                description: Threat level
+              confidence:
+                type: string
+                enum: [low, medium, high, very-high]
+                description: Confidence level
+              tlp:
+                type: string
+                enum: [white, green, amber, red]
+                description: Traffic Light Protocol level
+              campaigns:
+                type: array
+                items:
+                  type: string
+                description: Related campaigns
     responses:
       200:
         description: IOC updated successfully

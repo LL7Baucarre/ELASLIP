@@ -29,7 +29,7 @@ def search_iocs():
         name: type
         schema:
           type: string
-          enum: [md5, sha1, sha256, ipv4, domain, email, url, asn]
+          enum: [md5, sha1, sha256, ipv4, ipv6, domain, email, url, asn, file-path, process-name, registry-key, windows-registry-key, mutex, certificate-serial]
         description: Filter by IOC type
       - in: query
         name: labels

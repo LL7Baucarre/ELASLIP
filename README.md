@@ -21,13 +21,26 @@ A lightweight MISP alternative for managing Indicators of Compromise (IOCs) with
 
 ## Supported IOC Types
 
+### File Hashes
 - MD5 hashes
 - SHA1 hashes
 - SHA256 hashes
+
+### Network Indicators
 - IPv4 addresses
+- IPv6 addresses
 - Domains
 - Email addresses
 - URLs
+- ASN (Autonomous System Numbers)
+
+### TAXII Indicators
+- File Path - File paths and names (e.g., `C:\Windows\System32\cmd.exe`)
+- Process Name - Executable process names (e.g., `svchost.exe`)
+- Registry Key - Registry key paths (e.g., `HKEY_LOCAL_MACHINE\Software\Microsoft`)
+- Windows Registry Key - Windows registry keys with HKEY prefix
+- Mutex - Mutex identifiers (e.g., `Global\MyMutex`)
+- Certificate Serial - X.509 certificate serial numbers (e.g., `01:23:45:67:89:AB:CD:EF`)
 
 ## Quick Start
 
