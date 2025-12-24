@@ -132,6 +132,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+venv311
 
 # Coverage reports
 .coverage*
