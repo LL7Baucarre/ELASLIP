@@ -51,10 +51,11 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         # Generate report
         report_data = report_service.generate_ioc_report(ioc_id)
         
-        # Save completed report
+        # Save completed report with entity name
         report_entry['status'] = 'completed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('ioc_value', ioc_id)
         es.index('app_config', f'report_{task_id}', report_entry)
         
         audit.log(
@@ -128,10 +129,11 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         # Generate report
         report_data = report_service.generate_case_report(case_id)
         
-        # Save completed report
+        # Save completed report with entity name
         report_entry['status'] = 'completed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('case_name', case_id)
         es.index('app_config', f'report_{task_id}', report_entry)
         
         audit.log(
@@ -205,10 +207,11 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         # Generate report
         report_data = report_service.generate_incident_report(incident_id)
         
-        # Save completed report
+        # Save completed report with entity name
         report_entry['status'] = 'completed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('incident_name', incident_id)
         es.index('app_config', f'report_{task_id}', report_entry)
         
         audit.log(

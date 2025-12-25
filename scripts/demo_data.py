@@ -16,7 +16,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app import create_app
 from app.services.ioc_service import IOCService
 from app.services.elasticsearch_service import ElasticsearchService
-from app.services.case_service import CaseService, IncidentService
+from app.services.case_service import CaseService, IncidentService, TimelineService
+from app.services.comment_service import CommentService
+from app.services.audit_service import AuditService
 
 
 # Check if demo data generation is enabled
@@ -67,6 +69,50 @@ def generate_hash(hash_type='md5'):
 def generate_asn():
     """Generate a random ASN."""
     return f"AS{random.randint(1000, 99999)}"
+
+
+def generate_comment():
+    """Generate a random comment."""
+    comment_templates = [
+        "This indicator has been seen in the wild. Recommend immediate containment.",
+        "Confirmed malicious - multiple sources validate this threat.",
+        "False positive - this is a legitimate service. Update status accordingly.",
+        "High confidence assessment based on recent attacks patterns.",
+        "Related to known APT group infrastructure. Cross-reference with other IOCs.",
+        "Observed in network logs correlating with data exfiltration attempts.",
+        "Legacy indicator - still relevant for historical analysis and context.",
+        "Requires further investigation - check all related incidents.",
+        "Low priority - assess against current threat landscape.",
+        "Critical: This indicator is actively targeting our infrastructure.",
+        "Intelligence suggests this campaign is still ongoing.",
+        "Update severity level based on recent indicator activity.",
+        "Correlates with multiple other incidents from the past month.",
+        "Community feedback indicates reduced threat level.",
+        "Recommend adding to enterprise-wide blocking rules."
+    ]
+    return random.choice(comment_templates)
+
+
+def generate_timeline_event():
+    """Generate a random timeline event description."""
+    events = [
+        "Status changed to active - indicator confirmed in network logs",
+        "Threat level updated based on recent intelligence",
+        "New relationship discovered with related IOC",
+        "Incident escalation - added to critical threat watch list",
+        "Cross-case correlation identified with similar attack pattern",
+        "Analyst investigation initiated - preliminary findings inconclusive",
+        "External intelligence feed update - confirmed additional activity",
+        "Containment measures applied - indicator range blocked",
+        "False positive assessment - indicator marked as benign",
+        "Review scheduled with threat intelligence team",
+        "Linked to active campaign - severity upgraded",
+        "Network isolation implemented for affected assets",
+        "Post-incident analysis complete - documented lessons learned",
+        "Threat hunting expanded based on indicator cluster",
+        "Intelligence shared with partner organizations"
+    ]
+    return random.choice(events)
 
 
 def generate_random_iocs(count=100):
@@ -338,11 +384,135 @@ def populate_demo_data():
             if failed_relations > 0:
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         
+        # Add comments to IOCs
+        print("\n5. Adding comments to IOCs...")
+        comment_service = CommentService()
+        ioc_comments_created = 0
+        
+        for ioc_id in random.sample(created_ids, min(20, len(created_ids))):
+            try:
+                # Add 1-3 random comments per IOC
+                num_comments = random.randint(1, 3)
+                for _ in range(num_comments):
+                    comment_service.create_comment(
+                        entity_type='ioc',
+                        entity_id=ioc_id,
+                        content=generate_comment(),
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    ioc_comments_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to create IOC comment: {str(e)}")
+        
+        print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
+        
+        # Add comments to cases
+        print("\n6. Adding comments to cases...")
+        case_comments_created = 0
+        
+        for case in created_cases:
+            try:
+                # Add 2-4 comments per case
+                num_comments = random.randint(2, 4)
+                for _ in range(num_comments):
+                    comment_service.create_comment(
+                        entity_type='case',
+                        entity_id=case['id'],
+                        content=generate_comment(),
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    case_comments_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to create case comment: {str(e)}")
+        
+        print(f"   ✓ Created {case_comments_created} comments on cases")
+        
+        # Add comments to incidents
+        print("\n7. Adding comments to incidents...")
+        incident_comments_created = 0
+        
+        for incident in created_incidents:
+            try:
+                # Add 1-3 comments per incident
+                num_comments = random.randint(1, 3)
+                for _ in range(num_comments):
+                    comment_service.create_comment(
+                        entity_type='incident',
+                        entity_id=incident['id'],
+                        content=generate_comment(),
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    incident_comments_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to create incident comment: {str(e)}")
+        
+        print(f"   ✓ Created {incident_comments_created} comments on incidents")
+        
+        # Create timeline events (audit log entries)
+        print("\n8. Creating timeline events...")
+        timeline_service = TimelineService()
+        timeline_events_created = 0
+        
+        # Timeline events for cases
+        for case in created_cases:
+            try:
+                num_events = random.randint(3, 6)
+                
+                for idx in range(num_events):
+                    event_types = ['detection', 'analysis', 'action', 'note', 'evidence', 'communication']
+                    timeline_service.add_event(
+                        data={
+                            'case_id': case['id'],
+                            'event_type': random.choice(event_types),
+                            'title': f'Event {idx + 1}: {generate_timeline_event()}',
+                            'description': f'Timeline event in case: {case["title"]}',
+                            'content': f'# Investigation Update\n\n{generate_timeline_event()}\n\nAnalyst: Demo Analyst\nTime: {datetime.utcnow().isoformat()}',
+                            'event_time': (datetime.utcnow() - timedelta(days=random.randint(0, 30))).isoformat() + 'Z'
+                        },
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    timeline_events_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to create case timeline event: {str(e)}")
+        
+        # Timeline events for incidents
+        for incident in created_incidents:
+            try:
+                num_events = random.randint(2, 5)
+                
+                for idx in range(num_events):
+                    event_types = ['detection', 'analysis', 'action', 'note', 'evidence', 'communication']
+                    timeline_service.add_event(
+                        data={
+                            'incident_id': incident['id'],
+                            'event_type': random.choice(event_types),
+                            'title': f'Event {idx + 1}: {generate_timeline_event()}',
+                            'description': f'Timeline event in incident: {incident.get("title", "Incident")}',
+                            'content': f'# Incident Timeline\n\n{generate_timeline_event()}\n\nAnalyst: Demo Analyst\nTime: {datetime.utcnow().isoformat()}',
+                            'event_time': (datetime.utcnow() - timedelta(days=random.randint(0, 30))).isoformat() + 'Z'
+                        },
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    timeline_events_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to create incident timeline event: {str(e)}")
+        
+        print(f"   ✓ Created {timeline_events_created} timeline events")
+        
         print("\n" + "=" * 60)
         print("Demo data population complete!")
         print(f"Total IOCs created: {len(created_ids)}")
+        print(f"Total IOC comments: {ioc_comments_created}")
         print(f"Total cases created: {len(created_cases)}")
+        print(f"Total case comments: {case_comments_created}")
         print(f"Total incidents created: {len(created_incidents)}")
+        print(f"Total incident comments: {incident_comments_created}")
+        print(f"Total timeline events: {timeline_events_created}")
         print("=" * 60)
 
 

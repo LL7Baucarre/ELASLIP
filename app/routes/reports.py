@@ -37,6 +37,62 @@ def get_report_config():
     })
 
 
+@bp.route('/api/reports/available-models', methods=['POST'])
+@login_required
+def get_available_models():
+    """Get list of available models from LLM server."""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    llm_url = data.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
+    
+    try:
+        import requests
+        # Try to get models from Ollama API
+        response = requests.get(f"{llm_url}/api/tags", timeout=5)
+        
+        if response.status_code == 200:
+            models_data = response.json()
+            models = []
+            
+            # Extract model names from the response
+            if 'models' in models_data and isinstance(models_data['models'], list):
+                models = [model.get('name', model) for model in models_data['models'] if isinstance(model, dict)]
+            elif isinstance(models_data, dict) and 'models' in models_data:
+                # Alternative format
+                for key, value in models_data['models'].items():
+                    if isinstance(value, dict) and 'name' in value:
+                        models.append(value['name'])
+                    else:
+                        models.append(key)
+            
+            # Remove duplicates and sort
+            models = sorted(list(set(models)))
+            
+            return jsonify({'models': models, 'success': True})
+        else:
+            return jsonify({'models': [], 'error': f'Server returned {response.status_code}', 'success': False}), 200
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'models': [],
+            'error': 'Could not connect to LLM server',
+            'success': False
+        }), 200
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'models': [],
+            'error': 'LLM server connection timeout',
+            'success': False
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'models': [],
+            'error': str(e),
+            'success': False
+        }), 200
+
+
 @bp.route('/api/reports/config', methods=['POST'])
 @login_required
 def update_report_config():

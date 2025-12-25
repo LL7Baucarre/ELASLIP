@@ -42,11 +42,10 @@
 
                     <div class="mb-3">
                         <label for="model" class="form-label">Model Name</label>
-                        <input type="text" class="form-control" id="model" name="model" 
-                               placeholder="mistral"
-                               value="{{ config.LLM_MODEL if config else 'mistral' }}"
-                               required>
-                        <small class="text-muted">Ollama models: mistral, llama2, neural-chat, etc.</small>
+                        <select class="form-select" id="model" name="model" required>
+                            <option value="">Loading available models...</option>
+                        </select>
+                        <small class="text-muted">Select from available models on your LLM server</small>
                     </div>
 
                     <div class="mb-3">
@@ -124,6 +123,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadLLMConfig();
     checkLLMStatus();
     setInterval(checkLLMStatus, 30000);  // Check every 30 seconds
+    
+    // Reload models when URL changes
+    document.getElementById('url').addEventListener('change', function() {
+        loadAvailableModels(this.value, document.getElementById('model').value);
+    });
 });
 
 async function loadLLMConfig() {
@@ -136,21 +140,79 @@ async function loadLLMConfig() {
         
         document.getElementById('enabled').checked = data.enabled || false;
         document.getElementById('url').value = data.url || 'http://ollama:11434';
-        document.getElementById('model').value = data.model || 'mistral';
         document.getElementById('api_key').value = '';  // Don't show password
         document.getElementById('custom_prompt_ioc').value = data.custom_prompt_ioc || '';
         document.getElementById('custom_prompt_case').value = data.custom_prompt_case || '';
         document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || '';
+        
+        // Load available models
+        await loadAvailableModels(data.url || 'http://ollama:11434', data.model || 'mistral');
     } catch (error) {
         console.error('Error loading config:', error);
         // Set defaults if loading fails
         document.getElementById('enabled').checked = false;
         document.getElementById('url').value = 'http://ollama:11434';
-        document.getElementById('model').value = 'mistral';
         document.getElementById('api_key').value = '';
         document.getElementById('custom_prompt_ioc').value = '';
         document.getElementById('custom_prompt_case').value = '';
         document.getElementById('custom_prompt_incident').value = '';
+        
+        // Load available models with default URL
+        await loadAvailableModels('http://ollama:11434', 'mistral');
+    }
+}
+
+async function loadAvailableModels(url, currentModel) {
+    const modelSelect = document.getElementById('model');
+    try {
+        // Fetch available models from the LLM server
+        const response = await fetch('/api/reports/available-models', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url: url })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch models');
+        }
+        
+        const data = await response.json();
+        const models = data.models || [];
+        
+        // Clear existing options
+        modelSelect.innerHTML = '';
+        
+        if (models.length === 0) {
+            modelSelect.innerHTML = '<option value="">No models available</option>';
+            return;
+        }
+        
+        // Add models to dropdown
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            if (model === currentModel) {
+                option.selected = true;
+            }
+            modelSelect.appendChild(option);
+        });
+        
+        // Make sure current model is selected if it exists
+        if (!modelSelect.value && currentModel) {
+            modelSelect.value = currentModel;
+        }
+    } catch (error) {
+        console.error('Error loading models:', error);
+        // Provide manual entry fallback
+        modelSelect.innerHTML = `
+            <option value="mistral" ${currentModel === 'mistral' ? 'selected' : ''}>mistral</option>
+            <option value="llama2" ${currentModel === 'llama2' ? 'selected' : ''}>llama2</option>
+            <option value="neural-chat" ${currentModel === 'neural-chat' ? 'selected' : ''}>neural-chat</option>
+            <option value="">Or enter manually...</option>
+        `;
     }
 }
 

@@ -84,7 +84,7 @@ function displayReports(reports) {
         const statusBadge = getStatusBadge(report.status);
         const duration = calculateDuration(report.started_at, report.completed_at);
         const created = new Date(report.created_at).toLocaleString();
-        const entityDisplay = truncate(report.entity_id, 40);
+        const entityDisplay = report.entity_name ? truncate(report.entity_name, 50) : truncate(report.entity_id, 40);
         
         html += `
             <tr>

@@ -115,6 +115,9 @@ class ReportService:
         if not ioc:
             raise ValueError(f"IOC {ioc_id} not found")
         
+        # Ensure IOC has its ID for relation comparison
+        ioc['id'] = ioc_id
+        
         # Get relations
         relations = self._get_ioc_relations(ioc_id)
         
@@ -291,6 +294,177 @@ class ReportService:
                 pass
         return items
     
+    def _build_detailed_relations_context(self, ioc: Dict, relations: List[Dict], max_relations: int = 15) -> str:
+        """
+        Build detailed context for related IOCs including their values and threat levels.
+        This provides LLM with better context about WHY indicators are related.
+        
+        Args:
+            ioc: The source IOC document
+            relations: List of relation documents
+            max_relations: Maximum number of relations to include
+            
+        Returns:
+            Formatted string with detailed relation information
+        """
+        if not relations:
+            return "No relations found"
+        
+        detailed_relations = []
+        
+        for idx, relation in enumerate(relations[:max_relations], 1):
+            try:
+                # Determine the target IOC ID
+                source_id = relation.get('source_id')
+                target_id = relation.get('target_id')
+                ioc_id = ioc.get('id')
+                
+                # Get the OTHER IOC (the one that's not the main one)
+                other_id = target_id if source_id == ioc_id else source_id
+                
+                # Fetch the related IOC to get its details
+                related_ioc = self.ioc_service.get(other_id)
+                if not related_ioc:
+                    continue
+                
+                # Extract the related IOC value
+                related_value = related_ioc.get('value') or related_ioc.get('pattern', 'Unknown')
+                if related_value.startswith('[') and '=' in related_value:
+                    related_value = related_value.split("'")[1] if "'" in related_value else related_value
+                
+                # Extract metadata
+                relation_type = relation.get('relation_type', 'related')
+                related_type = related_ioc.get('type', 'unknown')
+                related_threat = related_ioc.get('x_metadata', {}).get('threat_level', related_ioc.get('severity', 'unknown'))
+                related_description = related_ioc.get('description', 'No description available')
+                
+                # Get common attributes for explaining the connection
+                common_tags = self._find_common_attributes(ioc, related_ioc)
+                
+                # Build a meaningful relationship description
+                relation_explanation = self._build_relation_explanation(
+                    relation_type, 
+                    ioc.get('type'), 
+                    related_type, 
+                    common_tags
+                )
+                
+                # Format the relation entry with clear structure
+                # Make it very explicit what is relationship vs IOC type vs value
+                relation_type_display = relation_type.replace('_', ' ').title()
+                ioc_type_display = related_type if related_type != 'indicator' else 'Indicator'
+                
+                relation_entry = (
+                    f"**Indicator #{idx}**:\n"
+                    f"   Relationship: This IOC **{relation_type_display}** another indicator\n"
+                    f"   Related IOC Type: {ioc_type_display}\n"
+                    f"   Related IOC Value: {related_value}\n"
+                    f"   Threat Level: {related_threat}\n"
+                    f"   Details: {related_description[:150]}{'...' if len(related_description) > 150 else ''}\n"
+                    f"   Connection Reason: {relation_explanation}"
+                )
+                
+                detailed_relations.append(relation_entry)
+            except Exception as e:
+                # Fallback to simple format if detailed extraction fails
+                continue
+        
+        if not detailed_relations:
+            return "No relations found"
+        
+        return "\n\n".join(detailed_relations)
+    
+    def _find_common_attributes(self, ioc1: Dict, ioc2: Dict) -> List[str]:
+        """
+        Find common attributes between two IOCs to explain their connection.
+        
+        Args:
+            ioc1: First IOC
+            ioc2: Second IOC
+            
+        Returns:
+            List of common attributes
+        """
+        common = []
+        
+        # Check for common sources
+        sources1 = set(ioc1.get('x_metadata', {}).get('sources', ioc1.get('sources', [])))
+        sources2 = set(ioc2.get('x_metadata', {}).get('sources', ioc2.get('sources', [])))
+        if sources1 and sources2:
+            common_sources = sources1 & sources2
+            if common_sources:
+                common.append(f"Both observed in sources: {', '.join(list(common_sources)[:2])}")
+        
+        # Check for common campaigns
+        campaigns1 = set(ioc1.get('x_metadata', {}).get('campaigns', ioc1.get('campaigns', [])))
+        campaigns2 = set(ioc2.get('x_metadata', {}).get('campaigns', ioc2.get('campaigns', [])))
+        if campaigns1 and campaigns2:
+            common_campaigns = campaigns1 & campaigns2
+            if common_campaigns:
+                common.append(f"Associated with campaign(s): {', '.join(list(common_campaigns)[:2])}")
+        
+        # Check for common labels/tags
+        labels1 = set(ioc1.get('labels', []))
+        labels2 = set(ioc2.get('labels', []))
+        if labels1 and labels2:
+            common_labels = labels1 & labels2
+            if common_labels:
+                common.append(f"Shared characteristics: {', '.join(list(common_labels)[:3])}")
+        
+        # Check same threat level
+        threat1 = ioc1.get('x_metadata', {}).get('threat_level', ioc1.get('severity', ''))
+        threat2 = ioc2.get('x_metadata', {}).get('threat_level', ioc2.get('severity', ''))
+        if threat1 and threat1 == threat2:
+            common.append(f"Same threat level: {threat1}")
+        
+        # Check temporal proximity (if timestamps exist)
+        created1 = ioc1.get('created', ioc1.get('created_at', ''))
+        created2 = ioc2.get('created', ioc2.get('created_at', ''))
+        if created1 and created2:
+            # Both discovered in same timeframe (within 7 days)
+            from datetime import datetime, timedelta
+            try:
+                date1 = datetime.fromisoformat(created1.replace('Z', '+00:00'))
+                date2 = datetime.fromisoformat(created2.replace('Z', '+00:00'))
+                if abs((date1 - date2).days) <= 7:
+                    common.append("Discovered in the same time period")
+            except:
+                pass
+        
+        return common if common else ["Detected together in security analysis"]
+    
+    def _build_relation_explanation(self, relation_type: str, type1: str, type2: str, common_attrs: List[str]) -> str:
+        """
+        Build a human-readable explanation of why two IOCs are related.
+        
+        Args:
+            relation_type: Type of relationship (related, caused_by, used_by, etc.)
+            type1: Type of first IOC
+            type2: Type of second IOC
+            common_attrs: List of common attributes
+            
+        Returns:
+            Explanation string
+        """
+        # Start with common attributes
+        if common_attrs:
+            base_explanation = common_attrs[0]
+        else:
+            base_explanation = "Detected in the same security context"
+        
+        # Add relation-specific context
+        relation_details = {
+            'caused_by': f"This {type1} was likely caused by or is a consequence of the {type2}",
+            'used_by': f"The {type2} uses or leverages the {type1} indicator",
+            'implements': f"The {type2} implements or deploys the {type1}",
+            'variant_of': f"This {type1} is a variant or derivative of the {type2}",
+            'related': f"These indicators are related through common infrastructure, campaigns, or tactics"
+        }
+        
+        additional_context = relation_details.get(relation_type, relation_details['related'])
+        
+        return f"{base_explanation}. {additional_context}"
+    
     def _build_ioc_prompt(self, ioc: Dict, relations: List[Dict]) -> str:
         """Build prompt for IOC analysis."""
         # Get IOC value from either value field or extract from STIX pattern
@@ -299,10 +473,8 @@ class ReportService:
             # Extract value from STIX pattern like [file:hashes.SHA1 = '...']
             ioc_value = ioc_value.split("'")[1] if "'" in ioc_value else ioc_value
         
-        relations_text = '\n'.join([
-            f"- {r.get('relationship_type', 'related')}: {r.get('target_id') if r.get('source_id') == ioc.get('id') else r.get('source_id')}"
-            for r in relations[:15]  # Limit to 15 relations
-        ]) or "No relations found"
+        # Build detailed relations context with actual IOC data
+        relations_text = self._build_detailed_relations_context(ioc, relations, max_relations=15)
         
         # Use custom prompt if available
         if self.custom_prompt_ioc:
@@ -317,26 +489,93 @@ class ReportService:
             except KeyError:
                 pass
         
-        return f"""Analyze this Indicator of Compromise (IOC) and provide a concise threat assessment:
+        # Extract enriched metadata
+        x_metadata = ioc.get('x_metadata', {})
+        threat_level = x_metadata.get('threat_level', ioc.get('threat_level', 'unknown'))
+        risk_score = x_metadata.get('risk_score', ioc.get('risk_score', 'N/A'))
+        confidence = ioc.get('confidence', 'N/A')
+        tlp = x_metadata.get('tlp', ioc.get('tlp', 'N/A'))
+        
+        # Get campaigns
+        campaigns = x_metadata.get('campaigns', ioc.get('campaigns', []))
+        campaigns_text = ', '.join(campaigns) if campaigns else 'No associated campaigns'
+        
+        # Get labels
+        labels = ioc.get('labels', [])
+        labels_text = ', '.join(labels) if labels else 'No labels'
+        
+        # Get indicator types
+        indicator_types = ioc.get('indicator_types', [])
+        indicator_types_text = ', '.join(indicator_types) if indicator_types else 'unknown'
+        
+        # Get external references
+        external_refs = ioc.get('external_references', [])
+        refs_text = ''
+        if external_refs:
+            refs_list = []
+            for ref in external_refs:
+                source = ref.get('source_name', 'Unknown source')
+                url = ref.get('url', '')
+                if url:
+                    refs_list.append(f"{source}: {url}")
+                else:
+                    refs_list.append(source)
+            refs_text = '\n  - ' + '\n  - '.join(refs_list)
+        
+        # Build a more detailed prompt that emphasizes relations
+        relations_section = ""
+        if relations:
+            relations_section = f"""
+## Analysis of Related Indicators
 
-IOC Type: {ioc.get('type')}
-IOC Value: {ioc_value}
-Severity: {ioc.get('x_metadata', {}).get('threat_level', ioc.get('severity', 'unknown'))}
-Description: {ioc.get('description', 'N/A')}
-Created: {ioc.get('created', ioc.get('created_at', 'Unknown'))}
+The following {len(relations)} indicators are directly related to this IOC. Each relationship provides important context:
 
-Related Indicators ({len(relations)}):
 {relations_text}
 
+IMPORTANT: You MUST analyze each of the {len(relations)} related indicators listed above and explain:
+- How each relationship type (e.g., exploits, based-on, communicates-with) affects the threat assessment
+- Specific insights about the threat based on the related IOC values and their threat levels
+- The combined threat picture when considering all related indicators together
+"""
+        
+        return f"""Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+
+## IOC Details
+- **Type**: {ioc.get('type')}
+- **IOC Value**: {ioc_value}
+- **IOC Categories**: {indicator_types_text}
+- **Name**: {ioc.get('name', 'N/A')}
+
+## Threat Assessment
+- **Threat Level**: {threat_level}
+- **Risk Score**: {risk_score}
+- **Confidence**: {confidence}
+- **TLP (Traffic Light Protocol)**: {tlp}
+
+## Classification
+- **Labels**: {labels_text}
+- **Associated Campaigns**: {campaigns_text}
+
+## Description
+{ioc.get('description', 'No description available')}
+
+## Additional Context
+- **Created**: {ioc.get('created', ioc.get('created_at', 'Unknown'))}
+- **Modified**: {ioc.get('modified', ioc.get('modified_at', 'Unknown'))}
+- **Status**: {x_metadata.get('status', ioc.get('status', 'Active'))}
+{f"- **External References**:{refs_text}" if refs_text else ""}
+{relations_section}
+
 Please provide in **Markdown format**:
-1. What this indicator represents
-2. Potential threats it indicates
-3. Recommended mitigation steps
-4. Connection to other indicators and their significance"""
+1. What this indicator represents and its role in potential attacks
+2. Potential threats it indicates based on its type and severity
+3. Analysis of how related indicators amplify or contextualize this threat (CRITICAL: mention each related indicator and how it connects)
+4. Recommended mitigation and detection steps
+5. Summary of the threat landscape based on the indicator network"""
     
     def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict]) -> str:
         """Build prompt for case analysis."""
-        # Format incident details
+        # Format incident details with more info
         incidents_text = '\n'.join([
             f"- {i.get('title', i.get('name', 'Unknown'))}: {i.get('description', 'N/A')} (Type: {i.get('category', i.get('type', 'N/A'))})"
             for i in incidents[:5]
@@ -364,28 +603,58 @@ Please provide in **Markdown format**:
             except KeyError:
                 pass
         
+        # Extract additional metadata
+        assigned_to = case.get('assigned_to', case.get('assignee', 'Unassigned'))
+        created_at = case.get('created_at', 'Unknown')
+        updated_at = case.get('updated_at', 'Unknown')
+        severity = case.get('severity', 'Medium')
+        
+        # Format timeline events if available
+        timeline_text = "No timeline events"
+        timeline_events = case.get('timeline_events', [])
+        if timeline_events:
+            event_list = []
+            for event in timeline_events[:10]:  # Limit to 10 events
+                timestamp = event.get('timestamp', 'Unknown time')
+                event_type = event.get('type', 'Event')
+                description = event.get('description', '')
+                event_list.append(f"  - [{timestamp}] {event_type}: {description}")
+            timeline_text = '\n'.join(event_list)
+        
         return f"""Generate a comprehensive investigation report for this security case:
 
-Case Name: {case.get('name', case.get('title', 'Unknown'))}
-Status: {case.get('status')}
-Priority: {case.get('priority')}
-Description: {case.get('description', 'N/A')}
-Created: {case.get('created_at', 'Unknown')}
+## Case Details
+- **Case Name**: {case.get('name', case.get('title', 'Unknown'))}
+- **Status**: {case.get('status')}
+- **Priority**: {case.get('priority')}
+- **Severity**: {severity}
+- **Assigned To**: {assigned_to}
 
-Incidents ({len(incidents)}):
+## Case Description
+{case.get('description', 'No description provided')}
+
+## Timeline
+{timeline_text}
+
+## Case Metadata
+- **Created**: {created_at}
+- **Last Updated**: {updated_at}
+
+## Associated Incidents ({len(incidents)}):
 {incidents_text}
 
-Indicators of Compromise ({len(iocs)}):
+## Indicators of Compromise ({len(iocs)}):
 {iocs_text}
 
 Please provide in **Markdown format**:
 1. Executive Summary
-2. Timeline of Events
+2. Timeline of Events (include timeline events from above)
 3. Threat Assessment
 4. Compromised Assets
 5. Indicators and their significance
-6. Recommended Actions
-7. Risk Level Assessment"""
+6. Person/Team in charge and responsibilities
+7. Recommended Actions
+8. Risk Level Assessment"""
     
     def _build_incident_prompt(self, incident: Dict, iocs: List[Dict]) -> str:
         """Build prompt for incident analysis."""
@@ -410,23 +679,75 @@ Please provide in **Markdown format**:
             except KeyError:
                 pass
         
-        return f"""Analyze this security incident and generate a brief threat report:
+        # Format timeline events
+        timeline_text = "No timeline events"
+        timeline_events = incident.get('timeline_events', [])
+        if timeline_events:
+            event_list = []
+            for event in timeline_events[:15]:  # Limit to 15 events
+                timestamp = event.get('timestamp', 'Unknown time')
+                event_type = event.get('type', 'Event')
+                description = event.get('description', '')
+                event_list.append(f"  - [{timestamp}] {event_type}: {description}")
+            timeline_text = '\n'.join(event_list)
+        
+        # Format comments
+        comments_text = "No comments"
+        comments = incident.get('comments', [])
+        if comments:
+            comment_list = []
+            for comment in comments[:10]:  # Limit to 10 comments
+                author = comment.get('author', 'Unknown')
+                created = comment.get('created_at', 'Unknown time')
+                text = comment.get('text', comment.get('content', ''))
+                comment_list.append(f"  - [{created}] {author}: {text[:150]}{'...' if len(text) > 150 else ''}")
+            comments_text = '\n'.join(comment_list)
+        
+        # Format MITRE tactics/techniques
+        tactics_text = "No MITRE ATT&CK data"
+        tactics = incident.get('mitre_tactics', incident.get('tactics', []))
+        techniques = incident.get('mitre_techniques', incident.get('techniques', []))
+        if tactics or techniques:
+            tactics_lines = []
+            if tactics:
+                tactics_lines.append(f"  Tactics: {', '.join(tactics)}")
+            if techniques:
+                tactics_lines.append(f"  Techniques: {', '.join(techniques)}")
+            tactics_text = '\n'.join(tactics_lines)
+        
+        return f"""Analyze this security incident and generate a comprehensive threat report:
 
-Incident Name: {incident.get('title', incident.get('name', 'Unknown'))}
-Description: {incident.get('description', 'N/A')}
-Type: {incident.get('category', incident.get('type', 'Unknown'))}
-Severity: {incident.get('severity', 'unknown')}
-Status: {incident.get('status')}
-Created: {incident.get('created_at', 'Unknown')}
-Detected: {incident.get('detected_at', 'Unknown')}
+## Incident Details
+- **Incident Name**: {incident.get('title', incident.get('name', 'Unknown'))}
+- **Type**: {incident.get('category', incident.get('type', 'Unknown'))}
+- **Severity**: {incident.get('severity', 'Unknown')}
+- **Status**: {incident.get('status')}
 
-Associated Indicators ({len(iocs)}):
+## Incident Description
+{incident.get('description', 'No description provided')}
+
+## Timeline of Events
+{timeline_text}
+
+## Analyst Comments
+{comments_text}
+
+## MITRE ATT&CK Mapping
+{tactics_text}
+
+## Incident Metadata
+- **Created**: {incident.get('created_at', 'Unknown')}
+- **Detected**: {incident.get('detected_at', 'Unknown')}
+- **Resolved**: {incident.get('resolved_at', 'Not resolved')}
+
+## Associated Indicators ({len(iocs)}):
 {iocs_text}
 
 Please provide in **Markdown format**:
-1. Incident Summary
-2. Attack Vector Analysis
-3. Affected Systems
+1. Incident Summary (include key timeline events)
+2. Attack Vector Analysis (include MITRE tactics/techniques)
+3. Affected Systems and Assets
 4. Indicators and their role in the incident
-5. Immediate Actions Required
-6. Long-term Recommendations"""
+5. Key Analyst Observations (synthesize comments)
+6. Immediate Actions Required
+7. Long-term Recommendations and Lessons Learned"""
