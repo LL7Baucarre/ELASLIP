@@ -190,9 +190,11 @@
         <button class="btn btn-outline-danger" id="deleteBtn">
             <i class="bi bi-trash me-1"></i> Delete
         </button>
+        {% if has_permission('report.generate_llm') %}
         <a href="/report?type=ioc&id={{ ioc.id }}" class="btn btn-outline-info" target="_blank">
             <i class="bi bi-file-text me-1"></i> Generate Report
         </a>
+        {% endif %}
         <a href="{{ url_for('main.iocs_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Back
         </a>
@@ -341,6 +343,7 @@
         </div>
         
         <!-- Edit Form -->
+        {% if has_permission('ioc.edit') %}
         <div class="card mb-4">
             <div class="card-header bg-white">
                 <h6 class="mb-0">Edit Labels & Description</h6>
@@ -430,8 +433,10 @@
                 </form>
             </div>
         </div>
+        {% endif %}
 
         <!-- Create Relation -->
+        {% if has_permission('ioc.relations.create') %}
         <div class="card">
             <div class="card-header bg-white">
                 <h6 class="mb-0">Create Relation</h6>
@@ -468,6 +473,7 @@
                 </form>
             </div>
         </div>
+        {% endif %}
     </div>
     
     <!-- Sources -->

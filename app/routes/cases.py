@@ -817,6 +817,7 @@ def delete_timeline_event(event_id):
 
 @bp.route('/api/comments/<entity_type>/<entity_id>', methods=['GET'])
 @login_required
+@permission_required('comment.view')
 def get_comments(entity_type, entity_id):
     """Get comments for an entity."""
     page = request.args.get('page', 1, type=int)
@@ -892,6 +893,7 @@ def delete_comment(comment_id):
 
 @bp.route('/api/comments/<entity_type>/<entity_id>/count', methods=['GET'])
 @login_required
+@permission_required('comment.view')
 def get_comment_count(entity_type, entity_id):
     """Get comment count for an entity."""
     count = comment_service.get_comment_count(entity_type, entity_id)

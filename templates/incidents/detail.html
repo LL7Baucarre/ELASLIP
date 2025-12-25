@@ -76,6 +76,7 @@
             </div>
         </div>
         <div class="btn-group">
+            {% if has_permission('incident.edit') %}
             <div class="dropdown">
                 <button class="btn btn-primary dropdown-toggle" data-bs-toggle="dropdown">
                     <i class="bi bi-arrow-right-circle me-1"></i> Status
@@ -91,12 +92,17 @@
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('closed')">Close Incident</a></li>
                 </ul>
             </div>
+            {% endif %}
+            {% if has_permission('report.export') %}
             <button class="btn btn-outline-success" onclick="exportReport()">
                 <i class="bi bi-download me-1"></i> Export Report
             </button>
+            {% endif %}
+            {% if has_permission('report.generate_llm') %}
             <a href="/report?type=incident&id={{ incident.id }}" class="btn btn-outline-info" target="_blank">
                 <i class="bi bi-file-text me-1"></i> Generate Report
             </a>
+            {% endif %}
             <button class="btn btn-outline-danger" onclick="deleteIncident()">
                 <i class="bi bi-trash"></i>
             </button>

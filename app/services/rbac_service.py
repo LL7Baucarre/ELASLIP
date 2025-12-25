@@ -140,6 +140,8 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute', 'tools.configure',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Admin
+            'admin.audit',
         ],
         'is_system': True,
         'is_editable': False
@@ -167,6 +169,8 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Admin
+            'admin.audit',
         ],
         'is_system': True,
         'is_editable': False
@@ -194,6 +198,8 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Admin
+            'admin.audit',
         ],
         'is_system': True,
         'is_editable': False

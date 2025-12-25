@@ -676,7 +676,7 @@
             {% endif %}
             
             <li class="nav-section-title">MONITORING</li>
-            {% if has_permission('timeline.view') %}
+            {% if has_permission('admin.audit') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
                     <i class="bi bi-clock-history"></i> Activity
