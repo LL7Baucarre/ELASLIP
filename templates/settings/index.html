@@ -31,15 +31,23 @@
                class="list-group-item list-group-item-action">
                 <i class="bi bi-key me-2"></i> API Keys
             </a>
+            {% if has_any_permission('api.external.view', 'api.external.create') %}
             <a href="{{ url_for('main.settings_external_apis') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-cloud me-2"></i> External APIs
             </a>
+            {% endif %}
+            {% if has_any_permission('webhook.view', 'webhook.create') %}
             <a href="{{ url_for('main.settings_webhooks') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-broadcast me-2"></i> Webhooks
             </a>
+            {% endif %}
             {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings_roles') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-shield-lock me-2"></i> Roles & Permissions
+            </a>
             <a href="{{ url_for('main.settings_scheduled_tasks') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-clock-history me-2"></i> Scheduled Tasks

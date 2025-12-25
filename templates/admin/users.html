@@ -23,7 +23,6 @@
                 <th>Email</th>
                 <th>Role</th>
                 <th>Created</th>
-                <th>Last Login</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -45,7 +44,6 @@
                     {% endif %}
                 </td>
                 <td>{{ user.created_at[:10] if user.created_at else '-' }}</td>
-                <td>{{ user.last_login[:10] if user.last_login else 'Never' }}</td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
                         <button class="btn btn-outline-primary" onclick="editUser('{{ user.id }}', '{{ user.username }}', '{{ user.email }}', '{{ user.role }}')">
@@ -94,9 +92,7 @@
                     <div class="mb-3">
                         <label for="addRole" class="form-label">Role</label>
                         <select class="form-select" id="addRole" name="role" required>
-                            <option value="viewer">Viewer - Read-only access</option>
-                            <option value="analyst">Analyst - Full management access</option>
-                            <option value="admin">Administrator - All permissions</option>
+                            <option value="">Loading roles...</option>
                         </select>
                     </div>
                 </div>
@@ -130,9 +126,7 @@
                     <div class="mb-3">
                         <label for="editRole" class="form-label">Role</label>
                         <select class="form-select" id="editRole" name="role" required>
-                            <option value="viewer">Viewer - Read-only access</option>
-                            <option value="analyst">Analyst - Full management access</option>
-                            <option value="admin">Administrator - All permissions</option>
+                            <option value="">Loading roles...</option>
                         </select>
                     </div>
                 </div>
@@ -167,7 +161,73 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
+let availableRoles = [];
+
+// Load roles on page load
+$(document).ready(function() {
+    console.log('Page ready, loading roles...');
+    loadRoles();
+});
+
+function loadRoles() {
+    console.log('Calling /api/rbac/roles endpoint...');
+    $.ajax({
+        url: "/api/rbac/roles",
+        method: 'GET',
+        success: function(response) {
+            console.log('Roles loaded successfully:', response);
+            availableRoles = response.roles || [];
+            populateRoleSelects();
+        },
+        error: function(xhr, status, error) {
+            console.error('Failed to load roles:', status, error, xhr.responseText);
+            // Fallback to default roles if API fails
+            availableRoles = [
+                { name: 'admin', display_name: 'Administrator' },
+                { name: 'analyst', display_name: 'Security Analyst' },
+                { name: 'threat_intel', display_name: 'Threat Intelligence Officer' },
+                { name: 'incident_responder', display_name: 'Incident Responder' },
+
+                { name: 'viewer', display_name: 'Viewer' }
+            ];
+            populateRoleSelects();
+        }
+    });
+}
+
+function populateRoleSelects() {
+    console.log('Populating role selects with', availableRoles.length, 'roles');
+    const addRoleSelect = $('#addRole');
+    const editRoleSelect = $('#editRole');
+    
+    if (addRoleSelect.length === 0) {
+        console.warn('addRole select not found');
+    }
+    if (editRoleSelect.length === 0) {
+        console.warn('editRole select not found');
+    }
+    
+    // Clear existing options
+    addRoleSelect.empty();
+    editRoleSelect.empty();
+    
+    // Add roles to both selects
+    availableRoles.forEach(role => {
+        const displayText = role.display_name || role.name;
+        const description = role.description || '';
+        const optionText = description ? `${displayText} - ${description}` : displayText;
+        
+        $('<option>').val(role.name).text(optionText).appendTo(addRoleSelect);
+        $('<option>').val(role.name).text(optionText).appendTo(editRoleSelect);
+    });
+    
+    console.log('Role selects populated');
+}
+
 $('#addUserForm').submit(function(e) {
     e.preventDefault();
     
@@ -259,5 +319,4 @@ function deleteUser(userId, username) {
     modal.show();
 }
 </script>
-
 {% endblock %}

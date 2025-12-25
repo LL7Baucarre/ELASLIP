@@ -614,62 +614,82 @@
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
+            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
                     <i class="bi bi-list-ul"></i> IOCs
                 </a>
             </li>
+            {% endif %}
+            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
                     <i class="bi bi-diagram-3"></i> IOC Graph
                 </a>
             </li>
+            {% endif %}
             
             <li class="nav-section-title">INVESTIGATIONS</li>
+            {% if has_any_permission('case.view', 'case.create', 'case.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'cases' in request.endpoint %}active{% endif %}" href="{{ url_for('main.cases_list') }}">
                     <i class="bi bi-folder2-open"></i> Cases
                 </a>
             </li>
+            {% endif %}
+            {% if has_any_permission('incident.view', 'incident.create', 'incident.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'incidents' in request.endpoint %}active{% endif %}" href="{{ url_for('main.incidents_list') }}">
                     <i class="bi bi-exclamation-triangle"></i> Incidents
                 </a>
             </li>
+            {% endif %}
+            {% if has_any_permission('snippet.view', 'snippet.create') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
                     <i class="bi bi-file-earmark-text"></i> Snippets
                 </a>
             </li>
+            {% endif %}
             
             <li class="nav-section-title">TOOLS</li>
+            {% if has_permission('search.advanced') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
                     <i class="bi bi-search"></i> Search
                 </a>
             </li>
+            {% endif %}
+            {% if has_permission('ioc.import') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
                     <i class="bi bi-upload"></i> Import
                 </a>
             </li>
+            {% endif %}
+            {% if has_permission('tools.execute') or has_permission('tools.view') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.tools_page' %}active{% endif %}" href="{{ url_for('main.tools_page') }}">
                     <i class="bi bi-terminal"></i> Tools
                 </a>
             </li>
+            {% endif %}
             
             <li class="nav-section-title">MONITORING</li>
+            {% if has_permission('timeline.view') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
                     <i class="bi bi-clock-history"></i> Activity
                 </a>
             </li>
+            {% endif %}
+            {% if has_any_permission('report.view', 'report.create') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
                     <i class="bi bi-file-earmark-pdf"></i> Reports
                 </a>
             </li>
+            {% endif %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
                     <i class="bi bi-file-earmark-code"></i> API Docs
@@ -682,7 +702,7 @@
                     <i class="bi bi-gear"></i> Settings
                 </a>
             </li>
-            {% if current_user.is_admin %}
+            {% if has_any_permission('admin.users.view', 'admin.users.create', 'admin.users.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'users_management' in request.endpoint %}active{% endif %}" href="{{ url_for('main.users_management') }}">
                     <i class="bi bi-people"></i> Users

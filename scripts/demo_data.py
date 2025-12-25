@@ -432,7 +432,7 @@ def populate_demo_data():
             ('analyst2', 'analyst2@demo.local', 'Security Analyst #2', 'analyst'),
             ('threat_intel', 'threat_intel@demo.local', 'Threat Intelligence Officer', 'threat_intel'),
             ('responder', 'responder@demo.local', 'Incident Responder', 'incident_responder'),
-            ('manager', 'manager@demo.local', 'Security Manager', 'manager'),
+
             ('viewer', 'viewer@demo.local', 'Read-Only Viewer', 'viewer'),
         ]
         

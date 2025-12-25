@@ -6,7 +6,9 @@ import os
 from dotenv import load_dotenv, set_key
 
 from app.services.ioc_service import IOCService
+from app.services.rbac_service import RBACService, DEFAULT_ROLES
 from app.auth import User
+from app.decorators import permission_required
 
 main_bp = Blueprint('main', __name__)
 
@@ -417,6 +419,7 @@ def import_page():
 
 @main_bp.route('/tools')
 @login_required
+@permission_required('tools.execute', 'tools.view', require_all=False)
 def tools_page():
     """Tools page for WHOIS and Nmap scans."""
     return render_template('tools.html')
@@ -486,6 +489,14 @@ def settings_external_apis():
 def settings_webhooks():
     """Webhooks settings page."""
     return render_template('settings/webhooks.html')
+
+
+@main_bp.route('/settings/roles')
+@login_required
+@admin_required
+def settings_roles():
+    """Roles and permissions management page (admin only)."""
+    return render_template('settings/roles.html')
 
 
 @main_bp.route('/settings/scheduled-tasks')
@@ -667,7 +678,7 @@ def create_user():
     role = data.get('role', 'viewer').strip()
     
     # Validate role
-    valid_roles = ['viewer', 'analyst', 'admin']
+    valid_roles = list(DEFAULT_ROLES.keys())
     if role not in valid_roles:
         if request.is_json:
             return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
@@ -740,7 +751,7 @@ def edit_user(user_id):
     # Handle role update
     if 'role' in data:
         role = data.get('role', '').strip()
-        valid_roles = ['viewer', 'analyst', 'admin']
+        valid_roles = list(DEFAULT_ROLES.keys())
         if role not in valid_roles:
             if request.is_json:
                 return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
@@ -860,6 +871,7 @@ def incidents_detail(incident_id):
 
 @main_bp.route('/snippets')
 @login_required
+@permission_required('snippet.view', 'snippet.create', require_all=False)
 def snippets_library():
     """Markdown snippets library page."""
     return render_template('snippets/library.html')

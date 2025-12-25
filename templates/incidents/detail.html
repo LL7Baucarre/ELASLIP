@@ -211,9 +211,11 @@
                         </span>
                     </div>
                     <div class="btn-group btn-group-sm">
+                        {% if has_permission('snippet.view') %}
                         <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#snippetsModal">
                             <i class="bi bi-file-earmark-text me-1"></i> Insert Snippet
                         </button>
+                        {% endif %}
                         <button class="btn btn-primary" onclick="saveReport()">
                             <i class="bi bi-check-circle me-1"></i> Save
                         </button>

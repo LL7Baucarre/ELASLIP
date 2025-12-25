@@ -27,10 +27,6 @@
                         <th>Created</th>
                         <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
                     </tr>
-                    <tr>
-                        <th>Last Login</th>
-                        <td>{{ user.last_login[:19] if user.last_login else 'Never' }}</td>
-                    </tr>
                 </table>
             </div>
         </div>

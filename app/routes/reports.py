@@ -188,7 +188,7 @@ def test_llm_connection():
 
 @bp.route('/api/reports/iocs/<ioc_id>', methods=['GET'])
 @login_required
-@permission_required('ioc.view')
+@permission_required('report.generate_llm')
 def generate_ioc_report(ioc_id):
     """Launch async report generation for an IOC."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -209,7 +209,7 @@ def generate_ioc_report(ioc_id):
 
 @bp.route('/api/reports/cases/<case_id>', methods=['GET'])
 @login_required
-@permission_required('case.view')
+@permission_required('report.generate_llm')
 def generate_case_report(case_id):
     """Launch async report generation for a case."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -230,7 +230,7 @@ def generate_case_report(case_id):
 
 @bp.route('/api/reports/incidents/<incident_id>', methods=['GET'])
 @login_required
-@permission_required('incident.view')
+@permission_required('report.generate_llm')
 def generate_incident_report(incident_id):
     """Launch async report generation for an incident."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':

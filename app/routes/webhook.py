@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.utils.request_helpers import get_pagination_params
 from app.tasks.webhook_tasks import test_webhook
@@ -46,6 +47,7 @@ def list_webhooks():
 
 @webhook_bp.route('', methods=['POST'])
 @login_or_api_key_required
+@permission_required('webhook.create')
 def create_webhook():
     """
     Create a new webhook.
@@ -130,6 +132,7 @@ def get_webhook(webhook_id):
 
 @webhook_bp.route('/<webhook_id>', methods=['PUT'])
 @login_or_api_key_required
+@permission_required('webhook.edit')
 def update_webhook(webhook_id):
     """Update a webhook."""
     data = request.get_json()
@@ -184,6 +187,7 @@ def update_webhook(webhook_id):
 
 @webhook_bp.route('/<webhook_id>', methods=['DELETE'])
 @login_or_api_key_required
+@permission_required('webhook.delete')
 def delete_webhook(webhook_id):
     """Delete a webhook."""
     es = ElasticsearchService()

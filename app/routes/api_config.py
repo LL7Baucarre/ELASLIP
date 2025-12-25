@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.enrichment_service import EnrichmentService
 from app.services.encryption_service import EncryptionService
@@ -56,6 +57,7 @@ def list_api_configs():
 
 @api_config_bp.route('', methods=['POST'])
 @login_or_api_key_required
+@permission_required('api.external.create')
 def create_api_config():
     """
     Create a new external API configuration.
@@ -180,6 +182,7 @@ def get_api_config(config_id):
 
 @api_config_bp.route('/<config_id>', methods=['PUT'])
 @login_or_api_key_required
+@permission_required('api.external.edit')
 def update_api_config(config_id):
     """Update an API configuration."""
     data = request.get_json()
@@ -244,6 +247,7 @@ def update_api_config(config_id):
 
 @api_config_bp.route('/<config_id>', methods=['DELETE'])
 @login_or_api_key_required
+@permission_required('api.external.delete')
 def delete_api_config(config_id):
     """Delete an API configuration."""
     es = ElasticsearchService()

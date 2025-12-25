@@ -8,6 +8,7 @@ from app.services.elasticsearch_service import ElasticsearchService
 
 
 # Permission definitions - Organized by category
+# IMPORTANT: Only include permissions that are actually checked in the application
 PERMISSIONS = {
     # ============== IOC Management ==============
     'ioc.view': 'View IOCs',
@@ -28,7 +29,6 @@ PERMISSIONS = {
     'case.delete': 'Delete cases',
     'case.assign': 'Assign cases to users',
     'case.close': 'Close cases',
-    'case.reopen': 'Reopen closed cases',
     
     # ============== Incident Management ==============
     'incident.view': 'View incidents',
@@ -36,7 +36,6 @@ PERMISSIONS = {
     'incident.edit': 'Edit incidents',
     'incident.delete': 'Delete incidents',
     'incident.report': 'Generate incident reports',
-    'incident.escalate': 'Escalate incidents',
     
     # ============== Comments & Collaboration ==============
     'comment.view': 'View comments',
@@ -51,15 +50,11 @@ PERMISSIONS = {
     'snippet.create': 'Create snippets',
     'snippet.edit': 'Edit own snippets',
     'snippet.delete': 'Delete own snippets',
-    'snippet.edit_any': 'Edit any snippet',
-    'snippet.delete_any': 'Delete any snippet',
-    'snippet.manage_global': 'Manage global snippets',
+    'snippet.share': 'Share snippets',
     
     # ============== Timeline Management ==============
-    'timeline.view': 'View timeline',
-    'timeline.create': 'Create timeline events',
-    'timeline.edit': 'Edit timeline events',
-    'timeline.delete': 'Delete timeline events',
+    'timeline.view': 'View timeline and audit logs',
+    'timeline.export': 'Export timeline data',
     
     # ============== API & Integration ==============
     'api.access': 'Access API',
@@ -67,7 +62,9 @@ PERMISSIONS = {
     'api.keys.create': 'Create API keys',
     'api.keys.delete': 'Delete API keys',
     'api.external.view': 'View external API configurations',
-    'api.external.configure': 'Configure external APIs',
+    'api.external.create': 'Create external API configurations',
+    'api.external.edit': 'Edit external API configurations',
+    'api.external.delete': 'Delete external API configurations',
     'api.external.test': 'Test external APIs',
     
     # ============== Webhook Management ==============
@@ -79,9 +76,18 @@ PERMISSIONS = {
     
     # ============== Search & Reports ==============
     'search.advanced': 'Access advanced search',
+    'search.save': 'Save searches',
     'report.view': 'View reports',
     'report.create': 'Create reports',
+    'report.edit': 'Edit reports',
+    'report.delete': 'Delete reports',
     'report.export': 'Export reports',
+    'report.generate_llm': 'Generate reports using LLM',
+    
+    # ============== Tools & Enrichment ==============
+    'tools.view': 'View tool results',
+    'tools.execute': 'Execute analysis tools',
+    'tools.configure': 'Configure tools',
     
     # ============== Administration ==============
     'admin.users.view': 'View users',
@@ -96,7 +102,6 @@ PERMISSIONS = {
     'admin.settings': 'Manage site settings',
     'admin.audit': 'View audit logs',
     'admin.tasks': 'Manage scheduled tasks',
-    'admin.import_jobs': 'Manage import jobs',
 }
 
 
@@ -121,17 +126,20 @@ DEFAULT_ROLES = {
             # Case permissions
             'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
             # Incident permissions
-            'incident.view', 'incident.create', 'incident.edit', 'incident.report', 'incident.escalate',
+            'incident.view', 'incident.create', 'incident.edit', 'incident.report',
             # Comments & collaboration
             'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
-            'snippet.view', 'snippet.create', 'snippet.edit',
+            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.share',
             # Timeline
-            'timeline.view', 'timeline.create', 'timeline.edit',
+            'timeline.view', 'timeline.export',
             # API
-            'api.access', 'api.keys.view', 'api.keys.create', 'api.external.view', 'api.external.test',
-            'webhook.view',
+            'api.access', 'api.keys.view', 'api.keys.create', 'api.keys.delete',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.delete', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.delete', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute', 'tools.configure',
             # Search & Reports
-            'search.advanced', 'report.view', 'report.create', 'report.export',
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
         ],
         'is_system': True,
         'is_editable': False
@@ -148,13 +156,17 @@ DEFAULT_ROLES = {
             'case.view', 'incident.view',
             # Comments & collaboration
             'comment.view', 'comment.create', 'comment.edit',
-            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.manage_global',
+            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.share',
             # Timeline
-            'timeline.view', 'timeline.create',
+            'timeline.view', 'timeline.export',
             # API
-            'api.access', 'api.keys.view', 'api.external.view', 'api.external.test',
+            'api.access', 'api.keys.view', 'api.keys.create',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute',
             # Search & Reports
-            'search.advanced', 'report.view', 'report.create', 'report.export',
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
         ],
         'is_system': True,
         'is_editable': False
@@ -168,47 +180,25 @@ DEFAULT_ROLES = {
             'ioc.view', 'ioc.create', 'ioc.edit',
             'ioc.relations.view', 'ioc.relations.create',
             # Case & Incident
-            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close', 'case.reopen',
-            'incident.view', 'incident.create', 'incident.edit', 'incident.escalate', 'incident.report',
-            # Comments & collaboration
-            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
-            # Timeline
-            'timeline.view', 'timeline.create', 'timeline.edit',
-            # API
-            'api.access', 'api.keys.view',
-            'webhook.view',
-            # Search & Reports
-            'search.advanced', 'report.view', 'report.create', 'report.export',
-        ],
-        'is_system': True,
-        'is_editable': False
-    },
-    'manager': {
-        'display_name': 'Security Manager',
-        'description': 'Manages team, cases, incidents and views reports',
-        'color': '#009900',  # Green
-        'permissions': [
-            # IOC permissions - mostly view/export
-            'ioc.view', 'ioc.export',
-            'ioc.relations.view',
-            # Case & Incident
             'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
             'incident.view', 'incident.create', 'incident.edit', 'incident.report',
             # Comments & collaboration
-            'comment.view', 'comment.create', 'comment.edit',
-            'snippet.view', 'snippet.create',
+            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
             # Timeline
-            'timeline.view',
+            'timeline.view', 'timeline.export',
             # API
-            'api.access', 'api.keys.view',
+            'api.access', 'api.keys.view', 'api.keys.create',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.delete', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.delete', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute',
             # Search & Reports
-            'search.advanced', 'report.view', 'report.create', 'report.export',
-            # Admin - users & roles view
-            'admin.users.view', 'admin.roles.view', 'admin.audit',
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
         ],
         'is_system': True,
         'is_editable': False
     },
+
     'viewer': {
         'display_name': 'Viewer',
         'description': 'Read-only access to IOCs and cases',
@@ -222,7 +212,6 @@ DEFAULT_ROLES = {
             'incident.view',
             # Comments & collaboration - view & create
             'comment.view', 'comment.create',
-            'snippet.view',
             # Timeline
             'timeline.view',
             # API

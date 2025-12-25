@@ -13,9 +13,11 @@
         <a href="{{ url_for('main.iocs_graph') }}" class="btn btn-outline-info">
             <i class="bi bi-diagram-3 me-1"></i> Graph View
         </a>
+        {% if has_permission('ioc.create') %}
         <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> Add IOC
         </a>
+        {% endif %}
     </div>
 </div>
 

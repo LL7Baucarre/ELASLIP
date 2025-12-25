@@ -114,9 +114,11 @@ git branch -m main{% extends "base.html" %}
     <i class="bi bi-search display-1 text-muted"></i>
     <h5 class="mt-3">No IOCs found</h5>
     <p class="text-muted">Try a different search term or adjust filters</p>
+    {% if has_permission('ioc.create') %}
     <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Add New IOC
     </a>
+    {% endif %}
 </div>
 
 <!-- Empty State -->

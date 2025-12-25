@@ -1,7 +1,7 @@
 """RBAC Management Routes - for granular role and permission management."""
 
-from flask import Blueprint, request, jsonify, g
-from flask_login import login_required
+from flask import Blueprint, request, jsonify
+from flask_login import login_required, current_user
 
 from app.auth import login_or_api_key_required
 from app.services.rbac_service import RBACService
@@ -103,7 +103,7 @@ def create_role():
     """
     # Check admin permission
     rbac = RBACService()
-    if not rbac.user_has_permission(g.current_user, 'admin.roles.create'):
+    if not rbac.user_has_permission(current_user, 'admin.roles.create'):
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     data = request.get_json()
@@ -157,7 +157,7 @@ def update_role(role_name):
     Required permissions: admin.roles.edit
     """
     rbac = RBACService()
-    if not rbac.user_has_permission(g.current_user, 'admin.roles.edit'):
+    if not rbac.user_has_permission(current_user, 'admin.roles.edit'):
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     role = rbac.get_role(role_name)
@@ -206,7 +206,7 @@ def delete_role(role_name):
     Required permissions: admin.roles.delete
     """
     rbac = RBACService()
-    if not rbac.user_has_permission(g.current_user, 'admin.roles.delete'):
+    if not rbac.user_has_permission(current_user, 'admin.roles.delete'):
         return jsonify({'error': 'Insufficient permissions'}), 403
     
     role = rbac.get_role(role_name)
@@ -252,7 +252,7 @@ def get_user_permissions():
         JSON with user's permissions and role information
     """
     rbac = RBACService()
-    permissions = rbac.get_user_permissions(g.current_user)
+    permissions = rbac.get_user_permissions(current_user)
     
     # Group permissions by category
     categories = {}
@@ -263,10 +263,10 @@ def get_user_permissions():
         categories[category].append(perm)
     
     return jsonify({
-        'user_id': g.current_user.id,
-        'username': g.current_user.username,
-        'role': getattr(g.current_user, 'role', 'viewer'),
-        'is_admin': getattr(g.current_user, 'is_admin', False),
+        'user_id': current_user.id,
+        'username': current_user.username,
+        'role': getattr(current_user, 'role', 'viewer'),
+        'is_admin': getattr(current_user, 'is_admin', False),
         'permissions': permissions,
         'permissions_by_category': categories,
         'total_permissions': len(permissions)
@@ -298,9 +298,9 @@ def check_permission():
     require_all = data.get('require_all', False)
     
     if require_all:
-        has_permission = rbac.user_has_all_permissions(g.current_user, permissions)
+        has_permission = rbac.user_has_all_permissions(current_user, permissions)
     else:
-        has_permission = rbac.user_has_any_permission(g.current_user, permissions)
+        has_permission = rbac.user_has_any_permission(current_user, permissions)
     
     return jsonify({
         'has_permission': has_permission,
