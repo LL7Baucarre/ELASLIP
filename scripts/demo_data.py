@@ -424,27 +424,30 @@ def populate_demo_data():
         
         print(f"   ✓ Created {created_relations} case-incident relationships")
         
-        # Create demo users
-        print("\n4. Creating demo users...")
+        # Create demo users with different roles
+        print("\n4. Creating demo users with different roles...")
         created_users = []
-        user_names = [
-            ('analyst1', 'analyst1@demo.local', 'Demo Analyst 1'),
-            ('analyst2', 'analyst2@demo.local', 'Demo Analyst 2'),
-            ('manager', 'manager@demo.local', 'Demo Manager')
+        user_config = [
+            ('analyst1', 'analyst1@demo.local', 'Security Analyst #1', 'analyst'),
+            ('analyst2', 'analyst2@demo.local', 'Security Analyst #2', 'analyst'),
+            ('threat_intel', 'threat_intel@demo.local', 'Threat Intelligence Officer', 'threat_intel'),
+            ('responder', 'responder@demo.local', 'Incident Responder', 'incident_responder'),
+            ('manager', 'manager@demo.local', 'Security Manager', 'manager'),
+            ('viewer', 'viewer@demo.local', 'Read-Only Viewer', 'viewer'),
         ]
         
-        for username, email, display_name in user_names:
+        for username, email, display_name, role in user_config:
             try:
-                user, error = User.create(username, email, 'demo_password_123', is_admin=False, role='analyst')
+                user, error = User.create(username, email, 'demo_password_123', is_admin=False, role=role)
                 if user:
                     created_users.append(user)
-                    print(f"   Created user: {username}")
+                    print(f"   Created {role:20s} | {username}")
                 else:
                     print(f"   User {username} already exists")
             except Exception as e:
                 print(f"      Warning: Failed to create user {username}: {str(e)}")
         
-        print(f"   ✓ Created {len(created_users)} users")
+        print(f"   ✓ Created {len(created_users)} users with granular roles")
         
         # Create API keys
         print("\n5. Creating API keys...")

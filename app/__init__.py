@@ -103,6 +103,7 @@ def create_app(config_name=None):
     from app.routes.audit import audit_bp
     from app.routes.cases import bp as cases_bp
     from app.routes.reports import bp as reports_bp
+    from app.routes.rbac import rbac_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -117,6 +118,7 @@ def create_app(config_name=None):
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(rbac_bp, url_prefix='/api/rbac')
 
     
     # Health check endpoint

@@ -7,9 +7,9 @@ import secrets
 from app.services.elasticsearch_service import ElasticsearchService
 
 
-# Permission definitions
+# Permission definitions - Organized by category
 PERMISSIONS = {
-    # IOC permissions
+    # ============== IOC Management ==============
     'ioc.view': 'View IOCs',
     'ioc.create': 'Create IOCs',
     'ioc.edit': 'Edit IOCs',
@@ -17,97 +17,224 @@ PERMISSIONS = {
     'ioc.export': 'Export IOCs',
     'ioc.import': 'Import IOCs',
     'ioc.enrich': 'Enrich IOCs with external APIs',
+    'ioc.relations.view': 'View IOC relationships',
+    'ioc.relations.create': 'Create IOC relationships',
+    'ioc.relations.delete': 'Delete IOC relationships',
     
-    # Case permissions
+    # ============== Case Management ==============
     'case.view': 'View cases',
     'case.create': 'Create cases',
     'case.edit': 'Edit cases',
     'case.delete': 'Delete cases',
     'case.assign': 'Assign cases to users',
+    'case.close': 'Close cases',
+    'case.reopen': 'Reopen closed cases',
     
-    # Incident permissions
+    # ============== Incident Management ==============
     'incident.view': 'View incidents',
     'incident.create': 'Create incidents',
     'incident.edit': 'Edit incidents',
     'incident.delete': 'Delete incidents',
     'incident.report': 'Generate incident reports',
+    'incident.escalate': 'Escalate incidents',
     
-    # Comment permissions
+    # ============== Comments & Collaboration ==============
     'comment.view': 'View comments',
     'comment.create': 'Create comments',
     'comment.edit': 'Edit own comments',
-    'comment.delete': 'Delete comments',
+    'comment.delete': 'Delete own comments',
     'comment.edit_any': 'Edit any comment',
+    'comment.delete_any': 'Delete any comment',
     
-    # Snippet permissions
+    # ============== Snippets & Templates ==============
     'snippet.view': 'View snippets',
     'snippet.create': 'Create snippets',
     'snippet.edit': 'Edit own snippets',
     'snippet.delete': 'Delete own snippets',
+    'snippet.edit_any': 'Edit any snippet',
+    'snippet.delete_any': 'Delete any snippet',
     'snippet.manage_global': 'Manage global snippets',
     
-    # Timeline permissions
+    # ============== Timeline Management ==============
     'timeline.view': 'View timeline',
     'timeline.create': 'Create timeline events',
     'timeline.edit': 'Edit timeline events',
     'timeline.delete': 'Delete timeline events',
     
-    # API permissions
+    # ============== API & Integration ==============
     'api.access': 'Access API',
-    'api.keys.manage': 'Manage API keys',
+    'api.keys.view': 'View API keys',
+    'api.keys.create': 'Create API keys',
+    'api.keys.delete': 'Delete API keys',
+    'api.external.view': 'View external API configurations',
     'api.external.configure': 'Configure external APIs',
+    'api.external.test': 'Test external APIs',
     
-    # Webhook permissions
+    # ============== Webhook Management ==============
     'webhook.view': 'View webhooks',
-    'webhook.manage': 'Manage webhooks',
+    'webhook.create': 'Create webhooks',
+    'webhook.edit': 'Edit webhooks',
+    'webhook.delete': 'Delete webhooks',
+    'webhook.test': 'Test webhooks',
     
-    # Admin permissions
-    'admin.users': 'Manage users',
-    'admin.roles': 'Manage roles',
+    # ============== Search & Reports ==============
+    'search.advanced': 'Access advanced search',
+    'report.view': 'View reports',
+    'report.create': 'Create reports',
+    'report.export': 'Export reports',
+    
+    # ============== Administration ==============
+    'admin.users.view': 'View users',
+    'admin.users.create': 'Create users',
+    'admin.users.edit': 'Edit users',
+    'admin.users.delete': 'Delete users',
+    'admin.users.assign_role': 'Assign roles to users',
+    'admin.roles.view': 'View roles',
+    'admin.roles.create': 'Create custom roles',
+    'admin.roles.edit': 'Edit roles',
+    'admin.roles.delete': 'Delete custom roles',
     'admin.settings': 'Manage site settings',
     'admin.audit': 'View audit logs',
     'admin.tasks': 'Manage scheduled tasks',
+    'admin.import_jobs': 'Manage import jobs',
 }
 
 
-# Default role definitions
+# Default role definitions with granular permissions
 DEFAULT_ROLES = {
     'admin': {
         'display_name': 'Administrator',
-        'description': 'Full system access with all permissions',
+        'description': 'Full system access - can manage all resources and users',
+        'color': '#dc3545',  # Red
         'permissions': list(PERMISSIONS.keys()),
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
     },
     'analyst': {
         'display_name': 'Security Analyst',
-        'description': 'Can manage IOCs, cases, incidents and reports',
+        'description': 'Can manage IOCs, cases, incidents and create reports',
+        'color': '#0066cc',  # Blue
         'permissions': [
+            # IOC permissions
             'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
-            'case.view', 'case.create', 'case.edit', 'case.assign',
-            'incident.view', 'incident.create', 'incident.edit', 'incident.report',
-            'comment.view', 'comment.create', 'comment.edit',
+            'ioc.relations.view', 'ioc.relations.create', 'ioc.relations.delete',
+            # Case permissions
+            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
+            # Incident permissions
+            'incident.view', 'incident.create', 'incident.edit', 'incident.report', 'incident.escalate',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
             'snippet.view', 'snippet.create', 'snippet.edit',
+            # Timeline
             'timeline.view', 'timeline.create', 'timeline.edit',
-            'api.access', 'api.keys.manage',
+            # API
+            'api.access', 'api.keys.view', 'api.keys.create', 'api.external.view', 'api.external.test',
             'webhook.view',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.create', 'report.export',
         ],
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
+    },
+    'threat_intel': {
+        'display_name': 'Threat Intelligence Officer',
+        'description': 'Specialized in threat intelligence, campaigns, and enrichment',
+        'color': '#ff6600',  # Orange
+        'permissions': [
+            # IOC permissions
+            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
+            'ioc.relations.view', 'ioc.relations.create',
+            # Case & Incident - read mostly
+            'case.view', 'incident.view',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit',
+            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.manage_global',
+            # Timeline
+            'timeline.view', 'timeline.create',
+            # API
+            'api.access', 'api.keys.view', 'api.external.view', 'api.external.test',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.create', 'report.export',
+        ],
+        'is_system': True,
+        'is_editable': False
+    },
+    'incident_responder': {
+        'display_name': 'Incident Responder',
+        'description': 'Focused on incident response, containment, and remediation',
+        'color': '#cc0000',  # Dark red
+        'permissions': [
+            # IOC permissions
+            'ioc.view', 'ioc.create', 'ioc.edit',
+            'ioc.relations.view', 'ioc.relations.create',
+            # Case & Incident
+            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close', 'case.reopen',
+            'incident.view', 'incident.create', 'incident.edit', 'incident.escalate', 'incident.report',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
+            # Timeline
+            'timeline.view', 'timeline.create', 'timeline.edit',
+            # API
+            'api.access', 'api.keys.view',
+            'webhook.view',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.create', 'report.export',
+        ],
+        'is_system': True,
+        'is_editable': False
+    },
+    'manager': {
+        'display_name': 'Security Manager',
+        'description': 'Manages team, cases, incidents and views reports',
+        'color': '#009900',  # Green
+        'permissions': [
+            # IOC permissions - mostly view/export
+            'ioc.view', 'ioc.export',
+            'ioc.relations.view',
+            # Case & Incident
+            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
+            'incident.view', 'incident.create', 'incident.edit', 'incident.report',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit',
+            'snippet.view', 'snippet.create',
+            # Timeline
+            'timeline.view',
+            # API
+            'api.access', 'api.keys.view',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.create', 'report.export',
+            # Admin - users & roles view
+            'admin.users.view', 'admin.roles.view', 'admin.audit',
+        ],
+        'is_system': True,
+        'is_editable': False
     },
     'viewer': {
         'display_name': 'Viewer',
         'description': 'Read-only access to IOCs and cases',
+        'color': '#666666',  # Gray
         'permissions': [
+            # IOC - view only
             'ioc.view', 'ioc.export',
+            'ioc.relations.view',
+            # Case & Incident - view only
             'case.view',
             'incident.view',
+            # Comments & collaboration - view & create
             'comment.view', 'comment.create',
             'snippet.view',
+            # Timeline
             'timeline.view',
-            'api.access',
+            # API
+            'api.access', 'api.keys.view',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.export',
         ],
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
     }
 }
+
 
 
 class RBACService:
