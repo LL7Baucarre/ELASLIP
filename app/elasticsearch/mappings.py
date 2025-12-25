@@ -509,6 +509,37 @@ SNIPPETS_MAPPING = {
 }
 
 
+# App Configuration Index Mapping (for LLM config, reports tracking, etc.)
+APP_CONFIG_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "type": {"type": "keyword"},  # ioc, case, incident, llm_config, etc.
+            "status": {"type": "keyword"},  # pending, processing, completed, failed
+            "entity_id": {"type": "keyword"},
+            "entity_type": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "created_at": {"type": "date"},
+            "started_at": {"type": "date"},
+            "completed_at": {"type": "date"},
+            "error": {"type": "text"},
+            "report_data": {"type": "object", "enabled": True},
+            "enabled": {"type": "boolean"},
+            "url": {"type": "keyword"},
+            "model": {"type": "keyword"},
+            "api_key": {"type": "keyword"},
+            "custom_prompt_ioc": {"type": "text"},
+            "custom_prompt_case": {"type": "text"},
+            "custom_prompt_incident": {"type": "text"},
+            "configured": {"type": "boolean"}
+        }
+    }
+}
+
+
 # All indices with their mappings
 INDICES = {
     "ioc_manager_ioc": IOC_MAPPING,
@@ -528,5 +559,6 @@ INDICES = {
     "ioc_manager_incidents": INCIDENTS_MAPPING,
     "ioc_manager_timeline_events": TIMELINE_EVENTS_MAPPING,
     "ioc_manager_comments": COMMENTS_MAPPING,
-    "ioc_manager_snippets": SNIPPETS_MAPPING
+    "ioc_manager_snippets": SNIPPETS_MAPPING,
+    "ioc_manager_app_config": APP_CONFIG_MAPPING
 }

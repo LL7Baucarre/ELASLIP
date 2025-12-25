@@ -496,6 +496,22 @@ def settings_scheduled_tasks():
     return render_template('settings/scheduled_tasks.html')
 
 
+@main_bp.route('/settings/llm')
+@login_required
+@admin_required
+def settings_llm():
+    """LLM report settings page (admin only)."""
+    from app.config import Config
+    return render_template('settings/llm.html', config=Config)
+
+
+@main_bp.route('/reports')
+@login_required
+def reports_dashboard():
+    """Reports dashboard page."""
+    return render_template('reports_dashboard.html')
+
+
 @main_bp.route('/api/scheduled-tasks/run', methods=['POST'])
 @login_required
 @admin_required
@@ -847,3 +863,10 @@ def incidents_detail(incident_id):
 def snippets_library():
     """Markdown snippets library page."""
     return render_template('snippets/library.html')
+
+
+@main_bp.route('/report')
+@login_required
+def view_report():
+    """View generated report page."""
+    return render_template('report.html')

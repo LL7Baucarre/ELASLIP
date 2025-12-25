@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}LLM Reports Settings - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">LLM Report Settings</h4>
+        <small class="text-muted">Configure Ollama or OpenAI-compatible LLM for report generation</small>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">LLM Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form id="llmForm">
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enabled" name="enabled"
+                                   {% if config and config.LLM_ENABLED %}checked{% endif %}>
+                            <label class="form-check-label" for="enabled">
+                                Enable LLM Report Generation
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="url" class="form-label">LLM URL</label>
+                        <input type="url" class="form-control" id="url" name="url" 
+                               placeholder="http://ollama:11434"
+                               value="{{ config.LLM_URL if config else 'http://ollama:11434' }}"
+                               required>
+                        <small class="text-muted">
+                            <strong>Docker:</strong> http://ollama:11434 (service name in docker-compose)<br/>
+                            <strong>Local:</strong> http://localhost:11434 (if Ollama runs on your machine)
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="model" class="form-label">Model Name</label>
+                        <input type="text" class="form-control" id="model" name="model" 
+                               placeholder="mistral"
+                               value="{{ config.LLM_MODEL if config else 'mistral' }}"
+                               required>
+                        <small class="text-muted">Ollama models: mistral, llama2, neural-chat, etc.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="api_key" class="form-label">API Key (Optional)</label>
+                        <input type="password" class="form-control" id="api_key" name="api_key" 
+                               placeholder="Leave empty if not required">
+                        <small class="text-muted">For OpenAI or other providers requiring authentication</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="custom_prompt_ioc" class="form-label">Custom IOC Report Prompt (Optional)</label>
+                        <textarea class="form-control" id="custom_prompt_ioc" name="custom_prompt_ioc" 
+                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {type}, {value}, {severity}, {description}, {relations}"></textarea>
+                        <small class="text-muted">Custom prompt template for IOC analysis</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="custom_prompt_case" class="form-label">Custom Case Report Prompt (Optional)</label>
+                        <textarea class="form-control" id="custom_prompt_case" name="custom_prompt_case" 
+                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {name}, {status}, {priority}, {description}, {incidents_count}, {incidents}, {iocs_count}, {iocs}"></textarea>
+                        <small class="text-muted">Custom prompt template for case analysis</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="custom_prompt_incident" class="form-label">Custom Incident Report Prompt (Optional)</label>
+                        <textarea class="form-control" id="custom_prompt_incident" name="custom_prompt_incident" 
+                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {name}, {description}, {type}, {severity}, {status}, {iocs_count}, {iocs}"></textarea>
+                        <small class="text-muted">Custom prompt template for incident analysis</small>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" onclick="saveLLMConfig()">
+                        <i class="bi bi-check-circle me-2"></i> Save Configuration
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="testLLMConnection()">
+                        <i class="bi bi-play-circle me-2"></i> Test Connection
+                    </button>
+                </form>
+
+                <div id="statusMessage" style="display:none;" class="mt-3"></div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Report Types</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Generate reports in the following locations:</p>
+                <ul>
+                    <li><strong>IOC Reports:</strong> In the IOC detail view</li>
+                    <li><strong>Case Reports:</strong> In the Case detail view</li>
+                    <li><strong>Incident Reports:</strong> In the Incident detail view (auto-generated)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Status</h5>
+            </div>
+            <div class="card-body" id="statusCard">
+                <p>Loading...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load current configuration
+let lastBrowserTestSuccessful = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadLLMConfig();
+    checkLLMStatus();
+    setInterval(checkLLMStatus, 30000);  // Check every 30 seconds
+});
+
+async function loadLLMConfig() {
+    try {
+        const response = await fetch('/api/reports/config');
+        if (!response.ok) {
+            throw new Error('Failed to load config');
+        }
+        const data = await response.json();
+        
+        document.getElementById('enabled').checked = data.enabled || false;
+        document.getElementById('url').value = data.url || 'http://ollama:11434';
+        document.getElementById('model').value = data.model || 'mistral';
+        document.getElementById('api_key').value = '';  // Don't show password
+        document.getElementById('custom_prompt_ioc').value = data.custom_prompt_ioc || '';
+        document.getElementById('custom_prompt_case').value = data.custom_prompt_case || '';
+        document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || '';
+    } catch (error) {
+        console.error('Error loading config:', error);
+        // Set defaults if loading fails
+        document.getElementById('enabled').checked = false;
+        document.getElementById('url').value = 'http://ollama:11434';
+        document.getElementById('model').value = 'mistral';
+        document.getElementById('api_key').value = '';
+        document.getElementById('custom_prompt_ioc').value = '';
+        document.getElementById('custom_prompt_case').value = '';
+        document.getElementById('custom_prompt_incident').value = '';
+    }
+}
+
+async function saveLLMConfig() {
+    const config = {
+        enabled: document.getElementById('enabled').checked,
+        url: document.getElementById('url').value,
+        model: document.getElementById('model').value,
+        api_key: document.getElementById('api_key').value,
+        custom_prompt_ioc: document.getElementById('custom_prompt_ioc').value,
+        custom_prompt_case: document.getElementById('custom_prompt_case').value,
+        custom_prompt_incident: document.getElementById('custom_prompt_incident').value
+    };
+
+    try {
+        const response = await fetch('/api/reports/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(config)
+        });
+
+        const data = await response.json();
+        showStatus('Configuration saved successfully!', 'success');
+        
+        setTimeout(() => checkLLMStatus(), 1000);
+    } catch (error) {
+        showStatus('Error saving configuration: ' + error.message, 'danger');
+    }
+}
+
+async function testLLMConnection() {
+    try {
+        const url = document.getElementById('url').value;
+        const model = document.getElementById('model').value;
+        
+        console.log('Testing connection via backend to:', url);
+        
+        // Test via backend to avoid CORS issues
+        const response = await fetch('/api/reports/test-connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                url: url,
+                model: model
+            })
+        });
+        
+        const data = await response.json();
+        console.log('Backend test response:', data);
+        
+        if (data.success) {
+            lastBrowserTestSuccessful = true;
+            showStatus('✓ Connection successful! Model "' + model + '" is available.', 'success');
+        } else {
+            lastBrowserTestSuccessful = false;
+            showStatus('✗ Connection failed: ' + data.error, 'danger');
+        }
+    } catch (error) {
+        console.error('Connection test error:', error);
+        lastBrowserTestSuccessful = false;
+        showStatus('✗ Connection failed: ' + error.message, 'danger');
+    }
+}
+
+async function checkLLMStatus() {
+    try {
+        const response = await fetch('/api/reports/config');
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        
+        const statusCard = document.getElementById('statusCard');
+        let html = '<dl class="row">';
+        
+        html += '<dt class="col-sm-4">Enabled:</dt>';
+        html += '<dd class="col-sm-8">' + (data.enabled ? '<span class="badge bg-success">Yes</span>' : '<span class="badge bg-secondary">No</span>') + '</dd>';
+        
+        html += '<dt class="col-sm-4">Connected:</dt>';
+        if (data.configured) {
+            html += '<dd class="col-sm-8"><span class="badge bg-success">✓ Online</span></dd>';
+        } else if (lastBrowserTestSuccessful) {
+            html += '<dd class="col-sm-8"><span class="badge bg-warning">⚠ Browser OK</span></dd>';
+            html += '<dt class="col-sm-4">Note:</dt>';
+            html += '<dd class="col-sm-8"><small class="text-muted">Browser test passed but backend cannot reach Ollama.<br/>Use http://ollama:11434 for Docker or add Ollama service.</small></dd>';
+        } else {
+            html += '<dd class="col-sm-8"><span class="badge bg-danger">✗ Offline</span></dd>';
+        }
+        
+        html += '<dt class="col-sm-4">URL:</dt>';
+        html += '<dd class="col-sm-8"><code>' + escapeHtml(data.url) + '</code></dd>';
+        
+        html += '<dt class="col-sm-4">Model:</dt>';
+        html += '<dd class="col-sm-8"><code>' + escapeHtml(data.model) + '</code></dd>';
+        
+        if (!data.configured && !lastBrowserTestSuccessful) {
+            html += '<dt class="col-sm-4">Debug:</dt>';
+            html += '<dd class="col-sm-8"><small class="text-muted">Cannot reach ' + escapeHtml(data.url) + '/api/tags<br/>Check Docker network, URL and port.</small></dd>';
+        }
+        
+        html += '</dl>';
+        statusCard.innerHTML = html;
+    } catch (error) {
+        console.error('Status check error:', error);
+        document.getElementById('statusCard').innerHTML = 
+            '<div class="alert alert-danger mb-0">Error loading status: ' + escapeHtml(error.message) + '<br/><small>Check console (F12) for details</small></div>';
+    }
+}
+
+function showStatus(message, type) {
+    const messageDiv = document.getElementById('statusMessage');
+    messageDiv.className = `alert alert-${type}`;
+    messageDiv.innerHTML = escapeHtml(message).replace(/\n/g, '<br/>');
+    messageDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 10000);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

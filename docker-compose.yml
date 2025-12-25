@@ -21,6 +21,10 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/1
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
+      - LLM_ENABLED=${LLM_ENABLED:-false}
+      - LLM_URL=${LLM_URL:-http://ollama:11434}
+      - LLM_MODEL=${LLM_MODEL:-mistral}
+      - LLM_API_KEY=${LLM_API_KEY:-}
     volumes:
       - ./app:/app/app
       - ./templates:/app/templates
@@ -49,6 +53,10 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
+      - LLM_ENABLED=${LLM_ENABLED:-false}
+      - LLM_URL=${LLM_URL:-http://ollama:11434}
+      - LLM_MODEL=${LLM_MODEL:-mistral}
+      - LLM_API_KEY=${LLM_API_KEY:-}
     volumes:
       - ./app:/app/app
       - ./scripts:/app/scripts

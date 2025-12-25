@@ -82,7 +82,7 @@ def create_app(config_name=None):
     celery = create_celery_app(app)
     
     # Import task modules so Celery can discover them
-    from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks
+    from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks
     
     # Initialize Elasticsearch indices
     from app.elasticsearch.init_indices import init_elasticsearch
@@ -102,6 +102,7 @@ def create_app(config_name=None):
     from app.routes.tools import tools_bp
     from app.routes.audit import audit_bp
     from app.routes.cases import bp as cases_bp
+    from app.routes.reports import bp as reports_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -115,6 +116,7 @@ def create_app(config_name=None):
     app.register_blueprint(tools_bp, url_prefix='/api/tools')
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
+    app.register_blueprint(reports_bp)
 
     
     # Health check endpoint
@@ -128,4 +130,4 @@ def create_app(config_name=None):
 # Create celery app for worker
 celery_app = create_celery_app()
 # Import tasks so they're registered with the worker
-from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks
+from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks

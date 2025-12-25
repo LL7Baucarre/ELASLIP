@@ -49,6 +49,13 @@ class Config:
     
     # Upload settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    
+    # LLM Configuration (Ollama or OpenAI-compatible)
+    # For Docker: http://ollama:11434 (service name), for local: http://localhost:11434
+    LLM_URL = os.getenv('LLM_URL', 'http://ollama:11434')
+    LLM_MODEL = os.getenv('LLM_MODEL', 'mistral')
+    LLM_API_KEY = os.getenv('LLM_API_KEY', '')
+    LLM_ENABLED = os.getenv('LLM_ENABLED', 'false').lower() == 'true'
 
 
 class DevelopmentConfig(Config):

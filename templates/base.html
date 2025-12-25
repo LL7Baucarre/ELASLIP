@@ -666,6 +666,11 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
+                    <i class="bi bi-file-earmark-pdf"></i> Reports
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
                     <i class="bi bi-file-earmark-code"></i> API Docs
                 </a>

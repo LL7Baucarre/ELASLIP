@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Generated Reports - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Generated Reports</h4>
+        <small class="text-muted">Track and view all generated LLM reports</small>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Reports History</h6>
+                    <button class="btn btn-sm btn-primary" onclick="loadReports()">
+                        <i class="bi bi-arrow-clockwise me-2"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="reportsContainer" class="table-responsive">
+                    <div class="text-center p-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadReports();
+    // Auto-refresh every 5 seconds
+    setInterval(loadReports, 5000);
+});
+
+async function loadReports() {
+    try {
+        const response = await fetch('/api/reports/list');
+        if (!response.ok) {
+            throw new Error('Failed to load reports');
+        }
+        
+        const data = await response.json();
+        displayReports(data.reports);
+    } catch (error) {
+        console.error('Error loading reports:', error);
+        document.getElementById('reportsContainer').innerHTML = 
+            `<div class="alert alert-danger m-3">Error loading reports: ${escapeHtml(error.message)}</div>`;
+    }
+}
+
+function displayReports(reports) {
+    const container = document.getElementById('reportsContainer');
+    
+    if (!reports || reports.length === 0) {
+        container.innerHTML = '<div class="alert alert-info m-3">No reports yet. Generate your first report!</div>';
+        return;
+    }
+    
+    let html = `
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Type</th>
+                    <th>Entity</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    for (const report of reports) {
+        const statusBadge = getStatusBadge(report.status);
+        const duration = calculateDuration(report.started_at, report.completed_at);
+        const created = new Date(report.created_at).toLocaleString();
+        const entityDisplay = truncate(report.entity_id, 40);
+        
+        html += `
+            <tr>
+                <td><span class="badge bg-secondary">${escapeHtml(report.type.toUpperCase())}</span></td>
+                <td><code>${escapeHtml(entityDisplay)}</code></td>
+                <td>${statusBadge}</td>
+                <td><small>${created}</small></td>
+                <td><small>${duration}</small></td>
+                <td>
+                    ${getActionButtons(report)}
+                </td>
+            </tr>
+        `;
+    }
+    
+    html += `
+            </tbody>
+        </table>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function getStatusBadge(status) {
+    const badges = {
+        'pending': '<span class="badge bg-warning">Pending</span>',
+        'processing': '<span class="badge bg-info"><span class="spinner-border spinner-border-sm me-2"></span>Processing</span>',
+        'completed': '<span class="badge bg-success">Completed</span>',
+        'failed': '<span class="badge bg-danger">Failed</span>'
+    };
+    return badges[status] || `<span class="badge bg-secondary">${escapeHtml(status)}</span>`;
+}
+
+function calculateDuration(started, completed) {
+    if (!started || !completed) return '-';
+    
+    const start = new Date(started);
+    const end = new Date(completed);
+    const diff = Math.round((end - start) / 1000);
+    
+    if (diff < 60) return `${diff}s`;
+    if (diff < 3600) return `${Math.round(diff / 60)}m`;
+    return `${Math.round(diff / 3600)}h`;
+}
+
+function getActionButtons(report) {
+    let buttons = '';
+    
+    if (report.status === 'completed') {
+        buttons += `
+            <button class="btn btn-sm btn-outline-primary" onclick="viewReport('${report.task_id}')">
+                <i class="bi bi-eye"></i> View
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="downloadReport('${report.task_id}')">
+                <i class="bi bi-download"></i> Download
+            </button>
+        `;
+    } else if (report.status === 'failed') {
+        buttons += `<button class="btn btn-sm btn-outline-danger" onclick="showError(${JSON.stringify(report.error)})">
+                <i class="bi bi-exclamation-triangle"></i> Error
+            </button>`;
+    } else {
+        buttons += `<small class="text-muted">In progress...</small>`;
+    }
+    
+    return buttons;
+}
+
+function truncate(str, length) {
+    return str.length > length ? str.substring(0, length) + '...' : str;
+}
+
+async function viewReport(taskId) {
+    try {
+        const response = await fetch(`/api/reports/view/${taskId}`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to load report');
+        }
+        
+        const report = await response.json();
+        window.location.href = `/report?type=${report.type}&id=${report.entity_id}&task_id=${taskId}`;
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+function downloadReport(taskId) {
+    // Trigger download of markdown file
+    fetch(`/api/reports/view/${taskId}`)
+        .then(r => r.json())
+        .then(data => {
+            let markdown = '';
+            
+            if (data.type === 'ioc') {
+                markdown = `## IOC Details
+
+| Field | Value |
+|-------|-------|
+| **Type** | \`${data.ioc_type}\` |
+| **Value** | \`${data.ioc_value}\` |
+| **Related Indicators** | ${data.relations_count} |
+
+## Analysis
+
+${data.analysis}
+`;
+            } else if (data.type === 'case') {
+                markdown = `## Case Summary
+
+| Field | Value |
+|-------|-------|
+| **Name** | ${data.case_name} |
+| **Incidents** | ${data.incidents_count} |
+| **IOCs** | ${data.iocs_count} |
+
+## Investigation Report
+
+${data.report}
+`;
+            } else if (data.type === 'incident') {
+                markdown = `## Incident Summary
+
+| Field | Value |
+|-------|-------|
+| **Name** | ${data.incident_name} |
+| **Associated IOCs** | ${data.iocs_count} |
+
+## Threat Analysis
+
+${data.analysis}
+`;
+            }
+            
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/markdown;charset=utf-8,' + encodeURIComponent(markdown));
+            element.setAttribute('download', `report-${data.type}-${taskId}.md`);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        });
+}
+
+function showError(error) {
+    alert(`Error: ${error}`);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
+<style>
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.25em;
+}
+</style>
+{% endblock %}

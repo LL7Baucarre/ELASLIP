@@ -24,6 +24,9 @@
             <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editCaseModal">
                 <i class="bi bi-pencil me-1"></i> Edit
             </button>
+            <a href="/report?type=case&id={{ case.id }}" class="btn btn-outline-info" target="_blank">
+                <i class="bi bi-file-text me-1"></i> Generate Report
+            </a>
             <button class="btn btn-outline-danger" onclick="deleteCase()">
                 <i class="bi bi-trash me-1"></i> Delete
             </button>

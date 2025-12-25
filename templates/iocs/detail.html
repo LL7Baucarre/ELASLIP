@@ -190,6 +190,9 @@
         <button class="btn btn-outline-danger" id="deleteBtn">
             <i class="bi bi-trash me-1"></i> Delete
         </button>
+        <a href="/report?type=ioc&id={{ ioc.id }}" class="btn btn-outline-info" target="_blank">
+            <i class="bi bi-file-text me-1"></i> Generate Report
+        </a>
         <a href="{{ url_for('main.iocs_list') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Back
         </a>
