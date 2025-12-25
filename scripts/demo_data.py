@@ -8,6 +8,7 @@ import os
 import sys
 import random
 import uuid
+import secrets
 from datetime import datetime, timedelta
 
 # Add parent directory to path
@@ -17,8 +18,9 @@ from app import create_app
 from app.services.ioc_service import IOCService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.case_service import CaseService, IncidentService, TimelineService
-from app.services.comment_service import CommentService
+from app.services.comment_service import CommentService, SnippetService
 from app.services.audit_service import AuditService
+from app.auth import User, APIKey
 
 
 # Check if demo data generation is enabled
@@ -113,6 +115,98 @@ def generate_timeline_event():
         "Intelligence shared with partner organizations"
     ]
     return random.choice(events)
+
+
+def generate_snippet():
+    """Generate a random code snippet."""
+    snippet_templates = [
+        {
+            'title': 'YARA Rule - Malware Detection',
+            'category': 'detection',
+            'content': '''rule DetectMalware {
+    meta:
+        description = "Detects common malware patterns"
+        author = "Demo Analyst"
+    strings:
+        $a = "malware_c2" nocase
+        $b = {4D 5A 90 00}  // MZ header
+    condition:
+        any of them
+}'''
+        },
+        {
+            'title': 'STIX Pattern - Command & Control Detection',
+            'category': 'detection',
+            'content': '''[ipv4-addr:value = '192.168.1.1' OR domain-name:value = 'malicious.com'] AND
+[network-traffic:src_ref.type = 'ipv4-addr' AND network-traffic:dst_ref.value = '10.0.0.1']'''
+        },
+        {
+            'title': 'Incident Response Checklist',
+            'category': 'procedures',
+            'content': '''# Incident Response Steps
+
+1. **Triage**: Validate the alert and determine severity
+2. **Containment**: Isolate affected systems immediately
+3. **Investigation**: Gather logs and forensic evidence
+4. **Analysis**: Determine root cause and impact
+5. **Eradication**: Remove all malicious artifacts
+6. **Recovery**: Restore systems to safe state
+7. **Lessons Learned**: Post-incident review'''
+        },
+        {
+            'title': 'Phishing Email Analysis Template',
+            'category': 'templates',
+            'content': '''# Email Analysis Report
+
+**From**: [sender email]
+**Subject**: [email subject]
+**Received**: [timestamp]
+
+## Indicators
+- SPF Check: [PASS/FAIL]
+- DKIM Check: [PASS/FAIL]
+- DMARC Check: [PASS/FAIL]
+- Reply-To Analysis: [PASS/FAIL]
+
+## Suspicious Elements
+- URLs: [list URLs]
+- Attachments: [list files]
+- Embedded Objects: [descriptions]
+
+## Verdict
+[Safe / Suspicious / Malicious]'''
+        },
+        {
+            'title': 'Threat Intelligence Report Template',
+            'category': 'templates',
+            'content': '''# Threat Intelligence Report
+
+## Executive Summary
+[High-level overview of threat]
+
+## Technical Analysis
+### Infrastructure
+- IP Addresses: [list]
+- Domains: [list]
+- URLs: [list]
+
+### Malware Capabilities
+- Type: [ransomware/trojan/etc]
+- C2 Protocol: [protocol used]
+- Persistence Mechanism: [methods]
+
+## Attribution
+- Threat Actor: [APT group]
+- Confidence: [High/Medium/Low]
+- Motivation: [financial/espionage/etc]
+
+## Recommendations
+1. [mitigation step]
+2. [detection step]
+3. [hunting step]'''
+        }
+    ]
+    return random.choice(snippet_templates)
 
 
 def generate_random_iocs(count=100):
@@ -330,9 +424,141 @@ def populate_demo_data():
         
         print(f"   ✓ Created {created_relations} case-incident relationships")
         
+        # Create demo users
+        print("\n4. Creating demo users...")
+        created_users = []
+        user_names = [
+            ('analyst1', 'analyst1@demo.local', 'Demo Analyst 1'),
+            ('analyst2', 'analyst2@demo.local', 'Demo Analyst 2'),
+            ('manager', 'manager@demo.local', 'Demo Manager')
+        ]
+        
+        for username, email, display_name in user_names:
+            try:
+                user, error = User.create(username, email, 'demo_password_123', is_admin=False, role='analyst')
+                if user:
+                    created_users.append(user)
+                    print(f"   Created user: {username}")
+                else:
+                    print(f"   User {username} already exists")
+            except Exception as e:
+                print(f"      Warning: Failed to create user {username}: {str(e)}")
+        
+        print(f"   ✓ Created {len(created_users)} users")
+        
+        # Create API keys
+        print("\n5. Creating API keys...")
+        api_keys_created = 0
+        users_for_api_keys = created_users if created_users else []
+        for user in users_for_api_keys[:1]:  # Create API key for first user
+            try:
+                key, key_obj = APIKey.create(user.id, 'Demo API Key')
+                api_keys_created += 1
+                api_key_user_id = user.id
+                print(f"   Created API key for user: {user.username}")
+                # Don't print the actual key, just confirmation
+            except Exception as e:
+                print(f"      Warning: Failed to create API key: {str(e)}")
+        
+        # Use first user's ID for remaining resources, or admin ID if no users created
+        resource_user_id = api_key_user_id if created_users else 'a0e04ea15f41c020'  # admin default ID
+        
+        print(f"   ✓ Created {api_keys_created} API keys")
+        
+        # Create external API configuration
+        print("\n6. Creating external API configuration...")
+        es = ElasticsearchService()
+        external_api_created = 0
+        
+        try:
+            external_api_id = secrets.token_hex(16)
+            external_api_config = {
+                'id': external_api_id,
+                'user_id': resource_user_id,
+                'name': 'VirusTotal API',
+                'description': 'Integration with VirusTotal for file and URL analysis',
+                'url': 'https://www.virustotal.com/api/v3/files/{value}',
+                'method': 'GET',
+                'headers': {
+                    'x-apikey': 'demo_api_key_xyz123'
+                },
+                'auth_type': 'header',
+                'auth_token': None,
+                'ioc_types': ['md5', 'sha1', 'sha256', 'url'],
+                'enabled': True,
+                'timeout': 30,
+                'template': {
+                    'ioc_type': '$.data.type',
+                    'value': '$.data.attributes.sha256',
+                    'labels': '$.data.attributes.tags',
+                    'threat_level': '$.data.attributes.last_analysis_stats.malicious'
+                },
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            es.index('api_configs', external_api_id, external_api_config)
+            external_api_created += 1
+            print(f"   Created external API: {external_api_config['name']}")
+        except Exception as e:
+            print(f"      Warning: Failed to create external API: {str(e)}")
+        
+        print(f"   ✓ Created {external_api_created} external API configurations")
+        
+        # Create webhook
+        print("\n7. Creating webhook...")
+        webhooks_created = 0
+        
+        try:
+            webhook_id = secrets.token_hex(16)
+            webhook = {
+                'id': webhook_id,
+                'user_id': resource_user_id,
+                'name': 'Demo Webhook - Slack Integration',
+                'url': 'https://hooks.slack.com/services/demo/webhook/url',
+                'events': ['ioc.created', 'ioc.updated'],
+                'enabled': True,
+                'created_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat()
+            }
+            es.index('webhooks', webhook_id, webhook)
+            webhooks_created += 1
+            print(f"   Created webhook: {webhook['name']}")
+        except Exception as e:
+            print(f"      Warning: Failed to create webhook: {str(e)}")
+        
+        print(f"   ✓ Created {webhooks_created} webhooks")
+        
+        # Create snippets
+        print("\n8. Creating snippets...")
+        snippet_service = SnippetService()
+        snippets_created = 0
+        
+        for i in range(5):
+            try:
+                snippet_data = generate_snippet()
+                snippet = snippet_service.create_snippet(
+                    data={
+                        'title': snippet_data['title'],
+                        'description': f'Demo snippet for {snippet_data["category"]}',
+                        'content': snippet_data['content'],
+                        'category': snippet_data['category'],
+                        'tags': ['demo', 'documentation'],
+                        'is_global': True
+                    },
+                    user_id='demo_user',
+                    username='Demo Analyst'
+                )
+                snippets_created += 1
+                if (i + 1) % 2 == 0:
+                    print(f"   Created {i + 1}/5 snippets...")
+            except Exception as e:
+                print(f"      Warning: Failed to create snippet: {str(e)}")
+        
+        print(f"   ✓ Created {snippets_created} snippets")
+        
         # Create random relationships between IOCs
         if len(created_ids) > 1:
-            print("\n4. Creating random IOC relationships...")
+            print("\n9. Creating random IOC relationships...")
             relation_types = [
                 'communicates-with',
                 'exploits',
@@ -385,7 +611,7 @@ def populate_demo_data():
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         
         # Add comments to IOCs
-        print("\n5. Adding comments to IOCs...")
+        print("\n10. Adding comments to IOCs...")
         comment_service = CommentService()
         ioc_comments_created = 0
         
@@ -408,7 +634,7 @@ def populate_demo_data():
         print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
         
         # Add comments to cases
-        print("\n6. Adding comments to cases...")
+        print("\n11. Adding comments to cases...")
         case_comments_created = 0
         
         for case in created_cases:
@@ -430,7 +656,7 @@ def populate_demo_data():
         print(f"   ✓ Created {case_comments_created} comments on cases")
         
         # Add comments to incidents
-        print("\n7. Adding comments to incidents...")
+        print("\n12. Adding comments to incidents...")
         incident_comments_created = 0
         
         for incident in created_incidents:
@@ -452,7 +678,7 @@ def populate_demo_data():
         print(f"   ✓ Created {incident_comments_created} comments on incidents")
         
         # Create timeline events (audit log entries)
-        print("\n8. Creating timeline events...")
+        print("\n13. Creating timeline events...")
         timeline_service = TimelineService()
         timeline_events_created = 0
         
@@ -513,6 +739,11 @@ def populate_demo_data():
         print(f"Total incidents created: {len(created_incidents)}")
         print(f"Total incident comments: {incident_comments_created}")
         print(f"Total timeline events: {timeline_events_created}")
+        print(f"Total demo users created: {len(created_users)}")
+        print(f"Total API keys created: {api_keys_created}")
+        print(f"Total external API configs: {external_api_created}")
+        print(f"Total webhooks created: {webhooks_created}")
+        print(f"Total snippets created: {snippets_created}")
         print("=" * 60)
 
 

@@ -6,7 +6,8 @@ from datetime import datetime
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.cache_service import CacheService
 from app.services.ioc_service import IOCService
-from app.services.case_service import CaseService, IncidentService
+from app.services.case_service import CaseService, IncidentService, TimelineService
+from app.services.comment_service import CommentService
 from app.config import Config
 import os
 
@@ -21,6 +22,8 @@ class ReportService:
         self.ioc_service = IOCService()
         self.case_service = CaseService()
         self.incident_service = IncidentService()
+        self.timeline_service = TimelineService()
+        self.comment_service = CommentService()
         
         # Try to load config from Elasticsearch first
         try:
@@ -157,8 +160,12 @@ class ReportService:
         # Get IOCs related to case
         iocs = self._get_case_iocs(case_id)
         
+        # Get timeline and comments
+        timeline = self._get_timeline_events(case_id=case_id)
+        comments = self._get_comments('case', case_id)
+        
         # Build prompt
-        prompt = self._build_case_prompt(case, incidents, iocs)
+        prompt = self._build_case_prompt(case, incidents, iocs, timeline, comments)
         
         # Generate report
         report = self._call_llm(prompt)
@@ -190,8 +197,12 @@ class ReportService:
         # Get related IOCs
         iocs = self._get_incident_iocs(incident_id)
         
+        # Get timeline and comments
+        timeline = self._get_timeline_events(incident_id=incident_id)
+        comments = self._get_comments('incident', incident_id)
+        
         # Build prompt
-        prompt = self._build_incident_prompt(incident, iocs)
+        prompt = self._build_incident_prompt(incident, iocs, timeline, comments)
         
         # Generate analysis
         analysis = self._call_llm(prompt)
@@ -293,6 +304,62 @@ class ReportService:
             except Exception:
                 pass
         return items
+    
+    def _get_timeline_events(self, case_id: str = None, incident_id: str = None) -> List[Dict]:
+        """Get timeline events for a case or incident."""
+        try:
+            query = {'bool': {'should': [], 'minimum_should_match': 1}}
+            
+            if case_id:
+                query['bool']['should'].append({'term': {'case_id': case_id}})
+            if incident_id:
+                query['bool']['should'].append({'term': {'incident_id': incident_id}})
+            
+            if not query['bool']['should']:
+                return []
+            
+            result = self.es.search('timeline_events', {
+                'query': query,
+                'sort': [{'event_time': {'order': 'asc'}}],
+                'size': 50
+            })
+            
+            items = []
+            for hit in result.get('hits', {}).get('hits', []):
+                doc = hit['_source']
+                doc['id'] = hit['_id']
+                items.append(doc)
+            return items
+        except Exception:
+            return []
+    
+    def _get_comments(self, entity_type: str, entity_id: str) -> List[Dict]:
+        """Get comments for an entity (IOC, case, or incident)."""
+        try:
+            result = self.es.search('comments', {
+                'query': {
+                    'bool': {
+                        'must': [
+                            {'term': {'entity_type': entity_type}},
+                            {'term': {'entity_id': entity_id}}
+                        ],
+                        'must_not': [
+                            {'exists': {'field': 'parent_id'}}
+                        ]
+                    }
+                },
+                'sort': [{'created_at': {'order': 'asc'}}],
+                'size': 50
+            })
+            
+            items = []
+            for hit in result.get('hits', {}).get('hits', []):
+                doc = hit['_source']
+                doc['id'] = hit['_id']
+                items.append(doc)
+            return items
+        except Exception:
+            return []
     
     def _build_detailed_relations_context(self, ioc: Dict, relations: List[Dict], max_relations: int = 15) -> str:
         """
@@ -573,8 +640,13 @@ Please provide in **Markdown format**:
 4. Recommended mitigation and detection steps
 5. Summary of the threat landscape based on the indicator network"""
     
-    def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict]) -> str:
+    def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for case analysis."""
+        if timeline is None:
+            timeline = []
+        if comments is None:
+            comments = []
+        
         # Format incident details with more info
         incidents_text = '\n'.join([
             f"- {i.get('title', i.get('name', 'Unknown'))}: {i.get('description', 'N/A')} (Type: {i.get('category', i.get('type', 'N/A'))})"
@@ -586,6 +658,28 @@ Please provide in **Markdown format**:
             f"- {i.get('type')}: {i.get('value') or i.get('pattern', 'N/A')} (Severity: {i.get('x_metadata', {}).get('threat_level', i.get('severity', 'N/A'))})"
             for i in iocs[:15]
         ]) or "No IOCs"
+        
+        # Format timeline events
+        timeline_text = "No timeline events"
+        if timeline:
+            event_list = []
+            for event in timeline[:15]:  # Limit to 15 events
+                timestamp = event.get('event_time', event.get('timestamp', 'Unknown'))
+                event_type = event.get('event_type', event.get('type', 'Event'))
+                description = event.get('description', '')
+                event_list.append(f"  - [{timestamp}] {event_type}: {description}")
+            timeline_text = '\n'.join(event_list)
+        
+        # Format analyst comments
+        comments_text = "No comments"
+        if comments:
+            comment_list = []
+            for comment in comments[:10]:  # Limit to 10 comments
+                author = comment.get('created_by_name', 'Unknown')
+                created = comment.get('created_at', 'Unknown')
+                content = comment.get('content', '')
+                comment_list.append(f"  - [{created}] {author}: {content[:150]}{'...' if len(content) > 150 else ''}")
+            comments_text = '\n'.join(comment_list)
         
         # Use custom prompt if available
         if self.custom_prompt_case:
@@ -609,18 +703,6 @@ Please provide in **Markdown format**:
         updated_at = case.get('updated_at', 'Unknown')
         severity = case.get('severity', 'Medium')
         
-        # Format timeline events if available
-        timeline_text = "No timeline events"
-        timeline_events = case.get('timeline_events', [])
-        if timeline_events:
-            event_list = []
-            for event in timeline_events[:10]:  # Limit to 10 events
-                timestamp = event.get('timestamp', 'Unknown time')
-                event_type = event.get('type', 'Event')
-                description = event.get('description', '')
-                event_list.append(f"  - [{timestamp}] {event_type}: {description}")
-            timeline_text = '\n'.join(event_list)
-        
         return f"""Generate a comprehensive investigation report for this security case:
 
 ## Case Details
@@ -633,8 +715,11 @@ Please provide in **Markdown format**:
 ## Case Description
 {case.get('description', 'No description provided')}
 
-## Timeline
+## Timeline of Events
 {timeline_text}
+
+## Analyst Comments and Observations
+{comments_text}
 
 ## Case Metadata
 - **Created**: {created_at}
@@ -653,11 +738,17 @@ Please provide in **Markdown format**:
 4. Compromised Assets
 5. Indicators and their significance
 6. Person/Team in charge and responsibilities
-7. Recommended Actions
-8. Risk Level Assessment"""
+7. Analyst Observations and Findings (synthesize comments)
+8. Recommended Actions
+9. Risk Level Assessment"""
     
-    def _build_incident_prompt(self, incident: Dict, iocs: List[Dict]) -> str:
+    def _build_incident_prompt(self, incident: Dict, iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for incident analysis."""
+        if timeline is None:
+            timeline = []
+        if comments is None:
+            comments = []
+        
         # Format IOC details - handle STIX pattern format
         iocs_text = '\n'.join([
             f"- {i.get('type')}: {i.get('value') or i.get('pattern', 'N/A')} (Severity: {i.get('x_metadata', {}).get('threat_level', i.get('severity', 'N/A'))})"
@@ -681,27 +772,26 @@ Please provide in **Markdown format**:
         
         # Format timeline events
         timeline_text = "No timeline events"
-        timeline_events = incident.get('timeline_events', [])
-        if timeline_events:
+        if timeline:
             event_list = []
-            for event in timeline_events[:15]:  # Limit to 15 events
-                timestamp = event.get('timestamp', 'Unknown time')
-                event_type = event.get('type', 'Event')
+            for event in timeline[:15]:  # Limit to 15 events
+                timestamp = event.get('event_time', event.get('timestamp', 'Unknown'))
+                event_type = event.get('event_type', event.get('type', 'Event'))
                 description = event.get('description', '')
                 event_list.append(f"  - [{timestamp}] {event_type}: {description}")
             timeline_text = '\n'.join(event_list)
         
-        # Format comments
-        comments_text = "No comments"
-        comments = incident.get('comments', [])
+        # Format comments from the comments parameter
+        comments_text = "No analyst comments"
         if comments:
             comment_list = []
             for comment in comments[:10]:  # Limit to 10 comments
-                author = comment.get('author', 'Unknown')
-                created = comment.get('created_at', 'Unknown time')
-                text = comment.get('text', comment.get('content', ''))
-                comment_list.append(f"  - [{created}] {author}: {text[:150]}{'...' if len(text) > 150 else ''}")
-            comments_text = '\n'.join(comment_list)
+                author = comment.get('created_by_name', 'Unknown')
+                created = comment.get('created_at', 'Unknown')
+                content = comment.get('content', '')
+                comment_list.append(f"  - [{created}] {author}: {content[:150]}{'...' if len(content) > 150 else ''}")
+            if comment_list:
+                comments_text = '\n'.join(comment_list)
         
         # Format MITRE tactics/techniques
         tactics_text = "No MITRE ATT&CK data"
@@ -729,7 +819,7 @@ Please provide in **Markdown format**:
 ## Timeline of Events
 {timeline_text}
 
-## Analyst Comments
+## Analyst Comments and Observations
 {comments_text}
 
 ## MITRE ATT&CK Mapping
@@ -748,6 +838,6 @@ Please provide in **Markdown format**:
 2. Attack Vector Analysis (include MITRE tactics/techniques)
 3. Affected Systems and Assets
 4. Indicators and their role in the incident
-5. Key Analyst Observations (synthesize comments)
+5. Key Analyst Observations (synthesize comments from the analyst comments section above)
 6. Immediate Actions Required
 7. Long-term Recommendations and Lessons Learned"""
