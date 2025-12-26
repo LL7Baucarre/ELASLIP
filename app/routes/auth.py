@@ -39,7 +39,6 @@ def login():
         
         if user and user.check_password(password):
             login_user(user)
-            user.update_last_login()
             
             if request.is_json:
                 return jsonify({

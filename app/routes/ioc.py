@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required, check_permission
 from app.services.ioc_service import IOCService
 from app.services.audit_service import AuditService
 from app.utils.pattern_generator import PatternGenerator
@@ -14,7 +15,7 @@ ioc_bp = Blueprint('ioc', __name__, url_prefix=None)
 
 
 @ioc_bp.route('/', methods=['POST'], strict_slashes=False)
-@login_or_api_key_required
+@permission_required('ioc.create')
 def create_ioc():
     """
     Create a new IOC.
@@ -285,7 +286,7 @@ def restore_version(ioc_id, version):
 # ============================================================
 
 @ioc_bp.route('/bulk/update', methods=['POST'])
-@login_or_api_key_required
+@permission_required('ioc.edit')
 def bulk_update():
     """
     Update multiple IOCs at once.
@@ -368,7 +369,7 @@ def bulk_update():
 
 
 @ioc_bp.route('/bulk/delete', methods=['POST'])
-@login_or_api_key_required
+@permission_required('ioc.delete')
 def bulk_delete():
     """
     Delete multiple IOCs at once.
@@ -430,7 +431,7 @@ def bulk_delete():
 
 
 @ioc_bp.route('/bulk/export', methods=['POST'])
-@login_or_api_key_required
+@permission_required('ioc.export')
 def bulk_export():
     """
     Export multiple IOCs based on filters.
@@ -634,7 +635,7 @@ def archive_expired():
     return jsonify(result), 200
 
 @ioc_bp.route('', methods=['GET'])
-@login_or_api_key_required
+@permission_required('ioc.view')
 def list_iocs():
     """
     List IOCs with pagination and filters.
@@ -747,7 +748,7 @@ def get_supported_types():
 
 
 @ioc_bp.route('/<ioc_id>', methods=['GET'])
-@login_or_api_key_required
+@permission_required('ioc.view')
 def get_ioc(ioc_id):
     """Get a single IOC by ID."""
     service = IOCService()
@@ -761,7 +762,7 @@ def get_ioc(ioc_id):
 
 
 @ioc_bp.route('/<ioc_id>', methods=['PUT', 'PATCH'])
-@login_or_api_key_required
+@permission_required('ioc.edit')
 def update_ioc(ioc_id):
     """
     Update an IOC.
@@ -848,7 +849,7 @@ def update_ioc(ioc_id):
 
 
 @ioc_bp.route('/<ioc_id>', methods=['DELETE'])
-@login_or_api_key_required
+@permission_required('ioc.delete')
 def delete_ioc(ioc_id):
     """
     Delete an IOC.
@@ -1053,7 +1054,7 @@ def create_from_stix():
 # ============================================================
 
 @ioc_bp.route('/<ioc_id>/enrich', methods=['POST'])
-@login_or_api_key_required
+@permission_required('ioc.enrich')
 def enrich_ioc(ioc_id):
     """
     Enrich an IOC and return raw API results for user selection (STIX 2.1 compliant).

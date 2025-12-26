@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.tools_service import ToolsService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.utils.request_helpers import get_pagination_params, build_filters_dict
@@ -52,6 +53,7 @@ def _save_scan_result(tool_name: str, target: str, result: dict, extra_fields: d
 
 @tools_bp.route('/whois', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def whois_lookup():
     """
     Perform WHOIS lookup.
@@ -108,6 +110,7 @@ def whois_lookup():
 
 @tools_bp.route('/ping', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def ping():
     """
     Perform ICMP ping.
@@ -181,6 +184,7 @@ def ping():
 
 @tools_bp.route('/nmap', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def nmap_scan():
     """
     Perform Nmap scan.
@@ -283,6 +287,7 @@ def nmap_scan():
 
 @tools_bp.route('/traceroute', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def traceroute():
     """
     Perform traceroute.
@@ -342,6 +347,7 @@ def traceroute():
 
 @tools_bp.route('/dig', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def dig_lookup():
     """
     Perform DNS lookup using dig.
@@ -399,6 +405,7 @@ def dig_lookup():
 
 @tools_bp.route('/reverse-dns', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def reverse_dns():
     """
     Perform reverse DNS lookup.
@@ -448,6 +455,7 @@ def reverse_dns():
 
 @tools_bp.route('/batch', methods=['POST'])
 @login_or_api_key_required
+@permission_required('tools.execute')
 def batch_scan():
     """
     Queue multiple scans for batch processing.

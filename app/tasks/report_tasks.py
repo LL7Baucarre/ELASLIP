@@ -323,3 +323,141 @@ def generate_incident_reports():
             'status': 'error',
             'error': str(e)
         }
+
+
+@shared_task(name='tasks.generate_checklist_report')
+def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
+    """
+    Generate a report for a checklist asynchronously.
+    
+    Args:
+        checklist_id: The checklist document ID
+        user_id: User ID who initiated the report
+    """
+    import sys
+    import uuid
+    
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    
+    # Get task ID - will be None if not run via Celery
+    try:
+        task_id = generate_checklist_report.request.id
+    except:
+        task_id = str(uuid.uuid4())
+    
+    print(f"DEBUG: Starting checklist report generation. Task ID: {task_id}, Checklist ID: {checklist_id}", file=sys.stderr)
+    
+    # Initialize report_entry early for error handling
+    report_entry = {
+        'id': task_id,
+        'type': 'checklist',
+        'entity_id': checklist_id,
+        'status': 'pending',
+        'created_at': datetime.utcnow().isoformat(),
+        'started_at': None,
+        'completed_at': None,
+        'user_id': user_id,
+        'error': None,
+        'report_data': None
+    }
+    
+    try:
+        # Get checklist data
+        from app.services.checklist_service import ChecklistService
+        checklist_service = ChecklistService()
+        checklist = checklist_service.get_checklist(checklist_id)
+        
+        print(f"DEBUG: Retrieved checklist: {checklist is not None}", file=sys.stderr)
+        
+        if not checklist:
+            report_entry['status'] = 'failed'
+            report_entry['error'] = 'Checklist not found'
+            report_entry['completed_at'] = datetime.utcnow().isoformat()
+            es.index('app_config', f'report_{task_id}', report_entry)
+            return {'status': 'error', 'error': 'Checklist not found', 'task_id': task_id}
+        
+        # Save pending report
+        print(f"DEBUG: Saving pending report to {f'report_{task_id}'}", file=sys.stderr)
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        # Update status to processing
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        # Generate report
+        report_data = {
+            'title': checklist.get('title', 'Untitled Checklist'),
+            'description': checklist.get('description', ''),
+            'status': checklist.get('status', 'unknown'),
+            'items': checklist.get('items', []),
+            'created_by': checklist.get('created_by', 'unknown'),
+            'created_at': checklist.get('created_at'),
+            'generated_at': datetime.utcnow().isoformat()
+        }
+        
+        print(f"DEBUG: Generated report data with {len(report_data.get('items', []))} items", file=sys.stderr)
+        
+        # Call LLM to enhance the report if configured
+        if report_service.is_configured():
+            print(f"DEBUG: LLM is configured, generating enhanced report", file=sys.stderr)
+            try:
+                enhanced = report_service.generate_checklist_report(checklist_id)
+                print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
+                report_data['enhanced_report'] = enhanced.get('analysis', '')
+            except Exception as llm_err:
+                print(f"DEBUG: LLM enhancement failed: {str(llm_err)}", file=sys.stderr)
+                # Continue without LLM enhancement
+        else:
+            print(f"DEBUG: LLM not configured, skipping enhancement", file=sys.stderr)
+        
+        # Save completed report
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = checklist.get('title', checklist_id)
+        
+        print(f"DEBUG: Saving completed report", file=sys.stderr)
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        print(f"DEBUG: Report saved successfully. Stored at app_config/report_{task_id}", file=sys.stderr)
+        
+        audit.log(
+            action='report_generated',
+            entity_type='checklist',
+            entity_id=checklist_id,
+            username=user_id,
+            entity_name=f'Checklist Report {checklist_id}',
+            changes={'task_id': task_id}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        import traceback
+        print(f"DEBUG: Exception in generate_checklist_report: {str(e)}", file=sys.stderr)
+        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
+        
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        
+        try:
+            es.index('app_config', f'report_{task_id}', report_entry)
+        except Exception as save_err:
+            print(f"DEBUG: Failed to save error report: {str(save_err)}", file=sys.stderr)
+        
+        audit.log(
+            action='report_generation_failed',
+            entity_type='checklist',
+            entity_id=checklist_id,
+            username=user_id,
+            entity_name=f'Checklist Report {checklist_id}',
+            changes={'error': str(e)}
+        )
+        
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}

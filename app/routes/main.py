@@ -6,9 +6,27 @@ import os
 from dotenv import load_dotenv, set_key
 
 from app.services.ioc_service import IOCService
+from app.services.rbac_service import RBACService, DEFAULT_ROLES
 from app.auth import User
+from app.decorators import permission_required
 
 main_bp = Blueprint('main', __name__)
+
+
+def get_all_valid_roles():
+    """Get all valid roles (default + custom)."""
+    rbac = RBACService()
+    # Start with default roles
+    roles = list(DEFAULT_ROLES.keys())
+    # Add custom roles from database
+    try:
+        custom_roles = rbac.get_all_roles()
+        for role in custom_roles:
+            if not role.get('is_system') and role['name'] not in roles:
+                roles.append(role['name'])
+    except Exception:
+        pass  # If database is not ready, just use default roles
+    return roles
 
 
 def make_ioc_template_friendly(ioc):
@@ -166,6 +184,7 @@ def iocs_graph():
 
 @main_bp.route('/activity')
 @login_required
+@permission_required('admin.audit')
 def activity_timeline():
     """Activity timeline page."""
     return render_template('activity.html')
@@ -417,6 +436,7 @@ def import_page():
 
 @main_bp.route('/tools')
 @login_required
+@permission_required('tools.execute', 'tools.view', require_all=False)
 def tools_page():
     """Tools page for WHOIS and Nmap scans."""
     return render_template('tools.html')
@@ -486,6 +506,14 @@ def settings_external_apis():
 def settings_webhooks():
     """Webhooks settings page."""
     return render_template('settings/webhooks.html')
+
+
+@main_bp.route('/settings/roles')
+@login_required
+@admin_required
+def settings_roles():
+    """Roles and permissions management page (admin only)."""
+    return render_template('settings/roles.html')
 
 
 @main_bp.route('/settings/scheduled-tasks')
@@ -667,7 +695,7 @@ def create_user():
     role = data.get('role', 'viewer').strip()
     
     # Validate role
-    valid_roles = ['viewer', 'analyst', 'admin']
+    valid_roles = get_all_valid_roles()
     if role not in valid_roles:
         if request.is_json:
             return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
@@ -740,7 +768,7 @@ def edit_user(user_id):
     # Handle role update
     if 'role' in data:
         role = data.get('role', '').strip()
-        valid_roles = ['viewer', 'analyst', 'admin']
+        valid_roles = get_all_valid_roles()
         if role not in valid_roles:
             if request.is_json:
                 return jsonify({'error': f'Invalid role. Must be one of: {", ".join(valid_roles)}'}), 400
@@ -760,6 +788,13 @@ def edit_user(user_id):
             update_data['password'] = password
     
     user.update(**update_data)
+    
+    # If user is editing themselves, reload current_user to reflect any role/permission changes
+    if user_id == current_user.id and 'role' in update_data:
+        # Reload current_user from database to get updated properties
+        current_user.is_admin = user.is_admin
+        current_user.role = user.role
+        current_user._permissions = None  # Reset cached permissions
     
     if request.is_json:
         return jsonify({'message': 'User updated successfully', 'user': user.to_dict()})
@@ -860,6 +895,7 @@ def incidents_detail(incident_id):
 
 @main_bp.route('/snippets')
 @login_required
+@permission_required('snippet.view', 'snippet.create', require_all=False)
 def snippets_library():
     """Markdown snippets library page."""
     return render_template('snippets/library.html')

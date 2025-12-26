@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Error - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h1 class="display-1 text-danger">{{ status }}</h1>
+                    <h4 class="card-title mb-3">
+                        {% if status == 403 %}
+                            Access Denied
+                        {% elif status == 404 %}
+                            Page Not Found
+                        {% elif status == 500 %}
+                            Server Error
+                        {% else %}
+                            Error
+                        {% endif %}
+                    </h4>
+                    <p class="card-text text-muted">{{ error }}</p>
+                    
+                    <div class="mt-4">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+                            <i class="bi bi-house me-1"></i> Go Home
+                        </a>
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Go Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

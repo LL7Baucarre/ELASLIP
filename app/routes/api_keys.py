@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template
 from flask_login import login_required, current_user
 
+from app.decorators import permission_required
 from app.auth import APIKey
 
 api_keys_bp = Blueprint('api_keys', __name__)
@@ -22,6 +23,7 @@ def list_keys():
 
 @api_keys_bp.route('', methods=['POST'])
 @login_required
+@permission_required('api.keys.create')
 def create_key():
     """Create a new API key."""
     if request.is_json:
@@ -51,6 +53,7 @@ def create_key():
 
 @api_keys_bp.route('/<key_id>', methods=['DELETE'])
 @login_required
+@permission_required('api.keys.delete')
 def revoke_key(key_id):
     """Revoke an API key."""
     success = APIKey.revoke(key_id, current_user.id)

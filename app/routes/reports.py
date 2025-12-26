@@ -188,7 +188,7 @@ def test_llm_connection():
 
 @bp.route('/api/reports/iocs/<ioc_id>', methods=['GET'])
 @login_required
-@permission_required('ioc.view')
+@permission_required('report.generate_llm')
 def generate_ioc_report(ioc_id):
     """Launch async report generation for an IOC."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -209,7 +209,7 @@ def generate_ioc_report(ioc_id):
 
 @bp.route('/api/reports/cases/<case_id>', methods=['GET'])
 @login_required
-@permission_required('case.view')
+@permission_required('report.generate_llm')
 def generate_case_report(case_id):
     """Launch async report generation for a case."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -230,7 +230,7 @@ def generate_case_report(case_id):
 
 @bp.route('/api/reports/incidents/<incident_id>', methods=['GET'])
 @login_required
-@permission_required('incident.view')
+@permission_required('report.generate_llm')
 def generate_incident_report(incident_id):
     """Launch async report generation for an incident."""
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -246,6 +246,48 @@ def generate_incident_report(incident_id):
             'message': 'Report generation started'
         })
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/reports/checklists/<checklist_id>', methods=['GET'])
+@login_required
+@permission_required('checklist.generate_llm')
+def generate_checklist_report(checklist_id):
+    """Launch async report generation for a checklist."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    try:
+        from app.tasks.report_tasks import generate_checklist_report as task_generate_checklist
+        import uuid
+        
+        # Try to launch async task, but fallback to sync if Celery isn't available
+        try:
+            # Launch async task
+            task = task_generate_checklist.delay(checklist_id, current_user.username)
+            task_id = task.id
+        except Exception as celery_err:
+            # Fallback: generate report synchronously
+            import sys
+            print(f"DEBUG: Celery unavailable ({str(celery_err)}), generating report synchronously", file=sys.stderr)
+            task_id = str(uuid.uuid4())
+            result = task_generate_checklist(checklist_id, current_user.username)
+            # In sync mode, the report might already be completed
+            if result.get('status') == 'completed':
+                return jsonify({
+                    'task_id': task_id,
+                    'status': 'completed',
+                    'message': 'Report generation completed'
+                })
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report generation started'
+        })
+    except Exception as e:
+        import sys
+        print(f"DEBUG: Error in generate_checklist_report: {str(e)}", file=sys.stderr)
         return jsonify({'error': str(e)}), 500
 
 
@@ -323,7 +365,11 @@ def view_report(task_id):
         
         status = config.get('status')
         if status != 'completed':
-            return jsonify({'error': f'Report not yet completed (status: {status})'}), 400
+            return jsonify({
+                'error': f'Report not yet completed (status: {status})',
+                'status': status,
+                'task_id': task_id
+            }), 202  # 202 Accepted - request received but not completed yet
         
         report_data = config.get('report_data', {})
         report_data['task_id'] = task_id

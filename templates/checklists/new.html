@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}New Checklist - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">New Checklist</h1>
+        <a href="{{ url_for('checklists.list_page') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Create New Checklist</h5>
+                </div>
+                <div class="card-body">
+                    <form id="createChecklistForm">
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title *</label>
+                            <input type="text" class="form-control" id="title" required 
+                                   placeholder="Enter checklist title">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="3"
+                                      placeholder="Optional description for this checklist"></textarea>
+                        </div>
+
+                        <div class="alert alert-info" id="templateInfo" style="display: none;">
+                            <small>This checklist was created from a template. You can modify the items below.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Items</label>
+                            <div id="itemsContainer"></div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="addItemBtn">
+                                <i class="bi bi-plus me-1"></i> Add Item
+                            </button>
+                        </div>
+
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                            <a href="{{ url_for('checklists.list_page') }}" class="btn btn-outline-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i> Create Checklist
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Help</h6>
+                </div>
+                <div class="card-body small">
+                    <p><strong>Checklists</strong> are great for:</p>
+                    <ul class="mb-0">
+                        <li>Daily operational tasks</li>
+                        <li>Incident response procedures</li>
+                        <li>Investigation workflows</li>
+                        <li>Compliance audits</li>
+                        <li>Procedural documentation</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <p class="mb-0"><strong>Features:</strong></p>
+                    <ul class="mb-0">
+                        <li>Check off items as completed</li>
+                        <li>Export as Markdown</li>
+                        <li>Generate LLM reports</li>
+                        <li>Share and track progress</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let itemCount = 0;
+
+// Load template from localStorage if present
+function loadTemplateData() {
+    const templateData = localStorage.getItem('checklistTemplate');
+    if (templateData) {
+        try {
+            const template = JSON.parse(templateData);
+            document.getElementById('title').value = template.name || '';
+            document.getElementById('description').value = template.description || '';
+            
+            // Add template items
+            if (template.items && template.items.length > 0) {
+                template.items.forEach(item => {
+                    addItemRow();
+                    const rows = document.querySelectorAll('.item-row');
+                    const lastRow = rows[rows.length - 1];
+                    lastRow.querySelector('.item-title').value = item.title || '';
+                    lastRow.querySelector('.item-description').value = item.description || '';
+                });
+            }
+            
+            // Show template info alert
+            document.getElementById('templateInfo').style.display = 'block';
+            
+            // Clear the template data
+            localStorage.removeItem('checklistTemplate');
+        } catch (e) {
+            console.error('Error loading template:', e);
+        }
+    }
+}
+
+document.getElementById('createChecklistForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('title').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const items = [];
+    
+    // Collect items
+    document.querySelectorAll('.item-row').forEach(row => {
+        const itemTitle = row.querySelector('.item-title').value.trim();
+        const itemDesc = row.querySelector('.item-description').value.trim();
+        if (itemTitle) {
+            items.push({
+                title: itemTitle,
+                description: itemDesc
+            });
+        }
+    });
+    
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+    
+    fetch('/checklists/api/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, description, items})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            window.location.href = `/checklists/${data.id}`;
+        }
+    })
+    .catch(err => alert('Error creating checklist: ' + err));
+});
+
+document.getElementById('addItemBtn').addEventListener('click', function() {
+    addItemRow();
+});
+
+function addItemRow() {
+    const container = document.getElementById('itemsContainer');
+    const rowId = 'item-' + itemCount++;
+    const row = document.createElement('div');
+    row.className = 'item-row mb-3 p-3 border rounded';
+    row.id = rowId;
+    row.innerHTML = `
+        <div class="row g-2">
+            <div class="col-md-6">
+                <input type="text" class="form-control item-title" placeholder="Item title">
+            </div>
+            <div class="col-md-6">
+                <div class="input-group">
+                    <textarea class="form-control item-description" rows="1" placeholder="Description (optional)"></textarea>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItemRow('${rowId}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(row);
+}
+
+function removeItemRow(rowId) {
+    document.getElementById(rowId).remove();
+}
+
+// Load template on page load
+window.addEventListener('load', loadTemplateData);
+</script>
+{% endblock %}

@@ -67,10 +67,33 @@ def create_app(config_name=None):
     # Pass configuration to templates
     @app.context_processor
     def inject_config():
-        """Inject configuration into all templates."""
+        """Inject configuration and utilities into all templates."""
+        from flask_login import current_user
+        from app.services.rbac_service import RBACService
+        
+        def has_permission(permission):
+            """Check if current user has a specific permission."""
+            if not current_user.is_authenticated:
+                return False
+            if current_user.is_admin:
+                return True
+            rbac = RBACService()
+            return rbac.user_has_permission(current_user, permission)
+        
+        def has_any_permission(*permissions):
+            """Check if current user has any of the given permissions."""
+            if not current_user.is_authenticated:
+                return False
+            if current_user.is_admin:
+                return True
+            rbac = RBACService()
+            return rbac.user_has_any_permission(current_user, list(permissions))
+        
         return {
             'SITE_NAME': app.config.get('SITE_NAME', 'IOC Manager'),
-            'SITE_TITLE': app.config.get('SITE_TITLE', 'IOC Manager')
+            'SITE_TITLE': app.config.get('SITE_TITLE', 'IOC Manager'),
+            'has_permission': has_permission,
+            'has_any_permission': has_any_permission
         }
     
     # Initialize Redis
@@ -103,6 +126,9 @@ def create_app(config_name=None):
     from app.routes.audit import audit_bp
     from app.routes.cases import bp as cases_bp
     from app.routes.reports import bp as reports_bp
+    from app.routes.checklists import bp as checklists_bp
+    from app.routes.checklist_templates import bp as checklist_templates_bp
+    from app.routes.rbac import rbac_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -117,6 +143,9 @@ def create_app(config_name=None):
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(checklists_bp)
+    app.register_blueprint(checklist_templates_bp)
+    app.register_blueprint(rbac_bp, url_prefix='/api/rbac')
 
     
     # Health check endpoint

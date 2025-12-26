@@ -7,9 +7,10 @@ import secrets
 from app.services.elasticsearch_service import ElasticsearchService
 
 
-# Permission definitions
+# Permission definitions - Organized by category
+# IMPORTANT: Only include permissions that are actually checked in the application
 PERMISSIONS = {
-    # IOC permissions
+    # ============== IOC Management ==============
     'ioc.view': 'View IOCs',
     'ioc.create': 'Create IOCs',
     'ioc.edit': 'Edit IOCs',
@@ -17,97 +18,251 @@ PERMISSIONS = {
     'ioc.export': 'Export IOCs',
     'ioc.import': 'Import IOCs',
     'ioc.enrich': 'Enrich IOCs with external APIs',
+    'ioc.relations.view': 'View IOC relationships',
+    'ioc.relations.create': 'Create IOC relationships',
+    'ioc.relations.delete': 'Delete IOC relationships',
     
-    # Case permissions
+    # ============== Case Management ==============
     'case.view': 'View cases',
     'case.create': 'Create cases',
     'case.edit': 'Edit cases',
     'case.delete': 'Delete cases',
     'case.assign': 'Assign cases to users',
+    'case.close': 'Close cases',
     
-    # Incident permissions
+    # ============== Incident Management ==============
     'incident.view': 'View incidents',
     'incident.create': 'Create incidents',
     'incident.edit': 'Edit incidents',
     'incident.delete': 'Delete incidents',
     'incident.report': 'Generate incident reports',
     
-    # Comment permissions
+    # ============== Comments & Collaboration ==============
     'comment.view': 'View comments',
     'comment.create': 'Create comments',
     'comment.edit': 'Edit own comments',
-    'comment.delete': 'Delete comments',
+    'comment.delete': 'Delete own comments',
     'comment.edit_any': 'Edit any comment',
+    'comment.delete_any': 'Delete any comment',
     
-    # Snippet permissions
+    # ============== Snippets & Templates ==============
     'snippet.view': 'View snippets',
     'snippet.create': 'Create snippets',
     'snippet.edit': 'Edit own snippets',
     'snippet.delete': 'Delete own snippets',
-    'snippet.manage_global': 'Manage global snippets',
+    'snippet.share': 'Share snippets',
     
-    # Timeline permissions
-    'timeline.view': 'View timeline',
-    'timeline.create': 'Create timeline events',
-    'timeline.edit': 'Edit timeline events',
-    'timeline.delete': 'Delete timeline events',
+    # ============== Timeline Management ==============
+    'timeline.view': 'View timeline and audit logs',
+    'timeline.export': 'Export timeline data',
     
-    # API permissions
+    # ============== API & Integration ==============
     'api.access': 'Access API',
-    'api.keys.manage': 'Manage API keys',
-    'api.external.configure': 'Configure external APIs',
+    'api.keys.view': 'View API keys',
+    'api.keys.create': 'Create API keys',
+    'api.keys.delete': 'Delete API keys',
+    'api.external.view': 'View external API configurations',
+    'api.external.create': 'Create external API configurations',
+    'api.external.edit': 'Edit external API configurations',
+    'api.external.delete': 'Delete external API configurations',
+    'api.external.test': 'Test external APIs',
     
-    # Webhook permissions
+    # ============== Webhook Management ==============
     'webhook.view': 'View webhooks',
-    'webhook.manage': 'Manage webhooks',
+    'webhook.create': 'Create webhooks',
+    'webhook.edit': 'Edit webhooks',
+    'webhook.delete': 'Delete webhooks',
+    'webhook.test': 'Test webhooks',
     
-    # Admin permissions
-    'admin.users': 'Manage users',
-    'admin.roles': 'Manage roles',
+    # ============== Search & Reports ==============
+    'search.advanced': 'Access advanced search',
+    'search.save': 'Save searches',
+    'report.view': 'View reports',
+    'report.create': 'Create reports',
+    'report.edit': 'Edit reports',
+    'report.delete': 'Delete reports',
+    'report.export': 'Export reports',
+    'report.generate_llm': 'Generate reports using LLM',
+    
+    # ============== Checklists ==============
+    'checklist.view': 'View checklists',
+    'checklist.create': 'Create checklists',
+    'checklist.edit': 'Edit checklists and items',
+    'checklist.delete': 'Delete checklists',
+    'checklist.export': 'Export checklists as Markdown',
+    'checklist.generate_llm': 'Generate checklist reports using LLM',
+    'checklist.comment.create': 'Add comments to checklist items',
+    'checklist.comment.delete': 'Delete own comments on checklist items',
+    'checklist.comment.delete_any': 'Delete any comments on checklist items',
+    
+    # ============== Checklist Templates ==============
+    'checklist.template.view': 'View checklist templates',
+    'checklist.template.create': 'Create checklist templates',
+    'checklist.template.edit': 'Edit checklist templates',
+    'checklist.template.delete': 'Delete checklist templates',
+    'checklist.template.use': 'Use templates to create checklists',
+    
+    # ============== Tools & Enrichment ==============
+    'tools.view': 'View tool results',
+    'tools.execute': 'Execute analysis tools',
+    'tools.configure': 'Configure tools',
+    
+    # ============== Administration ==============
+    'admin.users.view': 'View users',
+    'admin.users.create': 'Create users',
+    'admin.users.edit': 'Edit users',
+    'admin.users.delete': 'Delete users',
+    'admin.users.assign_role': 'Assign roles to users',
+    'admin.roles.view': 'View roles',
+    'admin.roles.create': 'Create custom roles',
+    'admin.roles.edit': 'Edit roles',
+    'admin.roles.delete': 'Delete custom roles',
     'admin.settings': 'Manage site settings',
     'admin.audit': 'View audit logs',
     'admin.tasks': 'Manage scheduled tasks',
 }
 
 
-# Default role definitions
+# Default role definitions with granular permissions
 DEFAULT_ROLES = {
     'admin': {
         'display_name': 'Administrator',
-        'description': 'Full system access with all permissions',
+        'description': 'Full system access - can manage all resources and users',
+        'color': '#dc3545',  # Red
         'permissions': list(PERMISSIONS.keys()),
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
     },
     'analyst': {
         'display_name': 'Security Analyst',
-        'description': 'Can manage IOCs, cases, incidents and reports',
+        'description': 'Can manage IOCs, cases, incidents and create reports',
+        'color': '#0066cc',  # Blue
         'permissions': [
+            # IOC permissions
             'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
-            'case.view', 'case.create', 'case.edit', 'case.assign',
+            'ioc.relations.view', 'ioc.relations.create', 'ioc.relations.delete',
+            # Case permissions
+            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
+            # Incident permissions
             'incident.view', 'incident.create', 'incident.edit', 'incident.report',
-            'comment.view', 'comment.create', 'comment.edit',
-            'snippet.view', 'snippet.create', 'snippet.edit',
-            'timeline.view', 'timeline.create', 'timeline.edit',
-            'api.access', 'api.keys.manage',
-            'webhook.view',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
+            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.share',
+            # Timeline
+            'timeline.view', 'timeline.export',
+            # API
+            'api.access', 'api.keys.view', 'api.keys.create', 'api.keys.delete',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.delete', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.delete', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute', 'tools.configure',
+            # Search & Reports
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Admin
+            'admin.audit',
         ],
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
     },
+    'threat_intel': {
+        'display_name': 'Threat Intelligence Officer',
+        'description': 'Specialized in threat intelligence, campaigns, and enrichment',
+        'color': '#ff6600',  # Orange
+        'permissions': [
+            # IOC permissions
+            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
+            'ioc.relations.view', 'ioc.relations.create',
+            # Case & Incident - read mostly
+            'case.view', 'incident.view',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit',
+            'snippet.view', 'snippet.create', 'snippet.edit', 'snippet.share',
+            # Timeline
+            'timeline.view', 'timeline.export',
+            # API
+            'api.access', 'api.keys.view', 'api.keys.create',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute',
+            # Search & Reports
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Admin
+            'admin.audit',
+        ],
+        'is_system': True,
+        'is_editable': False
+    },
+    'incident_responder': {
+        'display_name': 'Incident Responder',
+        'description': 'Focused on incident response, containment, and remediation',
+        'color': '#cc0000',  # Dark red
+        'permissions': [
+            # IOC permissions
+            'ioc.view', 'ioc.create', 'ioc.edit',
+            'ioc.relations.view', 'ioc.relations.create',
+            # Case & Incident
+            'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
+            'incident.view', 'incident.create', 'incident.edit', 'incident.report',
+            # Comments & collaboration
+            'comment.view', 'comment.create', 'comment.edit', 'comment.delete_any',
+            # Timeline
+            'timeline.view', 'timeline.export',
+            # API
+            'api.access', 'api.keys.view', 'api.keys.create',
+            'api.external.view', 'api.external.create', 'api.external.edit', 'api.external.delete', 'api.external.test',
+            'webhook.view', 'webhook.create', 'webhook.edit', 'webhook.delete', 'webhook.test',
+            # Tools
+            'tools.view', 'tools.execute',
+            # Search & Reports
+            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Admin
+            'admin.audit',
+        ],
+        'is_system': True,
+        'is_editable': False
+    },
+
     'viewer': {
         'display_name': 'Viewer',
         'description': 'Read-only access to IOCs and cases',
+        'color': '#666666',  # Gray
         'permissions': [
+            # IOC - view only
             'ioc.view', 'ioc.export',
+            'ioc.relations.view',
+            # Case & Incident - view only
             'case.view',
             'incident.view',
+            # Comments & collaboration - view & create
             'comment.view', 'comment.create',
-            'snippet.view',
+            # Timeline
             'timeline.view',
-            'api.access',
+            # API
+            'api.access', 'api.keys.view',
+            # Search & Reports
+            'search.advanced', 'report.view', 'report.export',
+            # Checklists
+            'checklist.view', 'checklist.comment.create',
+            'checklist.template.view', 'checklist.template.use',
         ],
-        'is_system': True
+        'is_system': True,
+        'is_editable': False
     }
 }
+
 
 
 class RBACService:

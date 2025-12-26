@@ -10,9 +10,11 @@
         <a href="https://github.com/LL7Baucarre/ElasMISP" target="_blank" class="btn btn-outline-secondary btn-sm" title="View on GitHub">
             <i class="bi bi-github me-1"></i> GitHub
         </a>
+        {% if has_permission('ioc.create') %}
         <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> Add IOC
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -124,12 +126,16 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    {% if has_permission('ioc.create') %}
                     <a href="{{ url_for('main.iocs_add') }}" class="btn btn-outline-primary">
                         <i class="bi bi-plus-lg me-2"></i> Add IOC
                     </a>
+                    {% endif %}
+                    {% if has_permission('ioc.import') %}
                     <a href="{{ url_for('main.import_page') }}" class="btn btn-outline-success">
                         <i class="bi bi-upload me-2"></i> Import IOCs
                     </a>
+                    {% endif %}
                     <a href="{{ url_for('main.search_page') }}" class="btn btn-outline-info">
                         <i class="bi bi-search me-2"></i> Search IOCs
                     </a>

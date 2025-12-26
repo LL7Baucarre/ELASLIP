@@ -6,6 +6,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, g
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.tasks.import_tasks import process_import
 
@@ -14,6 +15,7 @@ import_bp = Blueprint('import', __name__)
 
 @import_bp.route('', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.import')
 def create_import():
     """
     Create a new import job.
@@ -119,6 +121,7 @@ def get_import_status(job_id):
 
 @import_bp.route('', methods=['GET'])
 @login_or_api_key_required
+@permission_required('ioc.import')
 def list_imports():
     """List import jobs for current user."""
     es = ElasticsearchService()
@@ -159,6 +162,7 @@ def list_imports():
 
 @import_bp.route('/<job_id>', methods=['DELETE'])
 @login_or_api_key_required
+@permission_required('ioc.import')
 def delete_import(job_id):
     """Delete an import job record."""
     es = ElasticsearchService()
