@@ -20,6 +20,7 @@ from app.services.elasticsearch_service import ElasticsearchService
 from app.services.case_service import CaseService, IncidentService, TimelineService
 from app.services.comment_service import CommentService, SnippetService
 from app.services.checklist_template_service import ChecklistTemplateService
+from app.services.checklist_service import ChecklistService
 from app.services.audit_service import AuditService
 from app.auth import User, APIKey
 
@@ -274,6 +275,57 @@ def generate_checklist_templates():
     ]
     return templates
 
+
+def generate_checklists():
+    """Generate demo checklists for testing."""
+    checklists = [
+        {
+            'title': 'Q4 2025 Security Audit',
+            'description': 'Quarterly security compliance and vulnerability assessment checklist',
+            'items': [
+                {'title': 'Review firewall rules and access controls', 'description': 'Validate firewall policies are current'},
+                {'title': 'Audit user access and permissions', 'description': 'Verify least privilege principle is enforced'},
+                {'title': 'Scan for vulnerabilities', 'description': 'Run vulnerability scans on all systems'},
+                {'title': 'Review patch management', 'description': 'Ensure all critical patches are applied'},
+                {'title': 'Check SSL/TLS certificates', 'description': 'Verify expiration dates and cipher suites'},
+                {'title': 'Test backup and recovery procedures', 'description': 'Validate disaster recovery capabilities'},
+                {'title': 'Review security logs', 'description': 'Analyze logs for suspicious activity'},
+                {'title': 'Conduct security training', 'description': 'Ensure all staff complete security awareness training'},
+                {'title': 'Document findings', 'description': 'Create audit report with recommendations'}
+            ]
+        },
+        {
+            'title': 'Active Incident - Phishing Campaign',
+            'description': 'Ongoing investigation into targeted phishing campaign detected Dec 26',
+            'items': [
+                {'title': 'Identify all affected email accounts', 'description': 'Extract list of targeted users'},
+                {'title': 'Block malicious URLs at gateway', 'description': 'Add URLs to email filter blocklist'},
+                {'title': 'Analyze phishing email headers', 'description': 'Extract sender IP and routing information'},
+                {'title': 'Check for credential theft indicators', 'description': 'Monitor for account compromise signs'},
+                {'title': 'Send notification to affected users', 'description': 'Alert users to change passwords'},
+                {'title': 'Review email forwarding rules', 'description': 'Check for unauthorized mail forwarding'},
+                {'title': 'Collect samples for analysis', 'description': 'Extract attachments and URLs for analysis'},
+                {'title': 'Correlate with other incidents', 'description': 'Check for relationship with other campaigns'},
+                {'title': 'Update threat intelligence', 'description': 'Share indicators with community'}
+            ]
+        },
+        {
+            'title': 'Network Segmentation Review',
+            'description': 'Review of network segmentation strategy and implementation',
+            'items': [
+                {'title': 'Document network topology', 'description': 'Create updated network diagram'},
+                {'title': 'Identify critical assets', 'description': 'List systems requiring isolation'},
+                {'title': 'Review VLAN configuration', 'description': 'Validate VLAN segmentation'},
+                {'title': 'Test cross-segment communication', 'description': 'Verify ACLs are properly enforced'},
+                {'title': 'Document trust boundaries', 'description': 'Define trust levels between segments'},
+                {'title': 'Review DMZ configuration', 'description': 'Validate externally-facing systems isolation'},
+                {'title': 'Check data flow controls', 'description': 'Verify data exfiltration prevention'},
+                {'title': 'Update network policies', 'description': 'Document approved communication rules'},
+                {'title': 'Plan segmentation improvements', 'description': 'Identify enhancement opportunities'}
+            ]
+        }
+    ]
+    return checklists
 
 
 def generate_random_iocs(count=100):
@@ -651,9 +703,32 @@ def populate_demo_data():
         
         print(f"   ✓ Created {templates_created} checklist templates")
         
-        # Create random relationships between IOCs
+        # Create demo checklists
+        print("\n10. Creating demo checklists...")
+        checklist_service = ChecklistService()
+        checklists_created = 0
+        
+        try:
+            checklists_data = generate_checklists()
+            for checklist_data in checklists_data:
+                try:
+                    checklist = checklist_service.create_checklist(
+                        title=checklist_data['title'],
+                        description=checklist_data['description'],
+                        created_by='demo_user',
+                        items=checklist_data['items']
+                    )
+                    checklists_created += 1
+                    print(f"   Created checklist: {checklist_data['title']}")
+                except Exception as e:
+                    print(f"      Warning: Failed to create checklist '{checklist_data['title']}': {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to generate checklists: {str(e)}")
+        
+        print(f"   ✓ Created {checklists_created} checklists")
+                # Create random relationships between IOCs
         if len(created_ids) > 1:
-            print("\n10. Creating random IOC relationships...")
+            print("\n11. Creating random IOC relationships...")
             relation_types = [
                 'communicates-with',
                 'exploits',
@@ -706,7 +781,7 @@ def populate_demo_data():
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         
         # Add comments to IOCs
-        print("\n11. Adding comments to IOCs...")
+        print("\n12. Adding comments to IOCs...")
         comment_service = CommentService()
         ioc_comments_created = 0
         
@@ -729,7 +804,7 @@ def populate_demo_data():
         print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
         
         # Add comments to cases
-        print("\n12. Adding comments to cases...")
+        print("\n13. Adding comments to cases...")
         case_comments_created = 0
         
         for case in created_cases:
@@ -751,7 +826,7 @@ def populate_demo_data():
         print(f"   ✓ Created {case_comments_created} comments on cases")
         
         # Add comments to incidents
-        print("\n13. Adding comments to incidents...")
+        print("\n14. Adding comments to incidents...")
         incident_comments_created = 0
         
         for incident in created_incidents:
@@ -773,7 +848,7 @@ def populate_demo_data():
         print(f"   ✓ Created {incident_comments_created} comments on incidents")
         
         # Create timeline events (audit log entries)
-        print("\n14. Creating timeline events...")
+        print("\n15. Creating timeline events...")
         timeline_service = TimelineService()
         timeline_events_created = 0
         
@@ -840,6 +915,7 @@ def populate_demo_data():
         print(f"Total webhooks created: {webhooks_created}")
         print(f"Total snippets created: {snippets_created}")
         print(f"Total checklist templates created: {templates_created}")
+        print(f"Total checklists created: {checklists_created}")
         print("=" * 60)
 
 
