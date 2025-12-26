@@ -218,6 +218,12 @@ def generate_checklist_templates():
             'name': 'O365 Security Investigation',
             'description': 'Checklist for investigating suspicious activity in Microsoft Office 365 environment',
             'is_public': True,
+            'tags': ['o365', 'cloud', 'investigation', 'incident-response'],
+            'campaigns': [],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'Template for Microsoft 365 incident response. Suitable for account compromise and unauthorized access investigations.', 'user': 'admin', 'created_at': '2025-12-01T09:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Last updated: Dec 2025 with latest Azure AD and Teams security checks.', 'user': 'security_team', 'created_at': '2025-12-15T10:30:00Z'}
+            ],
             'items': [
                 {'title': 'Check Azure AD sign-in logs for suspicious access', 'description': 'Review sign-in activity for anomalies and risky sign-ins'},
                 {'title': 'Review mailbox forwarding rules', 'description': 'Identify unauthorized mail forwarding to external domains'},
@@ -237,6 +243,12 @@ def generate_checklist_templates():
             'name': 'Incident Response - Initial Triage',
             'description': 'Initial assessment and triage checklist for security incidents',
             'is_public': True,
+            'tags': ['incident-response', 'triage', 'critical', 'soc'],
+            'campaigns': [],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'MANDATORY template for all security incidents. Must be completed within 1 hour of detection.', 'user': 'incident_commander', 'created_at': '2025-11-01T08:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Updated to include modern SOC processes and automated alerting integration.', 'user': 'soc_lead', 'created_at': '2025-12-10T14:00:00Z'}
+            ],
             'items': [
                 {'title': 'Confirm the incident is real', 'description': 'Validate alert against false positives'},
                 {'title': 'Determine incident severity level', 'description': 'Assess impact and urgency (critical/high/medium/low)'},
@@ -256,6 +268,12 @@ def generate_checklist_templates():
             'name': 'Malware Analysis Workflow',
             'description': 'Checklist for analyzing potentially malicious files and artifacts',
             'is_public': True,
+            'tags': ['malware-analysis', 'forensics', 'technical-analysis', 'detection'],
+            'campaigns': [],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'Used by threat analysis team for technical malware investigations. Requires access to sandbox environment.', 'user': 'threat_analyst', 'created_at': '2025-10-15T11:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'IMPORTANT: Always execute samples in isolated sandbox. Never run on production systems.', 'user': 'security_lead', 'created_at': '2025-12-01T09:30:00Z'}
+            ],
             'items': [
                 {'title': 'Hash the suspicious file', 'description': 'Calculate MD5, SHA1, and SHA256 hashes'},
                 {'title': 'Check VirusTotal and YARA databases', 'description': 'Search for file hashes in threat intelligence databases'},
@@ -278,50 +296,71 @@ def generate_checklist_templates():
 
 def generate_checklists():
     """Generate demo checklists for testing."""
+    import uuid
+    
     checklists = [
         {
             'title': 'Q4 2025 Security Audit',
             'description': 'Quarterly security compliance and vulnerability assessment checklist',
+            'tags': ['compliance', 'audit', 'security', 'Q4-2025'],
+            'campaigns': [],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'This audit is mandatory for all departments. Results must be compiled by Dec 31.', 'user': 'security_team', 'created_at': '2025-12-20T08:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Escalate any critical findings immediately to CISO', 'user': 'manager', 'created_at': '2025-12-22T14:30:00Z'}
+            ],
             'items': [
-                {'title': 'Review firewall rules and access controls', 'description': 'Validate firewall policies are current'},
-                {'title': 'Audit user access and permissions', 'description': 'Verify least privilege principle is enforced'},
-                {'title': 'Scan for vulnerabilities', 'description': 'Run vulnerability scans on all systems'},
-                {'title': 'Review patch management', 'description': 'Ensure all critical patches are applied'},
-                {'title': 'Check SSL/TLS certificates', 'description': 'Verify expiration dates and cipher suites'},
-                {'title': 'Test backup and recovery procedures', 'description': 'Validate disaster recovery capabilities'},
-                {'title': 'Review security logs', 'description': 'Analyze logs for suspicious activity'},
-                {'title': 'Conduct security training', 'description': 'Ensure all staff complete security awareness training'},
-                {'title': 'Document findings', 'description': 'Create audit report with recommendations'}
+                {'id': str(uuid.uuid4()), 'title': 'Review firewall rules and access controls', 'description': 'Validate firewall policies are current', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': 'All inbound rules reviewed and validated', 'user': 'analyst1', 'created_at': '2025-12-26T10:30:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Audit user access and permissions', 'description': 'Verify least privilege principle is enforced', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': 'Found 3 users with excessive permissions, remediation in progress', 'user': 'analyst1', 'created_at': '2025-12-26T11:15:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Scan for vulnerabilities', 'description': 'Run vulnerability scans on all systems', 'completed': True, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Review patch management', 'description': 'Ensure all critical patches are applied', 'completed': False, 'comments': [{'id': str(uuid.uuid4()), 'text': 'Waiting for change approval window', 'user': 'analyst2', 'created_at': '2025-12-25T15:45:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Check SSL/TLS certificates', 'description': 'Verify expiration dates and cipher suites', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Test backup and recovery procedures', 'description': 'Validate disaster recovery capabilities', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Review security logs', 'description': 'Analyze logs for suspicious activity', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Conduct security training', 'description': 'Ensure all staff complete security awareness training', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Document findings', 'description': 'Create audit report with recommendations', 'completed': False, 'comments': []}
             ]
         },
         {
             'title': 'Active Incident - Phishing Campaign',
             'description': 'Ongoing investigation into targeted phishing campaign detected Dec 26',
+            'tags': ['incident', 'phishing', 'active', 'threat-response'],
+            'campaigns': ['APT28', 'Wizard Spider'],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'CRITICAL: This is an active incident. All items must be completed ASAP.', 'user': 'incident_commander', 'created_at': '2025-12-26T08:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Attribution confidence: MEDIUM. Indicators suggest APT28 or Wizard Spider involvement.', 'user': 'threat_intel', 'created_at': '2025-12-26T09:15:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Total impact: 47 users potentially affected. 5 confirmations of credential compromise.', 'user': 'responder1', 'created_at': '2025-12-26T10:00:00Z'}
+            ],
             'items': [
-                {'title': 'Identify all affected email accounts', 'description': 'Extract list of targeted users'},
-                {'title': 'Block malicious URLs at gateway', 'description': 'Add URLs to email filter blocklist'},
-                {'title': 'Analyze phishing email headers', 'description': 'Extract sender IP and routing information'},
-                {'title': 'Check for credential theft indicators', 'description': 'Monitor for account compromise signs'},
-                {'title': 'Send notification to affected users', 'description': 'Alert users to change passwords'},
-                {'title': 'Review email forwarding rules', 'description': 'Check for unauthorized mail forwarding'},
-                {'title': 'Collect samples for analysis', 'description': 'Extract attachments and URLs for analysis'},
-                {'title': 'Correlate with other incidents', 'description': 'Check for relationship with other campaigns'},
-                {'title': 'Update threat intelligence', 'description': 'Share indicators with community'}
+                {'id': str(uuid.uuid4()), 'title': 'Identify all affected email accounts', 'description': 'Extract list of targeted users', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': '47 users identified as recipients', 'user': 'responder1', 'created_at': '2025-12-26T08:20:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Block malicious URLs at gateway', 'description': 'Add URLs to email filter blocklist', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': 'Blocked 12 URLs, 3 domains blacklisted', 'user': 'responder1', 'created_at': '2025-12-26T08:45:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Analyze phishing email headers', 'description': 'Extract sender IP and routing information', 'completed': True, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Check for credential theft indicators', 'description': 'Monitor for account compromise signs', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': '5 credential change events detected, accounts secured', 'user': 'responder2', 'created_at': '2025-12-26T12:00:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Send notification to affected users', 'description': 'Alert users to change passwords', 'completed': True, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Review email forwarding rules', 'description': 'Check for unauthorized mail forwarding', 'completed': False, 'comments': [{'id': str(uuid.uuid4()), 'text': 'Scan in progress, checking all user mailboxes', 'user': 'responder2', 'created_at': '2025-12-26T14:30:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Collect samples for analysis', 'description': 'Extract attachments and URLs for analysis', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Correlate with other incidents', 'description': 'Check for relationship with other campaigns', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Update threat intelligence', 'description': 'Share indicators with community', 'completed': False, 'comments': []}
             ]
         },
         {
             'title': 'Network Segmentation Review',
             'description': 'Review of network segmentation strategy and implementation',
+            'tags': ['network', 'infrastructure', 'review', 'planning'],
+            'campaigns': [],
+            'comments': [
+                {'id': str(uuid.uuid4()), 'text': 'Priority: HIGH. Network segmentation is critical for defense-in-depth.', 'user': 'architect', 'created_at': '2025-12-15T10:00:00Z'},
+                {'id': str(uuid.uuid4()), 'text': 'Timeline: Complete initial review by end of Q1 2026. Full implementation Q2-Q3 2026.', 'user': 'project_manager', 'created_at': '2025-12-18T11:30:00Z'}
+            ],
             'items': [
-                {'title': 'Document network topology', 'description': 'Create updated network diagram'},
-                {'title': 'Identify critical assets', 'description': 'List systems requiring isolation'},
-                {'title': 'Review VLAN configuration', 'description': 'Validate VLAN segmentation'},
-                {'title': 'Test cross-segment communication', 'description': 'Verify ACLs are properly enforced'},
-                {'title': 'Document trust boundaries', 'description': 'Define trust levels between segments'},
-                {'title': 'Review DMZ configuration', 'description': 'Validate externally-facing systems isolation'},
-                {'title': 'Check data flow controls', 'description': 'Verify data exfiltration prevention'},
-                {'title': 'Update network policies', 'description': 'Document approved communication rules'},
-                {'title': 'Plan segmentation improvements', 'description': 'Identify enhancement opportunities'}
+                {'id': str(uuid.uuid4()), 'title': 'Document network topology', 'description': 'Create updated network diagram', 'completed': True, 'comments': [{'id': str(uuid.uuid4()), 'text': 'Updated topology document stored in wiki', 'user': 'analyst3', 'created_at': '2025-12-24T09:00:00Z'}]},
+                {'id': str(uuid.uuid4()), 'title': 'Identify critical assets', 'description': 'List systems requiring isolation', 'completed': True, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Review VLAN configuration', 'description': 'Validate VLAN segmentation', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Test cross-segment communication', 'description': 'Verify ACLs are properly enforced', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Document trust boundaries', 'description': 'Define trust levels between segments', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Review DMZ configuration', 'description': 'Validate externally-facing systems isolation', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Check data flow controls', 'description': 'Verify data exfiltration prevention', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Update network policies', 'description': 'Document approved communication rules', 'completed': False, 'comments': []},
+                {'id': str(uuid.uuid4()), 'title': 'Plan segmentation improvements', 'description': 'Identify enhancement opportunities', 'completed': False, 'comments': []}
             ]
         }
     ]
@@ -692,7 +731,10 @@ def populate_demo_data():
                         description=template_data['description'],
                         created_by='demo_user',
                         items=template_data['items'],
-                        is_public=template_data['is_public']
+                        is_public=template_data['is_public'],
+                        tags=template_data.get('tags', []),
+                        campaigns=template_data.get('campaigns', []),
+                        comments=template_data.get('comments', [])
                     )
                     templates_created += 1
                     print(f"   Created template: {template_data['name']}")
@@ -716,7 +758,10 @@ def populate_demo_data():
                         title=checklist_data['title'],
                         description=checklist_data['description'],
                         created_by='demo_user',
-                        items=checklist_data['items']
+                        items=checklist_data['items'],
+                        tags=checklist_data.get('tags', []),
+                        campaigns=checklist_data.get('campaigns', []),
+                        comments=checklist_data.get('comments', [])
                     )
                     checklists_created += 1
                     print(f"   Created checklist: {checklist_data['title']}")

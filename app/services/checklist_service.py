@@ -14,16 +14,33 @@ class ChecklistService:
         self.es = ElasticsearchService()
     
     def create_checklist(self, title: str, description: str = '', created_by: str = '', 
-                        items: List[Dict] = None) -> Dict:
+                        items: List[Dict] = None, tags: List[str] = None, 
+                        campaigns: List[str] = None, comments: List[Dict] = None) -> Dict:
         """Create a new checklist."""
         if items is None:
             items = []
+        if tags is None:
+            tags = []
+        if campaigns is None:
+            campaigns = []
+        if comments is None:
+            comments = []
+        
+        # Ensure each item has an ID and completed flag
+        for item in items:
+            if 'id' not in item:
+                item['id'] = str(uuid.uuid4())
+            if 'completed' not in item:
+                item['completed'] = False
         
         checklist = {
             'id': str(uuid.uuid4()),
             'title': title,
             'description': description,
-            'items': items,  # List of {id, title, completed, description}
+            'items': items,  # List of {id, title, completed, description, comments}
+            'tags': tags,
+            'campaigns': campaigns,
+            'comments': comments,
             'created_by': created_by,
             'created_at': datetime.utcnow().isoformat() + 'Z',
             'updated_at': datetime.utcnow().isoformat() + 'Z',
@@ -79,9 +96,21 @@ class ChecklistService:
         if not checklist:
             return None
         
-        updates['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+        # Update allowed fields
+        if 'title' in updates:
+            checklist['title'] = updates['title']
+        if 'description' in updates:
+            checklist['description'] = updates['description']
+        if 'items' in updates:
+            checklist['items'] = updates['items']
+        if 'status' in updates:
+            checklist['status'] = updates['status']
         
-        self.es.update('checklists', checklist_id, {'doc': updates})
+        checklist['updated_at'] = datetime.utcnow().isoformat() + 'Z'
+        
+        # Remove the 'id' field before indexing (it's stored as _id)
+        doc = {k: v for k, v in checklist.items() if k != 'id'}
+        self.es.index('checklists', checklist_id, doc)
         return self.get_checklist(checklist_id)
     
     def delete_checklist(self, checklist_id: str) -> bool:
@@ -143,6 +172,45 @@ class ChecklistService:
         
         checklist['items'] = [item for item in checklist['items'] if item['id'] != item_id]
         return self.update_checklist(checklist_id, {'items': checklist['items']})
+    
+    def add_comment_to_item(self, checklist_id: str, item_id: str, comment_text: str, 
+                           user: str = '') -> Optional[Dict]:
+        """Add a comment to a checklist item."""
+        checklist = self.get_checklist(checklist_id)
+        if not checklist:
+            return None
+        
+        for item in checklist['items']:
+            if item['id'] == item_id:
+                # Initialize comments list if it doesn't exist
+                if 'comments' not in item:
+                    item['comments'] = []
+                
+                # Add new comment
+                comment = {
+                    'id': str(uuid.uuid4()),
+                    'text': comment_text.strip(),
+                    'user': user,
+                    'created_at': datetime.utcnow().isoformat() + 'Z'
+                }
+                item['comments'].append(comment)
+                return self.update_checklist(checklist_id, {'items': checklist['items']})
+        
+        return None
+    
+    def delete_comment_from_item(self, checklist_id: str, item_id: str, comment_id: str) -> Optional[Dict]:
+        """Delete a comment from a checklist item."""
+        checklist = self.get_checklist(checklist_id)
+        if not checklist:
+            return None
+        
+        for item in checklist['items']:
+            if item['id'] == item_id:
+                if 'comments' in item:
+                    item['comments'] = [c for c in item['comments'] if c['id'] != comment_id]
+                    return self.update_checklist(checklist_id, {'items': checklist['items']})
+        
+        return None
     
     def export_markdown(self, checklist_id: str) -> Optional[str]:
         """Export checklist as Markdown."""

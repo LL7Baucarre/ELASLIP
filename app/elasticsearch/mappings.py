@@ -552,6 +552,8 @@ CHECKLISTS_MAPPING = {
             "title": {"type": "text"},
             "description": {"type": "text"},
             "status": {"type": "keyword"},
+            "tags": {"type": "keyword"},
+            "campaigns": {"type": "keyword"},
             "created_by": {"type": "keyword"},
             "created_at": {"type": "date"},
             "updated_at": {"type": "date"},
@@ -562,6 +564,24 @@ CHECKLISTS_MAPPING = {
                     "title": {"type": "text"},
                     "description": {"type": "text"},
                     "completed": {"type": "boolean"},
+                    "created_at": {"type": "date"},
+                    "comments": {
+                        "type": "nested",
+                        "properties": {
+                            "id": {"type": "keyword"},
+                            "text": {"type": "text"},
+                            "user": {"type": "keyword"},
+                            "created_at": {"type": "date"}
+                        }
+                    }
+                }
+            },
+            "comments": {
+                "type": "nested",
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "text": {"type": "text"},
+                    "user": {"type": "keyword"},
                     "created_at": {"type": "date"}
                 }
             }
@@ -581,6 +601,8 @@ CHECKLIST_TEMPLATES_MAPPING = {
             "id": {"type": "keyword"},
             "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
             "description": {"type": "text"},
+            "tags": {"type": "keyword"},
+            "campaigns": {"type": "keyword"},
             "is_public": {"type": "boolean"},
             "created_by": {"type": "keyword"},
             "created_at": {"type": "date"},
@@ -591,6 +613,15 @@ CHECKLIST_TEMPLATES_MAPPING = {
                     "id": {"type": "keyword"},
                     "title": {"type": "text"},
                     "description": {"type": "text"}
+                }
+            },
+            "comments": {
+                "type": "nested",
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "text": {"type": "text"},
+                    "user": {"type": "keyword"},
+                    "created_at": {"type": "date"}
                 }
             }
         }

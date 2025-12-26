@@ -65,7 +65,7 @@
                     {% if checklist['items'] %}
                         <div id="itemsList">
                             {% for item in checklist['items'] %}
-                            <div class="item-card mb-3 p-3 border rounded" id="item-{{ item.id }}">
+                            <div class="item-card mb-4 p-3 border rounded" id="item-{{ item.id }}">
                                 <div class="d-flex align-items-start">
                                     {% if has_permission('checklist.edit') %}
                                     <input type="checkbox" class="form-check-input mt-1 me-3" 
@@ -80,8 +80,46 @@
                                             {{ item.title }}
                                         </h6>
                                         {% if item.description %}
-                                        <p class="mb-0 small text-muted">{{ item.description }}</p>
+                                        <p class="mb-2 small text-muted">{{ item.description }}</p>
                                         {% endif %}
+                                        
+                                        <!-- Comments Section -->
+                                        <div class="comments-section mt-3 pt-2 border-top">
+                                            {% if item.get('comments') %}
+                                            <div class="mb-3">
+                                                <strong class="small">Comments:</strong>
+                                                {% for comment in item['comments'] %}
+                                                <div class="comment-item p-2 mb-2 bg-light rounded small">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <strong>{{ comment.user }}</strong>
+                                                            <span class="text-muted" title="{{ comment.created_at }}">
+                                                                {{ comment.created_at[:10] }} {{ comment.created_at[11:19] }}
+                                                            </span>
+                                                        </div>
+                                                        {% if has_permission('checklist.comment.delete_any') or comment.user == current_user.username %}
+                                                        <button class="btn btn-sm btn-link text-danger p-0" 
+                                                                onclick="deleteComment('{{ item.id }}', '{{ comment.id }}')">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    <p class="mb-0 mt-1">{{ comment.text }}</p>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if has_permission('checklist.comment.create') %}
+                                            <div class="add-comment-form">
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       placeholder="Add a comment..." 
+                                                       id="comment-input-{{ item.id }}"
+                                                       onkeypress="if(event.key==='Enter') addComment('{{ item.id }}')">
+                                                <small class="text-muted">Press Enter to add comment</small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                     {% if has_permission('checklist.edit') %}
                                     <div class="ms-2">
@@ -307,6 +345,47 @@ function deleteItem(itemId) {
     }
 }
 
+function addComment(itemId) {
+    const input = document.getElementById(`comment-input-${itemId}`);
+    const text = input.value.trim();
+    
+    if (!text) {
+        return;
+    }
+    
+    fetch(`/checklists/api/${checklistId}/items/${itemId}/comments`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        } else {
+            alert('Error adding comment');
+        }
+    })
+    .catch(err => alert('Error adding comment'));
+}
+
+function deleteComment(itemId, commentId) {
+    if (confirm('Delete this comment?')) {
+        fetch(`/checklists/api/${checklistId}/items/${itemId}/comments/${commentId}`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.id) {
+                location.reload();
+            } else {
+                alert('Error deleting comment');
+            }
+        })
+        .catch(err => alert('Error deleting comment'));
+    }
+}
+
 function updateStatus() {
     const status = document.getElementById('statusSelect').value;
     fetch(`/checklists/api/${checklistId}/update`, {
@@ -339,7 +418,46 @@ function deleteChecklist() {
 }
 
 function generateReport() {
-    window.open(`/report?type=checklist&id=${checklistId}`, '_blank');
+    if (!checklistId) {
+        alert('Checklist ID not found');
+        return;
+    }
+    
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Generating...';
+    
+    // Call the API to generate the report
+    fetch(`/checklists/api/${checklistId}/generate-report`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Failed to generate report');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.task_id) {
+            // Redirect to report page with task_id
+            window.location.href = `/reports?task_id=${data.task_id}`;
+        } else {
+            alert('Report generation started. Check the reports page.');
+            window.location.href = '/reports';
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 }
 </script>
 {% endblock %}

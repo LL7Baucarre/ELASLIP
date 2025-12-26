@@ -166,6 +166,58 @@ def api_delete_item(checklist_id, item_id):
     return jsonify(checklist)
 
 
+@bp.route('/api/<checklist_id>/items/<item_id>/comments', methods=['POST'])
+@login_required
+@permission_required('checklist.comment.create')
+def api_add_comment(checklist_id, item_id):
+    """Add a comment to a checklist item."""
+    data = request.get_json()
+    comment_text = data.get('text', '').strip()
+    
+    if not comment_text:
+        return jsonify({'error': 'Comment text is required'}), 400
+    
+    checklist = checklist_service.add_comment_to_item(checklist_id, item_id, comment_text, 
+                                                      current_user.username)
+    if not checklist:
+        return jsonify({'error': 'Item not found'}), 404
+    
+    return jsonify(checklist)
+
+
+@bp.route('/api/<checklist_id>/items/<item_id>/comments/<comment_id>', methods=['DELETE'])
+@login_required
+def api_delete_comment(checklist_id, item_id, comment_id):
+    """Delete a comment from a checklist item."""
+    # Get the checklist to find the comment
+    checklist = checklist_service.get_checklist(checklist_id)
+    if not checklist:
+        return jsonify({'error': 'Checklist not found'}), 404
+    
+    # Find the comment to check ownership
+    comment = None
+    for item in checklist['items']:
+        if item['id'] == item_id and 'comments' in item:
+            for c in item['comments']:
+                if c['id'] == comment_id:
+                    comment = c
+                    break
+    
+    if not comment:
+        return jsonify({'error': 'Comment not found'}), 404
+    
+    # Check permission: user must have delete_any or own the comment
+    if not (current_user.has_permission('checklist.comment.delete_any') or 
+            current_user.username == comment['user']):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    checklist = checklist_service.delete_comment_from_item(checklist_id, item_id, comment_id)
+    if not checklist:
+        return jsonify({'error': 'Failed to delete comment'}), 500
+    
+    return jsonify(checklist)
+
+
 @bp.route('/api/<checklist_id>/export', methods=['GET'])
 @login_required
 @permission_required('checklist.export')
@@ -183,15 +235,21 @@ def api_export(checklist_id):
 @permission_required('checklist.generate_llm')
 def api_generate_report(checklist_id):
     """Generate LLM report for checklist."""
-    # This will be integrated with the report service
-    # For now, return a placeholder
-    markdown = checklist_service.export_markdown(checklist_id)
-    if not markdown:
-        return jsonify({'error': 'Checklist not found'}), 404
+    import os
     
-    return jsonify({
-        'checklist_id': checklist_id,
-        'markdown': markdown,
-        'requires_llm': True,
-        'report_url': f'/report?type=checklist&id={checklist_id}'
-    })
+    # Check if LLM is enabled
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    try:
+        from app.tasks.report_tasks import generate_checklist_report as task_generate_checklist
+        # Launch async task
+        task = task_generate_checklist.delay(checklist_id, current_user.username)
+        return jsonify({
+            'task_id': task.id,
+            'status': 'pending',
+            'message': 'Report generation started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

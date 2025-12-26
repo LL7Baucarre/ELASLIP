@@ -14,16 +14,27 @@ class ChecklistTemplateService:
         self.es = ElasticsearchService()
     
     def create_template(self, name: str, description: str = '', created_by: str = '', 
-                       items: List[Dict] = None, is_public: bool = False) -> Dict:
+                       items: List[Dict] = None, is_public: bool = False, 
+                       tags: List[str] = None, campaigns: List[str] = None,
+                       comments: List[Dict] = None) -> Dict:
         """Create a new checklist template."""
         if items is None:
             items = []
+        if tags is None:
+            tags = []
+        if campaigns is None:
+            campaigns = []
+        if comments is None:
+            comments = []
         
         template = {
             'id': str(uuid.uuid4()),
             'name': name,
             'description': description,
             'items': items,  # List of {id, title, description}
+            'tags': tags,
+            'campaigns': campaigns,
+            'comments': comments,
             'created_by': created_by,
             'created_at': datetime.utcnow().isoformat() + 'Z',
             'updated_at': datetime.utcnow().isoformat() + 'Z',

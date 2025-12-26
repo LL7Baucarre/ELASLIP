@@ -87,10 +87,13 @@ PERMISSIONS = {
     # ============== Checklists ==============
     'checklist.view': 'View checklists',
     'checklist.create': 'Create checklists',
-    'checklist.edit': 'Edit checklists',
+    'checklist.edit': 'Edit checklists and items',
     'checklist.delete': 'Delete checklists',
     'checklist.export': 'Export checklists as Markdown',
     'checklist.generate_llm': 'Generate checklist reports using LLM',
+    'checklist.comment.create': 'Add comments to checklist items',
+    'checklist.comment.delete': 'Delete own comments on checklist items',
+    'checklist.comment.delete_any': 'Delete any comments on checklist items',
     
     # ============== Checklist Templates ==============
     'checklist.template.view': 'View checklist templates',
@@ -157,6 +160,7 @@ DEFAULT_ROLES = {
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
@@ -189,6 +193,7 @@ DEFAULT_ROLES = {
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
@@ -221,6 +226,7 @@ DEFAULT_ROLES = {
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
@@ -249,9 +255,8 @@ DEFAULT_ROLES = {
             # Search & Reports
             'search.advanced', 'report.view', 'report.export',
             # Checklists
-            'checklist.view', 'checklist.template.view', 'checklist.template.use',
-            # Checklists
-            'checklist.view', 'checklist.template.view', 'checklist.template.use',
+            'checklist.view', 'checklist.comment.create',
+            'checklist.template.view', 'checklist.template.use',
         ],
         'is_system': True,
         'is_editable': False
