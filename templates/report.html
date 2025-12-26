@@ -55,13 +55,15 @@ async function generateReport() {
         // If task_id provided, fetch from view endpoint
         if (taskId) {
             // Poll for report with timeout
-            const maxAttempts = 60; // 60 attempts * 1 second = 60 seconds
+            const maxAttempts = 300; // 300 attempts * 1 second = 300 seconds (5 minutes)
             let attempt = 0;
             
             while (attempt < maxAttempts) {
                 try {
                     const response = await fetch(`/api/reports/view/${taskId}`);
-                    if (response.ok) {
+                    
+                    // Check for 200 OK specifically (not 202 or other 2xx)
+                    if (response.status === 200) {
                         reportData = await response.json();
                         displayReport();
                         return;
@@ -131,8 +133,8 @@ async function generateReport() {
         
         const result = await response.json();
         if (result.task_id) {
-            // Redirect to report viewer with task_id to wait for completion
-            window.location.href = `/report?type=${reportType}&id=${reportId}&task_id=${result.task_id}`;
+            // Redirect to reports list - report will generate in background
+            window.location.href = '/reports';
             return;
         }
         
@@ -151,19 +153,20 @@ function displayReport() {
     switch(reportType) {
         case 'ioc':
             markdown = displayIOCReport();
-            document.getElementById('reportTitle').textContent = `IOC Report: ${reportData.ioc_type.toUpperCase()}`;
+            const iocType = reportData.ioc_type || 'Unknown';
+            document.getElementById('reportTitle').textContent = `IOC Report: ${iocType.toUpperCase()}`;
             break;
         case 'case':
             markdown = displayCaseReport();
-            document.getElementById('reportTitle').textContent = `Case Report: ${reportData.case_name}`;
+            document.getElementById('reportTitle').textContent = `Case Report: ${reportData.case_name || 'Unknown'}`;
             break;
         case 'incident':
             markdown = displayIncidentReport();
-            document.getElementById('reportTitle').textContent = `Incident Report: ${reportData.incident_name}`;
+            document.getElementById('reportTitle').textContent = `Incident Report: ${reportData.incident_name || 'Unknown'}`;
             break;
         case 'checklist':
             markdown = displayChecklistReport();
-            document.getElementById('reportTitle').textContent = `Checklist Report: ${reportData.title}`;
+            document.getElementById('reportTitle').textContent = `Checklist Report: ${reportData.checklist_title || reportData.title || 'Unknown'}`;
             break;
     }
     
@@ -177,13 +180,13 @@ function displayIOCReport() {
 
 | Field | Value |
 |-------|-------|
-| **Type** | \`${reportData.ioc_type}\` |
-| **Value** | \`${reportData.ioc_value}\` |
-| **Related Indicators** | ${reportData.relations_count} |
+| **Type** | \`${reportData.ioc_type || 'Unknown'}\` |
+| **Value** | \`${reportData.ioc_value || 'N/A'}\` |
+| **Related Indicators** | ${reportData.relations_count || 0} |
 
 ## Analysis
 
-${reportData.analysis}
+${reportData.analysis || 'No analysis generated'}
 `;
 }
 
@@ -192,13 +195,13 @@ function displayCaseReport() {
 
 | Field | Value |
 |-------|-------|
-| **Name** | ${reportData.case_name} |
-| **Incidents** | ${reportData.incidents_count} |
-| **IOCs** | ${reportData.iocs_count} |
+| **Name** | ${reportData.case_name || 'Unknown'} |
+| **Incidents** | ${reportData.incidents_count || 0} |
+| **IOCs** | ${reportData.iocs_count || 0} |
 
 ## Investigation Report
 
-${reportData.report}
+${reportData.report || reportData.analysis || 'No report generated'}
 `;
 }
 
@@ -207,29 +210,25 @@ function displayIncidentReport() {
 
 | Field | Value |
 |-------|-------|
-| **Name** | ${reportData.incident_name} |
-| **Associated IOCs** | ${reportData.iocs_count} |
+| **Name** | ${reportData.incident_name || 'Unknown'} |
+| **Associated IOCs** | ${reportData.iocs_count || 0} |
 
 ## Threat Analysis
 
-${reportData.analysis}
+${reportData.analysis || 'No analysis generated'}
 `;
 }
 
 function displayChecklistReport() {
     // If we have an LLM-enhanced report, display it prominently
-    if (reportData.enhanced_report) {
+    if (reportData.analysis) {
         return `## Checklist Analysis Report
 
-${reportData.enhanced_report}
+${reportData.analysis}
 `;
     }
     
     // Fall back to structured summary if no LLM report
-    const completedItems = reportData.items ? reportData.items.filter(i => i.completed).length : 0;
-    const totalItems = reportData.items ? reportData.items.length : 0;
-    const completionRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
-    
     let itemsMarkdown = '';
     if (reportData.items && reportData.items.length > 0) {
         itemsMarkdown = reportData.items.map(item => {
@@ -242,13 +241,11 @@ ${reportData.enhanced_report}
         }).join('\n');
     }
     
-    return `## Checklist Summary
+    return `## Checklist
 
 | Field | Value |
 |-------|-------|
-| **Title** | ${reportData.title} |
-| **Status** | ${reportData.status} |
-| **Completion** | ${completedItems}/${totalItems} items (${completionRate}%) |
+| **Title** | ${reportData.checklist_title || reportData.title || 'Unknown'} |
 
 ## Description
 

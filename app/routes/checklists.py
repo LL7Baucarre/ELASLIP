@@ -64,7 +64,14 @@ def api_create():
     checklist = checklist_service.create_checklist(
         title=title,
         description=description,
-        created_by=current_user.username
+        created_by=current_user.username,
+        created_by_id=current_user.id,
+        tags=data.get('tags', []),
+        campaigns=data.get('campaigns', []),
+        related_cases=data.get('related_cases', []),
+        related_incidents=data.get('related_incidents', []),
+        assigned_to=data.get('assigned_to', ''),
+        assigned_to_name=data.get('assigned_to_name', '')
     )
     
     return jsonify(checklist), 201
@@ -84,6 +91,18 @@ def api_update(checklist_id):
         updates['description'] = data['description'].strip()
     if 'status' in data:
         updates['status'] = data['status']
+    if 'tags' in data:
+        updates['tags'] = data['tags']
+    if 'campaigns' in data:
+        updates['campaigns'] = data['campaigns']
+    if 'related_cases' in data:
+        updates['related_cases'] = data['related_cases']
+    if 'related_incidents' in data:
+        updates['related_incidents'] = data['related_incidents']
+    if 'assigned_to' in data:
+        updates['assigned_to'] = data['assigned_to']
+    if 'assigned_to_name' in data:
+        updates['assigned_to_name'] = data['assigned_to_name']
     
     checklist = checklist_service.update_checklist(checklist_id, updates)
     if not checklist:

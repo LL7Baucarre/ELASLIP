@@ -13,9 +13,11 @@ class ChecklistService:
     def __init__(self):
         self.es = ElasticsearchService()
     
-    def create_checklist(self, title: str, description: str = '', created_by: str = '', 
+    def create_checklist(self, title: str, description: str = '', created_by: str = '', created_by_id: str = '',
                         items: List[Dict] = None, tags: List[str] = None, 
-                        campaigns: List[str] = None, comments: List[Dict] = None) -> Dict:
+                        campaigns: List[str] = None, comments: List[Dict] = None,
+                        related_cases: List[str] = None, related_incidents: List[str] = None,
+                        assigned_to: str = '', assigned_to_name: str = '') -> Dict:
         """Create a new checklist."""
         if items is None:
             items = []
@@ -25,6 +27,10 @@ class ChecklistService:
             campaigns = []
         if comments is None:
             comments = []
+        if related_cases is None:
+            related_cases = []
+        if related_incidents is None:
+            related_incidents = []
         
         # Ensure each item has an ID and completed flag
         for item in items:
@@ -40,8 +46,13 @@ class ChecklistService:
             'items': items,  # List of {id, title, completed, description, comments}
             'tags': tags,
             'campaigns': campaigns,
+            'related_cases': related_cases,
+            'related_incidents': related_incidents,
             'comments': comments,
             'created_by': created_by,
+            'created_by_id': created_by_id,
+            'assigned_to': assigned_to,
+            'assigned_to_name': assigned_to_name,
             'created_at': datetime.utcnow().isoformat() + 'Z',
             'updated_at': datetime.utcnow().isoformat() + 'Z',
             'status': 'in-progress',  # in-progress, completed, archived

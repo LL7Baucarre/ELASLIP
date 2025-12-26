@@ -1,11 +1,48 @@
 """Tasks for report generation."""
 
 import os
+import time
+import redis
 from celery import shared_task
 from datetime import datetime
 from app.services.report_service import ReportService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.audit_service import AuditService
+
+# Redis lock for ensuring only one report generates at a time
+def get_report_lock():
+    """Get a Redis connection for report locks."""
+    redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+    return redis.from_url(redis_url)
+
+def acquire_report_lock(timeout=600):
+    """
+    Try to acquire a lock to generate a report.
+    Only one report can be generated at a time.
+    
+    Args:
+        timeout: Maximum time in seconds to wait for the lock (default 10 minutes)
+    
+    Returns:
+        True if lock acquired, False if timeout reached
+    """
+    r = get_report_lock()
+    lock_key = 'llm:report_generation_lock'
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        # Try to set the lock with expiration
+        if r.set(lock_key, '1', nx=True, ex=300):  # Lock expires in 5 minutes
+            return True
+        time.sleep(1)  # Wait 1 second before retry
+    
+    return False
+
+def release_report_lock():
+    """Release the report generation lock."""
+    r = get_report_lock()
+    lock_key = 'llm:report_generation_lock'
+    r.delete(lock_key)
 
 
 @shared_task(name='tasks.generate_ioc_report')
@@ -43,13 +80,25 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         # Save pending report
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Update status to processing
+        # Mark as queued while waiting for lock
+        report_entry['status'] = 'queued'
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        # Acquire lock to ensure only one report generates at a time
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Generate report
-        report_data = report_service.generate_ioc_report(ioc_id)
+        try:
+            # Generate report
+            report_data = report_service.generate_ioc_report(ioc_id)
+        finally:
+            # Always release the lock
+            release_report_lock()
         
         # Save completed report with entity name
         report_entry['status'] = 'completed'
@@ -121,13 +170,25 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         # Save pending report
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Update status to processing
+        # Mark as queued while waiting for lock
+        report_entry['status'] = 'queued'
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        # Acquire lock to ensure only one report generates at a time
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Generate report
-        report_data = report_service.generate_case_report(case_id)
+        try:
+            # Generate report
+            report_data = report_service.generate_case_report(case_id)
+        finally:
+            # Always release the lock
+            release_report_lock()
         
         # Save completed report with entity name
         report_entry['status'] = 'completed'
@@ -199,13 +260,25 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         # Save pending report
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Update status to processing
+        # Mark as queued while waiting for lock
+        report_entry['status'] = 'queued'
+        es.index('app_config', f'report_{task_id}', report_entry)
+        
+        # Acquire lock to ensure only one report generates at a time
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Generate report
-        report_data = report_service.generate_incident_report(incident_id)
+        try:
+            # Generate report
+            report_data = report_service.generate_incident_report(incident_id)
+        finally:
+            # Always release the lock
+            release_report_lock()
         
         # Save completed report with entity name
         report_entry['status'] = 'completed'
@@ -335,7 +408,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         user_id: User ID who initiated the report
     """
     import sys
-    import uuid
     
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
         return {'status': 'error', 'error': 'LLM not enabled'}
@@ -344,11 +416,8 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
     report_service = ReportService()
     audit = AuditService()
     
-    # Get task ID - will be None if not run via Celery
-    try:
-        task_id = generate_checklist_report.request.id
-    except:
-        task_id = str(uuid.uuid4())
+    # Get task ID from Celery
+    task_id = generate_checklist_report.request.id
     
     print(f"DEBUG: Starting checklist report generation. Task ID: {task_id}, Checklist ID: {checklist_id}", file=sys.stderr)
     
@@ -385,14 +454,10 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         print(f"DEBUG: Saving pending report to {f'report_{task_id}'}", file=sys.stderr)
         es.index('app_config', f'report_{task_id}', report_entry)
         
-        # Update status to processing
-        report_entry['status'] = 'processing'
-        report_entry['started_at'] = datetime.utcnow().isoformat()
-        es.index('app_config', f'report_{task_id}', report_entry)
-        
         # Generate report
         report_data = {
-            'title': checklist.get('title', 'Untitled Checklist'),
+            'checklist_id': checklist_id,
+            'checklist_title': checklist.get('title', 'Untitled Checklist'),
             'description': checklist.get('description', ''),
             'status': checklist.get('status', 'unknown'),
             'items': checklist.get('items', []),
@@ -405,11 +470,32 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         
         # Call LLM to enhance the report if configured
         if report_service.is_configured():
-            print(f"DEBUG: LLM is configured, generating enhanced report", file=sys.stderr)
+            print(f"DEBUG: LLM is configured, waiting for queue slot", file=sys.stderr)
+            
+            # Mark as queued while waiting for lock
+            report_entry['status'] = 'queued'
+            es.index('app_config', f'report_{task_id}', report_entry)
+            
             try:
-                enhanced = report_service.generate_checklist_report(checklist_id)
-                print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
-                report_data['enhanced_report'] = enhanced.get('analysis', '')
+                # Acquire lock to ensure only one report generates at a time
+                if not acquire_report_lock(timeout=600):
+                    print(f"DEBUG: Failed to acquire report lock after timeout", file=sys.stderr)
+                    raise RuntimeError("Report generation queue is full. Please try again later.")
+                
+                # Update status to processing once we have the lock
+                report_entry['status'] = 'processing'
+                report_entry['started_at'] = datetime.utcnow().isoformat()
+                es.index('app_config', f'report_{task_id}', report_entry)
+                
+                try:
+                    print(f"DEBUG: Lock acquired, generating enhanced report", file=sys.stderr)
+                    enhanced = report_service.generate_checklist_report(checklist_id)
+                    print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
+                    report_data['analysis'] = enhanced.get('analysis', '')
+                finally:
+                    # Always release the lock
+                    release_report_lock()
+                    print(f"DEBUG: Report lock released", file=sys.stderr)
             except Exception as llm_err:
                 print(f"DEBUG: LLM enhancement failed: {str(llm_err)}", file=sys.stderr)
                 # Continue without LLM enhancement

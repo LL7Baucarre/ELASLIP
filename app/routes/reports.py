@@ -196,13 +196,53 @@ def generate_ioc_report(ioc_id):
     
     try:
         from app.tasks.report_tasks import generate_ioc_report as task_generate_ioc
-        # Launch async task
-        task = task_generate_ioc.delay(ioc_id, current_user.username)
-        return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
-            'message': 'Report generation started'
-        })
+        import time
+        import uuid
+        
+        # Try to launch async task, but fallback to sync if Celery isn't available
+        try:
+            # Launch async task
+            task = task_generate_ioc.delay(ioc_id, current_user.username)
+            task_id = task.id
+            
+            # Wait briefly for completion (up to 5 seconds) instead of returning immediately
+            # This allows synchronous-like behavior with async workers
+            for attempt in range(50):  # 50 * 0.1 = 5 seconds
+                try:
+                    response = es_service.get('app_config', f'report_{task_id}')
+                    if response and response.get('found'):
+                        config = response.get('_source', {})
+                        if config.get('status') == 'completed':
+                            # Report is ready! Return it with completed status
+                            return jsonify({
+                                'task_id': task_id,
+                                'status': 'completed',
+                                'message': 'Report generation completed'
+                            })
+                except Exception:
+                    pass
+                
+                time.sleep(0.1)
+            
+            # If not completed within 5 seconds, return pending status
+            return jsonify({
+                'task_id': task_id,
+                'status': 'pending',
+                'message': 'Report generation started'
+            })
+        except Exception as celery_err:
+            # Fallback: generate report synchronously
+            import sys
+            print(f"DEBUG: Celery unavailable ({str(celery_err)}), generating report synchronously", file=sys.stderr)
+            task_id = str(uuid.uuid4())
+            result = task_generate_ioc(ioc_id, current_user.username)
+            # In sync mode, the report might already be completed
+            if result.get('status') == 'completed':
+                return jsonify({
+                    'task_id': task_id,
+                    'status': 'completed',
+                    'message': 'Report generation completed'
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -217,13 +257,53 @@ def generate_case_report(case_id):
     
     try:
         from app.tasks.report_tasks import generate_case_report as task_generate_case
-        # Launch async task
-        task = task_generate_case.delay(case_id, current_user.username)
-        return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
-            'message': 'Report generation started'
-        })
+        import time
+        import uuid
+        
+        # Try to launch async task, but fallback to sync if Celery isn't available
+        try:
+            # Launch async task
+            task = task_generate_case.delay(case_id, current_user.username)
+            task_id = task.id
+            
+            # Wait briefly for completion (up to 5 seconds) instead of returning immediately
+            # This allows synchronous-like behavior with async workers
+            for attempt in range(50):  # 50 * 0.1 = 5 seconds
+                try:
+                    response = es_service.get('app_config', f'report_{task_id}')
+                    if response and response.get('found'):
+                        config = response.get('_source', {})
+                        if config.get('status') == 'completed':
+                            # Report is ready! Return it with completed status
+                            return jsonify({
+                                'task_id': task_id,
+                                'status': 'completed',
+                                'message': 'Report generation completed'
+                            })
+                except Exception:
+                    pass
+                
+                time.sleep(0.1)
+            
+            # If not completed within 5 seconds, return pending status
+            return jsonify({
+                'task_id': task_id,
+                'status': 'pending',
+                'message': 'Report generation started'
+            })
+        except Exception as celery_err:
+            # Fallback: generate report synchronously
+            import sys
+            print(f"DEBUG: Celery unavailable ({str(celery_err)}), generating report synchronously", file=sys.stderr)
+            task_id = str(uuid.uuid4())
+            result = task_generate_case(case_id, current_user.username)
+            # In sync mode, the report might already be completed
+            if result.get('status') == 'completed':
+                return jsonify({
+                    'task_id': task_id,
+                    'status': 'completed',
+                    'message': 'Report generation completed'
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -238,13 +318,53 @@ def generate_incident_report(incident_id):
     
     try:
         from app.tasks.report_tasks import generate_incident_report as task_generate_incident
-        # Launch async task
-        task = task_generate_incident.delay(incident_id, current_user.username)
-        return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
-            'message': 'Report generation started'
-        })
+        import time
+        import uuid
+        
+        # Try to launch async task, but fallback to sync if Celery isn't available
+        try:
+            # Launch async task
+            task = task_generate_incident.delay(incident_id, current_user.username)
+            task_id = task.id
+            
+            # Wait briefly for completion (up to 5 seconds) instead of returning immediately
+            # This allows synchronous-like behavior with async workers
+            for attempt in range(50):  # 50 * 0.1 = 5 seconds
+                try:
+                    response = es_service.get('app_config', f'report_{task_id}')
+                    if response and response.get('found'):
+                        config = response.get('_source', {})
+                        if config.get('status') == 'completed':
+                            # Report is ready! Return it with completed status
+                            return jsonify({
+                                'task_id': task_id,
+                                'status': 'completed',
+                                'message': 'Report generation completed'
+                            })
+                except Exception:
+                    pass
+                
+                time.sleep(0.1)
+            
+            # If not completed within 5 seconds, return pending status
+            return jsonify({
+                'task_id': task_id,
+                'status': 'pending',
+                'message': 'Report generation started'
+            })
+        except Exception as celery_err:
+            # Fallback: generate report synchronously
+            import sys
+            print(f"DEBUG: Celery unavailable ({str(celery_err)}), generating report synchronously", file=sys.stderr)
+            task_id = str(uuid.uuid4())
+            result = task_generate_incident(incident_id, current_user.username)
+            # In sync mode, the report might already be completed
+            if result.get('status') == 'completed':
+                return jsonify({
+                    'task_id': task_id,
+                    'status': 'completed',
+                    'message': 'Report generation completed'
+                })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -259,27 +379,32 @@ def generate_checklist_report(checklist_id):
     
     try:
         from app.tasks.report_tasks import generate_checklist_report as task_generate_checklist
-        import uuid
+        import time
         
-        # Try to launch async task, but fallback to sync if Celery isn't available
-        try:
-            # Launch async task
-            task = task_generate_checklist.delay(checklist_id, current_user.username)
-            task_id = task.id
-        except Exception as celery_err:
-            # Fallback: generate report synchronously
-            import sys
-            print(f"DEBUG: Celery unavailable ({str(celery_err)}), generating report synchronously", file=sys.stderr)
-            task_id = str(uuid.uuid4())
-            result = task_generate_checklist(checklist_id, current_user.username)
-            # In sync mode, the report might already be completed
-            if result.get('status') == 'completed':
-                return jsonify({
-                    'task_id': task_id,
-                    'status': 'completed',
-                    'message': 'Report generation completed'
-                })
+        # Launch async task (required, no fallback)
+        task = task_generate_checklist.delay(checklist_id, current_user.username)
+        task_id = task.id
         
+        # Wait briefly for completion (up to 5 seconds) instead of returning immediately
+        # This allows synchronous-like behavior with async workers
+        for attempt in range(50):  # 50 * 0.1 = 5 seconds
+            try:
+                response = es_service.get('app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        # Report is ready! Return it with completed status
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report generation completed'
+                        })
+            except Exception:
+                pass
+            
+            time.sleep(0.1)
+        
+        # If not completed within 5 seconds, return pending status
         return jsonify({
             'task_id': task_id,
             'status': 'pending',
@@ -381,5 +506,43 @@ def view_report(task_id):
     except Exception as e:
         import sys, traceback
         print(f"DEBUG: Exception in view_report: {str(e)}", file=sys.stderr)
+        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/api/reports/<task_id>', methods=['DELETE'])
+@login_required
+def delete_report(task_id):
+    """Delete a report."""
+    try:
+        from app.services.audit_service import AuditService
+        audit = AuditService()
+        
+        response = es_service.get('app_config', f'report_{task_id}')
+        if not response or not response.get('found'):
+            return jsonify({'error': 'Report not found'}), 404
+        
+        config = response.get('_source', {})
+        
+        # Check if user has permission to delete this report
+        if config.get('user_id') != current_user.username and not current_user.is_admin:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Delete the report from Elasticsearch
+        es_service.delete('app_config', f'report_{task_id}')
+        
+        # Log the deletion
+        audit.log(
+            action='report_deleted',
+            entity_type=config.get('type', 'unknown'),
+            entity_id=config.get('entity_id', task_id),
+            username=current_user.username,
+            entity_name=config.get('entity_name', f'Report {task_id}'),
+            changes={'task_id': task_id}
+        )
+        
+        return jsonify({'success': True, 'message': 'Report deleted successfully'})
+    except Exception as e:
+        import sys, traceback
+        print(f"DEBUG: Exception in delete_report: {str(e)}", file=sys.stderr)
         print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
         return jsonify({'error': str(e)}), 500

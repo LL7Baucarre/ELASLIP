@@ -205,10 +205,58 @@
                         <strong>Created At:</strong><br>
                         <span class="text-muted">{{ checklist.created_at[:19] if checklist.created_at else '-' }}</span>
                     </div>
-                    <div>
+                    <div class="mb-3">
                         <strong>Updated At:</strong><br>
                         <span class="text-muted">{{ checklist.updated_at[:19] if checklist.updated_at else '-' }}</span>
                     </div>
+                    
+                    <!-- Tags -->
+                    {% if checklist.get('tags') and checklist['tags']|length > 0 %}
+                    <div class="mb-3">
+                        <strong>Tags:</strong><br>
+                        {% for tag in checklist['tags'] %}
+                        <span class="badge bg-info me-1 mb-1">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Campaigns -->
+                    {% if checklist.get('campaigns') and checklist['campaigns']|length > 0 %}
+                    <div class="mb-3">
+                        <strong>Campaigns:</strong><br>
+                        {% for campaign in checklist['campaigns'] %}
+                        <span class="badge bg-primary me-1 mb-1">{{ campaign }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Assigned To -->
+                    {% if checklist.get('assigned_to_name') %}
+                    <div class="mb-3">
+                        <strong>Assigned To:</strong><br>
+                        <span class="text-muted">{{ checklist.assigned_to_name }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Related Cases -->
+                    {% if checklist.get('related_cases') and checklist['related_cases']|length > 0 %}
+                    <div class="mb-3">
+                        <strong>Related Cases:</strong><br>
+                        {% for case in checklist['related_cases'] %}
+                        <div class="text-muted small mb-1">• {{ case }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Related Incidents -->
+                    {% if checklist.get('related_incidents') and checklist['related_incidents']|length > 0 %}
+                    <div class="mb-3">
+                        <strong>Related Incidents:</strong><br>
+                        {% for incident in checklist['related_incidents'] %}
+                        <div class="text-muted small mb-1">• {{ incident }}</div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -217,7 +265,7 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Edit Checklist</h5>
@@ -232,6 +280,43 @@
                     <div class="mb-3">
                         <label for="editDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="editDescription" rows="3">{{ checklist.description }}</textarea>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <label for="editTags" class="form-label">Tags</label>
+                        <input type="text" class="form-control" id="editTags"
+                               placeholder="Enter tags separated by commas"
+                               value="{% if checklist.get('tags') %}{{ checklist['tags']|join(', ') }}{% endif %}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editCampaigns" class="form-label">Campaigns</label>
+                        <input type="text" class="form-control" id="editCampaigns"
+                               placeholder="Enter campaign names separated by commas"
+                               value="{% if checklist.get('campaigns') %}{{ checklist['campaigns']|join(', ') }}{% endif %}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editRelatedCases" class="form-label">Related Cases</label>
+                        <input type="text" class="form-control" id="editRelatedCases"
+                               placeholder="Enter case IDs or names separated by commas"
+                               value="{% if checklist.get('related_cases') %}{{ checklist['related_cases']|join(', ') }}{% endif %}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editRelatedIncidents" class="form-label">Related Incidents</label>
+                        <input type="text" class="form-control" id="editRelatedIncidents"
+                               placeholder="Enter incident IDs or names separated by commas"
+                               value="{% if checklist.get('related_incidents') %}{{ checklist['related_incidents']|join(', ') }}{% endif %}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editAssignedTo" class="form-label">Assign To</label>
+                        <input type="text" class="form-control" id="editAssignedTo"
+                               placeholder="Username or user ID"
+                               value="{% if checklist.get('assigned_to_name') %}{{ checklist.assigned_to_name }}{% endif %}">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -274,15 +359,31 @@
 <script>
 const checklistId = '{{ checklist.id }}';
 
+// Helper function to parse comma-separated values
+function parseTags(str) {
+    return str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+}
+
 document.getElementById('editForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const title = document.getElementById('editTitle').value.trim();
     const description = document.getElementById('editDescription').value.trim();
     
+    const payload = {
+        title,
+        description,
+        tags: parseTags(document.getElementById('editTags').value),
+        campaigns: parseTags(document.getElementById('editCampaigns').value),
+        related_cases: parseTags(document.getElementById('editRelatedCases').value),
+        related_incidents: parseTags(document.getElementById('editRelatedIncidents').value),
+        assigned_to: document.getElementById('editAssignedTo').value.trim(),
+        assigned_to_name: document.getElementById('editAssignedTo').value.trim()
+    };
+    
     fetch(`/checklists/api/${checklistId}/update`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({title, description})
+        body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(data => {

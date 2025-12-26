@@ -651,13 +651,6 @@
                 </a>
             </li>
             {% endif %}
-            {% if has_any_permission('snippet.view', 'snippet.create') %}
-            <li class="nav-item">
-                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
-                    <i class="bi bi-file-earmark-text"></i> Snippets
-                </a>
-            </li>
-            {% endif %}
             {% if has_any_permission('checklist.view', 'checklist.create') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'checklists' in request.endpoint %}active{% endif %}" href="{{ url_for('checklists.list_page') }}">
@@ -678,6 +671,13 @@
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.tools_page' %}active{% endif %}" href="{{ url_for('main.tools_page') }}">
                     <i class="bi bi-terminal"></i> Tools
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('snippet.view', 'snippet.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
+                    <i class="bi bi-file-earmark-text"></i> Snippets
                 </a>
             </li>
             {% endif %}

@@ -881,20 +881,22 @@ Please provide in **Markdown format**:
         description = checklist.get('description', 'No description')
         items = checklist.get('items', [])
         created_by = checklist.get('created_by', 'Unknown')
+        created_by_id = checklist.get('created_by_id', '')
         created_at = checklist.get('created_at', 'Unknown')
+        assigned_to = checklist.get('assigned_to', '')
+        assigned_to_name = checklist.get('assigned_to_name', 'Unassigned')
         
-        # Count completed items
-        completed_count = sum(1 for item in items if item.get('completed', False))
-        total_items = len(items)
-        completion_percentage = (completed_count / total_items * 100) if total_items > 0 else 0
-        
-        # Get global tags, campaigns, and comments
+        # Get global tags, campaigns, cases, incidents and comments
         tags = checklist.get('tags', [])
         campaigns = checklist.get('campaigns', [])
+        related_cases = checklist.get('related_cases', [])
+        related_incidents = checklist.get('related_incidents', [])
         global_comments = checklist.get('comments', [])
         
         tags_text = ', '.join(tags) if tags else 'No tags assigned'
         campaigns_text = ', '.join(campaigns) if campaigns else 'No campaigns assigned'
+        cases_text = ', '.join(related_cases) if related_cases else 'No related cases'
+        incidents_text = ', '.join(related_incidents) if related_incidents else 'No related incidents'
         
         # Build global comments text
         global_comments_text = ""
@@ -934,12 +936,13 @@ Please provide in **Markdown format**:
                 return self.custom_prompt_checklist.format(
                     title=title,
                     description=description,
-                    completed=completed_count,
-                    total=total_items,
-                    percentage=completion_percentage,
                     items=items_text,
                     tags=tags_text,
                     campaigns=campaigns_text,
+                    related_cases=cases_text,
+                    related_incidents=incidents_text,
+                    assigned_to=assigned_to_name,
+                    created_by=created_by,
                     global_comments=global_comments_text
                 )
             except KeyError:
@@ -950,73 +953,67 @@ Please provide in **Markdown format**:
         if campaigns:
             context_info += f"\n\n### Campaign Context\nThis checklist is related to the following threat campaigns/APT groups: {campaigns_text}. Consider how the items and their status relate to the identified threats."
         
-        return f"""# Detailed Checklist Analysis and Status Report
+        # Build contextual sections with proper fallbacks
+        campaigns_context = campaigns_text if campaigns_text != "No campaigns assigned" else "General organizational security"
+        cases_context = cases_text if cases_text != "No related cases" else "No direct case associations"
+        incidents_context = incidents_text if incidents_text != "No related incidents" else "No direct incident associations"
+        
+        # Build global comments section
+        global_comments_section = global_comments_text if global_comments_text else "No additional comments provided."
+        
+        # Count completed vs pending items
+        completed_items = sum(1 for item in items if item.get('completed'))
+        total_items = len(items)
+        completion_percentage = (completed_items / total_items * 100) if total_items > 0 else 0
+        
+        return f"""# Work Summary Report - {title}
 
-## Executive Overview
+## Context
 
-This report provides a comprehensive analysis of the checklist **"{title}"** and its current completion status.
+This is a report on the following task checklist:
 
-## Checklist Metadata
-- **Title**: {title}
-- **Description**: {description}
-- **Created By**: {created_by}
-- **Created On**: {created_at}
-- **Classification Tags**: {tags_text}
-- **Associated Threat Campaigns**: {campaigns_text}
-- **Overall Progress**: {completed_count} of {total_items} items completed ({completion_percentage:.1f}%)
+**Checklist**: {title}
+**Description**: {description}
+**Created By**: {created_by}
+**Assigned To**: {assigned_to_name}
+**Status**: {completed_items}/{total_items} items completed ({completion_percentage:.0f}%)
+**Tags**: {tags_text}
+**Related Campaigns**: {campaigns_text}
+**Related Cases**: {cases_text}
+**Related Incidents**: {incidents_text}
 
-## Current Status Overview
+## Completed Work
 
-The checklist is currently **{completion_percentage:.1f}% complete** with **{completed_count}** items successfully completed and **{total_items - completed_count}** items still pending.
-
-### Key Context from Stakeholders
-{global_comments_text if global_comments_text else "No additional global comments provided."}
-
-## Detailed Items Assessment
+The following items have been successfully completed:
 
 {items_text}
 
+## Team Observations and Comments
+
+{global_comments_section}
+
+---
+
 ## Analysis Request
 
-Please provide a comprehensive analysis report in **Markdown format** that includes:
+You are an experienced analyst. Please provide a **comprehensive narrative report** in Markdown format that explains what was done, the context of this work, and its implications. 
 
-1. **Executive Summary**: 
-   - Overview of the checklist's purpose and strategic importance
-   - Current completion status and trends
-   - Key metrics and current progress indicators
-   - Critical blockers or dependencies identified
+Write this as if you're briefing management or colleagues who need to understand:
+- What objectives were being pursued with this checklist
+- What work has been completed and its quality/importance
+- What remains to be done and why it matters
+- How this work fits into the bigger picture ({campaigns_context} / {cases_context} / {incidents_context})
+- What risks or blockers exist
+- What should happen next
 
-2. **Contextual Threat Assessment**: 
-   - How the checklist relates to the identified threat campaigns: {campaigns_text if campaigns_text != "No campaigns assigned" else "General organizational security"}
-   - Risk implications of incomplete items in this context
-   - Threat-specific recommendations based on campaigns
+**Tone**: Professional, contextual, and explanatory. Assume the reader doesn't need exhaustive structured bullet points, but rather a clear narrative of events, progress, and implications. Include analyst observations and insights about what was accomplished and what it means.
 
-3. **Completion Progress Analysis**: 
-   - Trend analysis of completion rates
-   - Root causes of items still pending
-   - Dependencies and blocking factors
-   - Prioritization of remaining items based on criticality
+**Structure**: Feel free to organize this naturally as a report would be written - start with what was done, provide context for why each item matters, note what's still pending and the implications, then provide recommendations for next steps.
 
-4. **Impact Assessment**: 
-   - Consequences of incomplete items on overall security posture
-   - Evaluation of dependencies between items
-   - Critical path analysis for remaining work
-   - Business and operational impact
-
-5. **Quality Review**:
-   - Analysis of analyst comments and observations
-   - Identification of items requiring rework or clarification
-   - Assessment of completed work quality
-   - Validation of completion criteria met
-
-6. **Strategic Recommendations**:
-   - Prioritized action plan for remaining items
-   - Resource requirements and timeline estimates
-   - Process improvements identified
-   - Long-term preventive measures based on lessons learned
-
-7. **Conclusion and Next Steps**: 
-   - Summary of current status and key findings
-   - Immediate actions required
-   - Timeline for completion
-   - Success criteria and validation methods{context_info}"""
+**Include**:
+- A brief executive summary
+- What was accomplished and why it's important
+- Key observations from the team comments above
+- Assessment of completion and quality
+- Outstanding issues and their impact
+- Recommended next actions with reasoning{context_info}"""

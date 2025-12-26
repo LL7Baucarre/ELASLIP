@@ -150,6 +150,12 @@ function getActionButtons(report) {
         buttons += `<small class="text-muted">In progress...</small>`;
     }
     
+    buttons += `
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteReport('${report.task_id}', '${report.type}')">
+            <i class="bi bi-trash"></i> Delete
+        </button>
+    `;
+    
     return buttons;
 }
 
@@ -231,6 +237,28 @@ ${data.analysis}
 
 function showError(error) {
     alert(`Error: ${error}`);
+}
+
+async function deleteReport(taskId, reportType) {
+    if (!confirm(`Are you sure you want to delete this ${reportType} report?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/reports/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete report');
+        }
+        
+        // Refresh the list
+        loadReports();
+    } catch (error) {
+        alert(`Error deleting report: ${error.message}`);
+    }
 }
 
 function escapeHtml(text) {

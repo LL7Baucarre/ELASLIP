@@ -35,6 +35,37 @@
                             <small>This checklist was created from a template. You can modify the items below.</small>
                         </div>
 
+                        <!-- Metadata Fields -->
+                        <div class="mb-3">
+                            <label for="tags" class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="tags" 
+                                   placeholder="Enter tags separated by commas (e.g., urgent, security, review)">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="campaigns" class="form-label">Campaigns</label>
+                            <input type="text" class="form-control" id="campaigns"
+                                   placeholder="Enter campaign names separated by commas">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="relatedCases" class="form-label">Related Cases</label>
+                            <input type="text" class="form-control" id="relatedCases"
+                                   placeholder="Enter case IDs or names separated by commas">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="relatedIncidents" class="form-label">Related Incidents</label>
+                            <input type="text" class="form-control" id="relatedIncidents"
+                                   placeholder="Enter incident IDs or names separated by commas">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assignedTo" class="form-label">Assign To</label>
+                            <input type="text" class="form-control" id="assignedTo"
+                                   placeholder="Username or user ID">
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">Items</label>
                             <div id="itemsContainer"></div>
@@ -127,6 +158,9 @@ document.getElementById('createChecklistForm').addEventListener('submit', functi
     const description = document.getElementById('description').value.trim();
     const items = [];
     
+    // Parse comma-separated values into arrays
+    const parseTags = (str) => str.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    
     // Collect items
     document.querySelectorAll('.item-row').forEach(row => {
         const itemTitle = row.querySelector('.item-title').value.trim();
@@ -144,10 +178,22 @@ document.getElementById('createChecklistForm').addEventListener('submit', functi
         return;
     }
     
+    const payload = {
+        title,
+        description,
+        items,
+        tags: parseTags(document.getElementById('tags').value),
+        campaigns: parseTags(document.getElementById('campaigns').value),
+        related_cases: parseTags(document.getElementById('relatedCases').value),
+        related_incidents: parseTags(document.getElementById('relatedIncidents').value),
+        assigned_to: document.getElementById('assignedTo').value.trim(),
+        assigned_to_name: document.getElementById('assignedTo').value.trim()
+    };
+    
     fetch('/checklists/api/create', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({title, description, items})
+        body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(data => {
