@@ -19,6 +19,7 @@ from app.services.ioc_service import IOCService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.case_service import CaseService, IncidentService, TimelineService
 from app.services.comment_service import CommentService, SnippetService
+from app.services.checklist_template_service import ChecklistTemplateService
 from app.services.audit_service import AuditService
 from app.auth import User, APIKey
 
@@ -207,6 +208,72 @@ def generate_snippet():
         }
     ]
     return random.choice(snippet_templates)
+
+
+def generate_checklist_templates():
+    """Generate predefined checklist templates."""
+    templates = [
+        {
+            'name': 'O365 Security Investigation',
+            'description': 'Checklist for investigating suspicious activity in Microsoft Office 365 environment',
+            'is_public': True,
+            'items': [
+                {'title': 'Check Azure AD sign-in logs for suspicious access', 'description': 'Review sign-in activity for anomalies and risky sign-ins'},
+                {'title': 'Review mailbox forwarding rules', 'description': 'Identify unauthorized mail forwarding to external domains'},
+                {'title': 'Audit delegated access permissions', 'description': 'Check for unexpected mailbox delegates or send-as permissions'},
+                {'title': 'Examine Teams channel permissions', 'description': 'Verify Teams channels and sharing settings'},
+                {'title': 'Review MFA status for affected users', 'description': 'Ensure MFA is enabled and check recovery options'},
+                {'title': 'Check OneDrive sharing settings', 'description': 'Identify external shares and unusual access patterns'},
+                {'title': 'Review Exchange transport rules', 'description': 'Look for rules redirecting mail to external addresses'},
+                {'title': 'Analyze mailbox rules and inboxes', 'description': 'Check for phishing and forwarding rules in affected mailboxes'},
+                {'title': 'Collect audit logs', 'description': 'Export and analyze Office 365 audit logs for the investigation period'},
+                {'title': 'Identify compromised accounts', 'description': 'List all accounts involved in the suspicious activity'},
+                {'title': 'Reset credentials and enforce MFA', 'description': 'Reset passwords and enable MFA on all affected accounts'},
+                {'title': 'Document findings and recommendations', 'description': 'Prepare incident report with remediation steps'}
+            ]
+        },
+        {
+            'name': 'Incident Response - Initial Triage',
+            'description': 'Initial assessment and triage checklist for security incidents',
+            'is_public': True,
+            'items': [
+                {'title': 'Confirm the incident is real', 'description': 'Validate alert against false positives'},
+                {'title': 'Determine incident severity level', 'description': 'Assess impact and urgency (critical/high/medium/low)'},
+                {'title': 'Identify affected systems and users', 'description': 'List all impacted hosts, applications, and user accounts'},
+                {'title': 'Collect initial evidence', 'description': 'Preserve logs, memory dumps, and suspicious files'},
+                {'title': 'Isolate critical affected systems', 'description': 'Disconnect systems from network if necessary'},
+                {'title': 'Notify incident response team', 'description': 'Escalate to appropriate teams based on severity'},
+                {'title': 'Begin timeline of events', 'description': 'Document when the incident was first detected and initial observations'},
+                {'title': 'Assign incident commander', 'description': 'Designate person responsible for coordination'},
+                {'title': 'Open case in tracking system', 'description': 'Create case record and assign ticket number'},
+                {'title': 'Setup secure communication channel', 'description': 'Establish isolated channel for incident team discussion'},
+                {'title': 'Perform preliminary root cause analysis', 'description': 'Identify how the attacker gained initial access'},
+                {'title': 'Create incident response plan', 'description': 'Document containment and remediation steps'}
+            ]
+        },
+        {
+            'name': 'Malware Analysis Workflow',
+            'description': 'Checklist for analyzing potentially malicious files and artifacts',
+            'is_public': True,
+            'items': [
+                {'title': 'Hash the suspicious file', 'description': 'Calculate MD5, SHA1, and SHA256 hashes'},
+                {'title': 'Check VirusTotal and YARA databases', 'description': 'Search for file hashes in threat intelligence databases'},
+                {'title': 'Examine file metadata', 'description': 'Check file properties, timestamps, and digital signatures'},
+                {'title': 'Perform static analysis', 'description': 'Use IDA Pro or Ghidra to analyze binary structure'},
+                {'title': 'Check strings for indicators', 'description': 'Extract and review ASCII/Unicode strings'},
+                {'title': 'Analyze import tables', 'description': 'Review DLL imports and API calls'},
+                {'title': 'Perform dynamic analysis in sandbox', 'description': 'Execute in isolated environment and monitor behavior'},
+                {'title': 'Document network connections', 'description': 'Record C2 servers, DNS queries, and HTTP requests'},
+                {'title': 'Identify registry modifications', 'description': 'Note registry keys and values the malware modifies'},
+                {'title': 'Check for persistence mechanisms', 'description': 'Identify autorun, scheduled tasks, or service installation'},
+                {'title': 'Correlate with known malware families', 'description': 'Link to known malware variants and campaigns'},
+                {'title': 'Create YARA rules if unique', 'description': 'Develop detection signatures for future use'},
+                {'title': 'Document findings in report', 'description': 'Compile analysis results and recommendations'}
+            ]
+        }
+    ]
+    return templates
+
 
 
 def generate_random_iocs(count=100):
@@ -559,9 +626,34 @@ def populate_demo_data():
         
         print(f"   ✓ Created {snippets_created} snippets")
         
+        # Create checklist templates
+        print("\n9. Creating checklist templates...")
+        template_service = ChecklistTemplateService()
+        templates_created = 0
+        
+        try:
+            templates_data = generate_checklist_templates()
+            for template_data in templates_data:
+                try:
+                    template = template_service.create_template(
+                        name=template_data['name'],
+                        description=template_data['description'],
+                        created_by='demo_user',
+                        items=template_data['items'],
+                        is_public=template_data['is_public']
+                    )
+                    templates_created += 1
+                    print(f"   Created template: {template_data['name']}")
+                except Exception as e:
+                    print(f"      Warning: Failed to create template '{template_data['name']}': {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to generate templates: {str(e)}")
+        
+        print(f"   ✓ Created {templates_created} checklist templates")
+        
         # Create random relationships between IOCs
         if len(created_ids) > 1:
-            print("\n9. Creating random IOC relationships...")
+            print("\n10. Creating random IOC relationships...")
             relation_types = [
                 'communicates-with',
                 'exploits',
@@ -614,7 +706,7 @@ def populate_demo_data():
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         
         # Add comments to IOCs
-        print("\n10. Adding comments to IOCs...")
+        print("\n11. Adding comments to IOCs...")
         comment_service = CommentService()
         ioc_comments_created = 0
         
@@ -637,7 +729,7 @@ def populate_demo_data():
         print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
         
         # Add comments to cases
-        print("\n11. Adding comments to cases...")
+        print("\n12. Adding comments to cases...")
         case_comments_created = 0
         
         for case in created_cases:
@@ -659,7 +751,7 @@ def populate_demo_data():
         print(f"   ✓ Created {case_comments_created} comments on cases")
         
         # Add comments to incidents
-        print("\n12. Adding comments to incidents...")
+        print("\n13. Adding comments to incidents...")
         incident_comments_created = 0
         
         for incident in created_incidents:
@@ -681,7 +773,7 @@ def populate_demo_data():
         print(f"   ✓ Created {incident_comments_created} comments on incidents")
         
         # Create timeline events (audit log entries)
-        print("\n13. Creating timeline events...")
+        print("\n14. Creating timeline events...")
         timeline_service = TimelineService()
         timeline_events_created = 0
         
@@ -747,6 +839,7 @@ def populate_demo_data():
         print(f"Total external API configs: {external_api_created}")
         print(f"Total webhooks created: {webhooks_created}")
         print(f"Total snippets created: {snippets_created}")
+        print(f"Total checklist templates created: {templates_created}")
         print("=" * 60)
 
 

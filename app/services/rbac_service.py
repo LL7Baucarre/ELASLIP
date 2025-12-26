@@ -84,6 +84,21 @@ PERMISSIONS = {
     'report.export': 'Export reports',
     'report.generate_llm': 'Generate reports using LLM',
     
+    # ============== Checklists ==============
+    'checklist.view': 'View checklists',
+    'checklist.create': 'Create checklists',
+    'checklist.edit': 'Edit checklists',
+    'checklist.delete': 'Delete checklists',
+    'checklist.export': 'Export checklists as Markdown',
+    'checklist.generate_llm': 'Generate checklist reports using LLM',
+    
+    # ============== Checklist Templates ==============
+    'checklist.template.view': 'View checklist templates',
+    'checklist.template.create': 'Create checklist templates',
+    'checklist.template.edit': 'Edit checklist templates',
+    'checklist.template.delete': 'Delete checklist templates',
+    'checklist.template.use': 'Use templates to create checklists',
+    
     # ============== Tools & Enrichment ==============
     'tools.view': 'View tool results',
     'tools.execute': 'Execute analysis tools',
@@ -140,6 +155,9 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute', 'tools.configure',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
         ],
@@ -169,6 +187,9 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
         ],
@@ -198,6 +219,9 @@ DEFAULT_ROLES = {
             'tools.view', 'tools.execute',
             # Search & Reports
             'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            # Checklists
+            'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
+            'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Admin
             'admin.audit',
         ],
@@ -224,6 +248,10 @@ DEFAULT_ROLES = {
             'api.access', 'api.keys.view',
             # Search & Reports
             'search.advanced', 'report.view', 'report.export',
+            # Checklists
+            'checklist.view', 'checklist.template.view', 'checklist.template.use',
+            # Checklists
+            'checklist.view', 'checklist.template.view', 'checklist.template.use',
         ],
         'is_system': True,
         'is_editable': False

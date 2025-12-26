@@ -540,6 +540,64 @@ APP_CONFIG_MAPPING = {
 }
 
 
+# Checklists Index Mapping
+CHECKLISTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "title": {"type": "text"},
+            "description": {"type": "text"},
+            "status": {"type": "keyword"},
+            "created_by": {"type": "keyword"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"},
+            "items": {
+                "type": "nested",
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "title": {"type": "text"},
+                    "description": {"type": "text"},
+                    "completed": {"type": "boolean"},
+                    "created_at": {"type": "date"}
+                }
+            }
+        }
+    }
+}
+
+
+# Checklist Templates Index Mapping
+CHECKLIST_TEMPLATES_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            "is_public": {"type": "boolean"},
+            "created_by": {"type": "keyword"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"},
+            "items": {
+                "type": "nested",
+                "properties": {
+                    "id": {"type": "keyword"},
+                    "title": {"type": "text"},
+                    "description": {"type": "text"}
+                }
+            }
+        }
+    }
+}
+
+
 # All indices with their mappings
 INDICES = {
     "ioc_manager_ioc": IOC_MAPPING,
@@ -560,5 +618,7 @@ INDICES = {
     "ioc_manager_timeline_events": TIMELINE_EVENTS_MAPPING,
     "ioc_manager_comments": COMMENTS_MAPPING,
     "ioc_manager_snippets": SNIPPETS_MAPPING,
+    "ioc_manager_checklists": CHECKLISTS_MAPPING,
+    "ioc_manager_checklist_templates": CHECKLIST_TEMPLATES_MAPPING,
     "ioc_manager_app_config": APP_CONFIG_MAPPING
 }
