@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}{{ checklist.title }} - Checklist - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ checklist.title }}</h1>
+            <small class="text-muted">{{ checklist.id }}</small>
+        </div>
+        <div class="btn-group" role="group">
+            {% if has_permission('checklist.export') %}
+            <a href="/checklists/api/{{ checklist.id }}/export" class="btn btn-outline-info" download>
+                <i class="bi bi-download me-1"></i> Export Markdown
+            </a>
+            {% endif %}
+            {% if has_permission('checklist.generate_llm') %}
+            <button class="btn btn-outline-success" onclick="generateReport()">
+                <i class="bi bi-stars me-1"></i> Generate Report
+            </button>
+            {% endif %}
+            {% if has_permission('checklist.edit') %}
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+            {% endif %}
+            {% if has_permission('checklist.delete') %}
+            <button class="btn btn-outline-danger" onclick="deleteChecklist()">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            {% endif %}
+            <a href="{{ url_for('checklists.list_page') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Description -->
+            {% if checklist.description %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Description</h6>
+                </div>
+                <div class="card-body">
+                    {{ checklist.description }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Items -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Items</h6>
+                    {% if has_permission('checklist.edit') %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="bi bi-plus me-1"></i> Add Item
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if checklist['items'] %}
+                        <div id="itemsList">
+                            {% for item in checklist['items'] %}
+                            <div class="item-card mb-4 p-3 border rounded" id="item-{{ item.id }}">
+                                <div class="d-flex align-items-start">
+                                    {% if has_permission('checklist.edit') %}
+                                    <input type="checkbox" class="form-check-input mt-1 me-3" 
+                                           {% if item.completed %}checked{% endif %}
+                                           onchange="toggleItem('{{ item.id }}')">
+                                    {% else %}
+                                    <input type="checkbox" class="form-check-input mt-1 me-3" 
+                                           {% if item.completed %}checked{% endif %} disabled>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1 {% if item.completed %}text-decoration-line-through text-muted{% endif %}">
+                                            {{ item.title }}
+                                        </h6>
+                                        {% if item.description %}
+                                        <p class="mb-2 small text-muted">{{ item.description }}</p>
+                                        {% endif %}
+                                        
+                                        <!-- Comments Section -->
+                                        <div class="comments-section mt-3 pt-2 border-top">
+                                            {% if item.get('comments') %}
+                                            <div class="mb-3">
+                                                <strong class="small">Comments:</strong>
+                                                {% for comment in item['comments'] %}
+                                                <div class="comment-item p-2 mb-2 bg-light rounded small">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <strong>{{ comment.user }}</strong>
+                                                            <span class="text-muted" title="{{ comment.created_at }}">
+                                                                {{ comment.created_at[:10] }} {{ comment.created_at[11:19] }}
+                                                            </span>
+                                                        </div>
+                                                        {% if has_permission('checklist.comment.delete_any') or comment.user == current_user.username %}
+                                                        <button class="btn btn-sm btn-link text-danger p-0" 
+                                                                onclick="deleteComment('{{ item.id }}', '{{ comment.id }}')">
+                                                            <i class="bi bi-x-lg"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </div>
+                                                    <p class="mb-0 mt-1">{{ comment.text }}</p>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if has_permission('checklist.comment.create') %}
+                                            <div class="add-comment-form">
+                                                <input type="text" class="form-control form-control-sm" 
+                                                       placeholder="Add a comment..." 
+                                                       id="comment-input-{{ item.id }}"
+                                                       onkeypress="if(event.key==='Enter') addComment('{{ item.id }}')">
+                                                <small class="text-muted">Press Enter to add comment</small>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if has_permission('checklist.edit') %}
+                                    <div class="ms-2">
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.id }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        No items yet. 
+                        {% if has_permission('checklist.edit') %}
+                        <a href="#" data-bs-toggle="modal" data-bs-target="#addItemModal">Add one</a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Status</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Current Status</label>
+                        <div>
+                            <span class="badge bg-{{ 'success' if checklist.status == 'completed' else 'warning' if checklist.status == 'in-progress' else 'secondary' }}">
+                                {{ checklist.status|title }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {% if has_permission('checklist.edit') %}
+                    <select class="form-select" id="statusSelect" onchange="updateStatus()">
+                        <option value="in-progress" {% if checklist.status == 'in-progress' %}selected{% endif %}>In Progress</option>
+                        <option value="completed" {% if checklist.status == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="archived" {% if checklist.status == 'archived' %}selected{% endif %}>Archived</option>
+                    </select>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Progress</h6>
+                </div>
+                <div class="card-body">
+                    {% set completed = checklist['items']|selectattr('completed', 'equalto', True)|list|length %}
+                    {% set total = checklist['items']|length %}
+                    <div class="mb-2">
+                        <small class="text-muted">{{ completed }}/{{ total }} completed</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {{ (completed / total * 100)|int if total > 0 else 0 }}%">
+                            {{ (completed / total * 100)|int if total > 0 else 0 }}%
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Metadata -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Details</h6>
+                </div>
+                <div class="card-body small">
+                    <div class="mb-3">
+                        <strong>Created By:</strong><br>
+                        <span class="text-muted">{{ checklist.created_by }}</span>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Created At:</strong><br>
+                        <span class="text-muted">{{ checklist.created_at[:19] if checklist.created_at else '-' }}</span>
+                    </div>
+                    <div>
+                        <strong>Updated At:</strong><br>
+                        <span class="text-muted">{{ checklist.updated_at[:19] if checklist.updated_at else '-' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Checklist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editTitle" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="editTitle" value="{{ checklist.title }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" rows="3">{{ checklist.description }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addItemForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="itemTitle" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="itemTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="itemDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="itemDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const checklistId = '{{ checklist.id }}';
+
+document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const title = document.getElementById('editTitle').value.trim();
+    const description = document.getElementById('editDescription').value.trim();
+    
+    fetch(`/checklists/api/${checklistId}/update`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, description})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        }
+    })
+    .catch(err => alert('Error updating checklist'));
+});
+
+document.getElementById('addItemForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const title = document.getElementById('itemTitle').value.trim();
+    const description = document.getElementById('itemDescription').value.trim();
+    
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+    
+    fetch(`/checklists/api/${checklistId}/add-item`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, description})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        }
+    })
+    .catch(err => alert('Error adding item'));
+});
+
+function toggleItem(itemId) {
+    fetch(`/checklists/api/${checklistId}/items/${itemId}/toggle`, {
+        method: 'PUT'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        }
+    })
+    .catch(err => alert('Error toggling item'));
+}
+
+function deleteItem(itemId) {
+    if (confirm('Delete this item?')) {
+        fetch(`/checklists/api/${checklistId}/items/${itemId}/delete`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.id) {
+                location.reload();
+            }
+        })
+        .catch(err => alert('Error deleting item'));
+    }
+}
+
+function addComment(itemId) {
+    const input = document.getElementById(`comment-input-${itemId}`);
+    const text = input.value.trim();
+    
+    if (!text) {
+        return;
+    }
+    
+    fetch(`/checklists/api/${checklistId}/items/${itemId}/comments`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        } else {
+            alert('Error adding comment');
+        }
+    })
+    .catch(err => alert('Error adding comment'));
+}
+
+function deleteComment(itemId, commentId) {
+    if (confirm('Delete this comment?')) {
+        fetch(`/checklists/api/${checklistId}/items/${itemId}/comments/${commentId}`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.id) {
+                location.reload();
+            } else {
+                alert('Error deleting comment');
+            }
+        })
+        .catch(err => alert('Error deleting comment'));
+    }
+}
+
+function updateStatus() {
+    const status = document.getElementById('statusSelect').value;
+    fetch(`/checklists/api/${checklistId}/update`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.id) {
+            location.reload();
+        }
+    })
+    .catch(err => alert('Error updating status'));
+}
+
+function deleteChecklist() {
+    if (confirm('Delete this checklist? This action cannot be undone.')) {
+        fetch(`/checklists/api/${checklistId}/delete`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.message) {
+                window.location.href = '/checklists/';
+            }
+        })
+        .catch(err => alert('Error deleting checklist'));
+    }
+}
+
+function generateReport() {
+    if (!checklistId) {
+        alert('Checklist ID not found');
+        return;
+    }
+    
+    // Show loading state
+    const btn = event.target;
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Generating...';
+    
+    // Call the API to generate the report
+    fetch(`/checklists/api/${checklistId}/generate-report`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Failed to generate report');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.task_id) {
+            // Redirect to report page with task_id
+            window.location.href = `/reports?task_id=${data.task_id}`;
+        } else {
+            alert('Report generation started. Check the reports page.');
+            window.location.href = '/reports';
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+</script>
+{% endblock %}

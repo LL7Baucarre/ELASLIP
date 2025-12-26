@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name }} - Template - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">{{ template.name }}</h1>
+            <small class="text-muted">
+                {% if template.is_public %}
+                <span class="badge bg-success">Public</span>
+                {% else %}
+                <span class="badge bg-secondary">Private</span>
+                {% endif %}
+                Created by {{ template.created_by }}
+            </small>
+        </div>
+        <div class="btn-group" role="group">
+            {% if has_permission('checklist.template.use') %}
+            <button class="btn btn-outline-success" onclick="useThisTemplate()">
+                <i class="bi bi-check-circle me-1"></i> Use This Template
+            </button>
+            {% endif %}
+            {% if can_edit %}
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#editModal">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+            <button class="btn btn-outline-danger" onclick="deleteThisTemplate()">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            {% endif %}
+            <a href="{{ url_for('checklist_templates.list_page') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Description -->
+            {% if template.description %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Description</h6>
+                </div>
+                <div class="card-body">
+                    {{ template.description }}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Items -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Items ({{ template['items']|length }})</h6>
+                    {% if can_edit %}
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                        <i class="bi bi-plus me-1"></i> Add Item
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if template['items'] %}
+                        <div id="itemsList">
+                            {% for item in template['items'] %}
+                            <div class="item-card mb-3 p-3 border rounded" id="item-{{ item.id }}">
+                                <div class="d-flex align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            {{ item.title }}
+                                        </h6>
+                                        {% if item.description %}
+                                        <p class="mb-0 small text-muted">{{ item.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                    {% if can_edit %}
+                                    <div class="ms-2">
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteItem('{{ item.id }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        No items yet.
+                        {% if can_edit %}
+                        <button class="btn btn-sm btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#addItemModal">
+                            <i class="bi bi-plus me-1"></i> Add First Item
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Information</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-5">Created:</dt>
+                        <dd class="col-sm-7">{{ template.created_at[:19] if template.created_at else '-' }}</dd>
+                        
+                        <dt class="col-sm-5">Updated:</dt>
+                        <dd class="col-sm-7">{{ template.updated_at[:19] if template.updated_at else '-' }}</dd>
+                        
+                        <dt class="col-sm-5">Items:</dt>
+                        <dd class="col-sm-7">{{ template['items']|length }}</dd>
+                        
+                        <dt class="col-sm-5">Privacy:</dt>
+                        <dd class="col-sm-7">
+                            {% if template.is_public %}
+                            <span class="badge bg-success">Public</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Private</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Template Modal -->
+{% if can_edit %}
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="editName" class="form-label">Name</label>
+                    <input type="text" class="form-control" id="editName" value="{{ template.name }}">
+                </div>
+                <div class="mb-3">
+                    <label for="editDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="editDescription" rows="3">{{ template.description }}</textarea>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="editIsPublic" {% if template.is_public %}checked{% endif %}>
+                    <label class="form-check-label" for="editIsPublic">
+                        Make public
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveTemplate()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="itemTitle" class="form-label">Title *</label>
+                    <input type="text" class="form-control" id="itemTitle" placeholder="Item title">
+                </div>
+                <div class="mb-3">
+                    <label for="itemDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="itemDescription" rows="2" placeholder="Optional description"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addItem()">Add Item</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+const templateId = '{{ template.id }}';
+
+{% if can_edit %}
+function saveTemplate() {
+    const name = document.getElementById('editName').value.trim();
+    const description = document.getElementById('editDescription').value.trim();
+    const isPublic = document.getElementById('editIsPublic').checked;
+    
+    if (!name) {
+        alert('Template name is required');
+        return;
+    }
+    
+    fetch(`/checklist-templates/api/${templateId}/update`, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, description, is_public: isPublic})
+    })
+    .then(r => {
+        if (r.ok) {
+            location.reload();
+        } else {
+            alert('Error updating template');
+        }
+    })
+    .catch(err => alert('Error: ' + err));
+}
+
+function addItem() {
+    const title = document.getElementById('itemTitle').value.trim();
+    const description = document.getElementById('itemDescription').value.trim();
+    
+    if (!title) {
+        alert('Item title is required');
+        return;
+    }
+    
+    fetch(`/checklist-templates/api/${templateId}/add-item`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, description})
+    })
+    .then(r => r.json())
+    .then(data => {
+        location.reload();
+    })
+    .catch(err => alert('Error: ' + err));
+}
+
+function deleteItem(itemId) {
+    if (confirm('Delete this item?')) {
+        fetch(`/checklist-templates/api/${templateId}/items/${itemId}/delete`, {method: 'DELETE'})
+            .then(r => {
+                if (r.ok) {
+                    location.reload();
+                } else {
+                    alert('Error deleting item');
+                }
+            })
+            .catch(err => alert('Error: ' + err));
+    }
+}
+
+function deleteThisTemplate() {
+    if (confirm('Delete this template? This cannot be undone.')) {
+        fetch(`/checklist-templates/api/${templateId}/delete`, {method: 'DELETE'})
+            .then(r => {
+                if (r.ok) {
+                    window.location.href = '/checklist-templates/';
+                } else {
+                    alert('Error deleting template');
+                }
+            })
+            .catch(err => alert('Error: ' + err));
+    }
+}
+{% endif %}
+
+function useThisTemplate() {
+    fetch(`/checklist-templates/api/${templateId}/use`)
+        .then(r => r.json())
+        .then(data => {
+            // Store template data and redirect
+            localStorage.setItem('checklistTemplate', JSON.stringify(data));
+            window.location.href = '/checklists/new?from_template=1';
+        })
+        .catch(err => alert('Error: ' + err));
+}
+</script>
+{% endblock %}

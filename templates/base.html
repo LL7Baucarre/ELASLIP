@@ -658,6 +658,13 @@
                 </a>
             </li>
             {% endif %}
+            {% if has_any_permission('checklist.view', 'checklist.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'checklists' in request.endpoint %}active{% endif %}" href="{{ url_for('checklists.list_page') }}">
+                    <i class="bi bi-list-check"></i> Checklists
+                </a>
+            </li>
+            {% endif %}
             
             <li class="nav-section-title">TOOLS</li>
             {% if has_permission('ioc.import') %}

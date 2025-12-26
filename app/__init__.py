@@ -126,6 +126,8 @@ def create_app(config_name=None):
     from app.routes.audit import audit_bp
     from app.routes.cases import bp as cases_bp
     from app.routes.reports import bp as reports_bp
+    from app.routes.checklists import bp as checklists_bp
+    from app.routes.checklist_templates import bp as checklist_templates_bp
     from app.routes.rbac import rbac_bp
     
     app.register_blueprint(main_bp)
@@ -141,6 +143,8 @@ def create_app(config_name=None):
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(checklists_bp)
+    app.register_blueprint(checklist_templates_bp)
     app.register_blueprint(rbac_bp, url_prefix='/api/rbac')
 
     

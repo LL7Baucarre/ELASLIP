@@ -54,14 +54,52 @@ async function generateReport() {
         
         // If task_id provided, fetch from view endpoint
         if (taskId) {
-            const response = await fetch(`/api/reports/view/${taskId}`);
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to generate report');
+            // Poll for report with timeout
+            const maxAttempts = 60; // 60 attempts * 1 second = 60 seconds
+            let attempt = 0;
+            
+            while (attempt < maxAttempts) {
+                try {
+                    const response = await fetch(`/api/reports/view/${taskId}`);
+                    if (response.ok) {
+                        reportData = await response.json();
+                        displayReport();
+                        return;
+                    }
+                    
+                    // 202 Accepted means report is being processed
+                    if (response.status === 202) {
+                        attempt++;
+                        if (attempt < maxAttempts) {
+                            // Show progress
+                            const progressMsg = `Loading report (${attempt}/${maxAttempts})...`;
+                            document.getElementById('reportContent').innerHTML = 
+                                `<div class="text-center py-5"><div class="spinner-border me-2" role="status"><span class="visually-hidden">Loading...</span></div><p>${progressMsg}</p></div>`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        } else {
+                            throw new Error('Report generation timeout - please try again');
+                        }
+                    }
+                    
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate report');
+                } catch (err) {
+                    if (err.message && err.message.includes('not yet completed')) {
+                        attempt++;
+                        if (attempt < maxAttempts) {
+                            const progressMsg = `Loading report (${attempt}/${maxAttempts})...`;
+                            document.getElementById('reportContent').innerHTML = 
+                                `<div class="text-center py-5"><div class="spinner-border me-2" role="status"><span class="visually-hidden">Loading...</span></div><p>${progressMsg}</p></div>`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                    }
+                    throw err;
+                }
             }
-            reportData = await response.json();
-            displayReport();
-            return;
+            
+            throw new Error('Report generation timeout - please try again');
         }
         
         // Otherwise, launch a new async generation
@@ -75,6 +113,9 @@ async function generateReport() {
                 break;
             case 'incident':
                 endpoint = `/api/reports/incidents/${reportId}`;
+                break;
+            case 'checklist':
+                endpoint = `/api/reports/checklists/${reportId}`;
                 break;
             default:
                 showError('Invalid report type');
@@ -90,8 +131,8 @@ async function generateReport() {
         
         const result = await response.json();
         if (result.task_id) {
-            // Redirect to reports dashboard to track progress
-            window.location.href = `/reports?task_id=${result.task_id}`;
+            // Redirect to report viewer with task_id to wait for completion
+            window.location.href = `/report?type=${reportType}&id=${reportId}&task_id=${result.task_id}`;
             return;
         }
         
@@ -119,6 +160,10 @@ function displayReport() {
         case 'incident':
             markdown = displayIncidentReport();
             document.getElementById('reportTitle').textContent = `Incident Report: ${reportData.incident_name}`;
+            break;
+        case 'checklist':
+            markdown = displayChecklistReport();
+            document.getElementById('reportTitle').textContent = `Checklist Report: ${reportData.title}`;
             break;
     }
     
@@ -171,6 +216,50 @@ ${reportData.analysis}
 `;
 }
 
+function displayChecklistReport() {
+    // If we have an LLM-enhanced report, display it prominently
+    if (reportData.enhanced_report) {
+        return `## Checklist Analysis Report
+
+${reportData.enhanced_report}
+`;
+    }
+    
+    // Fall back to structured summary if no LLM report
+    const completedItems = reportData.items ? reportData.items.filter(i => i.completed).length : 0;
+    const totalItems = reportData.items ? reportData.items.length : 0;
+    const completionRate = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+    
+    let itemsMarkdown = '';
+    if (reportData.items && reportData.items.length > 0) {
+        itemsMarkdown = reportData.items.map(item => {
+            const checkbox = item.completed ? '✓' : '☐';
+            let itemText = `- [${checkbox}] **${item.title}**`;
+            if (item.description) {
+                itemText += `\n  - ${item.description}`;
+            }
+            return itemText;
+        }).join('\n');
+    }
+    
+    return `## Checklist Summary
+
+| Field | Value |
+|-------|-------|
+| **Title** | ${reportData.title} |
+| **Status** | ${reportData.status} |
+| **Completion** | ${completedItems}/${totalItems} items (${completionRate}%) |
+
+## Description
+
+${reportData.description || 'No description provided'}
+
+## Items
+
+${itemsMarkdown || 'No items in checklist'}
+`;
+}
+
 function downloadReport() {
     if (!reportData) return;
     
@@ -184,6 +273,9 @@ function downloadReport() {
             break;
         case 'incident':
             markdown = displayIncidentReport();
+            break;
+        case 'checklist':
+            markdown = displayChecklistReport();
             break;
     }
     

@@ -215,6 +215,39 @@ class ReportService:
             'iocs_count': len(iocs)
         }
     
+    def generate_checklist_report(self, checklist_id: str) -> Dict[str, Any]:
+        """
+        Generate a report for a checklist.
+        
+        Args:
+            checklist_id: The checklist document ID
+            
+        Returns:
+            Report data with checklist analysis
+        """
+        # Import here to avoid circular imports
+        from app.services.checklist_service import ChecklistService
+        
+        checklist_service = ChecklistService()
+        checklist = checklist_service.get_checklist(checklist_id)
+        
+        if not checklist:
+            raise ValueError(f"Checklist {checklist_id} not found")
+        
+        # Build prompt for LLM analysis
+        prompt = self._build_checklist_prompt(checklist)
+        
+        # Generate analysis
+        analysis = self._call_llm(prompt)
+        
+        return {
+            'checklist_id': checklist_id,
+            'checklist_title': checklist.get('title', 'Untitled Checklist'),
+            'generated_at': datetime.utcnow().isoformat(),
+            'analysis': analysis,
+            'items_count': len(checklist.get('items', []))
+        }
+    
     def _get_ioc_relations(self, ioc_id: str) -> List[Dict]:
         """Get relations for an IOC."""
         query = {
@@ -841,3 +874,149 @@ Please provide in **Markdown format**:
 5. Key Analyst Observations (synthesize comments from the analyst comments section above)
 6. Immediate Actions Required
 7. Long-term Recommendations and Lessons Learned"""
+
+    def _build_checklist_prompt(self, checklist: Dict) -> str:
+        """Build prompt for checklist analysis."""
+        title = checklist.get('title', 'Untitled Checklist')
+        description = checklist.get('description', 'No description')
+        items = checklist.get('items', [])
+        created_by = checklist.get('created_by', 'Unknown')
+        created_at = checklist.get('created_at', 'Unknown')
+        
+        # Count completed items
+        completed_count = sum(1 for item in items if item.get('completed', False))
+        total_items = len(items)
+        completion_percentage = (completed_count / total_items * 100) if total_items > 0 else 0
+        
+        # Get global tags, campaigns, and comments
+        tags = checklist.get('tags', [])
+        campaigns = checklist.get('campaigns', [])
+        global_comments = checklist.get('comments', [])
+        
+        tags_text = ', '.join(tags) if tags else 'No tags assigned'
+        campaigns_text = ', '.join(campaigns) if campaigns else 'No campaigns assigned'
+        
+        # Build global comments text
+        global_comments_text = ""
+        if global_comments:
+            global_comments_text = "\n### Global Comments and Observations\n"
+            for comment in global_comments:
+                user = comment.get('user', 'Unknown')
+                text = comment.get('text', '')
+                timestamp = comment.get('created_at', '')
+                global_comments_text += f"- **{user}** ({timestamp}): {text}\n"
+        
+        # Build items text with detailed information
+        items_text = ""
+        for idx, item in enumerate(items, 1):
+            status = "✓ COMPLETED" if item.get('completed') else "○ PENDING"
+            item_title = item.get('title', 'Untitled Item')
+            item_description = item.get('description', '')
+            
+            items_text += f"**{idx}. [{status}] {item_title}**\n"
+            if item_description:
+                items_text += f"   - Description: {item_description}\n"
+            
+            # Add comments if available
+            comments = item.get('comments', [])
+            if comments:
+                items_text += "   - Comments:\n"
+                for comment in comments:
+                    user = comment.get('user', 'Unknown')
+                    text = comment.get('text', '')
+                    items_text += f"     - {user}: {text}\n"
+            
+            items_text += "\n"
+        
+        # Use custom prompt if available
+        if hasattr(self, 'custom_prompt_checklist') and self.custom_prompt_checklist:
+            try:
+                return self.custom_prompt_checklist.format(
+                    title=title,
+                    description=description,
+                    completed=completed_count,
+                    total=total_items,
+                    percentage=completion_percentage,
+                    items=items_text,
+                    tags=tags_text,
+                    campaigns=campaigns_text,
+                    global_comments=global_comments_text
+                )
+            except KeyError:
+                pass
+        
+        # Build detailed default prompt for more comprehensive analysis
+        context_info = ""
+        if campaigns:
+            context_info += f"\n\n### Campaign Context\nThis checklist is related to the following threat campaigns/APT groups: {campaigns_text}. Consider how the items and their status relate to the identified threats."
+        
+        return f"""# Detailed Checklist Analysis and Status Report
+
+## Executive Overview
+
+This report provides a comprehensive analysis of the checklist **"{title}"** and its current completion status.
+
+## Checklist Metadata
+- **Title**: {title}
+- **Description**: {description}
+- **Created By**: {created_by}
+- **Created On**: {created_at}
+- **Classification Tags**: {tags_text}
+- **Associated Threat Campaigns**: {campaigns_text}
+- **Overall Progress**: {completed_count} of {total_items} items completed ({completion_percentage:.1f}%)
+
+## Current Status Overview
+
+The checklist is currently **{completion_percentage:.1f}% complete** with **{completed_count}** items successfully completed and **{total_items - completed_count}** items still pending.
+
+### Key Context from Stakeholders
+{global_comments_text if global_comments_text else "No additional global comments provided."}
+
+## Detailed Items Assessment
+
+{items_text}
+
+## Analysis Request
+
+Please provide a comprehensive analysis report in **Markdown format** that includes:
+
+1. **Executive Summary**: 
+   - Overview of the checklist's purpose and strategic importance
+   - Current completion status and trends
+   - Key metrics and current progress indicators
+   - Critical blockers or dependencies identified
+
+2. **Contextual Threat Assessment**: 
+   - How the checklist relates to the identified threat campaigns: {campaigns_text if campaigns_text != "No campaigns assigned" else "General organizational security"}
+   - Risk implications of incomplete items in this context
+   - Threat-specific recommendations based on campaigns
+
+3. **Completion Progress Analysis**: 
+   - Trend analysis of completion rates
+   - Root causes of items still pending
+   - Dependencies and blocking factors
+   - Prioritization of remaining items based on criticality
+
+4. **Impact Assessment**: 
+   - Consequences of incomplete items on overall security posture
+   - Evaluation of dependencies between items
+   - Critical path analysis for remaining work
+   - Business and operational impact
+
+5. **Quality Review**:
+   - Analysis of analyst comments and observations
+   - Identification of items requiring rework or clarification
+   - Assessment of completed work quality
+   - Validation of completion criteria met
+
+6. **Strategic Recommendations**:
+   - Prioritized action plan for remaining items
+   - Resource requirements and timeline estimates
+   - Process improvements identified
+   - Long-term preventive measures based on lessons learned
+
+7. **Conclusion and Next Steps**: 
+   - Summary of current status and key findings
+   - Immediate actions required
+   - Timeline for completion
+   - Success criteria and validation methods{context_info}"""
