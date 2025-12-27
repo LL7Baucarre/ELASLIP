@@ -344,13 +344,33 @@ class IOCService(BaseListService):
         if existing:
             return self._add_source_to_existing(existing, source), False
         
-        # Create new IOC
-        ioc_doc = indicator.to_dict()
-        ioc_doc['pattern_hash'] = pattern_hash
-        ioc_doc['ioc_type'] = ioc_type
-        ioc_doc['ioc_value'] = ioc_value
+        # Create new IOC with proper x_metadata structure
+        ioc_doc = indicator.to_dict_with_metadata(
+            ioc_type=ioc_type,
+            ioc_value=ioc_value,
+            pattern_hash=pattern_hash,
+            status='active',
+            current_version=1
+        )
         
         self.es.index(self.index, indicator.id, ioc_doc)
+        
+        # Create initial version snapshot
+        self._create_version_snapshot(indicator.id, ioc_doc, None, 'system')
+        
+        # Log to audit trail
+        try:
+            self.audit.log(
+                action='create',
+                entity_type='ioc',
+                entity_id=indicator.id,
+                entity_name=ioc_doc.get('name', ioc_value or 'unknown'),
+                changes={'created': True},
+                user_id='system',
+                username='system'
+            )
+        except Exception:
+            pass
         
         self._trigger_webhook('ioc.created', ioc_doc)
         
@@ -652,7 +672,7 @@ class IOCService(BaseListService):
     def _find_by_pattern_hash(self, pattern_hash: str) -> Optional[Dict]:
         """Find IOC by pattern hash."""
         result = self.es.search(self.index, {
-            "query": {"term": {"pattern_hash": pattern_hash}},
+            "query": {"term": {"x_metadata.pattern_hash": pattern_hash}},
             "size": 1
         })
         

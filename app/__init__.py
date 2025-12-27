@@ -158,7 +158,16 @@ def create_app(config_name=None):
     return app
 
 
-# Create celery app for worker
-celery_app = create_celery_app()
+def get_celery_app():
+    """Get or create Celery app with Flask context for workers."""
+    app = create_app()
+    return app.extensions.get('celery', celery)
+
+
+# Create celery app for worker with Flask context
+# This ensures tasks have access to Flask app context
+_flask_app = create_app()
+celery_app = create_celery_app(_flask_app)
+
 # Import tasks so they're registered with the worker
 from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks

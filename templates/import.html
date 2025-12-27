@@ -294,8 +294,8 @@ function updateProgress(data) {
     $('#progressStatus').text(data.status || 'Processing...');
     
     if (data.stats) {
-        $('#statTotal').text(data.stats.total || 0);
-        $('#statImported').text(data.stats.imported || 0);
+        $('#statTotal').text(data.stats.total_items || data.stats.total || 0);
+        $('#statImported').text(data.stats.added || data.stats.imported || 0);
         $('#statDuplicates').text(data.stats.duplicates || 0);
     }
 }
@@ -312,7 +312,7 @@ function showImportResult(data) {
         $('#progressStatus').text('Completed');
         
         const stats = data.stats || data;
-        showAlert(`Import completed: ${stats.imported || 0} IOCs imported, ${stats.duplicates || 0} duplicates`, 'success');
+        showAlert(`Import completed: ${stats.added || stats.imported || 0} IOCs imported, ${stats.duplicates || 0} duplicates`, 'success');
         
         // Add to recent imports
         addRecentImport(stats);
@@ -333,7 +333,7 @@ function addRecentImport(stats) {
                     <br>
                     <small class="text-muted">${new Date().toLocaleString()}</small>
                 </div>
-                <span class="badge bg-success">${stats.imported || 0}</span>
+                <span class="badge bg-success">${stats.added || stats.imported || 0}</span>
             </div>
         </li>
     `;

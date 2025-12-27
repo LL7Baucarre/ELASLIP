@@ -276,6 +276,10 @@ class STIXIndicator:
                 'username': username
             }
         
+        # Add sources to x_metadata for persistence in Elasticsearch
+        if self.sources:
+            custom_props['sources'] = self.sources
+        
         # Add all custom properties under x_metadata (STIX 2.1 custom object)
         if custom_props:
             indicator_dict['x_metadata'] = custom_props
