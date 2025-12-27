@@ -8,6 +8,7 @@ from datetime import datetime
 from app.services.report_service import ReportService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.audit_service import AuditService
+from app.services.finops_service import FinOpsService
 
 # Redis lock for ensuring only one report generates at a time
 def get_report_lock():
@@ -60,6 +61,7 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
     es = ElasticsearchService()
     report_service = ReportService()
     audit = AuditService()
+    finops = FinOpsService()
     task_id = generate_ioc_report.request.id
     
     try:
@@ -96,6 +98,18 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         try:
             # Generate report
             report_data = report_service.generate_ioc_report(ioc_id)
+            
+            # Record token usage if available
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='ioc',
+                    entity_id=ioc_id,
+                    entity_name=report_data.get('ioc_value', ioc_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
         finally:
             # Always release the lock
             release_report_lock()
@@ -150,6 +164,7 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
     es = ElasticsearchService()
     report_service = ReportService()
     audit = AuditService()
+    finops = FinOpsService()
     task_id = generate_case_report.request.id
     
     try:
@@ -186,6 +201,18 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         try:
             # Generate report
             report_data = report_service.generate_case_report(case_id)
+            
+            # Record token usage if available
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='case',
+                    entity_id=case_id,
+                    entity_name=report_data.get('case_name', case_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
         finally:
             # Always release the lock
             release_report_lock()
@@ -240,6 +267,7 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
     es = ElasticsearchService()
     report_service = ReportService()
     audit = AuditService()
+    finops = FinOpsService()
     task_id = generate_incident_report.request.id
     
     try:
@@ -276,6 +304,18 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         try:
             # Generate report
             report_data = report_service.generate_incident_report(incident_id)
+            
+            # Record token usage if available
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='incident',
+                    entity_id=incident_id,
+                    entity_name=report_data.get('incident_name', incident_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
         finally:
             # Always release the lock
             release_report_lock()
@@ -415,6 +455,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
     es = ElasticsearchService()
     report_service = ReportService()
     audit = AuditService()
+    finops = FinOpsService()
     
     # Get task ID from Celery
     task_id = generate_checklist_report.request.id
@@ -492,6 +533,18 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                     enhanced = report_service.generate_checklist_report(checklist_id)
                     print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
                     report_data['analysis'] = enhanced.get('analysis', '')
+                    
+                    # Record token usage if available
+                    token_usage = enhanced.get('token_usage', {})
+                    if token_usage:
+                        finops.record_token_usage(
+                            report_type='checklist',
+                            entity_id=checklist_id,
+                            entity_name=enhanced.get('checklist_title', checklist_id),
+                            prompt_tokens=token_usage.get('prompt_tokens', 0),
+                            completion_tokens=token_usage.get('completion_tokens', 0),
+                            user_id=user_id
+                        )
                 finally:
                     # Always release the lock
                     release_report_lock()

@@ -12,110 +12,258 @@
     </div>
 </div>
 
-<!-- Filters -->
-<div class="card mb-4">
-    <div class="card-body">
-        <form id="filter-form" class="row g-3">
-            <div class="col-md-2">
-                <label class="form-label">Action</label>
-                <select id="filter-action" class="form-select form-select-sm">
-                    <option value="">All Actions</option>
-                    <option value="create">Create</option>
-                    <option value="update">Update</option>
-                    <option value="delete">Delete</option>
-                    <option value="import">Import</option>
-                    <option value="export">Export</option>
-                    <option value="bulk_update">Bulk Update</option>
-                    <option value="bulk_delete">Bulk Delete</option>
-                    <option value="restore">Restore</option>
-                    <option value="archive">Archive</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Entity Type</label>
-                <select id="filter-entity-type" class="form-select form-select-sm">
-                    <option value="">All Types</option>
-                    <option value="ioc">IOC</option>
-                    <option value="relation">Relation</option>
-                    <option value="webhook">Webhook</option>
-                    <option value="api_config">API Config</option>
-                    <option value="user">User</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">From Date</label>
-                <input type="date" id="filter-from-date" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">To Date</label>
-                <input type="date" id="filter-to-date" class="form-control form-control-sm">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">User</label>
-                <input type="text" id="filter-user" class="form-control form-control-sm" placeholder="Username">
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="button" class="btn btn-primary btn-sm w-100" onclick="applyFilters()">
-                    <i class="fas fa-filter me-1"></i> Apply
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity-pane" type="button" role="tab" aria-controls="activity-pane" aria-selected="true">
+            <i class="fas fa-history me-2"></i>Activity Timeline
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="finops-tab" data-bs-toggle="tab" data-bs-target="#finops-pane" type="button" role="tab" aria-controls="finops-pane" aria-selected="false">
+            <i class="fas fa-chart-line me-2"></i>FinOps (LLM Tokens)
+        </button>
+    </li>
+</ul>
 
-<!-- Stats Row -->
-<div class="row mb-3 g-2" id="stats-row">
-    <div class="col-md-3">
-        <div class="card bg-primary bg-opacity-10">
-            <div class="card-body text-center py-2">
-                <h5 id="stat-total-actions" class="mb-0" style="font-size: 1.1rem;">-</h5>
-                <small class="text-muted">Total Actions (30 days)</small>
+<div class="tab-content">
+    <!-- Activity Tab -->
+    <div class="tab-pane fade show active" id="activity-pane" role="tabpanel" aria-labelledby="activity-tab">
+        <!-- Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="filter-form" class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Action</label>
+                        <select id="filter-action" class="form-select form-select-sm">
+                            <option value="">All Actions</option>
+                            <option value="create">Create</option>
+                            <option value="update">Update</option>
+                            <option value="delete">Delete</option>
+                            <option value="import">Import</option>
+                            <option value="export">Export</option>
+                            <option value="bulk_update">Bulk Update</option>
+                            <option value="bulk_delete">Bulk Delete</option>
+                            <option value="restore">Restore</option>
+                            <option value="archive">Archive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Entity Type</label>
+                        <select id="filter-entity-type" class="form-select form-select-sm">
+                            <option value="">All Types</option>
+                            <option value="ioc">IOC</option>
+                            <option value="relation">Relation</option>
+                            <option value="webhook">Webhook</option>
+                            <option value="api_config">API Config</option>
+                            <option value="user">User</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">From Date</label>
+                        <input type="date" id="filter-from-date" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">To Date</label>
+                        <input type="date" id="filter-to-date" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">User</label>
+                        <input type="text" id="filter-user" class="form-control form-control-sm" placeholder="Username">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm w-100" onclick="applyFilters()">
+                            <i class="fas fa-filter me-1"></i> Apply
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-success bg-opacity-10">
-            <div class="card-body text-center py-2">
-                <h5 id="stat-creates" class="mb-0" style="font-size: 1.1rem;">-</h5>
-                <small class="text-muted">Created</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-warning bg-opacity-10">
-            <div class="card-body text-center py-2">
-                <h5 id="stat-updates" class="mb-0" style="font-size: 1.1rem;">-</h5>
-                <small class="text-muted">Updated</small>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-danger bg-opacity-10">
-            <div class="card-body text-center py-2">
-                <h4 id="stat-deletes" class="mb-0" style="font-size: 1.1rem;">-</h4>
-                <small class="text-muted">Deleted</small>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Timeline -->
-<div class="card">
-    <div class="card-body p-0">
-        <div id="timeline-container" class="timeline-container">
-            <div class="text-center p-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
+        <!-- Stats Row -->
+        <div class="row mb-3 g-2" id="stats-row">
+            <div class="col-md-3">
+                <div class="card bg-primary bg-opacity-10">
+                    <div class="card-body text-center py-2">
+                        <h5 id="stat-total-actions" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                        <small class="text-muted">Total Actions (30 days)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success bg-opacity-10">
+                    <div class="card-body text-center py-2">
+                        <h5 id="stat-creates" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                        <small class="text-muted">Created</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning bg-opacity-10">
+                    <div class="card-body text-center py-2">
+                        <h5 id="stat-updates" class="mb-0" style="font-size: 1.1rem;">-</h5>
+                        <small class="text-muted">Updated</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-danger bg-opacity-10">
+                    <div class="card-body text-center py-2">
+                        <h4 id="stat-deletes" class="mb-0" style="font-size: 1.1rem;">-</h4>
+                        <small class="text-muted">Deleted</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline -->
+        <div class="card">
+            <div class="card-body p-0">
+                <div id="timeline-container" class="timeline-container">
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span id="timeline-info" class="text-muted"></span>
+                    <nav aria-label="Timeline pagination">
+                        <ul class="pagination pagination-sm mb-0" id="timeline-pagination"></ul>
+                    </nav>
                 </div>
             </div>
         </div>
     </div>
-    <div class="card-footer">
-        <div class="d-flex justify-content-between align-items-center">
-            <span id="timeline-info" class="text-muted"></span>
-            <nav aria-label="Timeline pagination">
-                <ul class="pagination pagination-sm mb-0" id="timeline-pagination"></ul>
-            </nav>
+    <div class="tab-pane fade" id="finops-pane" role="tabpanel" aria-labelledby="finops-tab">
+        <!-- Finops Filters -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <form id="finops-filter-form" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Time Window</label>
+                        <select id="finops-time-window" class="form-select form-select-sm">
+                            <option value="hour">Hourly</option>
+                            <option value="day" selected>Daily</option>
+                            <option value="month">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Report Types</label>
+                        <select id="finops-report-types" class="form-select form-select-sm" multiple>
+                            <option value="ioc">IOC</option>
+                            <option value="case">Case</option>
+                            <option value="incident">Incident</option>
+                            <option value="checklist">Checklist</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Days Back</label>
+                        <input type="number" id="finops-limit-days" class="form-control form-control-sm" value="30" min="1" max="365">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="button" class="btn btn-primary btn-sm w-100" onclick="loadFinopsData()">
+                            <i class="fas fa-refresh me-1"></i> Load
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Finops Stats -->
+        <div class="row mb-3 g-2">
+            <div class="col-md-3">
+                <div class="card bg-primary bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Total Tokens</h5>
+                        <h3 id="finops-total-tokens" class="mb-0">-</h3>
+                        <small class="text-muted">All tokens used</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Prompt Tokens</h5>
+                        <h3 id="finops-prompt-tokens" class="mb-0">-</h3>
+                        <small class="text-muted">Input tokens</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Completion Tokens</h5>
+                        <h3 id="finops-completion-tokens" class="mb-0">-</h3>
+                        <small class="text-muted">Output tokens</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Reports Generated</h5>
+                        <h3 id="finops-reports-count" class="mb-0">-</h3>
+                        <small class="text-muted">Number of reports</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="row g-3 mb-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Token Usage Timeline</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="token-timeline-chart" style="max-height: 400px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">By Report Type</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="token-breakdown-chart" style="max-height: 400px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Consumers -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Token Consumers</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Report Type</th>
+                                <th>Entity</th>
+                                <th>Model</th>
+                                <th>Prompt Tokens</th>
+                                <th>Completion Tokens</th>
+                                <th>Total Tokens</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody id="finops-consumers-tbody">
+                            <tr>
+                                <td colspan="8" class="text-center text-muted">No data available</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -445,5 +593,189 @@ function getTimeAgo(timestamp) {
     
     return date.toLocaleDateString();
 }
+
+// Chart.js instances
+let tokenTimelineChart = null;
+let tokenBreakdownChart = null;
+
+// Load FinOps data
+function loadFinopsData() {
+    const timeWindow = document.getElementById('finops-time-window').value;
+    const limitDays = parseInt(document.getElementById('finops-limit-days').value);
+    const reportTypesSelect = document.getElementById('finops-report-types');
+    const reportTypes = Array.from(reportTypesSelect.selectedOptions).map(opt => opt.value).join(',');
+    
+    const params = new URLSearchParams({
+        time_window: timeWindow,
+        limit_days: limitDays,
+        report_types: reportTypes || undefined
+    });
+    
+    fetch(`/api/finops/token-usage?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Update statistics
+                const stats = data.statistics || {};
+                document.getElementById('finops-total-tokens').textContent = 
+                    (stats.total_tokens || 0).toLocaleString();
+                document.getElementById('finops-prompt-tokens').textContent = 
+                    (stats.prompt_tokens || 0).toLocaleString();
+                document.getElementById('finops-completion-tokens').textContent = 
+                    (stats.completion_tokens || 0).toLocaleString();
+                document.getElementById('finops-reports-count').textContent = 
+                    (stats.reports_count || 0).toLocaleString();
+                
+                // Update charts
+                updateTokenTimelineChart(data.timeline || []);
+                updateTokenBreakdownChart(data.breakdown || {});
+                updateTopConsumers(data.top_consumers || []);
+            } else {
+                alert('Error loading FinOps data: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading FinOps data');
+        });
+}
+
+function updateTokenTimelineChart(timeline) {
+    const ctx = document.getElementById('token-timeline-chart').getContext('2d');
+    
+    const timestamps = timeline.map(d => d.timestamp);
+    const totalTokens = timeline.map(d => d.total_tokens);
+    const promptTokens = timeline.map(d => d.prompt_tokens);
+    const completionTokens = timeline.map(d => d.completion_tokens);
+    
+    if (tokenTimelineChart) {
+        tokenTimelineChart.destroy();
+    }
+    
+    tokenTimelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: timestamps,
+            datasets: [
+                {
+                    label: 'Total Tokens',
+                    data: totalTokens,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Prompt Tokens',
+                    data: promptTokens,
+                    borderColor: 'rgb(153, 102, 255)',
+                    backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                    tension: 0.4
+                },
+                {
+                    label: 'Completion Tokens',
+                    data: completionTokens,
+                    borderColor: 'rgb(255, 159, 64)',
+                    backgroundColor: 'rgba(255, 159, 64, 0.1)',
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function updateTokenBreakdownChart(breakdown) {
+    const ctx = document.getElementById('token-breakdown-chart').getContext('2d');
+    
+    const reportTypes = Object.keys(breakdown);
+    const totalTokens = reportTypes.map(type => breakdown[type].total_tokens);
+    const colors = [
+        'rgb(255, 99, 132)',
+        'rgb(54, 162, 235)',
+        'rgb(255, 206, 86)',
+        'rgb(75, 192, 192)'
+    ];
+    
+    if (tokenBreakdownChart) {
+        tokenBreakdownChart.destroy();
+    }
+    
+    tokenBreakdownChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: reportTypes.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+            datasets: [{
+                data: totalTokens,
+                backgroundColor: colors.slice(0, reportTypes.length),
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+function updateTopConsumers(consumers) {
+    const tbody = document.getElementById('finops-consumers-tbody');
+    
+    if (consumers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No data available</td></tr>';
+        return;
+    }
+    
+    const rows = consumers.map(consumer => {
+        const timestamp = new Date(consumer.timestamp).toLocaleString();
+        const model = consumer.model || 'N/A';
+        return `
+            <tr>
+                <td>${timestamp}</td>
+                <td><span class="badge bg-primary">${consumer.report_type}</span></td>
+                <td>${consumer.entity_name}</td>
+                <td><span class="badge bg-secondary">${model}</span></td>
+                <td>${consumer.prompt_tokens.toLocaleString()}</td>
+                <td>${consumer.completion_tokens.toLocaleString()}</td>
+                <td><strong>${consumer.total_tokens.toLocaleString()}</strong></td>
+                <td>${consumer.user_id}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = rows;
+}
+
+// Load FinOps data when tab is shown
+document.addEventListener('DOMContentLoaded', function() {
+    const finopsTab = document.getElementById('finops-tab');
+    if (finopsTab) {
+        finopsTab.addEventListener('shown.bs.tab', function() {
+            loadFinopsData();
+        });
+    }
+});
 </script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
 {% endblock %}

@@ -627,6 +627,30 @@ CHECKLIST_TEMPLATES_MAPPING = {
         }
     }
 }
+# FinOps Token Usage Mapping - Track LLM token consumption
+FINOPS_TOKEN_USAGE_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "index.lifecycle.name": "logs-policy"
+    },
+    "mappings": {
+        "properties": {
+            "timestamp": {"type": "date"},
+            "report_type": {"type": "keyword"},
+            "entity_id": {"type": "keyword"},
+            "entity_name": {"type": "text"},
+            "prompt_tokens": {"type": "integer"},
+            "completion_tokens": {"type": "integer"},
+            "total_tokens": {"type": "integer"},
+            "user_id": {"type": "keyword"},
+            "model": {"type": "keyword"},
+            "date": {"type": "keyword"},
+            "hour": {"type": "keyword"},
+            "month": {"type": "keyword"}
+        }
+    }
+}
 
 
 # All indices with their mappings
@@ -651,5 +675,6 @@ INDICES = {
     "ioc_manager_snippets": SNIPPETS_MAPPING,
     "ioc_manager_checklists": CHECKLISTS_MAPPING,
     "ioc_manager_checklist_templates": CHECKLIST_TEMPLATES_MAPPING,
-    "ioc_manager_app_config": APP_CONFIG_MAPPING
+    "ioc_manager_app_config": APP_CONFIG_MAPPING,
+    "ioc_manager_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING
 }

@@ -55,7 +55,7 @@ class ReportService:
         except requests.RequestException:
             return False
     
-    def _call_llm(self, prompt: str) -> str:
+    def _call_llm(self, prompt: str) -> tuple:
         """
         Call LLM API with prompt.
         
@@ -63,7 +63,7 @@ class ReportService:
             prompt: The prompt to send to LLM
             
         Returns:
-            Generated response from LLM
+            Tuple of (response, token_usage) where token_usage = {'prompt_tokens': int, 'completion_tokens': int}
         """
         # Reload config from Elasticsearch on each call to ensure latest settings
         import sys
@@ -99,7 +99,15 @@ class ReportService:
             response.raise_for_status()
             
             data = response.json()
-            return data.get('response', '').strip()
+            response_text = data.get('response', '').strip()
+            
+            # Extract token usage from response
+            token_usage = {
+                'prompt_tokens': data.get('prompt_eval_count', 0),
+                'completion_tokens': data.get('eval_count', 0)
+            }
+            
+            return response_text, token_usage
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to call LLM: {str(e)}")
     
@@ -128,13 +136,14 @@ class ReportService:
         prompt = self._build_ioc_prompt(ioc, relations)
         
         # Generate analysis
-        analysis = self._call_llm(prompt)
+        analysis, token_usage = self._call_llm(prompt)
         
         return {
             'ioc_id': ioc_id,
             'ioc_value': ioc.get('value') or ioc.get('pattern', ''),
             'ioc_type': ioc.get('type', 'unknown'),
             'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
             'analysis': analysis,
             'relations_count': len(relations)
         }
@@ -168,12 +177,13 @@ class ReportService:
         prompt = self._build_case_prompt(case, incidents, iocs, timeline, comments)
         
         # Generate report
-        report = self._call_llm(prompt)
+        report, token_usage = self._call_llm(prompt)
         
         return {
             'case_id': case_id,
             'case_name': case.get('name') or case.get('title', 'Unknown'),
             'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
             'report': report,
             'incidents_count': len(incidents),
             'iocs_count': len(iocs)
@@ -205,12 +215,13 @@ class ReportService:
         prompt = self._build_incident_prompt(incident, iocs, timeline, comments)
         
         # Generate analysis
-        analysis = self._call_llm(prompt)
+        analysis, token_usage = self._call_llm(prompt)
         
         return {
             'incident_id': incident_id,
             'incident_name': incident.get('name') or incident.get('title', 'Unknown'),
             'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
             'analysis': analysis,
             'iocs_count': len(iocs)
         }
@@ -238,12 +249,13 @@ class ReportService:
         prompt = self._build_checklist_prompt(checklist)
         
         # Generate analysis
-        analysis = self._call_llm(prompt)
+        analysis, token_usage = self._call_llm(prompt)
         
         return {
             'checklist_id': checklist_id,
             'checklist_title': checklist.get('title', 'Untitled Checklist'),
             'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
             'analysis': analysis,
             'items_count': len(checklist.get('items', []))
         }
