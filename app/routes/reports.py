@@ -85,6 +85,160 @@ def get_report_config():
     })
 
 
+@bp.route('/api/reports/test-connection', methods=['POST'])
+@login_required
+def test_llm_connection():
+    """
+    Test LLM connection and get available models (Admin only)
+    ---
+    tags:
+      - Reports
+    security:
+      - Bearer: []
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            url:
+              type: string
+              default: "http://ollama:11434"
+            provider:
+              type: string
+              default: "auto"
+            api_key:
+              type: string
+              default: ""
+    responses:
+      200:
+        description: LLM connection successful with models list
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            models:
+              type: array
+              items:
+                type: string
+            message:
+              type: string
+      403:
+        description: Admin access required
+    """
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    llm_url = data.get('url', '').rstrip('/')  # Remove trailing slashes
+    provider = data.get('provider', 'auto')
+    api_key = data.get('api_key', '')
+    
+    if not llm_url:
+        return jsonify({'success': False, 'error': 'LLM URL is required'}), 400
+    
+    try:
+        import requests
+        models = []
+        detected_provider = provider
+        
+        # If provider is auto or openai, try OpenAI-compatible endpoint first
+        if provider == 'auto' or provider == 'openai':
+            try:
+                headers = {'Content-Type': 'application/json'}
+                if api_key:
+                    # Encode API key properly for HTTP headers
+                    api_key_str = api_key if isinstance(api_key, str) else str(api_key)
+                    try:
+                        # Try to use the key as-is if it's ASCII
+                        api_key_str.encode('ascii')
+                        headers['Authorization'] = f'Bearer {api_key_str}'
+                    except UnicodeEncodeError:
+                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1
+                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
+                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                
+                test_url = f"{llm_url}/v1/models"
+                response = requests.get(test_url, headers=headers, timeout=5)
+                
+                if response.status_code == 200:
+                    models_data = response.json()
+                    detected_provider = 'openai'
+                    
+                    # Try multiple formats to extract models
+                    if 'data' in models_data and isinstance(models_data['data'], list):
+                        models = [model.get('id', model.get('name', str(model))) for model in models_data['data']]
+                    elif 'models' in models_data and isinstance(models_data['models'], list):
+                        models = [model.get('id', model.get('name', str(model))) for model in models_data['models']]
+                    elif isinstance(models_data, list):
+                        models = [m.get('id', m.get('name', str(m))) if isinstance(m, dict) else str(m) for m in models_data]
+                    
+                    if models:
+                        return jsonify({
+                            'success': True,
+                            'models': models,
+                            'provider': 'openai',
+                            'message': f'Successfully connected to OpenAI-compatible endpoint. Found {len(models)} models.'
+                        })
+            except requests.exceptions.RequestException:
+                # If OpenAI endpoint fails and provider is auto, try Ollama
+                if provider == 'auto':
+                    detected_provider = 'ollama'
+                else:
+                    raise
+            except Exception as e:
+                if provider == 'openai':
+                    return jsonify({
+                        'success': False,
+                        'error': f'Failed to connect to OpenAI endpoint: {str(e)}'
+                    }), 400
+        
+        # If provider is auto or ollama, try Ollama endpoint
+        if provider == 'auto' or provider == 'ollama' or (provider == 'auto' and not models):
+            try:
+                headers = {'Content-Type': 'application/json'}
+                test_url = f"{llm_url}/api/tags"
+                response = requests.get(test_url, headers=headers, timeout=5)
+                
+                if response.status_code == 200:
+                    models_data = response.json()
+                    detected_provider = 'ollama'
+                    
+                    # Extract model names from Ollama response
+                    if 'models' in models_data and isinstance(models_data['models'], list):
+                        models = [model.get('name', str(model)) for model in models_data['models']]
+                    elif isinstance(models_data, list):
+                        models = [m.get('name', str(m)) if isinstance(m, dict) else str(m) for m in models_data]
+                    
+                    if models:
+                        return jsonify({
+                            'success': True,
+                            'models': models,
+                            'provider': 'ollama',
+                            'message': f'Successfully connected to Ollama. Found {len(models)} models.'
+                        })
+            except Exception as e:
+                if provider == 'ollama':
+                    return jsonify({
+                        'success': False,
+                        'error': f'Failed to connect to Ollama: {str(e)}'
+                    }), 400
+        
+        # If we get here, no models were found
+        return jsonify({
+            'success': False,
+            'error': 'No LLM provider responded to connection attempt'
+        }), 400
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Error testing LLM connection: {str(e)}'
+        }), 500
+
+
 @bp.route('/api/reports/available-models', methods=['POST'])
 @login_required
 def get_available_models():
@@ -461,9 +615,14 @@ def generate_case_report(case_id):
         from app.tasks.report_tasks import generate_case_report as task_generate_case
         import time
         
+        print(f"[REPORT] Generating case report for case_id: {case_id}")
+        print(f"[REPORT] LLM_ENABLED: {os.getenv('LLM_ENABLED', 'false')}")
+        
         # Launch async task (Celery required)
         task = task_generate_case.delay(case_id, current_user.username)
         task_id = task.id
+        
+        print(f"[REPORT] Task launched with ID: {task_id}")
         
         # Wait briefly for completion (up to 5 seconds) instead of returning immediately
         # This allows synchronous-like behavior with async workers

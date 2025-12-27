@@ -251,24 +251,35 @@ def api_export(checklist_id):
 
 @bp.route('/api/<checklist_id>/generate-report', methods=['POST'])
 @login_required
-@permission_required('checklist.generate_llm')
+@permission_required('report.create')
 def api_generate_report(checklist_id):
     """Generate LLM report for checklist."""
     import os
+    import logging
+    
+    logger = logging.getLogger('app.routes.checklists')
+    
+    logger.info(f"[CHECKLIST REPORT] Starting report generation for checklist: {checklist_id}")
+    logger.info(f"[CHECKLIST REPORT] Current user: {current_user.username}, is_admin: {current_user.is_admin}")
     
     # Check if LLM is enabled
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        logger.warning("[CHECKLIST REPORT] LLM reporting not enabled")
         return jsonify({'error': 'LLM reporting not enabled'}), 400
     
     try:
+        logger.info("[CHECKLIST REPORT] Importing task function...")
         from app.tasks.report_tasks import generate_checklist_report as task_generate_checklist
+        logger.info("[CHECKLIST REPORT] Launching async task...")
         # Launch async task
         task = task_generate_checklist.delay(checklist_id, current_user.username)
+        logger.info(f"[CHECKLIST REPORT] Task launched with ID: {task.id}")
         return jsonify({
             'task_id': task.id,
             'status': 'pending',
             'message': 'Report generation started'
         })
     except Exception as e:
+        logger.error(f"[CHECKLIST REPORT] Error: {str(e)}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 

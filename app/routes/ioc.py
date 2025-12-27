@@ -1249,7 +1249,7 @@ def store_enrichment(ioc_id):
 
 @ioc_bp.route('/<ioc_id>/generate-report', methods=['POST'])
 @login_required
-@permission_required('report.generate_llm')
+@permission_required('report.create')
 def api_generate_ioc_report(ioc_id):
     """Generate LLM report for IOC."""
     import os

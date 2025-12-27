@@ -146,7 +146,7 @@ class ReportService:
             if response and response.get('found'):
                 config = response.get('_source', {})
                 old_lang = self.generation_language
-                self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
+                self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434')).rstrip('/')
                 self.llm_model = config.get('model', os.getenv('LLM_MODEL', 'mistral'))
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
                 self.llm_provider = config.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
@@ -160,19 +160,25 @@ class ReportService:
             print(f"[LLM CONFIG ERROR] Failed to reload: {str(e)}")
         
         try:
-            print(f"Using LLM URL: {self.llm_url}")
-            print(f"Generation language: {self.generation_language}")
+            print(f"[LLM CALL] Using LLM URL: {self.llm_url}")
+            print(f"[LLM CALL] Generation language: {self.generation_language}")
             
             # Detect provider
             provider = self._detect_llm_provider()
             print(f"[LLM CALL] Provider: {provider}, Model: {self.llm_model}, Language: {self.generation_language}")
             
             if provider == 'openai':
+                print(f"[LLM CALL] Calling OpenAI-compatible endpoint...")
                 return self._call_openai_llm(prompt)
             else:
+                print(f"[LLM CALL] Calling Ollama endpoint...")
                 return self._call_ollama_llm(prompt)
         except requests.RequestException as e:
+            print(f"[LLM ERROR] RequestException: {str(e)}")
             raise RuntimeError(f"Failed to call LLM: {str(e)}")
+        except Exception as e:
+            print(f"[LLM ERROR] General exception: {type(e).__name__}: {str(e)}")
+            raise
     
     def _call_ollama_llm(self, prompt: str) -> tuple:
         """Call Ollama API endpoint."""
@@ -235,20 +241,38 @@ class ReportService:
             'max_tokens': 4000,
         }
         
+        request_url = f"{self.llm_url}/v1/chat/completions"
+        print(f"[OPENAI LLM] Posting to {request_url} with model {self.llm_model}")
+        
         response = requests.post(
-            f"{self.llm_url}/v1/chat/completions",
+            request_url,
             json=payload,
             headers=headers,
             timeout=120
         )
+        
+        print(f"[OPENAI LLM] Response status: {response.status_code}")
         response.raise_for_status()
         
         data = response.json()
+        print(f"[OPENAI LLM] Response keys: {list(data.keys())}")
+        
         # Extract response from OpenAI format
         if 'choices' in data and len(data['choices']) > 0:
             response_text = data['choices'][0].get('message', {}).get('content', '').strip()
         else:
             response_text = str(data)
+        
+        # Clean up markdown code blocks if LLM wrapped the response
+        # Remove triple backticks with optional language specification
+        if response_text.startswith('```'):
+            # Remove opening ```markdown or ``` or ```python etc
+            lines = response_text.split('\n')
+            if lines[0].startswith('```'):
+                lines = lines[1:]  # Remove first line with backticks
+            if lines and lines[-1].strip() == '```':
+                lines = lines[:-1]  # Remove last line with backticks
+            response_text = '\n'.join(lines).strip()
         
         # Extract token usage from response
         usage = data.get('usage', {})
@@ -257,7 +281,8 @@ class ReportService:
             'completion_tokens': usage.get('completion_tokens', 0)
         }
         
-        print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
+        print(f"[OPENAI LLM RESPONSE] First 100 chars: {response_text[:100]}")
+        print(f"[OPENAI LLM TOKENS] Prompt: {token_usage['prompt_tokens']}, Completion: {token_usage['completion_tokens']}")
         return response_text, token_usage
     
     def _get_language_instruction(self) -> str:
@@ -1013,7 +1038,7 @@ Generate a comprehensive, detailed investigation report for this security case. 
 
 ## Report Requirements
 
-Please generate a professional security report in **Markdown format** with the following sections:
+Generate a professional security investigation report with the following sections. Format your response using plain markdown WITHOUT wrapping it in code blocks (no triple backticks).
 
 ### 1. Executive Summary
 Provide a brief overview of the case, its significance, and key findings. Reference specific incidents and IOCs.
@@ -1061,7 +1086,7 @@ Based on the complete investigation:
 - Residual risks after recommended actions
 - Timeline for remediation
 
-**IMPORTANT:** This report must be specific, detailed, and reference actual data from the case, incidents, IOCs, timeline, and analyst comments provided. Avoid generic statements."""
+**IMPORTANT:** This report must be specific, detailed, and reference actual data from the case, incidents, IOCs, timeline, and analyst comments provided. Avoid generic statements. Output plain formatted text, not a code block."""
     
     def _build_incident_prompt(self, incident: Dict, iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for incident analysis."""
@@ -1286,9 +1311,12 @@ The following work items have been successfully executed:
 
 {global_comments_section}
 
-Please provide in **Markdown format**:
+Please provide a detailed analysis in plain formatted text (NOT wrapped in code blocks). Include:
+
 1. A detailed summary of all completed work items
 2. The impact and importance of each completed action
 3. How these completed items address the associated security concerns or campaigns
 4. Key findings and discoveries from the completed work
-5. Recommendations for follow-up or related security measures"""
+5. Recommendations for follow-up or related security measures
+
+IMPORTANT: Output plain text formatted with markdown - use headings, bullet points, bold text - but do NOT wrap the entire response in triple backticks or code blocks."""

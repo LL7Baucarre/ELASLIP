@@ -1065,7 +1065,7 @@ def import_snippet():
 
 @bp.route('/api/cases/<case_id>/generate-report', methods=['POST'])
 @login_required
-@permission_required('report.generate_llm')
+@permission_required('report.create')
 def api_generate_case_report(case_id):
     """Generate LLM report for case."""
     import os
@@ -1089,7 +1089,7 @@ def api_generate_case_report(case_id):
 
 @bp.route('/api/incidents/<incident_id>/generate-report', methods=['POST'])
 @login_required
-@permission_required('report.generate_llm')
+@permission_required('report.create')
 def api_generate_incident_report(incident_id):
     """Generate LLM report for incident."""
     import os
