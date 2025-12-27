@@ -187,6 +187,18 @@ docker-compose  exec  app  python  scripts/create_admin.py
 
 ```
 
+### Demo Data (Optional)
+
+To populate the database with sample IOCs, cases, and incidents, set `DEMO_DATA_ENABLED=true` in `.env` before startup, or run manually:
+
+```bash
+
+docker-compose  exec  app  python  scripts/demo_data.py
+
+```
+
+This generates realistic test data useful for exploring features and understanding workflows.
+
   
 
 ## Configuration
@@ -302,6 +314,7 @@ docker-compose  -f  docker-compose.external-elasticsearch.yml  up  -d
 
 ```
 
+
   
 
 ## Development
@@ -365,6 +378,7 @@ flask  run  --debug
 docker-compose  logs  elasticsearch
 
 curl  -u  elastic:elastic123  http://localhost:9200
+
 
 ```
 
