@@ -1069,6 +1069,9 @@ def import_snippet():
 def api_generate_case_report(case_id):
     """Generate LLM report for case."""
     import os
+    import uuid
+    from datetime import datetime
+    from app.services.elasticsearch_service import ElasticsearchService
     
     # Check if LLM is enabled
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -1076,14 +1079,36 @@ def api_generate_case_report(case_id):
     
     try:
         from app.tasks.report_tasks import generate_case_report as task_generate_case
-        # Launch async task
-        task = task_generate_case.delay(case_id, current_user.username)
+        
+        # Generate task ID upfront so we can create ES doc before launching task
+        task_id = str(uuid.uuid4())
+        
+        # Create initial ES document so status check works immediately
+        es_service = ElasticsearchService()
+        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+            'type': 'case',
+            'entity_id': case_id,
+            'status': 'queued',
+            'user_id': current_user.username,
+            'created_at': datetime.utcnow().isoformat(),
+            'task_id': task_id
+        })
+        
+        # Launch async task with our generated task_id
+        task = task_generate_case.apply_async(
+            args=[case_id, current_user.username],
+            task_id=task_id
+        )
+        
         return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
+            'task_id': task_id,
+            'status': 'queued',
             'message': 'Report generation started'
         })
     except Exception as e:
+        import traceback
+        print(f"Error launching case report task: {e}")
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -1093,6 +1118,9 @@ def api_generate_case_report(case_id):
 def api_generate_incident_report(incident_id):
     """Generate LLM report for incident."""
     import os
+    import uuid
+    from datetime import datetime
+    from app.services.elasticsearch_service import ElasticsearchService
     
     # Check if LLM is enabled
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -1100,12 +1128,34 @@ def api_generate_incident_report(incident_id):
     
     try:
         from app.tasks.report_tasks import generate_incident_report as task_generate_incident
-        # Launch async task
-        task = task_generate_incident.delay(incident_id, current_user.username)
+        
+        # Generate task ID upfront so we can create ES doc before launching task
+        task_id = str(uuid.uuid4())
+        
+        # Create initial ES document so status check works immediately
+        es_service = ElasticsearchService()
+        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+            'type': 'incident',
+            'entity_id': incident_id,
+            'status': 'queued',
+            'user_id': current_user.username,
+            'created_at': datetime.utcnow().isoformat(),
+            'task_id': task_id
+        })
+        
+        # Launch async task with our generated task_id
+        task = task_generate_incident.apply_async(
+            args=[incident_id, current_user.username],
+            task_id=task_id
+        )
+        
         return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
+            'task_id': task_id,
+            'status': 'queued',
             'message': 'Report generation started'
         })
     except Exception as e:
+        import traceback
+        print(f"Error launching incident report task: {e}")
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500

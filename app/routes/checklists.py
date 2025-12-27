@@ -255,7 +255,10 @@ def api_export(checklist_id):
 def api_generate_report(checklist_id):
     """Generate LLM report for checklist."""
     import os
+    import uuid
     import logging
+    from datetime import datetime
+    from app.services.elasticsearch_service import ElasticsearchService
     
     logger = logging.getLogger('app.routes.checklists')
     
@@ -270,13 +273,34 @@ def api_generate_report(checklist_id):
     try:
         logger.info("[CHECKLIST REPORT] Importing task function...")
         from app.tasks.report_tasks import generate_checklist_report as task_generate_checklist
+        
+        # Generate task ID upfront so we can create ES doc before launching task
+        task_id = str(uuid.uuid4())
+        logger.info(f"[CHECKLIST REPORT] Generated task ID: {task_id}")
+        
+        # Create initial ES document so status check works immediately
+        es_service = ElasticsearchService()
+        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+            'type': 'checklist',
+            'entity_id': checklist_id,
+            'status': 'queued',
+            'user_id': current_user.username,
+            'created_at': datetime.utcnow().isoformat(),
+            'task_id': task_id
+        })
+        logger.info(f"[CHECKLIST REPORT] Created ES document for task {task_id}")
+        
+        # Launch async task with our generated task_id
         logger.info("[CHECKLIST REPORT] Launching async task...")
-        # Launch async task
-        task = task_generate_checklist.delay(checklist_id, current_user.username)
-        logger.info(f"[CHECKLIST REPORT] Task launched with ID: {task.id}")
+        task = task_generate_checklist.apply_async(
+            args=[checklist_id, current_user.username],
+            task_id=task_id
+        )
+        logger.info(f"[CHECKLIST REPORT] Task launched with ID: {task_id}")
+        
         return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
+            'task_id': task_id,
+            'status': 'queued',
             'message': 'Report generation started'
         })
     except Exception as e:

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Generating Report - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-body text-center py-5">
+                    <div id="loadingState">
+                        <div class="spinner-border text-primary mb-4" role="status" style="width: 4rem; height: 4rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h4 class="mb-3">Generating Report</h4>
+                        <p class="text-muted mb-2" id="statusMessage">Submitting task to worker...</p>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="progressBar" role="progressbar" style="width: 10%"></div>
+                        </div>
+                        <small class="text-muted" id="attemptCounter">Attempt 1/30</small>
+                    </div>
+                    
+                    <div id="successState" class="d-none">
+                        <i class="bi bi-check-circle-fill text-success mb-3" style="font-size: 4rem;"></i>
+                        <h4 class="mb-3">Task Submitted Successfully</h4>
+                        <p class="text-muted mb-3">Redirecting to report...</p>
+                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Redirecting...</span>
+                        </div>
+                    </div>
+                    
+                    <div id="errorState" class="d-none">
+                        <i class="bi bi-exclamation-triangle-fill text-danger mb-3" style="font-size: 4rem;"></i>
+                        <h4 class="mb-3">Task Submission Failed</h4>
+                        <p class="text-danger mb-3" id="errorMessage">Could not submit task to worker</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button class="btn btn-primary" onclick="retryTask()">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                            </button>
+                            <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Go Back
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const taskId = '{{ task_id }}';
+const reportType = '{{ report_type }}';
+const entityId = '{{ entity_id }}';
+const maxAttempts = 30;
+let attempt = 0;
+
+async function checkTaskStatus() {
+    attempt++;
+    const progressPercent = Math.min(10 + (attempt / maxAttempts) * 80, 90);
+    document.getElementById('progressBar').style.width = progressPercent + '%';
+    document.getElementById('attemptCounter').textContent = `Attempt ${attempt}/${maxAttempts}`;
+    
+    try {
+        const response = await fetch(`/api/reports/task-status/${taskId}`);
+        const data = await response.json();
+        
+        console.log('Task status response:', data);
+        
+        if (response.ok) {
+            const status = data.status;
+            
+            // Update status message based on task state
+            if (status === 'PENDING') {
+                document.getElementById('statusMessage').textContent = data.message || 'Task queued, waiting for worker...';
+            } else if (status === 'STARTED' || status === 'PROGRESS' || data.es_status === 'processing' || data.es_status === 'generating') {
+                document.getElementById('statusMessage').textContent = data.message || 'Worker processing report...';
+                // Task is being processed, redirect to report page
+                showSuccess();
+                return;
+            } else if (status === 'SUCCESS' || status === 'completed' || data.es_status === 'completed') {
+                showSuccess();
+                return;
+            } else if (status === 'FAILURE' || status === 'error' || data.es_status === 'error') {
+                showError(data.error || 'Task failed');
+                return;
+            }
+            
+            // Task exists in ES (queued status) - redirect after a few checks
+            if (data.found && attempt >= 2) {
+                // Task is confirmed registered, redirect to report page
+                showSuccess();
+                return;
+            }
+        } else if (response.status === 403) {
+            showError('Access denied');
+            return;
+        } else if (response.status === 404) {
+            document.getElementById('statusMessage').textContent = 'Waiting for task to be registered...';
+        } else {
+            // Handle other error responses
+            const errorData = data;
+            if (errorData.error) {
+                showError(errorData.error);
+                return;
+            }
+        }
+        
+        // Continue polling if not at max attempts
+        if (attempt < maxAttempts) {
+            setTimeout(checkTaskStatus, 1000);
+        } else {
+            // Even if we timeout, redirect to report page to check there
+            showSuccess();
+        }
+    } catch (error) {
+        console.error('Error checking task status:', error);
+        document.getElementById('statusMessage').textContent = 'Checking task status...';
+        
+        if (attempt < maxAttempts) {
+            setTimeout(checkTaskStatus, 1000);
+        } else {
+            showError('Could not verify task status: ' + error.message);
+        }
+    }
+}
+
+function showSuccess() {
+    document.getElementById('loadingState').classList.add('d-none');
+    document.getElementById('successState').classList.remove('d-none');
+    document.getElementById('progressBar').style.width = '100%';
+    
+    // Redirect after short delay
+    setTimeout(() => {
+        window.location.href = `/reports?task_id=${taskId}`;
+    }, 500);
+}
+
+function showError(message) {
+    document.getElementById('loadingState').classList.add('d-none');
+    document.getElementById('errorState').classList.remove('d-none');
+    document.getElementById('errorMessage').textContent = message;
+}
+
+function retryTask() {
+    // Go back and user can click generate again
+    history.back();
+}
+
+// Start checking immediately
+document.addEventListener('DOMContentLoaded', function() {
+    if (taskId) {
+        checkTaskStatus();
+    } else {
+        showError('No task ID provided');
+    }
+});
+</script>
+{% endblock %}

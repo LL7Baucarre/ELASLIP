@@ -16,7 +16,7 @@
             </a>
             {% endif %}
             {% if has_permission('checklist.generate_llm') %}
-            <button class="btn btn-outline-success" onclick="generateReport()">
+            <button class="btn btn-outline-success" id="generateReportBtn" onclick="generateReport(event)">
                 <i class="bi bi-stars me-1"></i> Generate Report
             </button>
             {% endif %}
@@ -518,14 +518,19 @@ function deleteChecklist() {
     }
 }
 
-function generateReport() {
+function generateReport(e) {
     if (!checklistId) {
         alert('Checklist ID not found');
         return;
     }
     
-    // Show loading state
-    const btn = event.target;
+    // Prevent double-click
+    if (e) e.preventDefault();
+    
+    // Get the button element (may be the icon inside it)
+    const btn = document.getElementById('generateReportBtn');
+    if (!btn || btn.disabled) return;
+    
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Generating...';
@@ -547,8 +552,8 @@ function generateReport() {
     })
     .then(data => {
         if (data.task_id) {
-            // Redirect to report page with task_id
-            window.location.href = `/reports?task_id=${data.task_id}`;
+            // Redirect to loading page that verifies task is registered
+            window.location.href = `/reports/loading?task_id=${data.task_id}&type=checklist&id=${checklistId}`;
         } else {
             alert('Report generation started. Check the reports page.');
             window.location.href = '/reports';

@@ -46,8 +46,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     reportType = urlParams.get('type');  // 'ioc', 'case', 'incident'
     reportId = urlParams.get('id');
+    const taskId = urlParams.get('task_id');
     
-    if (reportType && reportId) {
+    // Call generateReport if we have task_id OR (type AND id)
+    if (taskId || (reportType && reportId)) {
         generateReport();
     }
 });
@@ -170,6 +172,11 @@ function displayReport() {
     const content = document.getElementById('reportContent');
     let markdown = '';
     
+    // Detect report type from data if not set from URL params
+    if (!reportType && reportData.type) {
+        reportType = reportData.type;
+    }
+    
     switch(reportType) {
         case 'ioc':
             markdown = displayIOCReport();
@@ -187,6 +194,11 @@ function displayReport() {
         case 'checklist':
             markdown = displayChecklistReport();
             document.getElementById('reportTitle').textContent = `Checklist Report: ${reportData.checklist_title || reportData.title || 'Unknown'}`;
+            break;
+        default:
+            // If no type detected, show generic report with whatever content we have
+            document.getElementById('reportTitle').textContent = `Report`;
+            markdown = reportData.report || reportData.analysis || reportData.content || 'No report content available';
             break;
     }
     

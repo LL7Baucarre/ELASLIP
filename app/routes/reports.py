@@ -805,6 +805,117 @@ def generate_checklist_report(checklist_id):
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/reports/loading')
+@login_required
+def report_loading_page():
+    """
+    Intermediate loading page for report generation
+    """
+    task_id = request.args.get('task_id', '')
+    report_type = request.args.get('type', '')
+    entity_id = request.args.get('id', '')
+    
+    if not task_id:
+        return render_template('error.html', error='No task ID provided'), 400
+    
+    return render_template('report_loading.html', 
+                          task_id=task_id, 
+                          report_type=report_type,
+                          entity_id=entity_id)
+
+
+@bp.route('/api/reports/task-status/<task_id>', methods=['GET'])
+@login_required
+def get_task_status(task_id):
+    """
+    Check report task status from Elasticsearch
+    ---
+    tags:
+      - Reports
+    security:
+      - Bearer: []
+    parameters:
+      - in: path
+        name: task_id
+        type: string
+        required: true
+    responses:
+      200:
+        description: Task status
+      404:
+        description: Task not found
+    """
+    try:
+        # Check Elasticsearch for our stored report status
+        es_response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+        es_found = es_response and es_response.get('found', False)
+        
+        if not es_found:
+            # Task not yet registered in ES - still being queued
+            return jsonify({
+                'status': 'PENDING',
+                'es_status': None,
+                'found': False,
+                'message': 'Task queued, waiting for worker to pick up'
+            })
+        
+        es_config = es_response.get('_source', {})
+        es_status = es_config.get('status')
+        es_error = es_config.get('error')
+        report_type = es_config.get('type')
+        
+        # Check permission
+        if es_config.get('user_id') != current_user.username and not current_user.is_admin:
+            return jsonify({'error': 'Access denied'}), 403
+        
+        # Map ES status to expected states
+        if es_status == 'completed':
+            return jsonify({
+                'status': 'SUCCESS',
+                'es_status': es_status,
+                'type': report_type,
+                'found': True
+            })
+        elif es_status == 'error' or es_status == 'failed':
+            return jsonify({
+                'status': 'FAILURE',
+                'es_status': es_status,
+                'error': es_error or 'Task failed',
+                'type': report_type,
+                'found': True
+            })
+        elif es_status == 'pending':
+            return jsonify({
+                'status': 'PENDING',
+                'es_status': es_status,
+                'type': report_type,
+                'found': True,
+                'message': 'Task queued, waiting for worker'
+            })
+        elif es_status == 'processing' or es_status == 'generating':
+            return jsonify({
+                'status': 'STARTED',
+                'es_status': es_status,
+                'type': report_type,
+                'found': True,
+                'message': 'Worker processing report'
+            })
+        else:
+            # Unknown status but task exists
+            return jsonify({
+                'status': 'STARTED',
+                'es_status': es_status,
+                'type': report_type,
+                'found': True
+            })
+            
+    except Exception as e:
+        import traceback
+        print(f"Error checking task status: {e}")
+        print(traceback.format_exc())
+        return jsonify({'error': str(e), 'status': 'error'}), 500
+
+
 @bp.route('/api/reports/status/<task_id>', methods=['GET'])
 @login_required
 def get_report_status(task_id):

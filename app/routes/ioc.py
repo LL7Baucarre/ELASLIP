@@ -1253,6 +1253,9 @@ def store_enrichment(ioc_id):
 def api_generate_ioc_report(ioc_id):
     """Generate LLM report for IOC."""
     import os
+    import uuid
+    from datetime import datetime
+    from app.services.elasticsearch_service import ElasticsearchService
     
     # Check if LLM is enabled
     if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
@@ -1260,13 +1263,35 @@ def api_generate_ioc_report(ioc_id):
     
     try:
         from app.tasks.report_tasks import generate_ioc_report as task_generate_ioc
-        # Launch async task
-        task = task_generate_ioc.delay(ioc_id, current_user.username)
+        
+        # Generate task ID upfront so we can create ES doc before launching task
+        task_id = str(uuid.uuid4())
+        
+        # Create initial ES document so status check works immediately
+        es_service = ElasticsearchService()
+        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+            'type': 'ioc',
+            'entity_id': ioc_id,
+            'status': 'queued',
+            'user_id': current_user.username,
+            'created_at': datetime.utcnow().isoformat(),
+            'task_id': task_id
+        })
+        
+        # Launch async task with our generated task_id
+        task = task_generate_ioc.apply_async(
+            args=[ioc_id, current_user.username],
+            task_id=task_id
+        )
+        
         return jsonify({
-            'task_id': task.id,
-            'status': 'pending',
+            'task_id': task_id,
+            'status': 'queued',
             'message': 'Report generation started'
         })
     except Exception as e:
+        import traceback
+        print(f"Error launching IOC report task: {e}")
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
