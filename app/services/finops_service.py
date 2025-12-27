@@ -252,8 +252,7 @@ class FinOpsService:
                     'total_tokens': doc['total_tokens'],
                     'prompt_tokens': doc['prompt_tokens'],
                     'completion_tokens': doc['completion_tokens'],
-                    'user_id': doc.get('user_id', 'unknown'),
-                    'model': doc.get('model', 'unknown')
+                    'user_id': doc.get('user_id', 'unknown')
                 })
             
             return consumers

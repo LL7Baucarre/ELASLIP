@@ -27,14 +27,17 @@ class ReportService:
         
         # Try to load config from Elasticsearch first
         try:
-            config = self.es.get('app_config', 'llm_config')
-            if config:
+            response = self.es.get('app_config', 'llm_config')
+            if response and response.get('found'):
+                config = response.get('_source', {})
                 self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
                 self.llm_model = config.get('model', os.getenv('LLM_MODEL', 'mistral'))
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
+                self.generation_language = config.get('generation_language', 'en')
                 self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
                 self.custom_prompt_incident = config.get('custom_prompt_incident', '')
+                self.custom_prompt_checklist = config.get('custom_prompt_checklist', '')
                 return
         except Exception:
             pass
@@ -43,9 +46,11 @@ class ReportService:
         self.llm_url = os.getenv('LLM_URL', 'http://ollama:11434')
         self.llm_model = os.getenv('LLM_MODEL', 'mistral')
         self.llm_api_key = os.getenv('LLM_API_KEY', '')
+        self.generation_language = 'en'
         self.custom_prompt_ioc = ''
         self.custom_prompt_case = ''
         self.custom_prompt_incident = ''
+        self.custom_prompt_checklist = ''
     
     def is_configured(self) -> bool:
         """Check if LLM is properly configured."""
@@ -68,27 +73,37 @@ class ReportService:
         # Reload config from Elasticsearch on each call to ensure latest settings
         import sys
         try:
-            config = self.es.get('app_config', 'llm_config')
-            if config:
-                old_url = self.llm_url
+            response = self.es.get('app_config', 'llm_config')
+            if response and response.get('found'):
+                config = response.get('_source', {})
+                old_lang = self.generation_language
                 self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
                 self.llm_model = config.get('model', os.getenv('LLM_MODEL', 'mistral'))
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
-                print(f"DEBUG: Loaded LLM config from ES. URL: {old_url} -> {self.llm_url}", file=sys.stderr)
+                self.generation_language = config.get('generation_language', 'en')
+                self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
+                self.custom_prompt_case = config.get('custom_prompt_case', '')
+                self.custom_prompt_incident = config.get('custom_prompt_incident', '')
+                self.custom_prompt_checklist = config.get('custom_prompt_checklist', '')
+                print(f"[LLM CONFIG LOADED] Language: {old_lang} -> {self.generation_language}")
         except Exception as e:
-            print(f"DEBUG: Failed to reload LLM config: {str(e)}", file=sys.stderr)
+            print(f"[LLM CONFIG ERROR] Failed to reload: {str(e)}")
         
         try:
-            print(f"DEBUG: Using LLM URL: {self.llm_url}", file=sys.stderr)
+            print(f"Using LLM URL: {self.llm_url}")
+            print(f"Generation language: {self.generation_language}")
             headers = {'Content-Type': 'application/json'}
             if self.llm_api_key:
                 headers['Authorization'] = f'Bearer {self.llm_api_key}'
             
+            # Ollama API payload
             payload = {
                 'model': self.llm_model,
                 'prompt': prompt,
                 'stream': False,
             }
+            
+            print(f"[LLM CALL] Language: {self.generation_language}, Model: {self.llm_model}")
             
             response = requests.post(
                 f"{self.llm_url}/api/generate",
@@ -107,9 +122,29 @@ class ReportService:
                 'completion_tokens': data.get('eval_count', 0)
             }
             
+            print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
+            
             return response_text, token_usage
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to call LLM: {str(e)}")
+    
+    def _get_language_instruction(self) -> str:
+        """Get the language instruction for the LLM."""
+        language_map = {
+            'en': 'English',
+            'fr': 'French',
+            'es': 'Spanish',
+            'de': 'German',
+            'it': 'Italian',
+            'pt': 'Portuguese',
+            'nl': 'Dutch',
+            'pl': 'Polish',
+            'ru': 'Russian',
+            'ja': 'Japanese',
+            'zh': 'Chinese'
+        }
+        language_name = language_map.get(self.generation_language, 'English')
+        return f"You are a helpful security analyst. IMPORTANT: You must respond ONLY in {language_name}. Every word, every sentence must be in {language_name}. Do not use English. Use only {language_name}.\n\n"
     
     def generate_ioc_report(self, ioc_id: str) -> Dict[str, Any]:
         """
@@ -591,7 +626,9 @@ class ReportService:
         # Use custom prompt if available
         if self.custom_prompt_ioc:
             try:
-                return self.custom_prompt_ioc.format(
+                language_instruction = self._get_language_instruction()
+                custom_with_language = language_instruction + self.custom_prompt_ioc
+                return custom_with_language.format(
                     type=ioc.get('type'),
                     value=ioc_value,
                     severity=ioc.get('x_metadata', {}).get('threat_level', ioc.get('severity', 'unknown')),
@@ -629,10 +666,10 @@ class ReportService:
                 source = ref.get('source_name', 'Unknown source')
                 url = ref.get('url', '')
                 if url:
-                    refs_list.append(f"{source}: {url}")
+                    refs_list.append(f"- {source}: {url}")
                 else:
-                    refs_list.append(source)
-            refs_text = '\n  - ' + '\n  - '.join(refs_list)
+                    refs_list.append(f"- {source}")
+            refs_text = '\n'.join(refs_list)
         
         # Build a more detailed prompt that emphasizes relations
         relations_section = ""
@@ -650,7 +687,8 @@ IMPORTANT: You MUST analyze each of the {len(relations)} related indicators list
 - The combined threat picture when considering all related indicators together
 """
         
-        return f"""Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+        language_instruction = self._get_language_instruction()
+        return language_instruction + f"""Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
 
 ## IOC Details
 - **Type**: {ioc.get('type')}
@@ -675,7 +713,7 @@ IMPORTANT: You MUST analyze each of the {len(relations)} related indicators list
 - **Created**: {ioc.get('created', ioc.get('created_at', 'Unknown'))}
 - **Modified**: {ioc.get('modified', ioc.get('modified_at', 'Unknown'))}
 - **Status**: {x_metadata.get('status', ioc.get('status', 'Active'))}
-{f"- **External References**:{refs_text}" if refs_text else ""}
+{f"- **External References**:" + chr(10) + refs_text if refs_text else ""}
 {relations_section}
 
 Please provide in **Markdown format**:
@@ -691,6 +729,9 @@ Please provide in **Markdown format**:
             timeline = []
         if comments is None:
             comments = []
+        
+        # Get language instruction
+        language_instruction = self._get_language_instruction()
         
         # Format incident details with more info
         incidents_text = '\n'.join([
@@ -729,7 +770,9 @@ Please provide in **Markdown format**:
         # Use custom prompt if available
         if self.custom_prompt_case:
             try:
-                return self.custom_prompt_case.format(
+                language_instruction = self._get_language_instruction()
+                custom_with_language = language_instruction + self.custom_prompt_case
+                return custom_with_language.format(
                     name=case.get('name', case.get('title', 'Unknown')),
                     status=case.get('status'),
                     priority=case.get('priority'),
@@ -748,7 +791,7 @@ Please provide in **Markdown format**:
         updated_at = case.get('updated_at', 'Unknown')
         severity = case.get('severity', 'Medium')
         
-        return f"""Generate a comprehensive investigation report for this security case:
+        return language_instruction + f"""Generate a comprehensive investigation report for this security case:
 
 ## Case Details
 - **Case Name**: {case.get('name', case.get('title', 'Unknown'))}
@@ -794,6 +837,9 @@ Please provide in **Markdown format**:
         if comments is None:
             comments = []
         
+        # Get language instruction to add to default prompts
+        language_instruction = self._get_language_instruction()
+        
         # Format IOC details - handle STIX pattern format
         iocs_text = '\n'.join([
             f"- {i.get('type')}: {i.get('value') or i.get('pattern', 'N/A')} (Severity: {i.get('x_metadata', {}).get('threat_level', i.get('severity', 'N/A'))})"
@@ -803,7 +849,9 @@ Please provide in **Markdown format**:
         # Use custom prompt if available
         if self.custom_prompt_incident:
             try:
-                return self.custom_prompt_incident.format(
+                language_instruction = self._get_language_instruction()
+                custom_with_language = language_instruction + self.custom_prompt_incident
+                return custom_with_language.format(
                     name=incident.get('title', incident.get('name', 'Unknown')),
                     description=incident.get('description', 'N/A'),
                     type=incident.get('category', incident.get('type', 'Unknown')),
@@ -850,7 +898,7 @@ Please provide in **Markdown format**:
                 tactics_lines.append(f"  Techniques: {', '.join(techniques)}")
             tactics_text = '\n'.join(tactics_lines)
         
-        return f"""Analyze this security incident and generate a comprehensive threat report:
+        return language_instruction + f"""Analyze this security incident and generate a comprehensive threat report:
 
 ## Incident Details
 - **Incident Name**: {incident.get('title', incident.get('name', 'Unknown'))}
@@ -945,7 +993,9 @@ Please provide in **Markdown format**:
         # Use custom prompt if available
         if hasattr(self, 'custom_prompt_checklist') and self.custom_prompt_checklist:
             try:
-                return self.custom_prompt_checklist.format(
+                language_instruction = self._get_language_instruction()
+                custom_with_language = language_instruction + self.custom_prompt_checklist
+                return custom_with_language.format(
                     title=title,
                     description=description,
                     items=items_text,
@@ -959,6 +1009,9 @@ Please provide in **Markdown format**:
                 )
             except KeyError:
                 pass
+        
+        # Get language instruction
+        language_instruction = self._get_language_instruction()
         
         # Build detailed default prompt for more comprehensive analysis
         context_info = ""
@@ -978,7 +1031,7 @@ Please provide in **Markdown format**:
         total_items = len(items)
         completion_percentage = (completed_items / total_items * 100) if total_items > 0 else 0
         
-        return f"""# Work Summary Report - {title}
+        return language_instruction + f"""# Work Summary Report - {title}
 
 ## Context
 
@@ -1002,30 +1055,4 @@ The following items have been successfully completed:
 
 ## Team Observations and Comments
 
-{global_comments_section}
-
----
-
-## Analysis Request
-
-You are an experienced analyst. Please provide a **comprehensive narrative report** in Markdown format that explains what was done, the context of this work, and its implications. 
-
-Write this as if you're briefing management or colleagues who need to understand:
-- What objectives were being pursued with this checklist
-- What work has been completed and its quality/importance
-- What remains to be done and why it matters
-- How this work fits into the bigger picture ({campaigns_context} / {cases_context} / {incidents_context})
-- What risks or blockers exist
-- What should happen next
-
-**Tone**: Professional, contextual, and explanatory. Assume the reader doesn't need exhaustive structured bullet points, but rather a clear narrative of events, progress, and implications. Include analyst observations and insights about what was accomplished and what it means.
-
-**Structure**: Feel free to organize this naturally as a report would be written - start with what was done, provide context for why each item matters, note what's still pending and the implications, then provide recommendations for next steps.
-
-**Include**:
-- A brief executive summary
-- What was accomplished and why it's important
-- Key observations from the team comments above
-- Assessment of completion and quality
-- Outstanding issues and their impact
-- Recommended next actions with reasoning{context_info}"""
+{global_comments_section}"""

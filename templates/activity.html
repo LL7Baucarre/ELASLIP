@@ -249,7 +249,6 @@
                                 <th>Timestamp</th>
                                 <th>Report Type</th>
                                 <th>Entity</th>
-                                <th>Model</th>
                                 <th>Prompt Tokens</th>
                                 <th>Completion Tokens</th>
                                 <th>Total Tokens</th>
@@ -258,7 +257,7 @@
                         </thead>
                         <tbody id="finops-consumers-tbody">
                             <tr>
-                                <td colspan="8" class="text-center text-muted">No data available</td>
+                                <td colspan="7" class="text-center text-muted">No data available</td>
                             </tr>
                         </tbody>
                     </table>
@@ -740,19 +739,17 @@ function updateTopConsumers(consumers) {
     const tbody = document.getElementById('finops-consumers-tbody');
     
     if (consumers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No data available</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No data available</td></tr>';
         return;
     }
     
     const rows = consumers.map(consumer => {
         const timestamp = new Date(consumer.timestamp).toLocaleString();
-        const model = consumer.model || 'N/A';
         return `
             <tr>
                 <td>${timestamp}</td>
                 <td><span class="badge bg-primary">${consumer.report_type}</span></td>
                 <td>${consumer.entity_name}</td>
-                <td><span class="badge bg-secondary">${model}</span></td>
                 <td>${consumer.prompt_tokens.toLocaleString()}</td>
                 <td>${consumer.completion_tokens.toLocaleString()}</td>
                 <td><strong>${consumer.total_tokens.toLocaleString()}</strong></td>

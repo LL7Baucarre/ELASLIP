@@ -107,9 +107,11 @@ def update_report_config():
         'url': data.get('url', 'http://ollama:11434'),
         'model': data.get('model', 'mistral'),
         'api_key': data.get('api_key', ''),
+        'generation_language': data.get('generation_language', 'en'),
         'custom_prompt_ioc': data.get('custom_prompt_ioc', ''),
         'custom_prompt_case': data.get('custom_prompt_case', ''),
         'custom_prompt_incident': data.get('custom_prompt_incident', ''),
+        'custom_prompt_checklist': data.get('custom_prompt_checklist', ''),
         'configured': False  # Will be set after testing
     }
     
@@ -480,15 +482,28 @@ def view_report(task_id):
     try:
         response = es_service.get('app_config', f'report_{task_id}')
         if not response or not response.get('found'):
-            return jsonify({'error': 'Report not found'}), 404
+            return jsonify({'error': 'Report not found', 'status': 'error'}), 404
         
         config = response.get('_source', {})
         
         # Check if user has permission to view this report
         if config.get('user_id') != current_user.username and not current_user.is_admin:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'error': 'Access denied', 'status': 'error'}), 403
         
         status = config.get('status')
+        if status == 'error' or status == 'failed':
+            # Return error details
+            error_reason = config.get('error', 'Unknown error occurred')
+            return jsonify({
+                'error': error_reason,
+                'status': 'error',
+                'task_id': task_id,
+                'error_details': {
+                    'timestamp': config.get('completed_at', 'Unknown'),
+                    'full_message': error_reason
+                }
+            }), 200
+        
         if status != 'completed':
             return jsonify({
                 'error': f'Report not yet completed (status: {status})',
@@ -507,7 +522,7 @@ def view_report(task_id):
         import sys, traceback
         print(f"DEBUG: Exception in view_report: {str(e)}", file=sys.stderr)
         print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @bp.route('/api/reports/<task_id>', methods=['DELETE'])
 @login_required
