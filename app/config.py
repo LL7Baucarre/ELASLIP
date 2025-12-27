@@ -55,6 +55,7 @@ class Config:
     LLM_URL = os.getenv('LLM_URL', 'http://ollama:11434')
     LLM_MODEL = os.getenv('LLM_MODEL', 'mistral')
     LLM_API_KEY = os.getenv('LLM_API_KEY', '')
+    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'auto')  # 'auto', 'ollama', or 'openai'
     LLM_ENABLED = os.getenv('LLM_ENABLED', 'false').lower() == 'true'
     LLM_GENERATION_LANGUAGE = os.getenv('LLM_GENERATION_LANGUAGE', 'en')
 

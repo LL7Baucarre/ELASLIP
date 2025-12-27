@@ -48,14 +48,25 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="provider" class="form-label">LLM Provider</label>
+                        <select class="form-select" id="provider" name="provider" onchange="updateProviderUI()">
+                            <option value="auto" {% if config and config.LLM_PROVIDER == 'auto' %}selected{% endif %}>Auto-detect</option>
+                            <option value="ollama" {% if config and config.LLM_PROVIDER == 'ollama' %}selected{% endif %}>Ollama</option>
+                            <option value="openai" {% if config and config.LLM_PROVIDER == 'openai' %}selected{% endif %}>OpenAI-Compatible</option>
+                        </select>
+                        <small class="text-muted">Select your LLM provider type. Auto-detect will try both Ollama and OpenAI endpoints.</small>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="url" class="form-label">LLM URL</label>
                         <input type="url" class="form-control" id="url" name="url" 
                                placeholder="http://ollama:11434"
                                value="{{ config.LLM_URL if config else 'http://ollama:11434' }}"
                                required>
                         <small class="text-muted">
-                            <strong>Docker:</strong> http://ollama:11434 (service name in docker-compose)<br/>
-                            <strong>Local:</strong> http://localhost:11434 (if Ollama runs on your machine)
+                            <strong>Ollama:</strong> http://localhost:11434 or http://ollama:11434 (Docker)<br/>
+                            <strong>OpenAI-Compatible:</strong> Any OpenAI-compatible API endpoint (e.g., OpenAI, Anthropic, or custom)<br/>
+                            <strong>Note:</strong> URL must include protocol (http:// or https://)
                         </small>
                     </div>
 
@@ -69,9 +80,21 @@
 
                     <div class="mb-3">
                         <label for="api_key" class="form-label">API Key (Optional)</label>
-                        <input type="password" class="form-control" id="api_key" name="api_key" 
-                               placeholder="Leave empty if not required">
-                        <small class="text-muted">For OpenAI or other providers requiring authentication</small>
+                        <div class="input-group">
+                            <input type="password" class="form-control" id="api_key" name="api_key" 
+                                   placeholder="Leave empty if not required">
+                            <button type="button" class="btn btn-outline-primary" id="validateKeyBtn" 
+                                    onclick="validateApiKey()" title="Validate API key and load models"
+                                    style="display: none;">
+                                <i class="bi bi-check-circle me-1"></i> Validate Key
+                            </button>
+                            <button type="button" class="btn btn-outline-warning" id="changeApiKeyBtn" 
+                                    onclick="unlockApiKey()" title="Change API key"
+                                    style="display: none;">
+                                <i class="bi bi-pencil me-1"></i> Change
+                            </button>
+                        </div>
+                        <small class="text-muted">For OpenAI or other providers requiring authentication. Will be stored encrypted.</small>
                     </div>
 
                     <div class="mb-3">
@@ -123,9 +146,6 @@
                     <button type="button" class="btn btn-primary" onclick="saveLLMConfig()">
                         <i class="bi bi-check-circle me-2"></i> Save Configuration
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="testLLMConnection()">
-                        <i class="bi bi-play-circle me-2"></i> Test Connection
-                    </button>
                 </form>
 
                 <div id="statusMessage" style="display:none;" class="mt-3"></div>
@@ -162,6 +182,7 @@
 <script>
 // Load current configuration
 let lastBrowserTestSuccessful = false;
+let currentApiKey = '';  // Store the actual API key
 
 document.addEventListener('DOMContentLoaded', function() {
     loadLLMConfig();
@@ -183,6 +204,7 @@ async function loadLLMConfig() {
         const data = await response.json();
         
         document.getElementById('enabled').checked = data.enabled || false;
+        document.getElementById('provider').value = data.provider || 'auto';
         document.getElementById('url').value = data.url || 'http://ollama:11434';
         document.getElementById('api_key').value = '';  // Don't show password
         document.getElementById('generation_language').value = data.generation_language || 'en';
@@ -191,12 +213,22 @@ async function loadLLMConfig() {
         document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || '';
         document.getElementById('custom_prompt_checklist').value = data.custom_prompt_checklist || '';
         
+        // Store the actual API key and lock if it exists
+        currentApiKey = data.api_key || '';
+        if (currentApiKey) {
+            lockApiKey();
+        } else {
+            unlockApiKeyUI();
+        }
+        
         // Load available models
-        await loadAvailableModels(data.url || 'http://ollama:11434', data.model || 'mistral');
+        await loadAvailableModels(data.url || 'http://ollama:11434', data.model || 'mistral', data.provider || 'auto');
+        updateProviderUI();
     } catch (error) {
         console.error('Error loading config:', error);
         // Set defaults if loading fails
         document.getElementById('enabled').checked = false;
+        document.getElementById('provider').value = 'auto';
         document.getElementById('url').value = 'http://ollama:11434';
         document.getElementById('api_key').value = '';
         document.getElementById('generation_language').value = 'en';
@@ -206,12 +238,15 @@ async function loadLLMConfig() {
         document.getElementById('custom_prompt_checklist').value = '';
         
         // Load available models with default URL
-        await loadAvailableModels('http://ollama:11434', 'mistral');
+        await loadAvailableModels('http://ollama:11434', 'mistral', 'auto');
+        updateProviderUI();
     }
 }
 
-async function loadAvailableModels(url, currentModel) {
+async function loadAvailableModels(url, currentModel, provider = 'auto') {
     const modelSelect = document.getElementById('model');
+    // Use the actual stored API key, not the input value (which might be masked)
+    const apiKey = currentApiKey;
     try {
         // Fetch available models from the LLM server
         const response = await fetch('/api/reports/available-models', {
@@ -219,7 +254,11 @@ async function loadAvailableModels(url, currentModel) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ url: url })
+            body: JSON.stringify({ 
+                url: url, 
+                provider: provider,
+                api_key: apiKey
+            })
         });
         
         if (!response.ok) {
@@ -259,17 +298,24 @@ async function loadAvailableModels(url, currentModel) {
             <option value="mistral" ${currentModel === 'mistral' ? 'selected' : ''}>mistral</option>
             <option value="llama2" ${currentModel === 'llama2' ? 'selected' : ''}>llama2</option>
             <option value="neural-chat" ${currentModel === 'neural-chat' ? 'selected' : ''}>neural-chat</option>
+            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+            <option value="gpt-4">gpt-4</option>
             <option value="">Or enter manually...</option>
         `;
     }
 }
 
 async function saveLLMConfig() {
+    // Get the actual API key - either from input (if unlocked) or from stored value (if locked)
+    const apiKeyInput = document.getElementById('api_key').value;
+    const apiKey = (apiKeyInput && apiKeyInput !== '••••••••••••••••') ? apiKeyInput : currentApiKey;
+    
     const config = {
         enabled: document.getElementById('enabled').checked,
+        provider: document.getElementById('provider').value,
         url: document.getElementById('url').value,
         model: document.getElementById('model').value,
-        api_key: document.getElementById('api_key').value,
+        api_key: apiKey,
         generation_language: document.getElementById('generation_language').value,
         custom_prompt_ioc: document.getElementById('custom_prompt_ioc').value,
         custom_prompt_case: document.getElementById('custom_prompt_case').value,
@@ -295,14 +341,16 @@ async function saveLLMConfig() {
     }
 }
 
-async function testLLMConnection() {
+async function validateApiKey() {
+    const url = document.getElementById('url').value;
+    const model = document.getElementById('model').value || 'mistral';
+    const provider = document.getElementById('provider').value;
+    // Use the input value if it's unlocked (new key being entered), otherwise use stored key
+    const apiKeyInput = document.getElementById('api_key').value;
+    const apiKey = (apiKeyInput && apiKeyInput !== '••••••••••••••••') ? apiKeyInput : currentApiKey;
+    
     try {
-        const url = document.getElementById('url').value;
-        const model = document.getElementById('model').value;
-        
-        console.log('Testing connection via backend to:', url);
-        
-        // Test via backend to avoid CORS issues
+        // Test via backend to validate the API key
         const response = await fetch('/api/reports/test-connection', {
             method: 'POST',
             headers: {
@@ -310,25 +358,51 @@ async function testLLMConnection() {
             },
             body: JSON.stringify({
                 url: url,
-                model: model
+                model: model,
+                provider: provider,
+                api_key: apiKey
             })
         });
         
         const data = await response.json();
-        console.log('Backend test response:', data);
+        console.log('API Key validation response:', data);
         
         if (data.success) {
             lastBrowserTestSuccessful = true;
-            showStatus('✓ Connection successful! Model "' + model + '" is available.', 'success');
+            // Store the validated API key
+            currentApiKey = apiKey;
+            // Reload models with the new API key
+            await loadAvailableModels(url, model, provider);
+            // Lock the API key field
+            lockApiKey();
+            // Show notification to select a model
+            showTopRightNotification('✓ API Key validated! Now select a model from the dropdown.', 'success');
         } else {
             lastBrowserTestSuccessful = false;
-            showStatus('✗ Connection failed: ' + data.error, 'danger');
+            showStatus('✗ API Key validation failed: ' + data.error, 'danger');
         }
     } catch (error) {
-        console.error('Connection test error:', error);
+        console.error('API Key validation error:', error);
         lastBrowserTestSuccessful = false;
-        showStatus('✗ Connection failed: ' + error.message, 'danger');
+        showStatus('✗ Validation failed: ' + error.message, 'danger');
     }
+}
+
+function updateProviderUI() {
+    const provider = document.getElementById('provider').value;
+    const urlInput = document.getElementById('url');
+    
+    // Update placeholder based on provider
+    if (provider === 'openai') {
+        urlInput.placeholder = 'https://api.openai.com/v1';
+    } else if (provider === 'ollama') {
+        urlInput.placeholder = 'http://localhost:11434';
+    } else {
+        urlInput.placeholder = 'http://ollama:11434';
+    }
+    
+    // Reload models when provider changes
+    loadAvailableModels(urlInput.value, document.getElementById('model').value, provider);
 }
 
 async function checkLLMStatus() {
@@ -358,9 +432,16 @@ async function checkLLMStatus() {
         html += '<dt class="col-sm-4">Model:</dt>';
         html += '<dd class="col-sm-8"><code>' + escapeHtml(data.model) + '</code></dd>';
         
+        html += '<dt class="col-sm-4">Provider:</dt>';
+        html += '<dd class="col-sm-8"><code>' + escapeHtml(data.provider || 'auto') + '</code></dd>';
+        
         if (!data.configured && !lastBrowserTestSuccessful) {
             html += '<dt class="col-sm-4">Debug:</dt>';
-            html += '<dd class="col-sm-8"><small class="text-muted">Cannot reach ' + escapeHtml(data.url) + '/api/tags<br/>Check Docker network, URL and port.</small></dd>';
+            let debugEndpoint = '/api/tags';  // Default for Ollama
+            if ((data.provider || 'auto') === 'openai') {
+                debugEndpoint = '/v1/models';
+            }
+            html += '<dd class="col-sm-8"><small class="text-muted">Cannot reach ' + escapeHtml(data.url) + escapeHtml(debugEndpoint) + '<br/>Validate your API key and URL configuration.</small></dd>';
         }
         
         html += '</dl>';
@@ -387,6 +468,68 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function lockApiKey() {
+    const apiKeyInput = document.getElementById('api_key');
+    const validateBtn = document.getElementById('validateKeyBtn');
+    const changeBtn = document.getElementById('changeApiKeyBtn');
+    
+    apiKeyInput.value = '••••••••••••••••';  // Show placeholder instead of empty
+    apiKeyInput.readOnly = true;
+    apiKeyInput.style.backgroundColor = '#f5f5f5';
+    validateBtn.style.display = 'none';
+    changeBtn.style.display = 'block';
+}
+
+function unlockApiKey() {
+    unlockApiKeyUI();
+}
+
+function unlockApiKeyUI() {
+    const apiKeyInput = document.getElementById('api_key');
+    const validateBtn = document.getElementById('validateKeyBtn');
+    const changeBtn = document.getElementById('changeApiKeyBtn');
+    
+    apiKeyInput.value = '';
+    apiKeyInput.readOnly = false;
+    apiKeyInput.style.backgroundColor = '';
+    validateBtn.style.display = 'block';
+    changeBtn.style.display = 'none';
+    apiKeyInput.focus();
+}
+
+function showTopRightNotification(message, type) {
+    // Create notification container if it doesn't exist
+    let container = document.getElementById('topRightNotifications');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'topRightNotifications';
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.maxWidth = '400px';
+        document.body.appendChild(container);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.role = 'alert';
+    notification.style.marginBottom = '10px';
+    notification.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Auto-dismiss after 8 seconds
+    setTimeout(() => {
+        notification.remove();
+    }, 8000);
 }
 </script>
 {% endblock %}

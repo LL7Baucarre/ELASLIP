@@ -32,6 +32,8 @@ def get_report_config():
           properties:
             enabled:
               type: boolean
+            provider:
+              type: string
             url:
               type: string
             model:
@@ -60,16 +62,20 @@ def get_report_config():
     try:
         response = es_service.get('elasmisp_app_config', 'llm_config')
         if response and response.get('found'):
-            return jsonify(response.get('_source', {}))
+            config = response.get('_source', {})
+            # Add configured status
+            config['configured'] = report_service.is_configured()
+            return jsonify(config)
     except Exception:
         pass
     
     # Fall back to environment variables
     return jsonify({
         'enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true',
+        'provider': os.getenv('LLM_PROVIDER', 'auto'),
         'url': os.getenv('LLM_URL', 'http://ollama:11434'),
         'model': os.getenv('LLM_MODEL', 'mistral'),
-        'api_key': '',
+        'api_key': os.getenv('LLM_API_KEY', ''),
         'generation_language': os.getenv('LLM_GENERATION_LANGUAGE', 'en'),
         'custom_prompt_ioc': '',
         'custom_prompt_case': '',
@@ -99,6 +105,9 @@ def get_available_models():
             url:
               type: string
               default: "http://ollama:11434"
+            provider:
+              type: string
+              default: "auto"
     responses:
       200:
         description: List of available models retrieved
@@ -118,50 +127,115 @@ def get_available_models():
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json()
-    llm_url = data.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
+    llm_url = data.get('url', os.getenv('LLM_URL', 'http://ollama:11434')).rstrip('/')  # Remove trailing slashes
+    provider = data.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
+    api_key = data.get('api_key', os.getenv('LLM_API_KEY', ''))
     
     try:
         import requests
-        # Try to get models from Ollama API
-        response = requests.get(f"{llm_url}/api/tags", timeout=5)
+        models = []
         
-        if response.status_code == 200:
-            models_data = response.json()
-            models = []
-            
-            # Extract model names from the response
-            if 'models' in models_data and isinstance(models_data['models'], list):
-                models = [model.get('name', model) for model in models_data['models'] if isinstance(model, dict)]
-            elif isinstance(models_data, dict) and 'models' in models_data:
-                # Alternative format
-                for key, value in models_data['models'].items():
-                    if isinstance(value, dict) and 'name' in value:
-                        models.append(value['name'])
+        
+        # If provider is auto or not specified, try both
+        if provider == 'auto' or provider == 'openai':
+            # Try OpenAI-compatible endpoint first
+            try:
+                headers = {'Content-Type': 'application/json'}
+                if api_key:
+                    # Encode API key properly for HTTP headers
+                    # Convert to string if bytes, then encode to UTF-8 bytes, then decode as latin-1
+                    api_key_str = api_key if isinstance(api_key, str) else str(api_key)
+                    try:
+                        # Try to use the key as-is if it's ASCII
+                        api_key_str.encode('ascii')
+                        headers['Authorization'] = f'Bearer {api_key_str}'
+                    except UnicodeEncodeError:
+                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
+                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
+                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                
+                test_url = f"{llm_url}/v1/models"
+                response = requests.get(test_url, headers=headers, timeout=5)
+                if response.status_code == 200:
+                    models_data = response.json()
+                    
+                    # Try multiple formats to extract models
+                    if 'data' in models_data and isinstance(models_data['data'], list):
+                        # Standard OpenAI format
+                        models = [model.get('id', model.get('name', str(model))) for model in models_data['data']]
+                    elif 'models' in models_data and isinstance(models_data['models'], list):
+                        # Alternative format: {models: [...]}
+                        models = [model.get('id', model.get('name', str(model))) for model in models_data['models']]
+                    elif isinstance(models_data, list):
+                        # Direct list of models
+                        models = [m.get('id', m.get('name', str(m))) if isinstance(m, dict) else str(m) for m in models_data]
                     else:
-                        models.append(key)
-            
-            # Remove duplicates and sort
-            models = sorted(list(set(models)))
-            
-            return jsonify({'models': models, 'success': True})
-        else:
-            return jsonify({'models': [], 'error': f'Server returned {response.status_code}', 'success': False}), 200
-    except requests.exceptions.ConnectionError:
+                        # Try to extract from any 'id' or 'name' fields
+                        models = []
+                        for key, value in models_data.items():
+                            if key not in ['object', 'usage', 'error']:
+                                if isinstance(value, dict) and 'id' in value:
+                                    models.append(value['id'])
+                                elif isinstance(value, dict) and 'name' in value:
+                                    models.append(value['name'])
+                                elif isinstance(value, str):
+                                    models.append(value)
+                    
+                    if models:
+                        return jsonify({'models': models, 'success': True})
+            except Exception as e:
+                if provider == 'openai':
+                    return jsonify({
+                        'models': [],
+                        'error': f'Could not fetch OpenAI models: {type(e).__name__}: {str(e)}',
+                        'success': False
+                    }), 200
+        
+        # If provider is auto or ollama, try Ollama endpoint
+        if provider == 'auto' or provider == 'ollama':
+            try:
+                test_url = f"{llm_url}/api/tags"
+                response = requests.get(test_url, timeout=5)
+                
+                if response.status_code == 200:
+                    models_data = response.json()
+                    
+                    # Extract model names from the response
+                    models = []
+                    if 'models' in models_data and isinstance(models_data['models'], list):
+                        models = [model.get('name', model) for model in models_data['models'] if isinstance(model, dict)]
+                    elif isinstance(models_data, dict) and 'models' in models_data:
+                        # Alternative format
+                        for key, value in models_data['models'].items():
+                            if isinstance(value, dict) and 'name' in value:
+                                models.append(value['name'])
+                            else:
+                                models.append(key)
+                    
+                    # Remove duplicates and sort
+                    models = sorted(list(set(models)))
+                    
+                    return jsonify({'models': models, 'success': True})
+                else:
+                    return jsonify({'models': [], 'error': f'Server returned {response.status_code}', 'success': False}), 200
+            except Exception as e:
+                if provider == 'ollama':
+                    return jsonify({
+                        'models': [],
+                        'error': f'Could not fetch Ollama models: {type(e).__name__}: {str(e)}',
+                        'success': False
+                    }), 200
+        
+        # If both endpoints failed
         return jsonify({
             'models': [],
-            'error': 'Could not connect to LLM server',
-            'success': False
-        }), 200
-    except requests.exceptions.Timeout:
-        return jsonify({
-            'models': [],
-            'error': 'LLM server connection timeout',
+            'error': 'Could not fetch models from any available endpoint',
             'success': False
         }), 200
     except Exception as e:
         return jsonify({
             'models': [],
-            'error': str(e),
+            'error': f'Unexpected error: {str(e)}',
             'success': False
         }), 200
 
@@ -185,6 +259,9 @@ def update_report_config():
           properties:
             enabled:
               type: boolean
+            provider:
+              type: string
+              default: "auto"
             url:
               type: string
               default: "http://ollama:11434"
@@ -226,6 +303,7 @@ def update_report_config():
     
     config = {
         'enabled': data.get('enabled', False),
+        'provider': data.get('provider', 'auto'),
         'url': data.get('url', 'http://ollama:11434'),
         'model': data.get('model', 'mistral'),
         'api_key': data.get('api_key', ''),
@@ -241,6 +319,7 @@ def update_report_config():
     os.environ['LLM_URL'] = config['url']
     os.environ['LLM_MODEL'] = config['model']
     os.environ['LLM_API_KEY'] = config['api_key']
+    os.environ['LLM_PROVIDER'] = config['provider']
     os.environ['LLM_ENABLED'] = 'true' if config['enabled'] else 'false'
     os.environ['LLM_GENERATION_LANGUAGE'] = config['generation_language']
     
@@ -263,88 +342,6 @@ def update_report_config():
     })
 
 
-@bp.route('/api/reports/test-connection', methods=['POST'])
-@login_required
-def test_llm_connection():
-    """
-    Test connection to LLM server (Admin only)
-    ---
-    tags:
-      - Reports
-    security:
-      - Bearer: []
-    parameters:
-      - in: body
-        name: body
-        required: true
-        schema:
-          type: object
-          properties:
-            url:
-              type: string
-              default: "http://ollama:11434"
-            model:
-              type: string
-              default: "mistral"
-    responses:
-      200:
-        description: Connection test result
-        schema:
-          type: object
-          properties:
-            success:
-              type: boolean
-            error:
-              type: string
-            models:
-              type: array
-              items:
-                type: string
-      403:
-        description: Admin access required
-    """
-    if not current_user.is_admin:
-        return jsonify({'error': 'Admin access required'}), 403
-    
-    data = request.get_json()
-    url = data.get('url', 'http://ollama:11434')
-    model = data.get('model', 'mistral')
-    
-    try:
-        import requests
-        response = requests.get(f"{url}/api/tags", timeout=5)
-        
-        if response.status_code != 200:
-            return jsonify({
-                'success': False,
-                'error': f'HTTP {response.status_code}: {response.reason}'
-            })
-        
-        api_data = response.json()
-        models = api_data.get('models', [])
-        model_exists = any(m['name'].split(':')[0] == model or model in m['name'] for m in models)
-        
-        if model_exists:
-            return jsonify({
-                'success': True,
-                'models': [m['name'] for m in models]
-            })
-        else:
-            available = [m['name'] for m in models]
-            return jsonify({
-                'success': False,
-                'error': f'Model "{model}" not found. Available: {", ".join(available)}'
-            })
-    except requests.Timeout:
-        return jsonify({
-            'success': False,
-            'error': f'Connection timeout to {url}'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        })
 
 
 @bp.route('/api/reports/iocs/<ioc_id>', methods=['GET'])

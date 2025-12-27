@@ -30,9 +30,10 @@ class ReportService:
             response = self.es.get('elasmisp_app_config', 'llm_config')
             if response and response.get('found'):
                 config = response.get('_source', {})
-                self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
+                self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434')).rstrip('/')
                 self.llm_model = config.get('model', os.getenv('LLM_MODEL', 'mistral'))
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
+                self.llm_provider = config.get('provider', os.getenv('LLM_PROVIDER', 'auto'))  # auto, ollama, openai
                 self.generation_language = config.get('generation_language', 'en')
                 self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
@@ -43,9 +44,10 @@ class ReportService:
             pass
         
         # Fall back to environment variables
-        self.llm_url = os.getenv('LLM_URL', 'http://ollama:11434')
+        self.llm_url = os.getenv('LLM_URL', 'http://ollama:11434').rstrip('/')
         self.llm_model = os.getenv('LLM_MODEL', 'mistral')
         self.llm_api_key = os.getenv('LLM_API_KEY', '')
+        self.llm_provider = os.getenv('LLM_PROVIDER', 'auto')  # auto, ollama, openai
         self.generation_language = os.getenv('LLM_GENERATION_LANGUAGE', 'en')
         self.custom_prompt_ioc = ''
         self.custom_prompt_case = ''
@@ -54,15 +56,82 @@ class ReportService:
     
     def is_configured(self) -> bool:
         """Check if LLM is properly configured."""
+        provider = self._detect_llm_provider()
         try:
-            response = requests.get(f"{self.llm_url}/api/tags", timeout=2)
+            if provider == 'openai':
+                # Try OpenAI-compatible endpoint
+                headers = {}
+                if self.llm_api_key:
+                    # Encode API key properly for HTTP headers
+                    api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
+                    try:
+                        # Try to use the key as-is if it's ASCII
+                        api_key_str.encode('ascii')
+                        headers['Authorization'] = f'Bearer {api_key_str}'
+                    except UnicodeEncodeError:
+                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
+                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
+                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                response = requests.get(f"{self.llm_url}/v1/models", headers=headers, timeout=2)
+            else:
+                # Try Ollama endpoint
+                response = requests.get(f"{self.llm_url}/api/tags", timeout=2)
             return response.status_code == 200
         except requests.RequestException:
             return False
     
+    def _detect_llm_provider(self) -> str:
+        """
+        Auto-detect LLM provider type (ollama, openai, or custom).
+        
+        Returns:
+            'openai' for OpenAI-compatible endpoints, 'ollama' for Ollama
+        """
+        if self.llm_provider != 'auto':
+            return self.llm_provider
+        
+        # Auto-detection: try OpenAI endpoint first
+        try:
+            headers = {}
+            if self.llm_api_key:
+                # Encode API key properly for HTTP headers
+                api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
+                try:
+                    # Try to use the key as-is if it's ASCII
+                    api_key_str.encode('ascii')
+                    headers['Authorization'] = f'Bearer {api_key_str}'
+                except UnicodeEncodeError:
+                    # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
+                    api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
+                    headers['Authorization'] = f'Bearer {api_key_latin1}'
+            response = requests.get(f"{self.llm_url}/v1/models", headers=headers, timeout=3)
+            if response.status_code == 200:
+                print(f"[LLM DETECT] Detected OpenAI-compatible provider at {self.llm_url}")
+                return 'openai'
+        except requests.RequestException:
+            pass
+        
+        # Fall back to Ollama
+        try:
+            response = requests.get(f"{self.llm_url}/api/tags", timeout=3)
+            if response.status_code == 200:
+                print(f"[LLM DETECT] Detected Ollama provider at {self.llm_url}")
+                return 'ollama'
+        except requests.RequestException:
+            pass
+        
+        # Default to OpenAI if URL contains 'openai' or v1/chat/completions pattern
+        if 'openai' in self.llm_url or '/v1/' in self.llm_url:
+            print(f"[LLM DETECT] Detected OpenAI-compatible by URL pattern")
+            return 'openai'
+        
+        # Default to Ollama
+        print(f"[LLM DETECT] Defaulting to Ollama provider")
+        return 'ollama'
+    
     def _call_llm(self, prompt: str) -> tuple:
         """
-        Call LLM API with prompt.
+        Call LLM API with prompt (supports Ollama and OpenAI-compatible endpoints).
         
         Args:
             prompt: The prompt to send to LLM
@@ -80,6 +149,7 @@ class ReportService:
                 self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434'))
                 self.llm_model = config.get('model', os.getenv('LLM_MODEL', 'mistral'))
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
+                self.llm_provider = config.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
                 self.generation_language = config.get('generation_language', 'en')
                 self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
@@ -92,41 +162,103 @@ class ReportService:
         try:
             print(f"Using LLM URL: {self.llm_url}")
             print(f"Generation language: {self.generation_language}")
-            headers = {'Content-Type': 'application/json'}
-            if self.llm_api_key:
-                headers['Authorization'] = f'Bearer {self.llm_api_key}'
             
-            # Ollama API payload
-            payload = {
-                'model': self.llm_model,
-                'prompt': prompt,
-                'stream': False,
-            }
+            # Detect provider
+            provider = self._detect_llm_provider()
+            print(f"[LLM CALL] Provider: {provider}, Model: {self.llm_model}, Language: {self.generation_language}")
             
-            print(f"[LLM CALL] Language: {self.generation_language}, Model: {self.llm_model}")
-            
-            response = requests.post(
-                f"{self.llm_url}/api/generate",
-                json=payload,
-                headers=headers,
-                timeout=120
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            response_text = data.get('response', '').strip()
-            
-            # Extract token usage from response
-            token_usage = {
-                'prompt_tokens': data.get('prompt_eval_count', 0),
-                'completion_tokens': data.get('eval_count', 0)
-            }
-            
-            print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
-            
-            return response_text, token_usage
+            if provider == 'openai':
+                return self._call_openai_llm(prompt)
+            else:
+                return self._call_ollama_llm(prompt)
         except requests.RequestException as e:
             raise RuntimeError(f"Failed to call LLM: {str(e)}")
+    
+    def _call_ollama_llm(self, prompt: str) -> tuple:
+        """Call Ollama API endpoint."""
+        headers = {'Content-Type': 'application/json'}
+        if self.llm_api_key:
+            headers['Authorization'] = f'Bearer {self.llm_api_key}'
+        
+        payload = {
+            'model': self.llm_model,
+            'prompt': prompt,
+            'stream': False,
+        }
+        
+        response = requests.post(
+            f"{self.llm_url}/api/generate",
+            json=payload,
+            headers=headers,
+            timeout=120
+        )
+        response.raise_for_status()
+        
+        data = response.json()
+        response_text = data.get('response', '').strip()
+        
+        # Extract token usage from response
+        token_usage = {
+            'prompt_tokens': data.get('prompt_eval_count', 0),
+            'completion_tokens': data.get('eval_count', 0)
+        }
+        
+        print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
+        return response_text, token_usage
+    
+    def _call_openai_llm(self, prompt: str) -> tuple:
+        """Call OpenAI-compatible API endpoint."""
+        headers = {'Content-Type': 'application/json'}
+        if self.llm_api_key:
+            # Encode API key properly for HTTP headers
+            api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
+            try:
+                # Try to use the key as-is if it's ASCII
+                api_key_str.encode('ascii')
+                headers['Authorization'] = f'Bearer {api_key_str}'
+            except UnicodeEncodeError:
+                # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
+                api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
+                headers['Authorization'] = f'Bearer {api_key_latin1}'
+        
+        # OpenAI-compatible payload
+        payload = {
+            'model': self.llm_model,
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': prompt
+                }
+            ],
+            'stream': False,
+            'temperature': 0.7,
+            'max_tokens': 4000,
+        }
+        
+        response = requests.post(
+            f"{self.llm_url}/v1/chat/completions",
+            json=payload,
+            headers=headers,
+            timeout=120
+        )
+        response.raise_for_status()
+        
+        data = response.json()
+        # Extract response from OpenAI format
+        if 'choices' in data and len(data['choices']) > 0:
+            response_text = data['choices'][0].get('message', {}).get('content', '').strip()
+        else:
+            response_text = str(data)
+        
+        # Extract token usage from response
+        usage = data.get('usage', {})
+        token_usage = {
+            'prompt_tokens': usage.get('prompt_tokens', 0),
+            'completion_tokens': usage.get('completion_tokens', 0)
+        }
+        
+        print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
+        return response_text, token_usage
     
     def _get_language_instruction(self) -> str:
         """Get the language instruction for the LLM."""
