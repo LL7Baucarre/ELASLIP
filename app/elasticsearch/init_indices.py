@@ -47,8 +47,24 @@ def init_elasticsearch():
     # Create default roles if they don't exist
     create_default_roles(es)
     
+    # Populate demo data if enabled
+    if os.getenv('DEMO_DATA_ENABLED', 'false').lower() == 'true':
+        print("\nDemo data generation is ENABLED. Populating database...")
+        populate_demo_data()
+    
     print("Elasticsearch initialization complete")
     return True
+
+
+def populate_demo_data():
+    """Populate database with demo data if enabled."""
+    try:
+        from scripts.demo_data import populate_demo_data as generate_demo
+        generate_demo()
+    except ImportError:
+        print("  Warning: Could not import demo_data module")
+    except Exception as e:
+        print(f"  Warning: Error populating demo data: {e}")
 
 
 def create_default_roles(es):
