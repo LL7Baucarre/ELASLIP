@@ -217,23 +217,31 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 
   
 
-| Variable | Default |
+| Variable | Default | Description |
+|---|---:|---|
+| `FLASK_ENV` | `development` | Flask environment
+| `FLASK_APP` | `app` | Flask application entrypoint
+| `SECRET_KEY` | `your-super-secret-key-change-in-production` | Flask secret key (change in production)
+| `SITE_NAME` | `ElasMISP` | Short site name
+| `SITE_TITLE` | `ElasMISP` | Full site title shown in the UI
+| `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch URL
+| `ELASTICSEARCH_USER` | `elastic` | Elasticsearch username
+| `ELASTICSEARCH_PASSWORD` | `elastic123` | Elasticsearch password
+| `ELASTICSEARCH_MEMORY_XMS` | `256m` | ES JVM initial heap size
+| `ELASTICSEARCH_MEMORY_XMX` | `256m` | ES JVM max heap size
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis URL (sessions/cache)
+| `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Celery broker / result backend URL
+| `DEFAULT_ADMIN_USER` | `admin` | Default admin username created on first init
+| `DEFAULT_ADMIN_PASSWORD` | `admin123` | Default admin password created on first init
+| `DEMO_DATA_ENABLED` | `false` | Populate demo data on first run
+| `DEBUG` | `false` | Flask debug flag
+| `LLM_ENABLED` | `false` | Enable AI-based report generation
+| `LLM_URL` | `http://ollama:11434` | LLM provider URL (Ollama / OpenAI-compatible)
+| `LLM_MODEL` | `mistral` | Default LLM model
+| `LLM_API_KEY` | `` | API key for OpenAI-compatible providers (optional)
+| `LLM_GENERATION_LANGUAGE` | `fr` | Default language for generated reports
 
-|----------|---------|
-
-| `ELASTICSEARCH_URL` | `http://elastic:elastic123@elasticsearch:9200` |
-
-| `REDIS_URL` | `redis://redis:6379/0` |
-
-| `LLM_URL` | `http://ollama:11434` |
-
-| `LLM_MODEL` | `mistral` |
-
-| `SECRET_KEY` | Random |
-
-| `DEBUG` | `false` |
-
-| `SITE_NAME` | `ElasMISP` |
+See `.env.example` for the canonical defaults and examples.
 
   
 
@@ -270,29 +278,6 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 3. Track items & add comments
 
 4. Generate AI analysis
-
-  
-
-## API Endpoints
-
-  
-
-**IOCs**: `/api/ioc` (CRUD), `/api/ioc/<id>/versions` (history)
-
-**Cases**: `/api/cases` (CRUD)
-
-**Incidents**: `/api/incidents` (CRUD), `/api/incidents/<id>/report`
-
-**Timeline**: `/api/timeline/{incident|case}/<id>`
-
-**Reports**: `/api/reports/generate/{ioc|case|incident|checklist}/<id>`
-
-**FinOps**: `/api/finops/{timeline|breakdown|statistics|top-consumers}`
-
-**Checklists**: `/api/checklists` (CRUD), `/api/checklists/<id>/items`
-
-**Bulk**: `/api/ioc/bulk/{update|delete|export}`
-
   
 
 See `http://localhost:5000/apidocs` for full API documentation.
@@ -414,15 +399,3 @@ curl  -u  elastic:elastic123  http://localhost:9200
   
 
 MIT
-
-  
-
-## Contributing
-
-  
-
-1. Fork the repository
-
-2. Create a feature branch
-
-3. Submit a pull request
