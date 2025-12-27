@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ SITE_TITLE }}{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
+        </div>
+        <ul class="nav">
+            <li class="nav-section-title">MANAGEMENT</li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
+            {% if has_permission('search.advanced') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
+                    <i class="bi bi-search"></i> Search
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
+                    <i class="bi bi-list-ul"></i> IOCs
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
+                    <i class="bi bi-diagram-3"></i> IOC Graph
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="nav-section-title">INVESTIGATIONS</li>
+            {% if has_any_permission('case.view', 'case.create', 'case.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'cases' in request.endpoint %}active{% endif %}" href="{{ url_for('main.cases_list') }}">
+                    <i class="bi bi-folder2-open"></i> Cases
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('incident.view', 'incident.create', 'incident.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'incidents' in request.endpoint %}active{% endif %}" href="{{ url_for('main.incidents_list') }}">
+                    <i class="bi bi-exclamation-triangle"></i> Incidents
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('snippet.view', 'snippet.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
+                    <i class="bi bi-file-earmark-text"></i> Snippets
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('checklist.view', 'checklist.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'checklists' in request.endpoint %}active{% endif %}" href="{{ url_for('checklists.list_page') }}">
+                    <i class="bi bi-list-check"></i> Checklists
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="nav-section-title">TOOLS</li>
+            {% if has_permission('ioc.import') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
+                    <i class="bi bi-upload"></i> Import
+                </a>
+            </li>
+            {% endif %}
+            {% if has_permission('tools.execute') or has_permission('tools.view') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.tools_page' %}active{% endif %}" href="{{ url_for('main.tools_page') }}">
+                    <i class="bi bi-terminal"></i> Tools
+                </a>
+            </li>
+            {% endif %}
+            {% if has_any_permission('report.view', 'report.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
+                    <i class="bi bi-file-earmark-pdf"></i> LLM Reports
+                </a>
+            </li>
+            {% endif %}
+            
+            <li class="nav-section-title">CONFIG</li>
+            {% if has_any_permission('admin.users.view', 'admin.users.create', 'admin.users.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'users_management' in request.endpoint %}active{% endif %}" href="{{ url_for('main.users_management') }}">
+                    <i class="bi bi-people"></i> Users
+                </a>
+            </li>
+            {% endif %}
+            {% if has_permission('admin.audit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.activity_timeline' %}active{% endif %}" href="{{ url_for('main.activity_timeline') }}">
+                    <i class="bi bi-clock-history"></i> Activity
+                </a>
+            </li>
+            {% endif %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'settings' in request.endpoint %}active{% endif %}" href="{{ url_for('main.settings') }}">
+                    <i class="bi bi-gear"></i> Settings
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
+                    <i class="bi bi-file-earmark-code"></i> API Docs
+                </a>
+            </li>
+        </ul>
+        
+        <div class="user-section">
+            <div class="user-info">
+                <div class="user-name">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span>{{ current_user.username }}</span>
+                </div>
+                <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                    <i class="bi bi-moon-fill" id="themeIcon"></i>
+                </div>
+            </div>
+            <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 8px 0; margin-left: 0;">
+                <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+            </a>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- Main Content -->
+    <div class="{% if current_user.is_authenticated %}main-content{% else %}container{% endif %}">
+        <!-- Flash Messages -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        {% block content %}{% endblock %}
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        // Theme management
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+        
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcon(newTheme);
+        }
+        
+        function updateThemeIcon(theme) {
+            const icon = document.getElementById('themeIcon');
+            if (icon) {
+                icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-fill';
+            }
+        }
+        
+        // Initialize theme on page load
+        initTheme();
+        
+        // Global AJAX setup
+        $.ajaxSetup({
+            contentType: 'application/json',
+            dataType: 'json'
+        });
+        
+        // Flash message helper
+        function showAlert(message, type = 'info') {
+            const alert = $(`
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+            $('.flash-messages').append(alert);
+            setTimeout(() => alert.alert('close'), 5000);
+        }
+        
+        // IOC type badge helper
+        function getTypeBadge(type) {
+            return `<span class="ioc-type-badge ioc-type-${type}">${type.toUpperCase()}</span>`;
+        }
+        
+        // HTML escaping utility (shared across all templates)
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+    <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

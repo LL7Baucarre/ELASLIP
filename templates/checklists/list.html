@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}Checklists - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Checklists</h1>
+        <div class="btn-group" role="group">
+            {% if has_any_permission('checklist.template.view', 'checklist.template.create') %}
+            <a href="{{ url_for('checklist_templates.list_page') }}" class="btn btn-outline-secondary">
+                <i class="bi bi-bookmark-check me-1"></i> Templates
+            </a>
+            {% endif %}
+            {% if has_permission('checklist.create') %}
+            <a href="{{ url_for('checklists.new_page') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i> New Checklist
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Status</label>
+                    <select class="form-select" id="statusFilter" onchange="filterChecklists()">
+                        <option value="">All Status</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checklists Table -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th>Created By</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if checklists %}
+                        {% for checklist in checklists %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('checklists.detail_page', checklist_id=checklist.id) }}">
+                                    {{ checklist.title }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if checklist.status == 'completed' else 'warning' if checklist.status == 'in-progress' else 'secondary' }}">
+                                    {{ checklist.status|title }}
+                                </span>
+                            </td>
+                            <td>
+                                <small>
+                                    {% set completed = checklist['items']|selectattr('completed', 'equalto', True)|list|length %}
+                                    {{ completed }}/{{ checklist['items']|length }}
+                                </small>
+                            </td>
+                            <td>{{ checklist.created_by }}</td>
+                            <td>{{ checklist.created_at[:10] if checklist.created_at else '-' }}</td>
+                            <td>
+                                <a href="{{ url_for('checklists.detail_page', checklist_id=checklist.id) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if has_permission('checklist.edit') %}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="editChecklist('{{ checklist.id }}')">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% endif %}
+                                {% if has_permission('checklist.delete') %}
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteChecklist('{{ checklist.id }}', '{{ checklist.title }}')">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No checklists yet. <a href="{{ url_for('checklists.new_page') }}">Create one</a>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="?page=1">First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page - 1 }}">Previous</a>
+            </li>
+            {% endif %}
+
+            {% for p in range(max(1, page - 2), min(pages + 1, page + 3)) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="?page={{ p }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+
+            {% if page < pages %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page + 1 }}">Next</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?page={{ pages }}">Last</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+<script>
+function filterChecklists() {
+    const status = document.getElementById('statusFilter').value;
+    window.location.href = status ? `?status=${status}` : '?';
+}
+
+function deleteChecklist(checklistId, title) {
+    if (confirm(`Delete checklist "${title}"?`)) {
+        fetch(`/checklists/api/${checklistId}/delete`, {
+            method: 'DELETE'
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.message) {
+                location.reload();
+            }
+        })
+        .catch(err => alert('Error deleting checklist'));
+    }
+}
+
+function editChecklist(checklistId) {
+    // Redirect to detail page for inline editing
+    window.location.href = `/checklists/${checklistId}`;
+}
+</script>
+{% endblock %}

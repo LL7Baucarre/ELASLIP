@@ -1,0 +1,1417 @@
+{% extends "base.html" %}
+
+{% block title %}Tools - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tool-card {
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    
+    .tool-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+    }
+    
+    .tool-card.active {
+        border-color: var(--secondary-color);
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+    }
+    
+    .tool-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    
+    .result-panel {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    
+    .result-panel pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    
+    .whois-field {
+        display: flex;
+        border-bottom: 1px solid #dee2e6;
+        padding: 8px 0;
+    }
+    
+    .whois-field-name {
+        font-weight: 600;
+        min-width: 200px;
+        color: #6c757d;
+    }
+    
+    .whois-field-value {
+        flex: 1;
+        word-break: break-word;
+    }
+    
+    .port-table td {
+        vertical-align: middle;
+    }
+    
+    .port-open {
+        color: #27ae60;
+    }
+    
+    .port-closed {
+        color: #e74c3c;
+    }
+    
+    .port-filtered {
+        color: #f39c12;
+    }
+    
+    .scan-history-item {
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    
+    .scan-history-item:hover {
+        background: rgba(0,0,0,0.02);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <h4 class="mb-0">
+        <i class="bi bi-terminal me-2"></i>Reconnaissance Tools
+    </h4>
+</div>
+
+<div class="row">
+    <!-- Tool Selection -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-grid me-2"></i>Select Tool</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3 active" data-tool="whois">
+                            <i class="bi bi-search tool-icon text-primary"></i>
+                            <h6 class="mb-0">WHOIS</h6>
+                            <small class="text-muted">Domain/IP lookup</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="ping">
+                            <i class="bi bi-wifi tool-icon text-info"></i>
+                            <h6 class="mb-0">Ping</h6>
+                            <small class="text-muted">ICMP test</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="nmap">
+                            <i class="bi bi-hdd-network tool-icon text-success"></i>
+                            <h6 class="mb-0">Nmap</h6>
+                            <small class="text-muted">Port scanner</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="traceroute">
+                            <i class="bi bi-diagram-3 tool-icon text-warning"></i>
+                            <h6 class="mb-0">Traceroute</h6>
+                            <small class="text-muted">Network path</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="dig">
+                            <i class="bi bi-globe2 tool-icon text-info"></i>
+                            <h6 class="mb-0">DNS Lookup</h6>
+                            <small class="text-muted">Dig / Reverse DNS</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scan History -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Scan History</h6>
+                <div>
+                    <button class="btn btn-sm btn-outline-danger me-1" id="clearHistory" title="Clear all">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="refreshHistory" title="Refresh">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="scanHistory" class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center text-muted p-3">
+                        <i class="bi bi-hourglass"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scan Queue -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-hourglass-split me-2"></i>
+                    Scan Queue
+                    <span class="badge bg-secondary ms-2" id="queueCount">0</span>
+                </h6>
+                <button class="btn btn-sm btn-outline-secondary" id="refreshQueue" title="Refresh">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div id="scanQueue" class="list-group list-group-flush" style="max-height: 300px; overflow-y: auto;">
+                    <div class="text-center text-muted p-3">
+                        <i class="bi bi-check-circle"></i> No scans in queue
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tool Configuration & Results -->
+    <div class="col-md-8">
+        <!-- WHOIS Panel -->
+        <div id="whoisPanel" class="tool-panel">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-search me-2"></i>WHOIS Lookup</h6>
+                </div>
+                <div class="card-body">
+                    <form id="whoisForm">
+                        <div class="mb-3">
+                            <label class="form-label">Target (Domain or IP)</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="whoisTarget" 
+                                       placeholder="example.com or 8.8.8.8" required>
+                                <button class="btn btn-primary" type="submit" id="whoisBtn">
+                                    <i class="bi bi-search"></i> Lookup
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="whoisResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>WHOIS Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success" id="createIocFromWhois" title="Create IOC">
+                            <i class="bi bi-plus-circle"></i> Create IOC
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleRawWhois">
+                            <i class="bi bi-code"></i> Raw
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="whoisParsed"></div>
+                    <div id="whoisRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ping Panel -->
+        <div id="pingPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-wifi me-2"></i>Ping (ICMP)</h6>
+                </div>
+                <div class="card-body">
+                    <form id="pingForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Target (Domain or IP)</label>
+                                <input type="text" class="form-control" id="pingTarget" 
+                                       placeholder="example.com or 8.8.8.8" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Packet Count</label>
+                                <input type="number" class="form-control" id="pingCount" 
+                                       value="4" min="1" max="100">
+                            </div>
+                        </div>
+                        <button class="btn btn-info" type="submit" id="pingBtn">
+                            <i class="bi bi-play-fill"></i> Ping
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="pingResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Ping Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawPing">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="pingParsed"></div>
+                    <div id="pingRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Nmap Panel -->
+        <div id="nmapPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-hdd-network me-2"></i>Nmap Port Scanner</h6>
+                </div>
+                <div class="card-body">
+                    <form id="nmapForm">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Target (Domain, IP, or IP Range)</label>
+                                <input type="text" class="form-control" id="nmapTarget" 
+                                       placeholder="example.com, 8.8.8.8, or 192.168.1.0/24" required>
+                                <small class="form-text text-muted">
+                                    Supports single IPs, domains, or CIDR ranges (e.g., 192.168.0.0/24)
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Scan Type</label>
+                                <select class="form-select" id="nmapScanType">
+                                    <option value="quick">Quick Scan (Top 100 ports)</option>
+                                    <option value="full">Full Scan (All ports)</option>
+                                    <option value="service">Service Detection</option>
+                                    <option value="vuln">Vulnerability Scan</option>
+                                    <option value="traceroute">Traceroute + Ports</option>
+                                    <option value="os">OS Detection</option>
+                                    <option value="aggressive">Aggressive (Full fingerprint)</option>
+                                    <option value="custom">Custom Arguments</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Custom Ports (optional)</label>
+                            <input type="text" class="form-control" id="nmapPorts" 
+                                   placeholder="e.g., 22,80,443 or 1-1000">
+                        </div>
+                        <div class="mb-3" id="customArgsDiv" style="display: none;">
+                            <label class="form-label">Custom Arguments</label>
+                            <input type="text" class="form-control" id="nmapCustomArgs" 
+                                   placeholder="e.g., -sS -sV --script=http-enum">
+                            <small class="text-muted">Enter Nmap arguments (some dangerous options are blocked)</small>
+                        </div>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Note:</strong> Full, vulnerability and aggressive scans may take several minutes.
+                            Large IP ranges can take significantly longer.
+                        </div>
+                        <button class="btn btn-success" type="submit" id="nmapBtn">
+                            <i class="bi bi-play-fill"></i> Start Scan
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="nmapResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Nmap Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawNmap">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="nmapParsed"></div>
+                    <div id="nmapRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Traceroute Panel -->
+        <div id="traceroutePanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Traceroute</h6>
+                </div>
+                <div class="card-body">
+                    <form id="tracerouteForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Target (Domain or IP)</label>
+                                <input type="text" class="form-control" id="tracerouteTarget" 
+                                       placeholder="example.com or 8.8.8.8" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Max Hops</label>
+                                <input type="number" class="form-control" id="tracerouteMaxHops" 
+                                       value="30" min="1" max="64">
+                            </div>
+                        </div>
+                        <button class="btn btn-warning" type="submit" id="tracerouteBtn">
+                            <i class="bi bi-play-fill"></i> Run Traceroute
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="tracerouteResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Traceroute Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawTraceroute">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="tracerouteParsed"></div>
+                    <div id="tracerouteRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- DNS Lookup Panel -->
+        <div id="digPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-globe2 me-2"></i>DNS Lookup</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Tab navigation -->
+                    <ul class="nav nav-tabs mb-3" id="dnsTab">
+                        <li class="nav-item">
+                            <a class="nav-link active" data-bs-toggle="tab" href="#digTab">Dig</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" data-bs-toggle="tab" href="#reverseDnsTab">Reverse DNS</a>
+                        </li>
+                    </ul>
+                    
+                    <div class="tab-content">
+                        <!-- Dig Tab -->
+                        <div class="tab-pane fade show active" id="digTab">
+                            <form id="digForm">
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label">Domain Name</label>
+                                        <input type="text" class="form-control" id="digTarget" 
+                                               placeholder="example.com" required>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Record Type</label>
+                                        <select class="form-select" id="digRecordType">
+                                            <option value="A">A (IPv4)</option>
+                                            <option value="AAAA">AAAA (IPv6)</option>
+                                            <option value="MX">MX (Mail)</option>
+                                            <option value="NS">NS (Name Server)</option>
+                                            <option value="TXT">TXT (Text)</option>
+                                            <option value="CNAME">CNAME (Alias)</option>
+                                            <option value="SOA">SOA (Authority)</option>
+                                            <option value="ANY">ANY (All)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button class="btn btn-info" type="submit" id="digBtn">
+                                    <i class="bi bi-play-fill"></i> Lookup
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Reverse DNS Tab -->
+                        <div class="tab-pane fade" id="reverseDnsTab">
+                            <form id="reverseDnsForm">
+                                <div class="mb-3">
+                                    <label class="form-label">IP Address</label>
+                                    <input type="text" class="form-control" id="reverseDnsTarget" 
+                                           placeholder="8.8.8.8" required>
+                                </div>
+                                <button class="btn btn-info" type="submit" id="reverseDnsBtn">
+                                    <i class="bi bi-play-fill"></i> Reverse Lookup
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" id="digResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>DNS Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawDig">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="digParsed"></div>
+                    <div id="digRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create IOC Modal -->
+<div class="modal fade" id="createIocModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create IOC from Scan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createIocForm">
+                    <div class="mb-3">
+                        <label class="form-label">IOC Type</label>
+                        <select class="form-select" id="iocType" required>
+                            <option value="">Select type...</option>
+                            <option value="domain">Domain</option>
+                            <option value="ipv4">IPv4</option>
+                            <option value="asn">ASN</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Value</label>
+                        <input type="text" class="form-control" id="iocValue" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Threat Level</label>
+                        <select class="form-select" id="iocThreatLevel">
+                            <option value="unknown">Unknown</option>
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="iocDescription" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tags (comma-separated)</label>
+                        <input type="text" class="form-control" id="iocTags" placeholder="whois-scan, investigation">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveIocBtn">Create IOC</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentScanResult = null;
+
+$(document).ready(function() {
+    // Tool card selection
+    $('.tool-card').click(function() {
+        $('.tool-card').removeClass('active');
+        $(this).addClass('active');
+        
+        const tool = $(this).data('tool');
+        $('.tool-panel').hide();
+        $(`#${tool}Panel`).show();
+    });
+    
+    // Load scan history
+    loadScanHistory();
+    
+    // Load scan queue
+    loadScanQueue();
+    
+    // Refresh queue every 2 seconds
+    setInterval(loadScanQueue, 2000);
+    
+    // Show/hide custom args field based on scan type
+    $('#nmapScanType').change(function() {
+        if ($(this).val() === 'custom') {
+            $('#customArgsDiv').show();
+        } else {
+            $('#customArgsDiv').hide();
+        }
+    });
+    
+    // WHOIS form
+    $('#whoisForm').submit(function(e) {
+        e.preventDefault();
+        runWhois();
+    });
+    
+    // Ping form
+    $('#pingForm').submit(function(e) {
+        e.preventDefault();
+        runPing();
+    });
+    
+    // Nmap form
+    $('#nmapForm').submit(function(e) {
+        e.preventDefault();
+        runNmap();
+    });
+    
+    // Traceroute form
+    $('#tracerouteForm').submit(function(e) {
+        e.preventDefault();
+        runTraceroute();
+    });
+    
+    // Dig form
+    $('#digForm').submit(function(e) {
+        e.preventDefault();
+        runDig();
+    });
+    
+    // Reverse DNS form
+    $('#reverseDnsForm').submit(function(e) {
+        e.preventDefault();
+        runReverseDns();
+    });
+    
+    // Toggle raw output
+    $('#toggleRawWhois').click(function() {
+        $('#whoisParsed').toggle();
+        $('#whoisRaw').toggle();
+    });
+    
+    $('#toggleRawPing').click(function() {
+        $('#pingParsed').toggle();
+        $('#pingRaw').toggle();
+    });
+    
+    $('#toggleRawNmap').click(function() {
+        $('#nmapParsed').toggle();
+        $('#nmapRaw').toggle();
+    });
+    
+    $('#toggleRawTraceroute').click(function() {
+        $('#tracerouteParsed').toggle();
+        $('#tracerouteRaw').toggle();
+    });
+    
+    $('#toggleRawDig').click(function() {
+        $('#digParsed').toggle();
+        $('#digRaw').toggle();
+    });
+    
+    // Refresh history
+    $('#refreshHistory').click(loadScanHistory);
+    
+    // Refresh queue
+    $('#refreshQueue').click(loadScanQueue);
+    
+    // Clear history
+    $('#clearHistory').click(function() {
+        if (confirm('Are you sure you want to clear all scan history?')) {
+            clearScanHistory();
+        }
+    });
+    
+    // Create IOC from WHOIS
+    $('#createIocFromWhois').click(function() {
+        if (currentScanResult) {
+            $('#iocValue').val(currentScanResult.target);
+            
+            // Auto-detect type
+            const target = currentScanResult.target;
+            if (/^\d+\.\d+\.\d+\.\d+$/.test(target)) {
+                $('#iocType').val('ipv4');
+            } else if (target.startsWith('AS')) {
+                $('#iocType').val('asn');
+            } else {
+                $('#iocType').val('domain');
+            }
+            
+            $('#iocDescription').val('From WHOIS scan');
+            $('#iocTags').val('whois-scan');
+            
+            new bootstrap.Modal('#createIocModal').show();
+        }
+    });
+    
+    // Save IOC
+    $('#saveIocBtn').click(function() {
+        const type = $('#iocType').val();
+        const value = $('#iocValue').val();
+        
+        // Validation: if user selected 'domain' but wrote a URL, suggest changing to 'url'
+        if (type === 'domain' && value.startsWith('http')) {
+            showAlert('It looks like you entered a URL. Please change the type to "url" or remove the protocol (http/https) from the domain.', 'warning');
+            return;
+        }
+        
+        const data = {
+            type: type,
+            value: value,
+            threat_level: $('#iocThreatLevel').val(),
+            description: $('#iocDescription').val(),
+            labels: $('#iocTags').val().split(',').map(t => t.trim()).filter(t => t),
+            source: 'scan-result'
+        };
+        
+        $.ajax({
+            url: '/api/ioc',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(data),
+            success: function(response) {
+                showAlert('IOC created successfully!', 'success');
+                bootstrap.Modal.getInstance('#createIocModal').hide();
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+                showAlert(msg, 'danger');
+            }
+        });
+    });
+});
+
+function runWhois() {
+    const target = $('#whoisTarget').val().trim();
+    if (!target) return;
+    
+    const $btn = $('#whoisBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/whois',
+        method: 'POST',
+        data: JSON.stringify({ target: target }),
+        success: function(response) {
+            currentScanResult = response;
+            displayWhoisResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'WHOIS lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-search"></i> Lookup');
+        }
+    });
+}
+
+function displayWhoisResult(data) {
+    $('#whoisResultCard').show();
+    
+    // Raw output - check both root level and result level (for history)
+    const rawOutput = data.raw_output || data.result?.raw_output || 'No raw data available';
+    $('#whoisRaw pre').text(rawOutput);
+    
+    // Parsed output - check both root level (new scan) and result level (history)
+    const parsed = data.parsed || data.result?.parsed || {};
+    let html = '<div class="whois-fields">';
+    
+    const fields = [
+        ['Registrar', parsed.registrar],
+        ['Creation Date', parsed.creation_date],
+        ['Expiration Date', parsed.expiration_date],
+        ['Updated Date', parsed.updated_date],
+        ['Name Servers', parsed.name_servers?.join(', ')],
+        ['Registrant', parsed.registrant],
+        ['Organization', parsed.org_name],
+        ['Net Name', parsed.netname],
+        ['Net Range', parsed.netrange],
+        ['CIDR', parsed.cidr],
+        ['Country', parsed.country],
+        ['Origin AS', parsed.origin_as]
+    ];
+    
+    for (const [name, value] of fields) {
+        if (value) {
+            html += `
+                <div class="whois-field">
+                    <div class="whois-field-name">${name}</div>
+                    <div class="whois-field-value">${value}</div>
+                </div>
+            `;
+        }
+    }
+    
+    html += '</div>';
+    
+    if (Object.keys(parsed).length === 0) {
+        html = '<div class="alert alert-warning">No structured data could be parsed. View raw output.</div>';
+    }
+    
+    $('#whoisParsed').html(html);
+    $('#whoisParsed').show();
+    $('#whoisRaw').hide();
+}
+
+function runPing() {
+    const target = $('#pingTarget').val().trim();
+    const count = parseInt($('#pingCount').val()) || 4;
+    
+    if (!target) return;
+    
+    const $btn = $('#pingBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Pinging...');
+    
+    $.ajax({
+        url: '/api/tools/ping',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ target: target, count: count }),
+        success: function(response) {
+            currentScanResult = response;
+            displayPingResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Ping failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Ping');
+        }
+    });
+}
+
+function displayPingResult(data) {
+    $('#pingResultCard').show();
+    
+    // Raw output - check both root level and result level (for history)
+    const rawOutput = data.raw_output || data.result?.raw_output || 'No raw data available';
+    $('#pingRaw pre').text(rawOutput);
+    
+    // Parsed output - check both root level (new scan) and result level (history)
+    const parsed = data.parsed || data.result?.parsed || {};
+    let html = '<div class="ping-stats">';
+    
+    // Status badge
+    const isReachable = data.success || data.result?.success;
+    const statusBadge = isReachable ? 
+        '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Host is reachable</span>' :
+        '<span class="badge bg-danger"><i class="bi bi-x-circle"></i> Host is unreachable</span>';
+    
+    html += `<div class="mb-3">${statusBadge}</div>`;
+    
+    // Statistics table
+    html += `
+        <table class="table table-sm mb-0">
+            <tr>
+                <td><strong>Packets Sent:</strong></td>
+                <td>${parsed.packets_sent || 0}</td>
+            </tr>
+            <tr>
+                <td><strong>Packets Received:</strong></td>
+                <td>${parsed.packets_received || 0}</td>
+            </tr>
+            <tr>
+                <td><strong>Packet Loss:</strong></td>
+                <td>${parsed.packet_loss || 'N/A'}</td>
+            </tr>
+    `;
+    
+    if (parsed.min_rtt) {
+        html += `
+            <tr>
+                <td><strong>Min RTT:</strong></td>
+                <td>${parsed.min_rtt}</td>
+            </tr>
+        `;
+    }
+    
+    if (parsed.avg_rtt) {
+        html += `
+            <tr>
+                <td><strong>Avg RTT:</strong></td>
+                <td>${parsed.avg_rtt}</td>
+            </tr>
+        `;
+    }
+    
+    if (parsed.max_rtt) {
+        html += `
+            <tr>
+                <td><strong>Max RTT:</strong></td>
+                <td>${parsed.max_rtt}</td>
+            </tr>
+        `;
+    }
+    
+    if (parsed.mdev) {
+        html += `
+            <tr>
+                <td><strong>Std Dev (mdev):</strong></td>
+                <td>${parsed.mdev}</td>
+            </tr>
+        `;
+    }
+    
+    html += '</table></div>';
+    
+    $('#pingParsed').html(html);
+    $('#pingParsed').show();
+    $('#pingRaw').hide();
+}
+
+function runNmap() {
+    const target = $('#nmapTarget').val().trim();
+    if (!target) return;
+    
+    const scanType = $('#nmapScanType').val();
+    const ports = $('#nmapPorts').val().trim() || null;
+    const customArgs = $('#nmapCustomArgs').val().trim() || null;
+    
+    const $btn = $('#nmapBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Scanning...');
+    
+    const payload = {
+        target: target,
+        scan_type: scanType,
+        ports: ports
+    };
+    
+    if (scanType === 'custom' && customArgs) {
+        payload.custom_args = customArgs;
+    }
+    
+    $.ajax({
+        url: '/api/tools/nmap',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        dataType: 'json',
+        timeout: 600000, // 10 min timeout
+        success: function(response, textStatus, xhr) {
+            // Check HTTP status code
+            if (xhr.status === 202) {
+                // Scan queued - unlock button immediately and poll in background
+                showAlert('Nmap scan queued. Processing in background...', 'info');
+                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+                const taskId = response.task_id;
+                pollNmapTask(taskId);
+            } else {
+                // Sync response (200)
+                currentScanResult = response;
+                displayNmapResult(response);
+                loadScanHistory();
+                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+            }
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Nmap scan failed';
+            showAlert(msg, 'danger');
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+        }
+    });
+}
+
+function pollNmapTask(taskId) {
+    let attempts = 0;
+    const maxAttempts = 600; // 10 minutes with 1s polling
+    
+    function checkTask() {
+        $.ajax({
+            url: `/api/tools/task/${taskId}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                const status = response.status || response.state;
+                
+                if (status === 'SUCCESS') {
+                    // Show results in background (don't block UI)
+                    const result = response.result;
+                    if (result && result.raw_output) {
+                        // Show notification about completion
+                        showAlert('Nmap scan completed! Check history to view results.', 'success');
+                        loadScanHistory();
+                    }
+                } else if (status === 'FAILURE') {
+                    const errorMsg = response.result?.error || response.error || 'Unknown error';
+                    showAlert(`Nmap scan failed: ${errorMsg}`, 'danger');
+                } else if (status === 'PENDING' || status === 'RETRY') {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        // Continue polling
+                        setTimeout(checkTask, 1000);
+                    } else {
+                        showAlert('Nmap scan timed out', 'danger');
+                    }
+                }
+            },
+            error: function() {
+                // Task endpoint error - stop polling silently
+            }
+        });
+    }
+    
+    checkTask();
+}
+
+function displayNmapResult(data) {
+    $('#nmapResultCard').show();
+    
+    // Raw output - check both root level and result level (for history)
+    const rawOutput = data.raw_output || data.result?.raw_output || 'No raw data available';
+    $('#nmapRaw pre').text(rawOutput);
+    
+    // Parsed output - check both root level (new scan) and result level (history)
+    const parsed = data.parsed || data.result?.parsed || {};
+    let html = '';
+    
+    if (parsed.hosts && parsed.hosts.length > 0) {
+        for (const host of parsed.hosts) {
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <strong>${host.ip || host.hostname || 'Unknown Host'}</strong>
+                        ${host.hostname && host.ip ? `<span class="text-muted ms-2">${host.hostname}</span>` : ''}
+                        <span class="badge bg-${host.status === 'up' ? 'success' : 'secondary'} ms-2">${host.status}</span>
+                    </div>
+                    <div class="card-body">
+            `;
+            
+            // OS Detection
+            if (host.os && host.os.length > 0) {
+                html += `<div class="mb-3"><strong>OS Detection:</strong> ${host.os.map(o => o.name + ' (' + o.accuracy + '%)').join(', ')}</div>`;
+            }
+            
+            if (host.ports && host.ports.length > 0) {
+                html += `
+                    <table class="table table-sm port-table mb-3">
+                        <thead>
+                            <tr>
+                                <th>Port</th>
+                                <th>State</th>
+                                <th>Service</th>
+                                <th>Version</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                for (const port of host.ports) {
+                    const stateClass = port.state === 'open' ? 'port-open' : 
+                                       port.state === 'closed' ? 'port-closed' : 'port-filtered';
+                    html += `
+                        <tr>
+                            <td><strong>${port.port}/${port.protocol}</strong></td>
+                            <td class="${stateClass}">${port.state}</td>
+                            <td>${port.service || '-'}</td>
+                            <td>${port.version || '-'}</td>
+                        </tr>
+                    `;
+                }
+                
+                html += '</tbody></table>';
+            } else {
+                html += '<p class="text-muted mb-0">No open ports found</p>';
+            }
+            
+            // Traceroute
+            if (host.traceroute && host.traceroute.length > 0) {
+                html += `<div class="mt-3"><strong>Traceroute:</strong></div>`;
+                html += `<table class="table table-sm"><thead><tr><th>Hop</th><th>RTT</th><th>IP</th><th>Hostname</th></tr></thead><tbody>`;
+                for (const hop of host.traceroute) {
+                    html += `<tr><td>${hop.ttl}</td><td>${hop.rtt}ms</td><td>${hop.ip || '*'}</td><td>${hop.host || '-'}</td></tr>`;
+                }
+                html += '</tbody></table>';
+            }
+            
+            html += '</div></div>';
+        }
+    } else {
+        html = '<div class="alert alert-warning">No hosts found or scan returned no results.</div>';
+    }
+    
+    // Scan info
+    if (parsed.run_stats) {
+        html += `
+            <div class="mt-3 text-muted small">
+                <i class="bi bi-info-circle me-1"></i>
+                Hosts: ${parsed.run_stats.hosts_up || 0} up / ${parsed.run_stats.hosts_total || 0} total
+                | Elapsed: ${parsed.run_stats.elapsed || 'N/A'}s
+            </div>
+        `;
+    }
+    
+    $('#nmapParsed').html(html);
+    $('#nmapParsed').show();
+    $('#nmapRaw').hide();
+}
+
+function runTraceroute() {
+    const target = $('#tracerouteTarget').val().trim();
+    if (!target) return;
+    
+    const maxHops = parseInt($('#tracerouteMaxHops').val()) || 30;
+    
+    const $btn = $('#tracerouteBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Tracing...');
+    
+    $.ajax({
+        url: '/api/tools/traceroute',
+        method: 'POST',
+        data: JSON.stringify({ target: target, max_hops: maxHops }),
+        timeout: 120000,
+        success: function(response) {
+            currentScanResult = response;
+            displayTracerouteResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Traceroute failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Run Traceroute');
+        }
+    });
+}
+
+function displayTracerouteResult(data) {
+    $('#tracerouteResultCard').show();
+    
+    // Raw output - check both root level and result level (for history)
+    const rawOutput = data.raw_output || data.result?.raw_output || 'No raw data available';
+    $('#tracerouteRaw pre').text(rawOutput);
+    
+    // Parsed output - check both root level (new scan) and result level (history)
+    const parsed = data.parsed || data.result?.parsed || {};
+    let html = '';
+    
+    if (parsed.hops && parsed.hops.length > 0) {
+        html += `<table class="table table-sm">
+            <thead><tr><th>Hop</th><th>IP</th><th>Hostname</th><th>RTT 1</th><th>RTT 2</th><th>RTT 3</th></tr></thead>
+            <tbody>`;
+        
+        for (const hop of parsed.hops) {
+            html += `<tr>
+                <td><strong>${hop.hop}</strong></td>
+                <td>${hop.ip || '*'}</td>
+                <td>${hop.hostname || '-'}</td>
+                <td>${hop.rtt1 || '*'}</td>
+                <td>${hop.rtt2 || '*'}</td>
+                <td>${hop.rtt3 || '*'}</td>
+            </tr>`;
+        }
+        
+        html += '</tbody></table>';
+    } else {
+        html = '<div class="alert alert-warning">No traceroute data available.</div>';
+    }
+    
+    $('#tracerouteParsed').html(html);
+    $('#tracerouteParsed').show();
+    $('#tracerouteRaw').hide();
+}
+
+function runDig() {
+    const target = $('#digTarget').val().trim();
+    if (!target) return;
+    
+    const recordType = $('#digRecordType').val();
+    
+    const $btn = $('#digBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/dig',
+        method: 'POST',
+        data: JSON.stringify({ target: target, record_type: recordType }),
+        success: function(response) {
+            currentScanResult = response;
+            displayDigResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'DNS lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Lookup');
+        }
+    });
+}
+
+function runReverseDns() {
+    const target = $('#reverseDnsTarget').val().trim();
+    if (!target) return;
+    
+    const $btn = $('#reverseDnsBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/reverse-dns',
+        method: 'POST',
+        data: JSON.stringify({ target: target }),
+        success: function(response) {
+            currentScanResult = response;
+            displayDigResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Reverse DNS lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Reverse Lookup');
+        }
+    });
+}
+
+function displayDigResult(data) {
+    $('#digResultCard').show();
+    
+    // Raw output - check both root level and result level (for history)
+    const rawOutput = data.raw_output || data.result?.raw_output || 'No raw data available';
+    $('#digRaw pre').text(rawOutput);
+    
+    // Parsed output - check both root level (new scan) and result level (history)
+    const parsed = data.parsed || data.result?.parsed || {};
+    let html = '';
+    
+    // Check if this is a dig query (has records) or reverse-dns (has hostnames)
+    if (parsed.records && parsed.records.length > 0) {
+        // DIG query result
+        html += `<table class="table table-sm">
+            <thead><tr><th>Name</th><th>TTL</th><th>Type</th><th>Value</th></tr></thead>
+            <tbody>`;
+        
+        for (const record of parsed.records) {
+            html += `<tr>
+                <td>${record.name || '-'}</td>
+                <td>${record.ttl || '-'}</td>
+                <td><span class="badge bg-secondary">${record.type || '-'}</span></td>
+                <td>${record.value || '-'}</td>
+            </tr>`;
+        }
+        
+        html += '</tbody></table>';
+    } else if (parsed.hostnames && parsed.hostnames.length > 0) {
+        // Reverse DNS result
+        html = `<div class="card">
+            <div class="card-body">
+                <div class="whois-fields">
+                    <div class="whois-field">
+                        <div class="whois-field-name">Primary Hostname</div>
+                        <div class="whois-field-value">${parsed.hostname || parsed.hostnames[0]}</div>
+                    </div>`;
+        
+        if (parsed.hostnames.length > 1) {
+            html += `<div class="whois-field">
+                        <div class="whois-field-name">All Hostnames</div>
+                        <div class="whois-field-value">
+                            <ul class="mb-0">`;
+            for (const hostname of parsed.hostnames) {
+                html += `<li>${hostname}</li>`;
+            }
+            html += `</ul>
+                        </div>
+                    </div>`;
+        }
+        
+        html += `</div>
+            </div>
+        </div>`;
+    } else {
+        html = '<div class="alert alert-warning">No DNS records found.</div>';
+    }
+    
+    if (parsed.server) {
+        html += `<div class="mt-2 text-muted small">Server: ${parsed.server}</div>`;
+    }
+    if (parsed.query_time) {
+        html += `<div class="text-muted small">Query time: ${parsed.query_time}</div>`;
+    }
+    
+    $('#digParsed').html(html);
+    $('#digParsed').show();
+    $('#digRaw').hide();
+}
+
+function loadScanHistory() {
+    $.ajax({
+        url: '/api/tools/scans',
+        method: 'GET',
+        data: { per_page: 20 },
+        success: function(response) {
+            displayScanHistory(response.items || []);
+        },
+        error: function() {
+            $('#scanHistory').html('<div class="text-center text-muted p-3">Failed to load history</div>');
+        }
+    });
+}
+
+function loadScanQueue() {
+    $.ajax({
+        url: '/api/tools/queue',
+        method: 'GET',
+        success: function(response) {
+            displayScanQueue(response.queue || [], response.total || 0);
+        },
+        error: function() {
+            // Silently fail - queue might not be available
+        }
+    });
+}
+
+function displayScanQueue(tasks, total) {
+    $('#queueCount').text(total);
+    
+    if (tasks.length === 0) {
+        $('#scanQueue').html('<div class="text-center text-muted p-3"><i class="bi bi-check-circle"></i> No scans in queue</div>');
+        return;
+    }
+    
+    let html = '';
+    for (const task of tasks) {
+        const statusBadge = task.status === 'running' ? 
+            '<span class="badge bg-info">Running</span>' : 
+            '<span class="badge bg-warning">Queued</span>';
+        
+        // Format scan info like in history
+        const toolUpper = (task.name || 'scan').toUpperCase();
+        const scanTypeText = task.scan_type ? ` - ${task.scan_type}` : '';
+        
+        html += `
+            <div class="list-group-item">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${task.target || 'unknown target'}</div>
+                        <small class="text-muted">
+                            ${toolUpper}${scanTypeText}
+                        </small>
+                    </div>
+                    ${statusBadge}
+                </div>
+            </div>
+        `;
+    }
+    
+    $('#scanQueue').html(html);
+}
+
+function clearScanHistory() {
+    $.ajax({
+        url: '/api/tools/scans/clear',
+        method: 'DELETE',
+        success: function() {
+            showAlert('Scan history cleared', 'success');
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Failed to clear history';
+            showAlert(msg, 'danger');
+        }
+    });
+}
+
+function displayScanHistory(scans) {
+    if (scans.length === 0) {
+        $('#scanHistory').html('<div class="text-center text-muted p-3">No scans yet</div>');
+        return;
+    }
+    
+    const toolIcons = {
+        'whois': { icon: 'bi-search', color: 'primary' },
+        'nmap': { icon: 'bi-hdd-network', color: 'success' },
+        'traceroute': { icon: 'bi-diagram-3', color: 'warning' },
+        'dig': { icon: 'bi-globe2', color: 'info' },
+        'reverse-dns': { icon: 'bi-globe2', color: 'info' }
+    };
+    
+    let html = '';
+    for (const scan of scans) {
+        const toolInfo = toolIcons[scan.tool] || { icon: 'bi-terminal', color: 'secondary' };
+        const date = new Date(scan.timestamp).toLocaleString();
+        
+        html += `
+            <div class="list-group-item scan-history-item" data-scan-id="${scan.id}">
+                <div class="d-flex align-items-center">
+                    <i class="bi ${toolInfo.icon} text-${toolInfo.color} me-3"></i>
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">${scan.target}</div>
+                        <small class="text-muted">
+                            ${scan.tool.toUpperCase()}
+                            ${scan.scan_type ? ` - ${scan.scan_type}` : ''}
+                            ${scan.record_type ? ` - ${scan.record_type}` : ''}
+                        </small>
+                    </div>
+                    <small class="text-muted">${date}</small>
+                </div>
+            </div>
+        `;
+    }
+    
+    $('#scanHistory').html(html);
+    
+    // Click handler for history items
+    $('.scan-history-item').click(function() {
+        const scanId = $(this).data('scan-id');
+        loadScanDetails(scanId);
+    });
+}
+
+function loadScanDetails(scanId) {
+    $.ajax({
+        url: `/api/tools/scans/${scanId}`,
+        method: 'GET',
+        success: function(response) {
+            currentScanResult = response;
+            
+            // Switch to appropriate tool panel
+            const tool = response.tool;
+            $('.tool-card').removeClass('active');
+            $(`.tool-card[data-tool="${tool}"]`).addClass('active');
+            $('.tool-panel').hide();
+            $(`#${tool}Panel`).show();
+            
+            // Display result based on tool type
+            if (tool === 'whois') {
+                $('#whoisTarget').val(response.target);
+                displayWhoisResult(response);
+            } else if (tool === 'nmap') {
+                $('#nmapTarget').val(response.target);
+                displayNmapResult(response);
+            } else if (tool === 'traceroute') {
+                $('#tracerouteTarget').val(response.target);
+                displayTracerouteResult(response);
+            } else if (tool === 'dig' || tool === 'reverse-dns') {
+                // Note: tool name is 'reverse-dns' but panel ID is 'digPanel' for both
+                // We use digPanel for both dig and reverse-dns tools
+                if (tool === 'dig') {
+                    $('#digTarget').val(response.target);
+                } else if (tool === 'reverse-dns') {
+                    $('#reverseDnsTarget').val(response.target);
+                }
+                // Always show digPanel since both tools share the same panel
+                $('.tool-card').removeClass('active');
+                $(`.tool-card[data-tool="dig"]`).addClass('active');
+                $('.tool-panel').hide();
+                $('#digPanel').show();
+                displayDigResult(response);
+            }
+        },
+        error: function() {
+            showAlert('Failed to load scan details', 'danger');
+        }
+    });
+}
+</script>
+{% endblock %}

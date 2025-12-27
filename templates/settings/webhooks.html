@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block title %}Webhooks - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Webhooks</h4>
+        <small class="text-muted">Configure notifications for IOC events</small>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWebhookModal">
+        <i class="bi bi-plus-lg me-1"></i> Add Webhook
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('main.settings') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-person me-2"></i> Profile
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings') }}#site-config" data-section="site-config"
+               class="list-group-item list-group-item-action" onclick="switchSection('site-config', event)">
+                <i class="bi bi-gear me-2"></i> Site Configuration
+            </a>
+            <a href="{{ url_for('main.users_management') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-people me-2"></i> User Management
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.settings_api_keys') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-key me-2"></i> API Keys
+            </a>
+            {% if has_any_permission('api.external.view', 'api.external.create') %}
+            <a href="{{ url_for('main.settings_external_apis') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-cloud me-2"></i> External APIs
+            </a>
+            {% endif %}
+            {% if has_any_permission('webhook.view', 'webhook.create') %}
+            <a href="{{ url_for('main.settings_webhooks') }}" 
+               class="list-group-item list-group-item-action active">
+                <i class="bi bi-broadcast me-2"></i> Webhooks
+            </a>
+            {% endif %}
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings_roles') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-shield-lock me-2"></i> Roles & Permissions
+            </a>
+            <a href="{{ url_for('main.settings_scheduled_tasks') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-clock-history me-2"></i> Scheduled Tasks
+            </a>
+            {% endif %}
+            <a href="{{ url_for('main.settings_llm') }}" 
+               class="list-group-item list-group-item-action" target="_self">
+                <i class="bi bi-robot me-2"></i> LLM Reports
+            </a>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <div id="webhookList">
+            <div class="text-center py-4">
+                <span class="spinner-border spinner-border-sm"></span> Loading...
+            </div>
+        </div>
+        
+        <!-- Recent Deliveries -->
+        <div class="card mt-4" id="deliveriesCard" style="display: none;">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Recent Deliveries</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadDeliveries()">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Webhook</th>
+                            <th>Event</th>
+                            <th>Status</th>
+                            <th>Timestamp</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deliveriesTable">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Webhook Modal -->
+<div class="modal fade" id="addWebhookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="webhookModalTitle">Add Webhook</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="webhookForm">
+                <div class="modal-body">
+                    <input type="hidden" id="webhookId">
+                    
+                    <div class="mb-3">
+                        <label for="webhookName" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="webhookName" required
+                               placeholder="e.g., Slack Notifications, SIEM Integration">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="webhookUrl" class="form-label">URL *</label>
+                        <input type="url" class="form-control" id="webhookUrl" required
+                               placeholder="https://hooks.slack.com/services/...">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Events *</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="eventCreate" value="ioc.created" checked>
+                            <label class="form-check-label" for="eventCreate">
+                                IOC Created
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="eventUpdate" value="ioc.updated">
+                            <label class="form-check-label" for="eventUpdate">
+                                IOC Updated
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="eventDelete" value="ioc.deleted">
+                            <label class="form-check-label" for="eventDelete">
+                                IOC Deleted
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="eventImport" value="import.completed">
+                            <label class="form-check-label" for="eventImport">
+                                Import Completed
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="webhookSecret" class="form-label">Secret</label>
+                        <input type="text" class="form-control" id="webhookSecret"
+                               placeholder="Optional secret for signature verification">
+                        <div class="form-text">Used to sign payloads with HMAC-SHA256</div>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="webhookEnabled" checked>
+                        <label class="form-check-label" for="webhookEnabled">
+                            Enabled
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-outline-info" id="testWebhookBtn">Send Test</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Detail Modal -->
+<div class="modal fade" id="deliveryDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delivery Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Request Payload</label>
+                    <pre class="bg-light p-3 rounded" id="deliveryPayload" 
+                         style="max-height: 200px; overflow: auto;"></pre>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Status Code</label>
+                        <p id="deliveryStatusCode" class="h4"></p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Response Time</label>
+                        <p id="deliveryResponseTime" class="h4"></p>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Response Body</label>
+                    <pre class="bg-light p-3 rounded" id="deliveryResponse" 
+                         style="max-height: 150px; overflow: auto;"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" id="retryDeliveryBtn">
+                    <i class="bi bi-arrow-clockwise me-1"></i> Retry
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadWebhooks();
+    loadDeliveries();
+});
+
+function loadWebhooks() {
+    $.ajax({
+        url: '/api/webhooks',
+        method: 'GET',
+        success: function(data) {
+            displayWebhooks(data.webhooks || []);
+        },
+        error: function() {
+            $('#webhookList').html('<div class="alert alert-danger">Failed to load webhooks</div>');
+        }
+    });
+}
+
+function displayWebhooks(webhooks) {
+    const container = $('#webhookList');
+    container.empty();
+    
+    if (webhooks.length === 0) {
+        container.html(`
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-broadcast display-4 text-muted"></i>
+                    <h5 class="mt-3">No Webhooks Configured</h5>
+                    <p class="text-muted">Add webhooks to receive notifications when IOCs are created or updated</p>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWebhookModal">
+                        <i class="bi bi-plus-lg me-1"></i> Add Your First Webhook
+                    </button>
+                </div>
+            </div>
+        `);
+        return;
+    }
+    
+    webhooks.forEach(webhook => {
+        const eventBadges = (webhook.events || [])
+            .map(e => `<span class="badge bg-light text-dark me-1">${e}</span>`)
+            .join('');
+        
+        const statusBadge = webhook.is_enabled 
+            ? '<span class="badge bg-success">Enabled</span>'
+            : '<span class="badge bg-secondary">Disabled</span>';
+        
+        container.append(`
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="mb-1">${escapeHtml(webhook.name)} ${statusBadge}</h5>
+                            <p class="text-muted small mb-2">${escapeHtml(webhook.url)}</p>
+                            <div>${eventBadges}</div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editWebhook('${webhook.id}')">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteWebhook('${webhook.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    });
+    
+    $('#deliveriesCard').show();
+}
+
+function resetWebhookForm() {
+    $('#webhookId').val('');
+    $('#webhookForm')[0].reset();
+    $('#eventCreate').prop('checked', true);
+    $('#webhookEnabled').prop('checked', true);
+    $('#webhookModalTitle').text('Add Webhook');
+}
+
+$('#addWebhookModal').on('show.bs.modal', function(e) {
+    if (!$(e.relatedTarget).length || !$(e.relatedTarget).data('edit')) {
+        resetWebhookForm();
+    }
+});
+
+function editWebhook(webhookId) {
+    $.ajax({
+        url: `/api/webhooks/${webhookId}`,
+        method: 'GET',
+        success: function(data) {
+            const webhook = data.webhook;
+            $('#webhookId').val(webhook.id);
+            $('#webhookName').val(webhook.name);
+            $('#webhookUrl').val(webhook.url);
+            $('#webhookSecret').val(webhook.secret || '');
+            $('#webhookEnabled').prop('checked', webhook.is_enabled !== false);
+            
+            // Set events
+            $('.form-check-input[type="checkbox"][id^="event"]').prop('checked', false);
+            (webhook.events || []).forEach(event => {
+                $(`.form-check-input[value="${event}"]`).prop('checked', true);
+            });
+            
+            $('#webhookModalTitle').text('Edit Webhook');
+            $('#addWebhookModal').modal('show');
+        }
+    });
+}
+
+$('#webhookForm').submit(function(e) {
+    e.preventDefault();
+    
+    const events = [];
+    $('.form-check-input[type="checkbox"][id^="event"]:checked').each(function() {
+        events.push($(this).val());
+    });
+    
+    if (events.length === 0) {
+        showAlert('Please select at least one event', 'warning');
+        return;
+    }
+    
+    const webhookData = {
+        name: $('#webhookName').val(),
+        url: $('#webhookUrl').val(),
+        events: events,
+        secret: $('#webhookSecret').val() || null,
+        is_enabled: $('#webhookEnabled').is(':checked')
+    };
+    
+    const webhookId = $('#webhookId').val();
+    const method = webhookId ? 'PUT' : 'POST';
+    const url = webhookId ? `/api/webhooks/${webhookId}` : '/api/webhooks';
+    
+    $.ajax({
+        url: url,
+        method: method,
+        data: JSON.stringify(webhookData),
+        success: function() {
+            $('#addWebhookModal').modal('hide');
+            showAlert('Webhook saved', 'success');
+            loadWebhooks();
+        },
+        error: function(xhr) {
+            showAlert('Failed to save: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+function deleteWebhook(webhookId) {
+    if (!confirm('Are you sure you want to delete this webhook?')) return;
+    
+    $.ajax({
+        url: `/api/webhooks/${webhookId}`,
+        method: 'DELETE',
+        success: function() {
+            showAlert('Webhook deleted', 'success');
+            loadWebhooks();
+        },
+        error: function() {
+            showAlert('Failed to delete webhook', 'danger');
+        }
+    });
+}
+
+$('#testWebhookBtn').click(function() {
+    const url = $('#webhookUrl').val();
+    if (!url) {
+        showAlert('Please enter a webhook URL first', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/webhooks/test',
+        method: 'POST',
+        data: JSON.stringify({
+            url: url,
+            secret: $('#webhookSecret').val() || null
+        }),
+        success: function(data) {
+            if (data.success) {
+                showAlert('Test webhook sent successfully', 'success');
+            } else {
+                showAlert('Test failed: ' + (data.error || 'Unknown error'), 'warning');
+            }
+        },
+        error: function(xhr) {
+            showAlert('Test failed: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+function loadDeliveries() {
+    $.ajax({
+        url: '/api/webhooks/logs',
+        method: 'GET',
+        data: { size: 10 },
+        success: function(data) {
+            displayDeliveries(data.logs || []);
+        }
+    });
+}
+
+function displayDeliveries(logs) {
+    const tbody = $('#deliveriesTable');
+    tbody.empty();
+    
+    if (logs.length === 0) {
+        tbody.html('<tr><td colspan="5" class="text-center text-muted py-4">No deliveries yet</td></tr>');
+        return;
+    }
+    
+    logs.forEach(log => {
+        const statusClass = log.status_code >= 200 && log.status_code < 300 ? 'success' : 'danger';
+        const timestamp = log.timestamp ? log.timestamp.substring(0, 19).replace('T', ' ') : 'N/A';
+        
+        tbody.append(`
+            <tr>
+                <td>${escapeHtml(log.webhook_name || 'Unknown')}</td>
+                <td><span class="badge bg-light text-dark">${log.event || 'N/A'}</span></td>
+                <td><span class="badge bg-${statusClass}">${log.status_code || 'N/A'}</span></td>
+                <td><small>${timestamp}</small></td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary" 
+                            onclick="viewDelivery('${log.id}')">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `);
+    });
+}
+
+let currentDeliveryId = null;
+
+function viewDelivery(logId) {
+    currentDeliveryId = logId;
+    
+    $.ajax({
+        url: `/api/webhooks/logs/${logId}`,
+        method: 'GET',
+        success: function(data) {
+            const log = data.log;
+            $('#deliveryPayload').text(JSON.stringify(log.payload || {}, null, 2));
+            $('#deliveryStatusCode').text(log.status_code || 'N/A');
+            $('#deliveryResponseTime').text((log.response_time || 0) + 'ms');
+            $('#deliveryResponse').text(log.response_body || 'No response');
+            $('#deliveryDetailModal').modal('show');
+        }
+    });
+}
+
+$('#retryDeliveryBtn').click(function() {
+    if (!currentDeliveryId) return;
+    
+    $.ajax({
+        url: `/api/webhooks/logs/${currentDeliveryId}/retry`,
+        method: 'POST',
+        success: function() {
+            showAlert('Webhook retry queued', 'success');
+            $('#deliveryDetailModal').modal('hide');
+            loadDeliveries();
+        },
+        error: function(xhr) {
+            showAlert('Retry failed: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+</script>
+{% endblock %}

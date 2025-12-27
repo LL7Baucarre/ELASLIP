@@ -1,0 +1,736 @@
+{% extends "base.html" %}
+
+{% block title %}External APIs - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.json-editor {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.85rem;
+    min-height: 200px;
+    resize: vertical;
+}
+
+.mapping-field {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.mapping-field:hover {
+    background: #e7f3ff;
+    border-color: #007bff;
+    box-shadow: 0 2px 6px rgba(0, 123, 255, 0.1);
+}
+
+.mapping-field .input-group-sm {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.mapping-field .input-group-sm .form-control {
+    border-radius: 4px;
+}
+
+.mapping-field .mapping-field-key {
+    flex: 0 0 25%;
+    min-width: 120px;
+}
+
+.mapping-field .mapping-field-path {
+    flex: 1;
+    min-width: 200px;
+}
+
+.mapping-field .btn-remove-field {
+    flex: 0 0 auto;
+    padding: 0.375rem 0.75rem;
+}
+
+.mapping-field .btn-remove-field:hover {
+    background-color: #fee;
+    border-color: #dc3545;
+}
+
+#addMappingField {
+    width: 100%;
+    border-style: dashed;
+    border-color: #6c757d;
+}
+
+#addMappingField:hover {
+    border-style: solid;
+    border-color: #0d6efd;
+    background-color: #e7f3ff;
+}
+
+#mappingFields {
+    min-height: 60px;
+    padding: 10px;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+#mappingFieldTemplate {
+    display: none;
+}
+
+.add-field-link {
+    text-decoration: underline !important;
+    transition: all 0.2s ease;
+}
+
+.add-field-link:hover {
+    background-color: #fff3cd;
+    border-radius: 2px;
+    padding: 0 2px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row" style="height: calc(100vh - 200px);">
+    <div class="col-md-4" style="overflow-y: auto; border-right: 1px solid #e9ecef;">
+        <div class="mb-3">
+            <button class="btn btn-primary w-100" onclick="newApi()" style="margin-bottom: 15px;">
+                <i class="bi bi-plus-lg me-1"></i> Add API
+            </button>
+        </div>
+        <div id="apiList">
+            <div class="text-center py-4">
+                <span class="spinner-border spinner-border-sm"></span> Loading...
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8" style="display: flex; overflow: hidden;">
+        <!-- Form Panel -->
+        <div id="apiFormPanel" style="flex: 1; overflow-y: auto; padding: 20px; display: none; border-right: 1px solid #e9ecef;">
+            <h5 id="apiFormTitle" class="mb-4">Add External API</h5>
+            <form id="apiForm">
+                <input type="hidden" id="apiId">
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="apiName" class="form-label">API Name *</label>
+                                <input type="text" class="form-control" id="apiName" required
+                                       placeholder="e.g., VirusTotal, AbuseIPDB">
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="iocTypes" class="form-label">IOC Types *</label>
+                                <select class="form-select" id="iocTypes" multiple required>
+                                    <optgroup label="File Hashes">
+                                        <option value="md5">MD5</option>
+                                        <option value="sha1">SHA1</option>
+                                        <option value="sha256">SHA256</option>
+                                    </optgroup>
+                                    <optgroup label="Network Indicators">
+                                        <option value="ipv4">IPv4</option>
+                                        <option value="ipv6">IPv6</option>
+                                        <option value="domain">Domain</option>
+                                        <option value="email">Email</option>
+                                        <option value="url">URL</option>
+                                        <option value="asn">ASN</option>
+                                    </optgroup>
+                                    <optgroup label="TAXII Indicators">
+                                        <option value="file-path">File Path</option>
+                                        <option value="process-name">Process Name</option>
+                                        <option value="registry-key">Registry Key</option>
+                                        <option value="windows-registry-key">Windows Registry Key</option>
+                                        <option value="mutex">Mutex</option>
+                                        <option value="certificate-serial">Certificate Serial</option>
+                                    </optgroup>
+                                </select>
+                                <div class="form-text">Hold Ctrl/Cmd to select multiple</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="apiUrl" class="form-label">API URL Template *</label>
+                        <input type="text" class="form-control" id="apiUrl" required
+                               placeholder="https://api.example.com/lookup/{value}">
+                        <div class="form-text">Use <code>{value}</code> as placeholder for the IOC value</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="apiMethod" class="form-label">HTTP Method</label>
+                                <select class="form-select" id="apiMethod">
+                                    <option value="GET">GET</option>
+                                    <option value="POST">POST</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label for="apiTimeout" class="form-label">Timeout (seconds)</label>
+                                <input type="number" class="form-control" id="apiTimeout" value="30" min="5" max="120">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="apiHeaders" class="form-label">Headers (JSON)</label>
+                        <textarea class="form-control json-editor" id="apiHeaders" rows="4" 
+                                  placeholder='{"Authorization": "Bearer YOUR_API_KEY", "Accept": "application/json"}'></textarea>
+                    </div>
+                    
+                    <div class="mb-3" id="postBodyGroup" style="display: none;">
+                        <label for="apiPostBody" class="form-label">POST Body (JSON)</label>
+                        <textarea class="form-control json-editor" id="apiPostBody" rows="4" 
+                                  placeholder='{"query": "{value}", "limit": 10}'></textarea>
+                        <div class="form-text">Use <code>{value}</code> as placeholder for the IOC value</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="responseTemplate" class="form-label">Response Template (JSONPath)</label>
+                        <textarea class="form-control json-editor" id="responseTemplate" rows="4" 
+                                  placeholder='{"asn": "$.asn", "description": "$.flag_title", "name": "$.name"}'></textarea>
+                        <div class="form-text">Map API response fields using JSONPath (e.g., $.asn, $.data.country). Optional - leave empty for auto-detection.</div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="apiEnabled" checked>
+                        <label class="form-check-label" for="apiEnabled">
+                            Enabled
+                        </label>
+                    </div>
+                    
+                    <div class="d-flex gap-2 mt-4 pt-3 border-top">
+                        <button type="button" class="btn btn-secondary" onclick="closeApiForm()">Cancel</button>
+                        <button type="button" class="btn btn-outline-info" id="testApiBtn">Test API</button>
+                        <button type="submit" class="btn btn-primary ms-auto">Save</button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Test Result Panel -->
+            <div id="testResultPanel" style="flex: 1; overflow-y: auto; padding: 20px; background: #f8f9fa; display: none;">
+                <h6 class="mb-3">
+                    <i class="bi bi-flask me-2"></i>Test Result
+                    <button type="button" class="btn btn-sm btn-outline-secondary float-end" onclick="$('#testResultPanel').hide(); $('#apiFormPanel').css('flex', '1').css('border-right', 'none');">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </h6>
+                
+                <div id="testLoading" class="text-center py-4" style="display: none;">
+                    <span class="spinner-border spinner-border-sm"></span>
+                    <p class="mt-2 small">Testing API...</p>
+                </div>
+                
+                <div id="testResult" style="display: none;">
+                    <div class="alert small" id="testStatus" style="margin-bottom: 15px;"></div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label small"><strong>Raw Response</strong></label>
+                        <pre class="bg-light p-2 rounded small" id="testRawResponse" 
+                             style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label small"><strong>Transformed Result</strong></label>
+                        <pre class="bg-light p-2 rounded small" id="testTransformed"
+                             style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Result Modal (hidden, will not be used) -->
+<div class="modal fade" id="testResultModal" tabindex="-1" style="display: none;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">API Test Result</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="testLoading" class="text-center py-4">
+                    <span class="spinner-border"></span>
+                    <p class="mt-2">Testing API...</p>
+                </div>
+                <div id="testResult" style="display: none;">
+                    <div class="alert" id="testStatus"></div>
+                    <div class="mb-3">
+                        <label class="form-label">Raw Response</label>
+                        <pre class="bg-light p-3 rounded" id="testRawResponse" 
+                             style="max-height: 200px; overflow: auto;"></pre>
+                    </div>
+                    <div>
+                        <label class="form-label">Transformed Result</label>
+                        <pre class="bg-light p-3 rounded" id="testTransformed"
+                             style="max-height: 200px; overflow: auto;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    loadApis();
+    
+    // Handle modal reset on close
+    $('#addApiModal').on('hidden.bs.modal', function() {
+        // Reset form when modal closes
+        $('#apiId').val('');
+        $('#responseTemplate').val('');
+    });
+});
+
+function loadApis() {
+    $.ajax({
+        url: '/api/external-apis',
+        method: 'GET',
+        success: function(data) {
+            displayApis(data.configs || []);
+        },
+        error: function() {
+            $('#apiList').html('<div class="alert alert-danger">Failed to load APIs</div>');
+        }
+    });
+}
+
+function displayApis(apis) {
+    const container = $('#apiList');
+    container.empty();
+    
+    if (apis.length === 0) {
+        container.html(`
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-cloud-slash display-4 text-muted"></i>
+                    <h5 class="mt-3">No External APIs Configured</h5>
+                    <p class="text-muted">Add external APIs to enrich IOCs with threat intelligence data</p>
+                    <button class="btn btn-primary" onclick="newApi()">
+                        <i class="bi bi-plus-lg me-1"></i> Add Your First API
+                    </button>
+                </div>
+            </div>
+        `);
+        return;
+    }
+    
+    apis.forEach(api => {
+        const typeBadges = (api.ioc_types || [])
+            .map(t => `<span class="badge bg-light text-dark me-1">${t.toUpperCase()}</span>`)
+            .join('');
+        
+        const statusBadge = api.is_enabled 
+            ? '<span class="badge bg-success">Enabled</span>'
+            : '<span class="badge bg-secondary">Disabled</span>';
+        
+        container.append(`
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h5 class="mb-1">${escapeHtml(api.name)} ${statusBadge}</h5>
+                            <p class="text-muted small mb-2">${escapeHtml(api.url_template || '')}</p>
+                            <div>${typeBadges}</div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="editApi('${api.id}')" data-edit="true">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteApi('${api.id}')">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `);
+    });
+}
+
+function resetForm() {
+    $('#apiId').val('');
+    $('#apiForm')[0].reset();
+    $('#apiHeaders').val('');
+    $('#responseTemplate').val('');
+    $('#apiEnabled').prop('checked', true);
+    $('#apiFormTitle').text('Add External API');
+}
+
+function newApi() {
+    resetApiForm();
+    $('#apiFormTitle').text('Add External API');
+    $('#apiFormPanel').show();
+    $('#testResultPanel').hide();
+    $('#apiFormPanel').css('flex', '1').css('border-right', 'none');
+}
+
+function closeApiForm() {
+    $('#apiFormPanel').hide();
+    $('#testResultPanel').hide();
+}
+
+// Visual Editor Functions
+function resetApiForm() {
+    $('#apiId').val('');
+    $('#apiName').val('');
+    $('#apiUrl').val('');
+    $('#apiMethod').val('GET');
+    $('#apiTimeout').val('30');
+    $('#apiHeaders').val('');
+    $('#apiPostBody').val('');
+    $('#responseTemplate').val('');
+    $('#apiEnabled').prop('checked', true);
+    $('#iocTypes').val([]);
+    
+    // Hide POST body group since default method is GET
+    $('#postBodyGroup').hide();
+    
+    // Reset modal title
+    $('#apiModalTitle').text('Add External API');
+}
+
+function editApi(apiId) {
+    console.log('[editApi] Called with apiId:', apiId);
+    $.ajax({
+        url: `/api/external-apis/${apiId}`,
+        method: 'GET',
+        success: function(data) {
+            console.log('[editApi] API Response:', data);
+            // data is the config object directly
+            const api = data;
+            
+            // Check if elements exist
+            console.log('[editApi] apiName element exists:', $('#apiName').length > 0);
+            console.log('[editApi] apiName value before:', $('#apiName').val());
+            
+            // Set form values
+            $('#apiId').val(api.id);
+            console.log('[editApi] Set apiId to:', api.id);
+            
+            $('#apiName').val(api.name);
+            console.log('[editApi] Set apiName to:', api.name, ' actual value:', $('#apiName').val());
+            
+            $('#apiUrl').val(api.url_template || api.url || '');
+            console.log('[editApi] Set apiUrl to:', api.url_template || api.url);
+            
+            $('#apiMethod').val(api.method || 'GET');
+            console.log('[editApi] Set apiMethod to:', api.method);
+            
+            $('#apiTimeout').val(api.timeout || 30);
+            $('#apiHeaders').val(api.headers ? JSON.stringify(api.headers, null, 2) : '');
+            $('#apiPostBody').val(api.post_body ? JSON.stringify(api.post_body, null, 2) : '');
+            
+            // Show/hide POST body field based on method
+            updatePostBodyVisibility();
+            
+            // Load response template
+            const responseTemplate = api.response_template || api.template || {};
+            if (Object.keys(responseTemplate).length > 0) {
+                $('#responseTemplate').val(JSON.stringify(responseTemplate, null, 2));
+            } else {
+                $('#responseTemplate').val('');
+            }
+            
+            $('#apiEnabled').prop('checked', api.is_enabled !== false && api.enabled !== false);
+            
+            // Select IOC types
+            $('#iocTypes option').prop('selected', false);
+            (api.ioc_types || []).forEach(t => {
+                $(`#iocTypes option[value="${t}"]`).prop('selected', true);
+            });
+            
+            $('#apiFormTitle').text('Edit External API');
+            console.log('[editApi] About to show panel');
+            
+            // Show the form panel
+            $('#apiFormPanel').show();
+            $('#testResultPanel').hide();
+            $('#apiFormPanel').css('flex', '1').css('border-right', 'none');
+            
+            console.log('[editApi] Panel shown, verify form values:', {
+                name: $('#apiName').val(),
+                url: $('#apiUrl').val(),
+                method: $('#apiMethod').val()
+            });
+        },
+        error: function(xhr) {
+            console.error('[editApi] Error loading API:', xhr);
+            showAlert('Failed to load API: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+}
+
+$('#apiForm').submit(function(e) {
+    e.preventDefault();
+    
+    let headers = {};
+    let responseTemplate = {};
+    
+    try {
+        const headersText = $('#apiHeaders').val().trim();
+        if (headersText) headers = JSON.parse(headersText);
+    } catch (e) {
+        showAlert('Invalid JSON in Headers field', 'warning');
+        return;
+    }
+    
+    try {
+        const templateText = $('#responseTemplate').val().trim();
+        if (templateText) responseTemplate = JSON.parse(templateText);
+    } catch (e) {
+        showAlert('Invalid JSON in Response Template field', 'warning');
+        return;
+    }
+    
+    // Handle POST body if method is POST
+    let postBody = null;
+    if ($('#apiMethod').val() === 'POST') {
+        try {
+            const postBodyText = $('#apiPostBody').val().trim();
+            if (postBodyText) postBody = JSON.parse(postBodyText);
+        } catch (e) {
+            showAlert('Invalid JSON in POST Body field', 'warning');
+            return;
+        }
+    }
+    
+    const apiData = {
+        name: $('#apiName').val(),
+        url_template: $('#apiUrl').val(),
+        method: $('#apiMethod').val(),
+        timeout: parseInt($('#apiTimeout').val()),
+        headers: headers,
+        ioc_types: $('#iocTypes').val(),
+        response_template: responseTemplate,
+        is_enabled: $('#apiEnabled').is(':checked')
+    };
+    
+    // Add POST body if present
+    if (postBody) {
+        apiData.post_body = postBody;
+    }
+    
+    const apiId = $('#apiId').val();
+    const method = apiId ? 'PUT' : 'POST';
+    const url = apiId ? `/api/external-apis/${apiId}` : '/api/external-apis';
+    
+    $.ajax({
+        url: url,
+        method: method,
+        contentType: 'application/json',
+        data: JSON.stringify(apiData),
+        success: function() {
+            closeApiForm();
+            showAlert('API configuration saved', 'success');
+            loadApis();
+        },
+        error: function(xhr) {
+            showAlert('Failed to save: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+        }
+    });
+});
+
+function deleteApi(apiId) {
+    if (!confirm('Are you sure you want to delete this API configuration?')) return;
+    
+    $.ajax({
+        url: `/api/external-apis/${apiId}`,
+        method: 'DELETE',
+        success: function() {
+            showAlert('API configuration deleted', 'success');
+            loadApis();
+        },
+        error: function() {
+            showAlert('Failed to delete API', 'danger');
+        }
+    });
+}
+
+$('#testApiBtn').click(function() {
+    const testValue = prompt('Enter a test IOC value (e.g., 8.8.8.8 for IP):');
+    if (!testValue) return;
+    
+    // Show test panel
+    $('#testResultPanel').show();
+    $('#apiFormPanel').css('flex', '0.6').css('border-right', '1px solid #e9ecef');
+    
+    // Show loading
+    $('#testLoading').show();
+    $('#testResult').hide();
+    
+    let headers = {};
+    let responseTemplate = {};
+    
+    try {
+        const headersText = $('#apiHeaders').val().trim();
+        if (headersText) headers = JSON.parse(headersText);
+        
+        const templateText = $('#responseTemplate').val().trim();
+        if (templateText) responseTemplate = JSON.parse(templateText);
+    } catch (e) {
+        $('#testLoading').hide();
+        $('#testResult').show();
+        $('#testStatus').removeClass().addClass('alert alert-danger').text('Invalid JSON configuration');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/external-apis/test',
+        method: 'POST',
+        data: JSON.stringify({
+            url_template: $('#apiUrl').val(),
+            method: $('#apiMethod').val(),
+            headers: headers,
+            response_template: responseTemplate,
+            test_value: testValue
+        }),
+        success: function(data) {
+            $('#testLoading').hide();
+            $('#testResult').show();
+            
+            if (data.success) {
+                $('#testStatus').removeClass().addClass('alert alert-success').text('✓ API test successful');
+            } else {
+                $('#testStatus').removeClass().addClass('alert alert-warning').text('⚠ API returned error: ' + (data.error || 'Unknown'));
+            }
+            
+            $('#testRawResponse').text(JSON.stringify(data.raw_response, null, 2));
+            $('#testTransformed').text(JSON.stringify(data.transformed, null, 2));
+            
+            // Remove old interactive tree if exists
+            $('#testResult').find('.interactive-json-tree').remove();
+            
+            // Display interactive JSON tree for mapping
+            displayTestResultTree(data.raw_response);
+        },
+        error: function(xhr) {
+            $('#testLoading').hide();
+            $('#testResult').show();
+            $('#testStatus').removeClass().addClass('alert alert-danger')
+                .text('✗ Test failed: ' + (xhr.responseJSON?.error || 'Unknown error'));
+            $('#testRawResponse').text('N/A');
+            $('#testTransformed').text('N/A');
+        }
+    });
+});
+
+function displayTestResultTree(data, parentPath = '$') {
+    const treeHtml = jsonToClickableTree(data, parentPath);
+    const treeContainer = $('<div class="interactive-json-tree mt-3"><label class="form-label"><strong>Interactive JSON Mapping:</strong> Click any field to add to mapping</label><div class="bg-light p-3 rounded" style="max-height: 300px; overflow: auto; font-family: monospace; font-size: 0.85rem; border: 1px solid #dee2e6;"></div></div>');
+    treeContainer.find('div:last').html(treeHtml);
+    $('#testResult').append(treeContainer);
+}
+
+function jsonToClickableTree(obj, path = '$', depth = 0) {
+    const indentClass = depth > 0 ? 'ms-3' : '';
+    let html = '';
+    
+    if (obj === null) {
+        return '<span class="text-muted">null</span>';
+    }
+    
+    if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+            return '<span class="text-muted">[]</span>';
+        }
+        html += '<div class="' + indentClass + '">';
+        html += '<span class="text-secondary">[</span>';
+        obj.forEach((item, index) => {
+            const itemPath = path + '[' + index + ']';
+            html += '<div class="ms-2">';
+            if (typeof item === 'object' && item !== null) {
+                html += '<span style="cursor: pointer; color: #6c757d;" class="add-field-link" data-path="' + escapeHtml(itemPath) + '" title="Click to add to mapping">[' + index + ']</span>: ' + jsonToClickableTree(item, itemPath, depth + 1);
+            } else {
+                html += '<span style="cursor: pointer; color: #6c757d;" class="add-field-link" data-path="' + escapeHtml(itemPath) + '" title="Click to add to mapping">[' + index + ']</span>: ' + formatValue(item);
+            }
+            html += '</div>';
+        });
+        html += '<span class="text-secondary">]</span>';
+        html += '</div>';
+    } else if (typeof obj === 'object') {
+        html += '<div class="' + indentClass + '">';
+        html += '<span class="text-secondary">{</span>';
+        Object.keys(obj).forEach((key) => {
+            const value = obj[key];
+            const keyPath = path + '.' + key;
+            html += '<div class="ms-2">';
+            html += '<span style="cursor: pointer; color: #d63384;" class="add-field-link" data-path="' + escapeHtml(keyPath) + '" title="Click to add to mapping"><strong>' + escapeHtml(key) + '</strong></span>: ';
+            
+            if (typeof value === 'object' && value !== null) {
+                html += jsonToClickableTree(value, keyPath, depth + 1);
+            } else {
+                html += formatValue(value);
+            }
+            html += '</div>';
+        });
+        html += '<span class="text-secondary">}</span>';
+        html += '</div>';
+    } else {
+        html = formatValue(obj);
+    }
+    
+    return html;
+}
+
+function formatValue(value) {
+    if (value === null) {
+        return '<span class="text-muted">null</span>';
+    } else if (typeof value === 'boolean') {
+        return '<span class="text-primary">' + value + '</span>';
+    } else if (typeof value === 'number') {
+        return '<span class="text-info">' + value + '</span>';
+    } else if (typeof value === 'string') {
+        return '<span class="text-success">"' + escapeHtml(value) + '"</span>';
+    } else {
+        return escapeHtml(String(value));
+    }
+}
+
+function addFieldFromTestResult(fieldPath) {
+    // Extract field name from path (last part after . or [])
+    let fieldName = fieldPath.split('.').pop();
+    fieldName = fieldName.replace(/\[.*?\]/g, '');
+    
+    // Store the field path so we can use it when user selects a TAXII field
+    window.selectedFieldPath = fieldPath;
+    window.isSelectingFromTestResult = true;
+    
+    // Show TAXII selector modal
+    new bootstrap.Modal(document.getElementById('taxiiFieldSelectorModal')).show();
+}
+
+
+
+function updatePostBodyVisibility() {
+    const method = $('#apiMethod').val();
+    if (method === 'POST') {
+        $('#postBodyGroup').show();
+    } else {
+        $('#postBodyGroup').hide();
+        $('#apiPostBody').val('');
+    }
+}
+
+// Event listener for method change
+$(document).on('change', '#apiMethod', function() {
+    updatePostBodyVisibility();
+});
+</script>
+{% endblock %}

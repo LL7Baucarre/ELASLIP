@@ -1,0 +1,1265 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Graph - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
+<style>
+    .graph-container {
+        position: relative;
+        width: 100%;
+        height: calc(100vh - 40px);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    [data-theme="dark"] .graph-container {
+        background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+    }
+
+    #cy {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    [data-theme="dark"] #cy {
+        background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+    }
+
+    .graph-controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        min-width: 250px;
+    }
+    
+    [data-theme="dark"] .graph-controls {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .graph-controls h5 {
+        margin-bottom: 15px;
+        margin-top: 0;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+    
+    [data-theme="dark"] .graph-controls h5 {
+        color: #e9ecef;
+        border-bottom-color: #3498db;
+    }
+
+    .graph-controls.collapsed {
+        min-width: auto;
+        width: auto;
+        padding: 10px;
+    }
+
+    .graph-controls.collapsed > *:not(h5):not(#toggleControlsIcon) {
+        display: none;
+    }
+
+    #searchResultsDropdown {
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="dark"] #searchResultsDropdown {
+        background: #2d333b;
+        border-color: #3d4449;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-result-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    [data-theme="dark"] .search-result-item {
+        border-bottom-color: #3d4449;
+    }
+
+    .search-result-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    [data-theme="dark"] .search-result-item:hover {
+        background-color: #3d4449;
+    }
+
+    .search-result-item small {
+        display: block;
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+
+    .search-controls h5 {
+        margin-bottom: 15px;
+    }
+
+    .control-group {
+        position: relative;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    [data-theme="dark"] .control-group label {
+        color: #e9ecef;
+    }
+
+    .control-group input,
+    .control-group select {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    
+    [data-theme="dark"] .control-group input,
+    [data-theme="dark"] .control-group select {
+        background-color: #2d333b;
+        border-color: #3d4449;
+        color: #e9ecef;
+    }
+
+    .btn-control {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        font-size: 0.85rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-control:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    [data-theme="dark"] .btn-control {
+        color: #e9ecef;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-primary {
+        background-color: #3498db;
+        border-color: #3498db;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-primary:hover {
+        background-color: #2980b9;
+        border-color: #2980b9;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-outline-secondary {
+        background-color: transparent;
+        border: 1px solid #6c757d;
+        color: #6c757d;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: #e9ecef;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-outline-danger {
+        background-color: transparent;
+        border: 1px solid #dc3545;
+        color: #dc3545;
+    }
+    
+    [data-theme="dark"] .btn-control.btn-outline-danger:hover {
+        background-color: #dc3545;
+        color: #e9ecef;
+    }
+
+    .legend {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        font-size: 0.85rem;
+    }
+    
+    [data-theme="dark"] .legend {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .legend-item {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    [data-theme="dark"] .legend-item {
+        color: #e9ecef;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #333;
+    }
+    
+    [data-theme="dark"] .legend-color {
+        border-color: #e9ecef;
+    }
+
+    .info-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    [data-theme="dark"] .info-panel {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-panel h5 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+    
+    [data-theme="dark"] .info-panel h5 {
+        color: #e9ecef;
+        border-bottom-color: #3498db;
+    }
+
+    .info-item {
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }
+    
+    [data-theme="dark"] .info-item {
+        color: #e9ecef;
+    }
+
+    .info-item strong {
+        display: block;
+        color: #666;
+    }
+    
+    [data-theme="dark"] .info-item strong {
+        color: #adb5bd;
+    }
+
+    .badge-small {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 4px;
+    }
+
+    /* IOC Type Colors */
+    .ioc-ipv4 {
+        background-color: #FF6B6B !important;
+    }
+
+    .ioc-ipv6 {
+        background-color: #FF5252 !important;
+    }
+
+    .ioc-domain {
+        background-color: #4ECDC4 !important;
+    }
+
+    .ioc-email {
+        background-color: #95E1D3 !important;
+    }
+
+    .ioc-url {
+        background-color: #FFE66D !important;
+        color: #333 !important;
+    }
+
+    .ioc-md5 {
+        background-color: #A8E6CF !important;
+    }
+
+    .ioc-sha1 {
+        background-color: #FFD3B6 !important;
+        color: #333 !important;
+    }
+
+    .ioc-sha256 {
+        background-color: #FFAAA5 !important;
+    }
+
+    .ioc-asn {
+        background-color: #C7CEEA !important;
+    }
+
+    .ioc-file_path {
+        background-color: #FF8B94 !important;
+    }
+
+    .ioc-process_name {
+        background-color: #FFA07A !important;
+        color: #333 !important;
+    }
+
+    .ioc-registry_key {
+        background-color: #DDA0DD !important;
+    }
+
+    .ioc-windows_registry_key {
+        background-color: #BA55D3 !important;
+    }
+
+    .ioc-mutex {
+        background-color: #9370DB !important;
+    }
+
+    .ioc-certificate_serial {
+        background-color: #87CEEB !important;
+        color: #333 !important;
+    }
+
+    /* Threat Level Colors */
+    .threat-critical {
+        box-shadow: 0 0 0 3px #dc3545 !important;
+    }
+
+    .threat-high {
+        box-shadow: 0 0 0 3px #fd7e14 !important;
+    }
+
+    .threat-medium {
+        box-shadow: 0 0 0 3px #17a2b8 !important;
+    }
+
+    .threat-low {
+        box-shadow: 0 0 0 3px #6c757d !important;
+    }
+
+    /* Node styling */
+    node {
+        content: data(label);
+        font-size: 10px;
+        text-valign: center;
+        text-halign: center;
+        background-color: #555;
+        width: 30px;
+        height: 30px;
+        border-width: 2px;
+        border-color: #333;
+        color: white;
+        padding: 2px;
+    }
+
+    node:selected {
+        border-color: #FFD700;
+        border-width: 3px;
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+    }
+
+    /* Edge styling */
+    edge {
+        line-color: #ccc;
+        target-arrow-color: #ccc;
+        target-arrow-shape: triangle;
+        curve-style: bezier;
+        width: 1px;
+        font-size: 8px;
+    }
+
+    edge:selected {
+        line-color: #FFD700;
+        target-arrow-color: #FFD700;
+        width: 3px;
+    }
+
+    /* Relation type colors */
+    .relation-related_to {
+        line-color: #95a5a6;
+        target-arrow-color: #95a5a6;
+    }
+
+    .relation-indicates {
+        line-color: #e74c3c;
+        target-arrow-color: #e74c3c;
+        width: 2px;
+    }
+
+    .relation-resolves_to {
+        line-color: #3498db;
+        target-arrow-color: #3498db;
+    }
+
+    .relation-communicates_with {
+        line-color: #f39c12;
+        target-arrow-color: #f39c12;
+        width: 2px;
+    }
+
+    .relation-uses {
+        line-color: #27ae60;
+        target-arrow-color: #27ae60;
+    }
+
+    .relation-attributed_to {
+        line-color: #9b59b6;
+        target-arrow-color: #9b59b6;
+        width: 2px;
+    }
+
+    .spinner {
+        text-align: center;
+        padding: 20px;
+    }
+
+    .spinner-border {
+        color: #007bff;
+    }
+
+    #emptyGraphMessage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #666;
+        font-size: 16px;
+        z-index: 10;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    [data-theme="dark"] #emptyGraphMessage {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="graph-container">
+    <div id="cy">
+        <div id="emptyGraphMessage">
+            <p><i class="bi bi-search" style="font-size: 32px; display: block; margin-bottom: 10px;"></i></p>
+            <p>Please perform a search to display IOCs on the graph</p>
+        </div>
+    </div>
+
+    <!-- Controls Panel -->
+<div class="graph-controls" id="graphControls">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h5 style="margin: 0;">Graph Controls</h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick="toggleControlsPanel()" title="Hide/Show controls">
+            <i class="bi bi-chevron-left" id="toggleControlsIcon"></i>
+        </button>
+    </div>
+    
+    <div class="control-group">
+        <label for="searchIOC">Search IOC:</label>
+        <input type="text" id="searchIOC" placeholder="Enter IOC value..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
+        <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
+    </div>
+
+    <button class="btn-control btn-primary" onclick="loadGraph()">
+        <i class="bi bi-arrow-repeat me-1"></i> Reload Graph
+    </button>
+
+    <button class="btn-control btn-outline-secondary" onclick="fitGraph()">
+        <i class="bi bi-fullscreen me-1"></i> Fit to Screen
+    </button>
+
+    <div class="control-group">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="onlyWithRelations" onchange="toggleOnlyWithRelations()">
+            <label class="form-check-label" for="onlyWithRelations">
+                Only IOCs with Relations
+            </label>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label for="layoutSelect">Layout:</label>
+        <select id="layoutSelect" onchange="changeLayout()">
+            <option value="cose">COSE</option>
+            <option value="circle">Circle</option>
+            <option value="grid">Grid</option>
+            <option value="breadthfirst">Breadth-First</option>
+            <option value="concentric">Concentric</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="showLabels" checked onchange="toggleEdgeLabels()">
+            <label class="form-check-label" for="showLabels">
+                Show Relation Labels
+            </label>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label for="filterIOCType">Filter by IOC Type:</label>
+        <select id="filterIOCType" onchange="filterByIOCType()">
+            <option value="">All Types</option>
+            <option value="ipv4">IPv4</option>
+            <option value="ipv6">IPv6</option>
+            <option value="domain">Domain</option>
+            <option value="email">Email</option>
+            <option value="url">URL</option>
+            <option value="md5">MD5</option>
+            <option value="sha1">SHA1</option>
+            <option value="sha256">SHA256</option>
+            <option value="asn">ASN</option>
+            <option value="file-path">File Path</option>
+            <option value="process-name">Process Name</option>
+            <option value="registry-key">Registry Key</option>
+            <option value="windows-registry-key">Windows Registry Key</option>
+            <option value="mutex">Mutex</option>
+            <option value="certificate-serial">Certificate Serial</option>
+        </select>
+    </div>
+
+    <button class="btn-control btn-outline-secondary" onclick="highlightThreatLevel()">
+        <i class="bi bi-shield-check me-1"></i> Highlight by Threat
+    </button>
+
+    <button class="btn-control btn-outline-danger" onclick="clearSelection()">
+        <i class="bi bi-x-circle me-1"></i> Clear Selection
+    </button>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+    <h6 style="margin-top: 0; margin-bottom: 10px;">IOC Types</h6>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF6B6B;"></div>
+        <span>IPv4</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #4ECDC4;"></div>
+        <span>Domain</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #A8E6CF;"></div>
+        <span>MD5</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFD3B6;"></div>
+        <span>SHA1</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFE66D;"></div>
+        <span>URL</span>
+    </div>
+</div>
+
+<!-- Info Panel -->
+<div class="info-panel" id="infoPanel" style="display: none;">
+    <h5>Node Information</h5>
+    <div id="nodeInfo"></div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<script>
+let cy = null;
+let currentLayout = 'cose';
+let showEdgeLabels = true;
+let allNodes = [];
+let allEdges = [];
+let filteredByRelations = false;
+let searchTimeout = null;
+
+function initGraph(nodes, edges) {
+    if (cy) {
+        cy.destroy();
+    }
+
+    cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: {
+            nodes: nodes,
+            edges: edges
+        },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'background-color': 'data(color)',
+                    'width': 35,
+                    'height': 35,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'font-size': 11,
+                    'color': 'white',
+                    'text-outline-width': 1,
+                    'text-outline-color': '#333',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'padding': 3
+                }
+            },
+            {
+                selector: 'node:selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#999',
+                    'target-arrow-color': '#999',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 3,
+                    'opacity': 0.8,
+                    'font-size': 9,
+                    'color': '#333',
+                    'line-style': 'solid',
+                    'text-background-color': '#fff',
+                    'text-background-opacity': 0.8,
+                    'text-background-padding': '2px',
+                    'content': 'data(label)',
+                    'text-valign': 'center',
+                    'text-halign': 'center'
+                }
+            },
+            {
+                selector: 'edge.relation-indicates',
+                style: {
+                    'line-color': '#e74c3c',
+                    'target-arrow-color': '#e74c3c',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge.relation-related_to',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-resolves_to',
+                style: {
+                    'line-color': '#3498db',
+                    'target-arrow-color': '#3498db',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-communicates_with',
+                style: {
+                    'line-color': '#f39c12',
+                    'target-arrow-color': '#f39c12',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge.relation-uses',
+                style: {
+                    'line-color': '#27ae60',
+                    'target-arrow-color': '#27ae60',
+                    'width': 2
+                }
+            },
+            {
+                selector: 'edge.relation-attributed_to',
+                style: {
+                    'line-color': '#9b59b6',
+                    'target-arrow-color': '#9b59b6',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge:selected',
+                style: {
+                    'line-color': '#FFD700',
+                    'target-arrow-color': '#FFD700',
+                    'width': 4,
+                    'opacity': 1
+                }
+            }
+        ],
+        layout: {
+            name: currentLayout,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        },
+        wheelSensitivity: 0.1,
+        minZoom: 0.1,
+        maxZoom: 3
+    });
+
+    // Event handlers
+    cy.on('tap', 'node', function(e) {
+        const node = e.target;
+        showNodeInfo(node);
+    });
+
+    cy.on('tap', function(e) {
+        if (e.target === cy) {
+            document.getElementById('infoPanel').style.display = 'none';
+        }
+    });
+
+    // Double-click to navigate to IOC
+    cy.on('dblclick', 'node', function(e) {
+        const nodeId = e.target.id();
+        window.location.href = `/iocs/${nodeId}`;
+    });
+
+    fitGraph();
+}
+
+function loadGraph() {
+    $.ajax({
+        url: '/api/iocs/graph-data',
+        method: 'GET',
+        success: function(response) {
+            const nodes = response.nodes;
+            const edges = response.edges;
+            
+            console.log(`Loaded ${nodes.length} nodes and ${edges.length} edges`);
+            
+            // Store all data for filtering
+            allNodes = nodes;
+            allEdges = edges;
+            
+            // Add color based on type
+            nodes.forEach(node => {
+                const type = node.data.type.replace('-', '_');
+                node.data.color = getColorForType(type);
+            });
+
+            // Add color to edges
+            edges.forEach(edge => {
+                edge.data.color = getColorForRelation(edge.data.label);
+            });
+
+            initGraph(nodes, edges);
+            
+            // Hide all nodes and edges initially (until user performs a search)
+            cy.nodes().hide();
+            cy.edges().hide();
+            
+            // Show the empty graph message
+            document.getElementById('emptyGraphMessage').style.display = 'block';
+            
+            // Apply filters if any are active
+            if (document.getElementById('onlyWithRelations').checked) {
+                applyRelationFilter();
+            }
+            
+            // Show stats in console
+            const totalIOCs = nodes.length;
+            const totalRelations = edges.length;
+            console.log(`Graph initialized: ${totalIOCs} IOCs with ${totalRelations} relations`);
+        },
+        error: function(xhr) {
+            console.error('Error loading graph data:', xhr);
+            alert('Failed to load graph data');
+        }
+    });
+}
+
+function fitGraph() {
+    if (cy) {
+        cy.fit(null, 50);
+    }
+}
+
+function changeLayout() {
+    const layoutName = document.getElementById('layoutSelect').value;
+    currentLayout = layoutName;
+    
+    if (cy) {
+        const layout = cy.layout({
+            name: layoutName,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        });
+        layout.run();
+    }
+}
+
+function clearSelection() {
+    if (cy) {
+        cy.elements().unselect();
+        document.getElementById('infoPanel').style.display = 'none';
+    }
+}
+
+function highlightThreatLevel() {
+    if (!cy) return;
+    
+    // Reset colors
+    cy.nodes().style('opacity', 1);
+    cy.edges().style('opacity', 0.3);
+    
+    // Highlight by threat level
+    const critical = cy.nodes().filter(n => n.data('threat_level') === 'critical');
+    critical.style({
+        'border-width': 3,
+        'border-color': '#dc3545'
+    });
+
+    const high = cy.nodes().filter(n => n.data('threat_level') === 'high');
+    high.style({
+        'border-width': 2,
+        'border-color': '#fd7e14'
+    });
+}
+
+function toggleEdgeLabels() {
+    if (!cy) return;
+    
+    showEdgeLabels = document.getElementById('showLabels').checked;
+    cy.edges().style({
+        'opacity': showEdgeLabels ? 0.8 : 0.5,
+        'font-size': showEdgeLabels ? 9 : 0
+    });
+}
+
+function filterByIOCType() {
+    if (!cy) return;
+    
+    const selectedType = document.getElementById('filterIOCType').value;
+    
+    if (!selectedType) {
+        // Show all nodes and edges
+        cy.nodes().show();
+        cy.edges().show();
+    } else {
+        // Hide all nodes first
+        cy.nodes().hide();
+        cy.edges().hide();
+        
+        // Show selected type nodes
+        const selectedNodes = cy.nodes().filter(n => n.data('type') === selectedType);
+        selectedNodes.show();
+        
+        // Show edges connected to selected nodes
+        const connectedEdges = selectedNodes.connectedEdges();
+        connectedEdges.show();
+    }
+    
+    // Fit to visible elements
+    if (cy.elements(':visible').length > 0) {
+        cy.fit(cy.elements(':visible'), 50);
+    }
+}
+
+function showNodeInfo(node) {
+    const data = node.data();
+    const infoPanel = document.getElementById('infoPanel');
+    const nodeInfo = document.getElementById('nodeInfo');
+    
+    let html = `
+        <div class="info-item">
+            <strong>Value:</strong>
+            <code>${data.label}</code>
+        </div>
+        <div class="info-item">
+            <strong>Type:</strong>
+            <span class="badge badge-primary">${data.type}</span>
+        </div>
+    `;
+
+    if (data.threat_level && data.threat_level !== 'unknown') {
+        const threatColor = {
+            'critical': 'danger',
+            'high': 'warning',
+            'medium': 'info',
+            'low': 'secondary'
+        }[data.threat_level] || 'secondary';
+        html += `
+            <div class="info-item">
+                <strong>Threat:</strong>
+                <span class="badge bg-${threatColor}">${data.threat_level.toUpperCase()}</span>
+            </div>
+        `;
+    }
+
+    if (data.confidence) {
+        html += `
+            <div class="info-item">
+                <strong>Confidence:</strong>
+                <span class="badge badge-success">${data.confidence}</span>
+            </div>
+        `;
+    }
+
+    if (data.tlp) {
+        const tlpColor = {
+            'white': 'light',
+            'green': 'success',
+            'amber': 'warning',
+            'red': 'danger'
+        }[data.tlp] || 'secondary';
+        html += `
+            <div class="info-item">
+                <strong>TLP:</strong>
+                <span class="badge bg-${tlpColor}">${data.tlp.toUpperCase()}</span>
+            </div>
+        `;
+    }
+
+    // Show relations
+    const edges = node.connectedEdges();
+    if (edges.length > 0) {
+        html += `
+            <div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <strong>Relations (${edges.length}):</strong>
+                <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
+        `;
+        edges.forEach(edge => {
+            const relationLabel = edge.data('label');
+            const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
+            html += `<li>${relationLabel}: ${otherNode.data('label')}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    html += `
+        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+            <a href="/iocs/${data.id}" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-eye me-1"></i> View IOC
+            </a>
+        </div>
+    `;
+    
+    nodeInfo.innerHTML = html;
+    infoPanel.style.display = 'block';
+}
+
+function getColorForType(type) {
+    const colors = {
+        'ipv4': '#FF6B6B',
+        'ipv6': '#FF5252',
+        'domain': '#4ECDC4',
+        'email': '#95E1D3',
+        'url': '#FFE66D',
+        'md5': '#A8E6CF',
+        'sha1': '#FFD3B6',
+        'sha256': '#FFAAA5',
+        'asn': '#C7CEEA',
+        'file_path': '#FF8B94',
+        'process_name': '#FFA07A',
+        'registry_key': '#DDA0DD',
+        'windows_registry_key': '#BA55D3',
+        'mutex': '#9370DB',
+        'certificate_serial': '#87CEEB'
+    };
+    return colors[type] || '#888';
+}
+
+function getColorForRelation(type) {
+    const colors = {
+        'related-to': '#95a5a6',
+        'indicates': '#e74c3c',
+        'resolves-to': '#3498db',
+        'communicates-with': '#f39c12',
+        'uses': '#27ae60',
+        'attributed-to': '#9b59b6',
+        'located-at': '#1abc9c',
+        'exploits': '#e67e22',
+        'based-on': '#34495e',
+        'created-by': '#2980b9'
+    };
+    return colors[type] || '#95a5a6';
+}
+
+function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchIOC, 300);
+}
+
+function showShowAllOption() {
+    // Display "Show All IOCs" immediately when input is focused
+    const dropdown = document.getElementById('searchResultsDropdown');
+    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+    dropdown.style.display = 'block';
+}
+
+function searchIOC() {
+    if (!cy) return;
+    
+    const searchTerm = document.getElementById('searchIOC').value.trim().toLowerCase();
+    const dropdown = document.getElementById('searchResultsDropdown');
+    
+    if (!searchTerm) {
+        dropdown.style.display = 'none';
+        applyRelationFilter();
+        return;
+    }
+    
+    // Use API search if term is at least 2 characters
+    if (searchTerm.length >= 2) {
+        $.ajax({
+            url: '/api/search',
+            method: 'GET',
+            data: {
+                q: searchTerm,
+                per_page: 10
+            },
+            success: function(response) {
+                const iocs = response.items || response.results || response.iocs || [];
+                
+                if (iocs.length === 0) {
+                    dropdown.innerHTML = '<div class="search-result-item text-muted text-center">No results found</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                // Build dropdown HTML with "Show All" option at the top
+                let html = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+                
+                for (const ioc of iocs) {
+                    const iocValue = ioc.value || ioc.ioc_value || '';
+                    const iocType = ioc.type || ioc.ioc_type || 'unknown';
+                    const iocId = ioc.id;
+                    
+                    html += `
+                        <div class="search-result-item" onclick="selectFromSearch('${iocId}', '${iocValue}', event)">
+                            <strong>${iocValue}</strong>
+                            <small class="text-muted">${iocType.toUpperCase()}</small>
+                        </div>
+                    `;
+                }
+                
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+                
+                // Highlight and filter the graph for the first result
+                const matchingIds = iocs.map(ioc => ioc.id);
+                filterGraphByIds(matchingIds);
+            },
+            error: function() {
+                dropdown.style.display = 'none';
+                localSearchIOC(searchTerm);
+            }
+        });
+    } else {
+        dropdown.style.display = 'none';
+        localSearchIOC(searchTerm);
+    }
+}
+
+function selectFromSearch(iocId, iocValue, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Set the input value
+    document.getElementById('searchIOC').value = iocValue;
+    
+    // Hide dropdown
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    // Filter graph to show this IOC and its neighbors
+    filterGraphByIds([iocId]);
+}
+
+function showAllIOCs(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Clear search input
+    document.getElementById('searchIOC').value = '';
+    
+    // Hide dropdown
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    if (!cy) return;
+    
+    // Show all nodes and edges
+    cy.nodes().show();
+    cy.edges().show();
+    
+    // Hide empty graph message
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+    
+    // Apply relation filter if enabled
+    if (document.getElementById('onlyWithRelations').checked) {
+        applyRelationFilter();
+    }
+    
+    // Fit to screen
+    cy.fit(null, 50);
+    
+    console.log('Showing all IOCs in graph');
+}
+
+function filterGraphByIds(iocIds) {
+    if (!cy) return;
+    
+    // Hide all nodes first
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    const matchingIds = new Set(iocIds);
+    
+    // Show matching nodes
+    const matchingNodes = cy.nodes().filter(n => matchingIds.has(n.id()));
+    matchingNodes.show();
+    
+    // Show all their connected edges and neighbors
+    matchingNodes.connectedEdges().show();
+    matchingNodes.neighborhood().show();
+    
+    // Hide empty graph message since we have results
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+    
+    console.log(`Filtered to ${matchingIds.size} IOCs`);
+}
+
+function localSearchIOC(searchTerm) {
+    if (!cy) return;
+    
+    // Hide all nodes first
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    // Find matching nodes locally
+    const matchingNodes = cy.nodes().filter(n => {
+        const value = (n.data('value') || '').toLowerCase();
+        const name = (n.data('name') || '').toLowerCase();
+        return value.includes(searchTerm) || name.includes(searchTerm);
+    });
+    
+    if (matchingNodes.length === 0) {
+        return;
+    }
+    
+    // Show matching nodes and their connected edges
+    matchingNodes.show();
+    matchingNodes.connectedEdges().show();
+    
+    // Show nodes connected to matching nodes
+    matchingNodes.neighborhood().show();
+}
+
+function toggleOnlyWithRelations() {
+    applyRelationFilter();
+}
+
+function applyRelationFilter() {
+    if (!cy) return;
+    
+    filteredByRelations = document.getElementById('onlyWithRelations').checked;
+    
+    const searchTerm = document.getElementById('searchIOC').value.toLowerCase();
+    
+    if (!filteredByRelations && !searchTerm) {
+        // Show all
+        cy.nodes().show();
+        cy.edges().show();
+        return;
+    }
+    
+    if (filteredByRelations) {
+        // Show only nodes with at least one edge
+        const nodesWithEdges = cy.edges().sources().union(cy.edges().targets());
+        const nodesWithoutEdges = cy.nodes().difference(nodesWithEdges);
+        
+        nodesWithoutEdges.hide();
+        cy.edges().show();
+        nodesWithEdges.show();
+    } else {
+        // Reset filtering
+        cy.nodes().show();
+        cy.edges().show();
+    }
+    
+    // Apply search filter if any
+    if (searchTerm) {
+        searchIOC();
+    }
+}
+
+function toggleControlsPanel() {
+    const controls = document.getElementById('graphControls');
+    const icon = document.getElementById('toggleControlsIcon');
+    
+    controls.classList.toggle('collapsed');
+    
+    if (controls.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+    } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+    }
+}
+
+// Load graph on page load
+$(document).ready(function() {
+    loadGraph();
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('searchResultsDropdown');
+        const searchInput = document.getElementById('searchIOC');
+        
+        if (event.target !== searchInput && !dropdown.contains(event.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

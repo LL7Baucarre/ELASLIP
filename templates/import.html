@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+
+{% block title %}Import IOCs - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Import IOCs</h4>
+        <small class="text-muted">Bulk import from STIX, MISP, OpenIOC, or IODEF files</small>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Upload Form -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Upload File</h6>
+            </div>
+            <div class="card-body">
+                <form id="importForm">
+                    <div class="mb-4">
+                        <label class="form-label">File Format</label>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <input type="radio" class="btn-check" name="format" id="formatStix" value="stix" checked>
+                                <label class="btn btn-outline-primary w-100 py-3" for="formatStix">
+                                    <i class="bi bi-braces d-block mb-1" style="font-size: 1.5rem;"></i>
+                                    STIX 2.1
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="radio" class="btn-check" name="format" id="formatMisp" value="misp">
+                                <label class="btn btn-outline-primary w-100 py-3" for="formatMisp">
+                                    <i class="bi bi-file-earmark-code d-block mb-1" style="font-size: 1.5rem;"></i>
+                                    MISP JSON
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="radio" class="btn-check" name="format" id="formatOpenioc" value="openioc">
+                                <label class="btn btn-outline-primary w-100 py-3" for="formatOpenioc">
+                                    <i class="bi bi-file-earmark-text d-block mb-1" style="font-size: 1.5rem;"></i>
+                                    OpenIOC
+                                </label>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="radio" class="btn-check" name="format" id="formatIodef" value="iodef">
+                                <label class="btn btn-outline-primary w-100 py-3" for="formatIodef">
+                                    <i class="bi bi-file-earmark-richtext d-block mb-1" style="font-size: 1.5rem;"></i>
+                                    IODEF
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">File</label>
+                        <div class="border rounded p-4 text-center bg-light" id="dropZone">
+                            <input type="file" class="d-none" id="fileInput" accept=".json,.xml,.ioc">
+                            <i class="bi bi-cloud-upload display-4 text-muted d-block mb-2"></i>
+                            <p class="mb-2">Drag and drop your file here or</p>
+                            <button type="button" class="btn btn-outline-primary" id="browseBtn">Browse Files</button>
+                            <p class="small text-muted mt-2 mb-0" id="selectedFile"></p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="importSource" class="form-label">Source Name</label>
+                        <input type="text" class="form-control" id="importSource" 
+                               placeholder="e.g., MISP Feed, Threat Report">
+                        <div class="form-text">Optional. Will be used to track the origin of imported IOCs.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="importLabels" class="form-label">Additional Labels</label>
+                        <input type="text" class="form-control" id="importLabels" 
+                               placeholder="Comma-separated labels to add to all imported IOCs">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary btn-lg" id="importBtn" disabled>
+                        <i class="bi bi-upload me-1"></i> Start Import
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Import Progress -->
+        <div class="card" id="progressCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Import Progress</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span id="progressStatus">Processing...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress mb-3" style="height: 20px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         id="progressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <div class="row text-center" id="progressStats">
+                    <div class="col-4">
+                        <h4 id="statTotal" class="mb-0">0</h4>
+                        <small class="text-muted">Total</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 id="statImported" class="text-success mb-0">0</h4>
+                        <small class="text-muted">Imported</small>
+                    </div>
+                    <div class="col-4">
+                        <h4 id="statDuplicates" class="text-warning mb-0">0</h4>
+                        <small class="text-muted">Duplicates</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Imports -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Recent Imports</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="recentImports">
+                    <li class="list-group-item text-muted text-center py-4">
+                        <i class="bi bi-inbox d-block mb-2" style="font-size: 2rem;"></i>
+                        No imports yet
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Format Info -->
+        <div class="card mt-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Supported Formats</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>STIX 2.1</strong>
+                    <p class="small text-muted mb-0">Native format. Bundles with Indicator objects.</p>
+                </div>
+                <div class="mb-3">
+                    <strong>MISP JSON</strong>
+                    <p class="small text-muted mb-0">MISP event export with attributes.</p>
+                </div>
+                <div class="mb-3">
+                    <strong>OpenIOC</strong>
+                    <p class="small text-muted mb-0">Mandiant/FireEye OpenIOC XML format.</p>
+                </div>
+                <div>
+                    <strong>IODEF</strong>
+                    <p class="small text-muted mb-0">IETF Incident Object Description format.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedFile = null;
+
+// Drag and drop
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('border-primary');
+});
+
+dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-primary');
+});
+
+dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('border-primary');
+    
+    if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+    }
+});
+
+$('#browseBtn').click(() => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+        handleFile(e.target.files[0]);
+    }
+});
+
+function handleFile(file) {
+    selectedFile = file;
+    $('#selectedFile').text(`Selected: ${file.name} (${formatSize(file.size)})`);
+    $('#importBtn').prop('disabled', false);
+    
+    // Auto-detect format
+    if (file.name.endsWith('.json')) {
+        if (file.name.includes('misp')) {
+            $('#formatMisp').prop('checked', true);
+        } else {
+            $('#formatStix').prop('checked', true);
+        }
+    } else if (file.name.endsWith('.xml') || file.name.endsWith('.ioc')) {
+        if (file.name.includes('iodef')) {
+            $('#formatIodef').prop('checked', true);
+        } else {
+            $('#formatOpenioc').prop('checked', true);
+        }
+    }
+}
+
+function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+$('#importForm').submit(function(e) {
+    e.preventDefault();
+    
+    if (!selectedFile) {
+        showAlert('Please select a file', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    formData.append('format', $('input[name="format"]:checked').val());
+    
+    const source = $('#importSource').val().trim();
+    if (source) formData.append('source', source);
+    
+    const labels = $('#importLabels').val().trim();
+    if (labels) formData.append('labels', labels);
+    
+    // Show progress
+    $('#progressCard').show();
+    $('#importBtn').prop('disabled', true);
+    
+    $.ajax({
+        url: '/api/import',
+        method: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function(data) {
+            if (data.job_id) {
+                pollJobStatus(data.job_id);
+            } else {
+                // Immediate result
+                showImportResult(data);
+            }
+        },
+        error: function(xhr) {
+            showAlert('Import failed: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+            $('#importBtn').prop('disabled', false);
+            $('#progressCard').hide();
+        }
+    });
+});
+
+function pollJobStatus(jobId) {
+    const interval = setInterval(() => {
+        $.ajax({
+            url: `/api/import/${jobId}`,
+            method: 'GET',
+            success: function(data) {
+                updateProgress(data);
+                
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(interval);
+                    showImportResult(data);
+                }
+            },
+            error: function() {
+                clearInterval(interval);
+                showAlert('Failed to get import status', 'danger');
+            }
+        });
+    }, 1000);
+}
+
+function updateProgress(data) {
+    const percent = data.progress || 0;
+    $('#progressBar').css('width', percent + '%');
+    $('#progressPercent').text(percent + '%');
+    $('#progressStatus').text(data.status || 'Processing...');
+    
+    if (data.stats) {
+        $('#statTotal').text(data.stats.total || 0);
+        $('#statImported').text(data.stats.imported || 0);
+        $('#statDuplicates').text(data.stats.duplicates || 0);
+    }
+}
+
+function showImportResult(data) {
+    $('#importBtn').prop('disabled', false);
+    
+    if (data.status === 'failed') {
+        $('#progressBar').removeClass('progress-bar-animated').addClass('bg-danger');
+        showAlert('Import failed: ' + (data.error || 'Unknown error'), 'danger');
+    } else {
+        $('#progressBar').removeClass('progress-bar-animated').addClass('bg-success').css('width', '100%');
+        $('#progressPercent').text('100%');
+        $('#progressStatus').text('Completed');
+        
+        const stats = data.stats || data;
+        showAlert(`Import completed: ${stats.imported || 0} IOCs imported, ${stats.duplicates || 0} duplicates`, 'success');
+        
+        // Add to recent imports
+        addRecentImport(stats);
+    }
+}
+
+function addRecentImport(stats) {
+    const list = $('#recentImports');
+    if (list.find('li').first().hasClass('text-muted')) {
+        list.empty();
+    }
+    
+    const item = `
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>${selectedFile ? selectedFile.name : 'Import'}</strong>
+                    <br>
+                    <small class="text-muted">${new Date().toLocaleString()}</small>
+                </div>
+                <span class="badge bg-success">${stats.imported || 0}</span>
+            </div>
+        </li>
+    `;
+    list.prepend(item);
+}
+
+// Load recent imports on page load
+$(document).ready(function() {
+    loadRecentImports();
+});
+
+function loadRecentImports() {
+    $.ajax({
+        url: '/api/import',
+        method: 'GET',
+        success: function(data) {
+            if (data.jobs && data.jobs.length > 0) {
+                const list = $('#recentImports');
+                list.empty();
+                
+                data.jobs.slice(0, 5).forEach(job => {
+                    const statusClass = job.status === 'completed' ? 'success' : 
+                                       job.status === 'failed' ? 'danger' : 'warning';
+                    list.append(`
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${job.filename || 'Import'}</strong>
+                                    <br>
+                                    <small class="text-muted">${job.created_at?.substring(0, 19) || 'N/A'}</small>
+                                </div>
+                                <span class="badge bg-${statusClass}">${job.status}</span>
+                            </div>
+                        </li>
+                    `);
+                });
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

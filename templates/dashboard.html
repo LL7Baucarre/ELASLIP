@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<!-- Top Bar -->
+<div class="top-bar">
+    <h4 class="mb-0">Dashboard</h4>
+    <div class="d-flex align-items-center gap-2">
+        <a href="https://github.com/LL7Baucarre/ElasMISP" target="_blank" class="btn btn-outline-secondary btn-sm" title="View on GitHub">
+            <i class="bi bi-github me-1"></i> GitHub
+        </a>
+        {% if has_permission('ioc.create') %}
+        <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Add IOC
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card primary">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ total_iocs }}</h3>
+                    <small class="text-muted">Total IOCs</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card success">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-folder-check"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ total_cases }}</h3>
+                    <small class="text-muted">Cases</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card warning">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ total_incidents }}</h3>
+                    <small class="text-muted">Incidents</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card danger">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon me-3">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0">{{ total_checklists }}</h3>
+                    <small class="text-muted">Checklists</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Stats -->
+<div class="row g-4 mb-4">
+    <!-- IOC Threat Levels -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">IOCs by Threat Level</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% set threat_order = ['critical', 'high', 'medium', 'low', 'unknown'] %}
+                    {% for level in threat_order %}
+                        {% if iocs_threat_stats.get(level, 0) > 0 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="badge bg-{% if level == 'critical' %}danger{% elif level == 'high' %}warning{% elif level == 'medium' %}info{% else %}secondary{% endif %}">{{ level|capitalize }}</span>
+                            <span class="badge bg-secondary">{{ iocs_threat_stats.get(level, 0) }}</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not iocs_threat_stats %}
+                    <li class="list-group-item text-muted px-0"><small>No data</small></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Case Statuses -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Cases by Status</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% set status_order = ['open', 'investigating', 'resolved', 'closed'] %}
+                    {% for status in status_order %}
+                        {% if cases_status_stats.get(status, 0) > 0 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="badge bg-{% if status == 'open' %}warning{% elif status == 'investigating' %}info{% elif status == 'resolved' %}success{% else %}secondary{% endif %}">{{ status|capitalize }}</span>
+                            <span class="badge bg-secondary">{{ cases_status_stats.get(status, 0) }}</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not cases_status_stats %}
+                    <li class="list-group-item text-muted px-0"><small>No data</small></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Incident Severity -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Incidents by Severity</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% set severity_order = ['critical', 'high', 'medium', 'low'] %}
+                    {% for severity in severity_order %}
+                        {% if incidents_severity_stats.get(severity, 0) > 0 %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            <span class="badge bg-{% if severity == 'critical' %}danger{% elif severity == 'high' %}warning{% elif severity == 'medium' %}info{% else %}secondary{% endif %}">{{ severity|capitalize }}</span>
+                            <span class="badge bg-secondary">{{ incidents_severity_stats.get(severity, 0) }}</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if not incidents_severity_stats %}
+                    <li class="list-group-item text-muted px-0"><small>No data</small></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Risk Summary</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted small">Avg Risk Score</span>
+                        <strong>{{ "%.1f"|format(stats.avg_risk_score) }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted small">Critical IOCs</span>
+                        <strong class="text-danger">{{ iocs_threat_stats.get('critical', 0) }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted small">Open Cases</span>
+                        <strong class="text-warning">{{ cases_status_stats.get('open', 0) }}</strong>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0">
+                        <span class="text-muted small">Critical Incidents</span>
+                        <strong class="text-danger">{{ incidents_severity_stats.get('critical', 0) }}</strong>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- IOCs by Type Chart -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">IOCs by Type</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for type, count in stats.by_type.items() %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="ioc-type-badge ioc-type-{{ type }}">{{ type.upper() }}</span>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted px-0">No IOCs yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Labels -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Top Labels</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% set label_items = stats.by_label.items()|list %}
+                    {% for label, count in label_items[:10] %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="badge bg-light text-dark">{{ label }}</span>
+                        <span class="badge bg-secondary">{{ count }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted px-0">No labels yet</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if has_permission('ioc.create') %}
+                    <a href="{{ url_for('main.iocs_add') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-lg me-2"></i> Add IOC
+                    </a>
+                    {% endif %}
+                    {% if has_permission('ioc.import') %}
+                    <a href="{{ url_for('main.import_page') }}" class="btn btn-outline-success">
+                        <i class="bi bi-upload me-2"></i> Import IOCs
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('main.search_page') }}" class="btn btn-outline-info">
+                        <i class="bi bi-search me-2"></i> Search IOCs
+                    </a>
+                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-plug me-2"></i> Configure APIs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Entries -->
+<div class="card mt-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Recent Entries</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Entity Type</th>
+                        <th>Name</th>
+                        <th>Details</th>
+                        <th>Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in all_recent %}
+                    <tr style="cursor: pointer" onclick="
+                        {% if entry.entity_type == 'ioc' %}
+                        window.location='{{ url_for('main.iocs_detail', ioc_id=entry.id) }}'
+                        {% elif entry.entity_type == 'case' %}
+                        window.location='{{ url_for('main.cases_detail', case_id=entry.id) }}'
+                        {% elif entry.entity_type == 'incident' %}
+                        window.location='{{ url_for('main.incidents_detail', incident_id=entry.id) }}'
+                        {% elif entry.entity_type == 'checklist' %}
+                        window.location='{{ url_for('checklists.detail_page', checklist_id=entry.id) }}'
+                        {% endif %}
+                    ">
+                        <td>
+                            {% if entry.entity_type == 'ioc' %}
+                            <span class="badge bg-primary">IOC</span>
+                            {% elif entry.entity_type == 'case' %}
+                            <span class="badge bg-success">Case</span>
+                            {% elif entry.entity_type == 'incident' %}
+                            <span class="badge bg-warning">Incident</span>
+                            {% elif entry.entity_type == 'checklist' %}
+                            <span class="badge bg-danger">Checklist</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ entry.name[:60] }}</strong>
+                            {% if entry.name|length > 60 %}...{% endif %}
+                        </td>
+                        <td>
+                            {% if entry.entity_type == 'ioc' %}
+                            <span class="ioc-type-badge ioc-type-{{ entry.ioc_type }}">{{ entry.ioc_type|upper }}</span>
+                            {% elif entry.entity_type == 'case' %}
+                            <span class="badge bg-light text-dark">{{ entry.status|capitalize }}</span>
+                            {% elif entry.entity_type == 'incident' %}
+                            <span class="badge bg-{% if entry.severity == 'critical' %}danger{% elif entry.severity == 'high' %}warning{% elif entry.severity == 'medium' %}info{% else %}secondary{% endif %}">{{ entry.severity|capitalize }}</span>
+                            {% elif entry.entity_type == 'checklist' %}
+                            <span class="badge bg-light text-dark">{{ entry.status|capitalize }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ entry.updated_at[:10] if entry.updated_at else 'N/A' }}</small></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            No entries yet
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

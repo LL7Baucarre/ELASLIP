@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}New Incident - {{ SITE_NAME }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.incidents_list') }}">Incidents</a></li>
+                <li class="breadcrumb-item active">New Incident</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-0 mt-2"><i class="bi bi-plus-circle me-2"></i>Create New Incident</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-body">
+                    <form id="incidentForm">
+                        <!-- Title -->
+                        <div class="mb-3">
+                            <label class="form-label">Incident Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" required placeholder="e.g., Ransomware Attack on Finance Servers">
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" id="description" rows="4" placeholder="Describe the incident..."></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Category</label>
+                                <select class="form-select" id="category">
+                                    <option value="malware">Malware</option>
+                                    <option value="ransomware">Ransomware</option>
+                                    <option value="phishing">Phishing</option>
+                                    <option value="data-breach">Data Breach</option>
+                                    <option value="ddos">DDoS</option>
+                                    <option value="intrusion">Intrusion</option>
+                                    <option value="insider-threat">Insider Threat</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Severity</label>
+                                <select class="form-select" id="severity">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">TLP</label>
+                                <select class="form-select" id="tlp">
+                                    <option value="white">TLP:WHITE</option>
+                                    <option value="green">TLP:GREEN</option>
+                                    <option value="amber" selected>TLP:AMBER</option>
+                                    <option value="red">TLP:RED</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Detection Time</label>
+                                <input type="datetime-local" class="form-control" id="detectionTime">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Occurrence Time</label>
+                                <input type="datetime-local" class="form-control" id="occurrenceTime">
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-3">
+                            <label class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="tags" placeholder="Enter tags separated by commas">
+                        </div>
+
+                        <!-- MITRE ATT&CK -->
+                        <div class="mb-3">
+                            <label class="form-label">MITRE ATT&CK Tactics</label>
+                            <div class="row">
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_reconnaissance" value="reconnaissance">
+                                        <label class="form-check-label small" for="tactic_reconnaissance">Reconnaissance</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_initial_access" value="initial-access">
+                                        <label class="form-check-label small" for="tactic_initial_access">Initial Access</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_execution" value="execution">
+                                        <label class="form-check-label small" for="tactic_execution">Execution</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_persistence" value="persistence">
+                                        <label class="form-check-label small" for="tactic_persistence">Persistence</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_privilege_escalation" value="privilege-escalation">
+                                        <label class="form-check-label small" for="tactic_privilege_escalation">Privilege Escalation</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_defense_evasion" value="defense-evasion">
+                                        <label class="form-check-label small" for="tactic_defense_evasion">Defense Evasion</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_credential_access" value="credential-access">
+                                        <label class="form-check-label small" for="tactic_credential_access">Credential Access</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_lateral_movement" value="lateral-movement">
+                                        <label class="form-check-label small" for="tactic_lateral_movement">Lateral Movement</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_collection" value="collection">
+                                        <label class="form-check-label small" for="tactic_collection">Collection</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_exfiltration" value="exfiltration">
+                                        <label class="form-check-label small" for="tactic_exfiltration">Exfiltration</label>
+                                    </div>
+                                </div>
+                                <div class="col-6 col-md-4 col-lg-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="tactic_impact" value="impact">
+                                        <label class="form-check-label small" for="tactic_impact">Impact</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('main.incidents_list') }}" class="btn btn-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-1"></i> Create Incident
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Incident Response Workflow</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0 small ps-3">
+                        <li class="mb-2"><strong>New</strong> - Initial detection</li>
+                        <li class="mb-2"><strong>Investigating</strong> - Analysis in progress</li>
+                        <li class="mb-2"><strong>Containment</strong> - Limiting spread</li>
+                        <li class="mb-2"><strong>Eradication</strong> - Removing threat</li>
+                        <li class="mb-2"><strong>Recovery</strong> - Restoring systems</li>
+                        <li class="mb-2"><strong>Post-Incident</strong> - Lessons learned</li>
+                        <li><strong>Closed</strong> - Case completed</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('incidentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const tags = document.getElementById('tags').value
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t);
+
+    const tactics = [];
+    document.querySelectorAll('input[id^="tactic_"]:checked').forEach(cb => {
+        tactics.push(cb.value);
+    });
+
+    const data = {
+        title: document.getElementById('title').value.trim(),
+        description: document.getElementById('description').value,
+        category: document.getElementById('category').value,
+        severity: document.getElementById('severity').value,
+        tlp: document.getElementById('tlp').value,
+        detection_time: document.getElementById('detectionTime').value || null,
+        occurrence_time: document.getElementById('occurrenceTime').value || null,
+        tags: tags,
+        mitre_tactics: tactics
+    };
+
+    fetch('/api/incidents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to create incident');
+        return r.json();
+    })
+    .then(result => {
+        window.location.href = `/incidents/${result.id}`;
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+    });
+});
+</script>
+{% endblock %}

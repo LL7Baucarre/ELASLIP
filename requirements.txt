@@ -1,0 +1,37 @@
+# Flask and extensions
+Flask==3.0.0
+flask-login==0.6.3
+flask-jwt-extended==4.6.0
+Werkzeug==3.0.1
+flasgger==0.9.7.1
+
+# Elasticsearch
+elasticsearch==8.11.0
+
+# Celery and Redis
+celery==5.3.4
+redis==5.0.1
+
+# STIX 2.1
+stix2==3.0.1
+
+# Security
+bcrypt==4.1.2
+PyJWT==2.8.0
+cryptography==41.0.7
+
+# HTTP requests
+requests==2.31.0
+
+# JSON Path for API templates
+jsonpath-ng==1.6.0
+
+# XML parsing for OpenIOC and IODEF
+lxml==4.9.4
+
+# Utilities
+python-dotenv==1.0.0
+uuid==1.30
+
+# Development
+gunicorn==21.2.0

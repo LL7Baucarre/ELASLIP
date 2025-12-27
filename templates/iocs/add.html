@@ -1,0 +1,874 @@
+{% extends "base.html" %}
+
+{% block title %}Add IOC - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .nav-tabs .nav-link {
+        color: #6c757d;
+    }
+    .nav-tabs .nav-link.active {
+        font-weight: 600;
+    }
+    .json-editor {
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        min-height: 400px;
+    }
+    .json-preview {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <h4 class="mb-0">Add IOC</h4>
+    <a href="{{ url_for('main.iocs_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Back to List
+    </a>
+</div>
+
+<!-- Tabs for Form vs Raw STIX -->
+<ul class="nav nav-tabs mb-4" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="form-tab" data-bs-toggle="tab" data-bs-target="#formPane" type="button">
+            <i class="bi bi-ui-checks me-1"></i> Form
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="stix-tab" data-bs-toggle="tab" data-bs-target="#stixPane" type="button">
+            <i class="bi bi-code-slash me-1"></i> STIX JSON
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Form Tab -->
+    <div class="tab-pane fade show active" id="formPane" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">IOC Details</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="addIocForm">
+                            <div class="mb-3">
+                                <label for="iocType" class="form-label">Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="iocType" name="type" required>
+                                    <option value="">Select IOC Type...</option>
+                                    <optgroup label="File Hashes">
+                                        <option value="md5">MD5 Hash</option>
+                                        <option value="sha1">SHA1 Hash</option>
+                                        <option value="sha256">SHA256 Hash</option>
+                                    </optgroup>
+                                    <optgroup label="Network Indicators">
+                                        <option value="ipv4">IPv4 Address</option>
+                                        <option value="ipv6">IPv6 Address</option>
+                                        <option value="domain">Domain</option>
+                                        <option value="email">Email Address</option>
+                                        <option value="url">URL</option>
+                                        <option value="asn">ASN (Autonomous System)</option>
+                                    </optgroup>
+                                    <optgroup label="TAXII Indicators">
+                                        <option value="file-path">File Path</option>
+                                        <option value="process-name">Process Name</option>
+                                        <option value="registry-key">Registry Key</option>
+                                        <option value="windows-registry-key">Windows Registry Key</option>
+                                        <option value="mutex">Mutex</option>
+                                        <option value="certificate-serial">Certificate Serial</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocValue" class="form-label">Value <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="iocValue" name="value" required 
+                                       placeholder="Enter the IOC value...">
+                                <div id="valueValidation" class="form-text"></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocLabels" class="form-label">Labels</label>
+                                <input type="text" class="form-control" id="iocLabels" name="labels" 
+                                       placeholder="malware, phishing, c2 (comma-separated)">
+                                <div class="form-text">Separate multiple labels with commas</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocSource" class="form-label">Source</label>
+                                <input type="text" class="form-control" id="iocSource" name="source" 
+                                       placeholder="e.g., internal-analysis, virustotal, etc.">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocThreatLevel" class="form-label">Threat Level</label>
+                                <select class="form-select" id="iocThreatLevel" name="threat_level">
+                                    <option value="unknown">Unknown</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="critical">Critical</option>
+                                </select>
+                                <div class="form-text">Assess the threat level associated with this IOC</div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="iocConfidence" class="form-label">Confidence</label>
+                                    <select class="form-select" id="iocConfidence" name="confidence">
+                                        <option value="">Select confidence...</option>
+                                        <option value="low">Low (0-30%)</option>
+                                        <option value="medium">Medium (30-70%)</option>
+                                        <option value="high">High (70-90%)</option>
+                                        <option value="very-high">Very High (90-100%)</option>
+                                    </select>
+                                    <div class="form-text">Confidence level in this indicator</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="iocTlp" class="form-label">TLP (Traffic Light Protocol)</label>
+                                    <select class="form-select" id="iocTlp" name="tlp">
+                                        <option value="">Select TLP level...</option>
+                                        <option value="white">White - Unrestricted</option>
+                                        <option value="green">Green - Community</option>
+                                        <option value="amber">Amber - Limited</option>
+                                        <option value="red">Red - Restricted</option>
+                                    </select>
+                                    <div class="form-text">How this indicator can be shared</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocCampaigns" class="form-label">Related Campaigns</label>
+                                <input type="text" class="form-control" id="iocCampaigns" name="campaigns" 
+                                       placeholder="campaign-name, operation-x (comma-separated)">
+                                <div class="form-text">Associate with campaigns or operations</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="iocValidFrom" class="form-label">Valid From</label>
+                                <input type="datetime-local" class="form-control" id="iocValidFrom" name="valid_from">
+                                <div class="form-text">Indicator validity start date (STIX)</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="addValidUntil" onchange="toggleValidUntil()">
+                                <label class="form-check-label" for="addValidUntil">
+                                    Add expiration date
+                                </label>
+                            </div>
+
+                            <div id="validUntilWrapper" style="display: none; margin-left: 20px;">
+                                <div class="mb-3">
+                                    <label for="iocValidUntil" class="form-label">Valid Until</label>
+                                    <input type="datetime-local" class="form-control" id="iocValidUntil" name="valid_until">
+                                    <div class="form-text">Indicator validity end date (STIX)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="iocName" class="form-label">Name</label>
+                                <input type="text" class="form-control" id="iocName" name="name" 
+                                       placeholder="Optional indicator name">
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="iocDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="iocDescription" name="description" rows="3"
+                                          placeholder="Optional description..."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="linkedIocs" class="form-label">Link Related IOCs</label>
+                                <div id="linkedIocSelect" class="form-text mb-2">Type to search for existing IOCs to link...</div>
+                                <input type="text" class="form-control" id="linkedIocSearch" 
+                                       placeholder="Search for IOCs (IP, domain, hash, etc.)">
+                                <div id="linkedIocResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                                <div id="selectedLinkedIocs" class="mt-3">
+                                    <div id="linkedIocTags" class="d-flex flex-column gap-2"></div>
+                                    <input type="hidden" id="linkedIocIds" name="linked_ioc_ids" value="">
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i> Add IOC
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="validateBtn">
+                                    <i class="bi bi-check-circle me-1"></i> Validate
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Preview</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewContent">
+                            <p class="text-muted">Fill the form to see STIX pattern preview</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Format Examples</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>MD5</strong></td>
+                                <td><code class="small">d41d8cd98f00b204e9800998ecf8427e</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>SHA256</strong></td>
+                                <td><code class="small">e3b0c44298fc1c14...</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>IPv4</strong></td>
+                                <td><code class="small">192.168.1.1</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Domain</strong></td>
+                                <td><code class="small">malware.example.com</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Email</strong></td>
+                                <td><code class="small">attacker@evil.com</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>URL</strong></td>
+                                <td><code class="small">https://malware.com/payload</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>ASN</strong></td>
+                                <td><code class="small">AS15169</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- STIX JSON Tab -->
+    <div class="tab-pane fade" id="stixPane" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">STIX JSON Input</h6>
+                        <button class="btn btn-sm btn-outline-secondary" id="formatJsonBtn">
+                            <i class="bi bi-braces"></i> Format
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <form id="stixJsonForm">
+                            <div class="mb-3">
+                                <label class="form-label">
+                                    Paste STIX 2.1 Indicator JSON
+                                    <span class="text-muted ms-2">(Single indicator or array)</span>
+                                </label>
+                                <textarea class="form-control json-editor" id="stixJsonInput" rows="15"
+                                          placeholder='{"type": "indicator", "spec_version": "2.1", ...}'></textarea>
+                                <div id="jsonValidation" class="form-text"></div>
+                            </div>
+                            
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg me-1"></i> Import STIX
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="validateStixBtn">
+                                    <i class="bi bi-check-circle me-1"></i> Validate JSON
+                                </button>
+                                <button type="button" class="btn btn-outline-info" id="loadSampleBtn">
+                                    <i class="bi bi-file-code me-1"></i> Load Sample
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">STIX 2.1 Indicator Format</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted">Required fields:</p>
+                        <ul class="small">
+                            <li><code>type</code>: "indicator"</li>
+                            <li><code>spec_version</code>: "2.1"</li>
+                            <li><code>pattern</code>: STIX pattern</li>
+                            <li><code>pattern_type</code>: "stix"</li>
+                            <li><code>valid_from</code>: ISO timestamp</li>
+                        </ul>
+                        
+                        <p class="small text-muted mt-3">Optional fields:</p>
+                        <ul class="small">
+                            <li><code>id</code>: Auto-generated if missing</li>
+                            <li><code>name</code>: Indicator name</li>
+                            <li><code>description</code>: Description</li>
+                            <li><code>labels</code>: Array of labels</li>
+                            <li><code>indicator_types</code>: Type array</li>
+                            <li><code>kill_chain_phases</code>: Kill chain</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card mt-4">
+                    <div class="card-header bg-white">
+                        <h6 class="mb-0">Pattern Examples</h6>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-sm small">
+                            <tr>
+                                <td><strong>IP</strong></td>
+                                <td><code>[ipv4-addr:value = '1.2.3.4']</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Domain</strong></td>
+                                <td><code>[domain-name:value = 'evil.com']</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Hash</strong></td>
+                                <td><code>[file:hashes.MD5 = '...']</code></td>
+                            </tr>
+                            <tr>
+                                <td><strong>ASN</strong></td>
+                                <td><code>[autonomous-system:number = 15169]</code></td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validation patterns
+const validators = {
+    md5: /^[a-fA-F0-9]{32}$/,
+    sha1: /^[a-fA-F0-9]{40}$/,
+    sha256: /^[a-fA-F0-9]{64}$/,
+    ipv4: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
+    ipv6: /^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/,
+    domain: /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/,
+    email: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    url: /^https?:\/\/[^\s/$.?#].[^\s]*$/i,
+    asn: /^AS\d+$/i,
+    'file-path': /^[a-zA-Z0-9\-\._\\\/: ]+\.[a-zA-Z0-9]+$/,
+    'process-name': /^[a-zA-Z0-9\-_.]+\.exe$/i,
+    'registry-key': /^[A-Z]+\\[a-zA-Z0-9\-_\\]+$/,
+    'windows-registry-key': /^(HKEY_|HK)[A-Z_]+\\[a-zA-Z0-9\-_\\]+$/,
+    'mutex': /^[a-zA-Z0-9\-_{}\.]+$/,
+    'certificate-serial': /^[a-fA-F0-9]{2}(:[a-fA-F0-9]{2})*$/
+};
+
+const patternTemplates = {
+    md5: "[file:hashes.MD5 = '{}']",
+    sha1: "[file:hashes.SHA1 = '{}']",
+    sha256: "[file:hashes.SHA256 = '{}']",
+    ipv4: "[ipv4-addr:value = '{}']",
+    ipv6: "[ipv6-addr:value = '{}']",
+    domain: "[domain-name:value = '{}']",
+    email: "[email-addr:value = '{}']",
+    url: "[url:value = '{}']",
+    asn: "[autonomous-system:number = {}]",
+    'file-path': "[file:name = '{}']",
+    'process-name': "[process:name = '{}']",
+    'registry-key': "[windows-registry-key:key = '{}']",
+    'windows-registry-key': "[windows-registry-key:key = '{}']",
+    'mutex': "[process:mutex = '{}']",
+    'certificate-serial': "[x509-certificate:serial_number = '{}']"
+};
+
+// Sample STIX indicator
+const sampleStix = {
+    "type": "indicator",
+    "spec_version": "2.1",
+    "id": "indicator--" + crypto.randomUUID(),
+    "created": new Date().toISOString(),
+    "modified": new Date().toISOString(),
+    "name": "Malicious IP",
+    "description": "Known C2 server IP address",
+    "pattern": "[ipv4-addr:value = '10.0.0.1']",
+    "pattern_type": "stix",
+    "valid_from": new Date().toISOString(),
+    "labels": ["malware", "c2"],
+    "indicator_types": ["malicious-activity"]
+};
+
+function validateValue() {
+    const type = $('#iocType').val();
+    const value = $('#iocValue').val().trim();
+    const validation = $('#valueValidation');
+    
+    if (!type || !value) {
+        validation.html('').removeClass('text-success text-danger');
+        return false;
+    }
+    
+    const isValid = validators[type] && validators[type].test(value);
+    
+    if (isValid) {
+        validation.html('<i class="bi bi-check-circle"></i> Valid ' + type.toUpperCase() + ' format')
+            .removeClass('text-danger').addClass('text-success');
+        updatePreview(type, value);
+        return true;
+    } else {
+        validation.html('<i class="bi bi-x-circle"></i> Invalid ' + type.toUpperCase() + ' format')
+            .removeClass('text-success').addClass('text-danger');
+        $('#previewContent').html('<p class="text-danger">Invalid value format</p>');
+        return false;
+    }
+}
+
+function updatePreview(type, value) {
+    if (patternTemplates[type]) {
+        // ASN pattern doesn't have quotes around the number
+        let pattern;
+        if (type === 'asn') {
+            const asnNumber = value.toUpperCase().replace('AS', '');
+            pattern = patternTemplates[type].replace('{}', asnNumber);
+        } else {
+            pattern = patternTemplates[type].replace('{}', value);
+        }
+        const labels = $('#iocLabels').val().split(',').filter(l => l.trim()).map(l => `"${l.trim()}"`).join(', ');
+        
+        $('#previewContent').html(`
+            <p><strong>STIX Pattern:</strong></p>
+            <code class="d-block p-2 bg-light rounded mb-3">${pattern}</code>
+            ${labels ? `<p><strong>Labels:</strong> [${labels}]</p>` : ''}
+        `);
+    }
+}
+
+$('#iocType, #iocValue, #iocLabels').on('change keyup', validateValue);
+
+$('#validateBtn').click(function() {
+    const type = $('#iocType').val();
+    const value = $('#iocValue').val().trim();
+    
+    if (!type || !value) {
+        showAlert('Please select a type and enter a value', 'warning');
+        return;
+    }
+    
+    $.ajax({
+        url: '/api/ioc/validate',
+        method: 'POST',
+        data: JSON.stringify({ type: type, value: value }),
+        success: function(data) {
+            if (data.valid) {
+                showAlert('Value is valid! Pattern: ' + data.pattern, 'success');
+            } else {
+                showAlert('Invalid value for type ' + type, 'danger');
+            }
+        }
+    });
+});
+
+// STIX JSON Form handling
+$('#loadSampleBtn').click(function() {
+    $('#stixJsonInput').val(JSON.stringify(sampleStix, null, 2));
+    validateStixJson();
+});
+
+$('#formatJsonBtn').click(function() {
+    try {
+        const json = JSON.parse($('#stixJsonInput').val());
+        $('#stixJsonInput').val(JSON.stringify(json, null, 2));
+        $('#jsonValidation').html('<i class="bi bi-check-circle"></i> JSON formatted')
+            .removeClass('text-danger').addClass('text-success');
+    } catch (e) {
+        $('#jsonValidation').html('<i class="bi bi-x-circle"></i> Invalid JSON: ' + e.message)
+            .removeClass('text-success').addClass('text-danger');
+    }
+});
+
+$('#validateStixBtn').click(validateStixJson);
+
+function validateStixJson() {
+    const input = $('#stixJsonInput').val().trim();
+    const validation = $('#jsonValidation');
+    
+    if (!input) {
+        validation.html('').removeClass('text-success text-danger');
+        return false;
+    }
+    
+    try {
+        const json = JSON.parse(input);
+        const indicators = Array.isArray(json) ? json : [json];
+        
+        for (const indicator of indicators) {
+            if (indicator.type !== 'indicator') {
+                throw new Error('Object type must be "indicator"');
+            }
+            if (!indicator.pattern) {
+                throw new Error('Missing required field: pattern');
+            }
+            if (!indicator.pattern_type) {
+                throw new Error('Missing required field: pattern_type');
+            }
+        }
+        
+        validation.html(`<i class="bi bi-check-circle"></i> Valid STIX JSON (${indicators.length} indicator${indicators.length > 1 ? 's' : ''})`)
+            .removeClass('text-danger').addClass('text-success');
+        return true;
+    } catch (e) {
+        validation.html('<i class="bi bi-x-circle"></i> ' + e.message)
+            .removeClass('text-success').addClass('text-danger');
+        return false;
+    }
+}
+
+$('#stixJsonInput').on('input', function() {
+    // Debounce validation
+    clearTimeout(window.jsonValidateTimeout);
+    window.jsonValidateTimeout = setTimeout(validateStixJson, 500);
+});
+
+$('#stixJsonForm').submit(function(e) {
+    e.preventDefault();
+    
+    if (!validateStixJson()) {
+        showAlert('Please fix JSON validation errors', 'warning');
+        return;
+    }
+    
+    const input = $('#stixJsonInput').val().trim();
+    const json = JSON.parse(input);
+    const indicators = Array.isArray(json) ? json : [json];
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Process each indicator
+    const promises = indicators.map(indicator => {
+        return $.ajax({
+            url: '/api/ioc/stix',
+            method: 'POST',
+            data: JSON.stringify(indicator),
+            success: function() {
+                successCount++;
+            },
+            error: function() {
+                errorCount++;
+            }
+        });
+    });
+    
+    Promise.all(promises.map(p => p.catch(() => null))).then(() => {
+        if (successCount > 0 && errorCount === 0) {
+            showAlert(`Successfully imported ${successCount} IOC(s)!`, 'success');
+            setTimeout(() => {
+                window.location.href = '/iocs';
+            }, 1500);
+        } else if (successCount > 0) {
+            showAlert(`Imported ${successCount} IOC(s), ${errorCount} failed`, 'warning');
+        } else {
+            showAlert('Failed to import IOCs', 'danger');
+        }
+    });
+});
+
+// Page initialization
+$(document).ready(function() {
+    // Set valid_from to current date/time
+    const now = new Date();
+    const localDateTime = now.toISOString().slice(0, 16);
+    $('#iocValidFrom').val(localDateTime);
+    
+    // Optional: Set valid_until to 1 year from now (when checkbox is enabled)
+    const oneYearLater = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const validUntilDateTime = oneYearLater.toISOString().slice(0, 16);
+    
+    // Store the pre-calculated value for use when checkbox is checked
+    $('#iocValidUntil').data('default-value', validUntilDateTime);
+});
+
+function toggleValidUntil() {
+    const checkbox = $('#addValidUntil');
+    const wrapper = $('#validUntilWrapper');
+    const input = $('#iocValidUntil');
+    
+    if (checkbox.is(':checked')) {
+        wrapper.show();
+        // Set to pre-calculated 1 year later if empty
+        if (!input.val()) {
+            input.val(input.data('default-value'));
+        }
+    } else {
+        wrapper.hide();
+        input.val(''); // Clear the value when unchecked
+    }
+}
+
+// Linked IOCs functionality
+let selectedLinkedIocs = {};
+
+$('#linkedIocSearch').on('input', function() {
+    const query = $(this).val().trim();
+    const resultsDiv = $('#linkedIocResults');
+    
+    if (query.length < 2) {
+        resultsDiv.html('');
+        return;
+    }
+    
+    console.log('Searching for:', query);
+    
+    // Search for IOCs via GET /api/search
+    $.ajax({
+        url: '/api/search',
+        method: 'GET',
+        data: {
+            q: query,
+            per_page: 10
+        },
+        success: function(response) {
+            console.log('Search response:', response);
+            // Handle both 'items' (from /api/search) and 'results' formats
+            const iocs = response.items || response.results || response.iocs || [];
+            let html = '';
+            
+            if (Array.isArray(iocs)) {
+                for (const ioc of iocs) {
+                    if (ioc.id in selectedLinkedIocs) continue; // Skip already selected
+                    
+                    // Handle both 'value'/'type' and 'ioc_value'/'ioc_type' field names
+                    const iocValue = ioc.value || ioc.ioc_value || '';
+                    const iocType = ioc.type || ioc.ioc_type || 'unknown';
+                    
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-ioc" data-id="${ioc.id}" data-value="${iocValue}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${iocValue}</strong>
+                                    <small class="text-muted d-block">${iocType.toUpperCase()}</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (html === '') {
+                html = '<div class="list-group-item text-muted text-center py-2">No results</div>';
+            }
+            
+            resultsDiv.html(html);
+            
+            // Add click handlers
+            $('.link-ioc').click(function(e) {
+                e.preventDefault();
+                const id = $(this).data('id');
+                const value = $(this).data('value');
+                showRelationTypeModal(id, value);
+            });
+        },
+        error: function(xhr) {
+            console.error('Search error:', xhr);
+            $('#linkedIocResults').html('<div class="list-group-item text-danger text-center py-2">Search error</div>');
+        }
+    });
+});
+
+function showRelationTypeModal(id, value) {
+    const relationTypes = [
+        'related-to',
+        'indicates',
+        'resolves-to',
+        'located-at',
+        'communicates-with',
+        'uses',
+        'attributed-to',
+        'exploits',
+        'based-on',
+        'created-by'
+    ];
+    
+    let html = `
+        <div class="input-group">
+            <input type="text" class="form-control" value="${value}" disabled>
+            <select class="form-select" id="relationTypeSelect" style="flex: 0 0 200px;">
+                <option value="">-- Select relation type --</option>
+    `;
+    
+    relationTypes.forEach(type => {
+        html += `<option value="${type}">${type}</option>`;
+    });
+    
+    html += `
+            </select>
+            <button class="btn btn-success" id="confirmRelation">Add</button>
+        </div>
+    `;
+    
+    const resultsDiv = $('#linkedIocResults');
+    resultsDiv.html(html);
+    
+    $('#confirmRelation').click(function() {
+        const relationType = $('#relationTypeSelect').val() || 'related-to';
+        addLinkedIoc(id, value, relationType);
+    });
+}
+
+function addLinkedIoc(id, value, relationType = 'related-to') {
+    selectedLinkedIocs[id] = {
+        value: value,
+        relation_type: relationType
+    };
+    updateLinkedIocDisplay();
+    $('#linkedIocSearch').val('').trigger('input');
+}
+
+function removeLinkedIoc(id) {
+    delete selectedLinkedIocs[id];
+    updateLinkedIocDisplay();
+}
+
+function updateLinkedIocDisplay() {
+    const tagsDiv = $('#linkedIocTags');
+    const idsInput = $('#linkedIocIds');
+    
+    let html = '';
+    const linkedData = [];
+    
+    for (const [id, data] of Object.entries(selectedLinkedIocs)) {
+        const value = typeof data === 'string' ? data : data.value;
+        const relationType = typeof data === 'string' ? 'related-to' : data.relation_type;
+        
+        linkedData.push({
+            id: id,
+            relation_type: relationType
+        });
+        
+        html += `
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                <div>
+                    <strong>${value}</strong>
+                    <br>
+                    <small class="text-muted">${relationType}</small>
+                </div>
+                <button type="button" class="btn btn-sm btn-close" data-id="${id}" aria-label="Remove"></button>
+            </div>
+        `;
+    }
+    
+    tagsDiv.html(html);
+    idsInput.val(JSON.stringify(linkedData));
+    
+    // Add remove handlers
+    tagsDiv.find('.btn-close').click(function() {
+        removeLinkedIoc($(this).data('id'));
+    });
+}
+
+// On form submit, create the IOC first then create relations
+$('#addIocForm').submit(function(e) {
+    e.preventDefault();
+    
+    // Validate the form
+    if (!validateValue()) {
+        showAlert('Please fix validation errors', 'warning');
+        return;
+    }
+    
+    const formData = {
+        type: $('#iocType').val(),
+        value: $('#iocValue').val(),
+        labels: $('#iocLabels').val().split(',').map(l => l.trim()).filter(l => l),
+        source: $('#iocSource').val() || 'manual',
+        threat_level: $('#iocThreatLevel').val() || 'unknown',
+        confidence: $('#iocConfidence').val() || null,
+        tlp: $('#iocTlp').val() || null,
+        campaigns: $('#iocCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
+        valid_from: $('#iocValidFrom').val() ? new Date($('#iocValidFrom').val()).toISOString() : null,
+        valid_until: $('#iocValidUntil').val() ? new Date($('#iocValidUntil').val()).toISOString() : null,
+        name: $('#iocName').val(),
+        description: $('#iocDescription').val()
+    };
+    
+    if (!formData.type || !formData.value) {
+        showAlert('Type and Value are required', 'danger');
+        return;
+    }
+    
+    // Create IOC first
+    $.ajax({
+        url: '/api/ioc',
+        method: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify(formData),
+        success: function(response) {
+            const iocId = response.ioc?.id;
+            
+            // If there are linked IOCs, create relations
+            if (iocId && Object.keys(selectedLinkedIocs).length > 0) {
+                // Create individual relations with their types
+                let relationPromises = [];
+                
+                for (const [linkedId, data] of Object.entries(selectedLinkedIocs)) {
+                    const relationType = typeof data === 'string' ? 'related-to' : data.relation_type;
+                    
+                    relationPromises.push(
+                        $.ajax({
+                            url: `/api/ioc/${iocId}/relations`,
+                            method: 'POST',
+                            contentType: 'application/json',
+                            data: JSON.stringify({
+                                related_ioc_id: linkedId,
+                                relation_type: relationType
+                            })
+                        })
+                    );
+                }
+                
+                // Wait for all relations to be created
+                $.when.apply($, relationPromises).done(function() {
+                    showAlert('IOC created and linked successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = `/iocs/${iocId}`;
+                    }, 1500);
+                }).fail(function() {
+                    showAlert('IOC created, but failed to create some links', 'warning');
+                    setTimeout(() => {
+                        window.location.href = `/iocs/${iocId}`;
+                    }, 1500);
+                });
+            } else {
+                showAlert('IOC created successfully!', 'success');
+                setTimeout(() => {
+                    window.location.href = `/iocs/${iocId}`;
+                }, 1500);
+            }
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+            showAlert(msg, 'danger');
+        }
+    });
+});
+</script>
+{% endblock %}

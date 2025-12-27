@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Checklist Templates - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Checklist Templates</h1>
+            <small class="text-muted">Reusable templates for quick checklist creation</small>
+        </div>
+        {% if has_permission('checklist.template.create') %}
+        <a href="{{ url_for('checklist_templates.new_page') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i> New Template
+        </a>
+        {% endif %}
+    </div>
+
+    {% if templates %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Items</th>
+                    <th>Created By</th>
+                    <th>Created</th>
+                    <th>Public</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for template in templates %}
+                <tr>
+                    <td>
+                        <strong>{{ template.name }}</strong>
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ template.description[:60] if template.description else '-' }}</small>
+                    </td>
+                    <td>
+                        <small>
+                            {{ template['items']|length }}
+                        </small>
+                    </td>
+                    <td>{{ template.created_by }}</td>
+                    <td>{{ template.created_at[:10] if template.created_at else '-' }}</td>
+                    <td>
+                        {% if template.is_public %}
+                        <span class="badge bg-success">Public</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Private</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('checklist_templates.detail_page', template_id=template.id) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        {% if has_permission('checklist.template.use') %}
+                        <button class="btn btn-sm btn-outline-success" onclick="useTemplate('{{ template.id }}', '{{ template.name }}')">
+                            <i class="bi bi-check-circle"></i> Use
+                        </button>
+                        {% endif %}
+                        {% if has_permission('checklist.template.edit') and (current_user.is_admin or template.created_by == current_user.username) %}
+                        <button class="btn btn-sm btn-outline-secondary" onclick="editTemplate('{{ template.id }}')">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        {% endif %}
+                        {% if has_permission('checklist.template.delete') and (current_user.is_admin or template.created_by == current_user.username) %}
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate('{{ template.id }}', '{{ template.name }}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if pages > 1 %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('checklist_templates.list_page', page=page-1) }}">Previous</a>
+            </li>
+            {% endif %}
+            
+            {% for p in range(1, pages+1) %}
+                {% if p == page %}
+                <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+                {% else %}
+                <li class="page-item"><a class="page-link" href="{{ url_for('checklist_templates.list_page', page=p) }}">{{ p }}</a></li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page < pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('checklist_templates.list_page', page=page+1) }}">Next</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info">
+        No templates yet.
+        {% if has_permission('checklist.template.create') %}
+        <a href="{{ url_for('checklist_templates.new_page') }}" class="alert-link">Create your first template</a>.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function useTemplate(templateId, templateName) {
+    fetch(`/checklist-templates/api/${templateId}/use`)
+        .then(r => r.json())
+        .then(data => {
+            // Store template data and redirect to new checklist form
+            localStorage.setItem('checklistTemplate', JSON.stringify(data));
+            window.location.href = '/checklists/new?from_template=1';
+        })
+        .catch(err => {
+            alert('Error loading template: ' + err);
+        });
+}
+
+function editTemplate(templateId) {
+    window.location.href = `/checklist-templates/${templateId}`;
+}
+
+function deleteTemplate(templateId, templateName) {
+    if (confirm(`Delete template "${templateName}"?`)) {
+        fetch(`/checklist-templates/api/${templateId}/delete`, {method: 'DELETE'})
+            .then(r => {
+                if (r.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Error deleting template');
+                }
+            })
+            .catch(err => alert('Error: ' + err));
+    }
+}
+</script>
+{% endblock %}

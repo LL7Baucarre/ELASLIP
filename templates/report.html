@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+
+{% block title %}Report - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Configure marked for better markdown rendering
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+    pedantic: false
+});
+</script>
+
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0" id="reportTitle">Report</h4>
+        <small class="text-muted" id="reportSubtitle">Generated on <span id="generatedAt"></span></small>
+    </div>
+    <div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="downloadReport()">
+            <i class="bi bi-download me-2"></i> Download
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-body markdown-body" id="reportContent" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let reportData = null;
+let reportType = null;
+let reportId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    reportType = urlParams.get('type');  // 'ioc', 'case', 'incident'
+    reportId = urlParams.get('id');
+    
+    if (reportType && reportId) {
+        generateReport();
+    }
+});
+
+async function generateReport() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const taskId = urlParams.get('task_id');
+        
+        // If task_id provided, fetch from view endpoint
+        if (taskId) {
+            // Poll for report with timeout
+            const maxAttempts = 300; // 300 attempts * 1 second = 300 seconds (5 minutes)
+            let attempt = 0;
+            
+            while (attempt < maxAttempts) {
+                try {
+                    const response = await fetch(`/api/reports/view/${taskId}`);
+                    
+                    // Check for error status
+                    if (response.status === 200) {
+                        const data = await response.json();
+                        if (data.status === 'error') {
+                            displayError(data);
+                            return;
+                        }
+                        reportData = data;
+                        displayReport();
+                        return;
+                    }
+                    
+                    // 202 Accepted means report is being processed
+                    if (response.status === 202) {
+                        attempt++;
+                        if (attempt < maxAttempts) {
+                            // Show progress
+                            const progressMsg = `Loading report (${attempt}/${maxAttempts})...`;
+                            document.getElementById('reportContent').innerHTML = 
+                                `<div class="text-center py-5"><div class="spinner-border me-2" role="status"><span class="visually-hidden">Loading...</span></div><p>${progressMsg}</p></div>`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        } else {
+                            throw new Error('Report generation timeout - please try again');
+                        }
+                    }
+                    
+                    // Handle error responses
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.status === 'error') {
+                            displayError(errorData);
+                            return;
+                        }
+                        throw new Error(errorData.error || `Server error ${response.status}`);
+                    } catch (jsonErr) {
+                        // If JSON parsing fails, show generic error
+                        throw new Error(`Server error ${response.status}: Unable to parse response`);
+                    }
+                } catch (err) {
+                    if (err.message && err.message.includes('not yet completed')) {
+                        attempt++;
+                        if (attempt < maxAttempts) {
+                            const progressMsg = `Loading report (${attempt}/${maxAttempts})...`;
+                            document.getElementById('reportContent').innerHTML = 
+                                `<div class="text-center py-5"><div class="spinner-border me-2" role="status"><span class="visually-hidden">Loading...</span></div><p>${progressMsg}</p></div>`;
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                            continue;
+                        }
+                    }
+                    throw err;
+                }
+            }
+            
+            throw new Error('Report generation timeout - please try again');
+        }
+        
+        // Otherwise, launch a new async generation
+        let endpoint = '';
+        switch(reportType) {
+            case 'ioc':
+                endpoint = `/api/reports/iocs/${reportId}`;
+                break;
+            case 'case':
+                endpoint = `/api/reports/cases/${reportId}`;
+                break;
+            case 'incident':
+                endpoint = `/api/reports/incidents/${reportId}`;
+                break;
+            case 'checklist':
+                endpoint = `/api/reports/checklists/${reportId}`;
+                break;
+            default:
+                showError('Invalid report type');
+                return;
+        }
+        
+        const response = await fetch(endpoint);
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate report');
+        }
+        
+        const result = await response.json();
+        if (result.task_id) {
+            // Redirect to reports list - report will generate in background
+            window.location.href = '/reports';
+            return;
+        }
+        
+        // Legacy direct response (shouldn't happen with async)
+        reportData = result;
+        displayReport();
+    } catch (error) {
+        showError('Error generating report: ' + error.message);
+    }
+}
+
+function displayReport() {
+    const content = document.getElementById('reportContent');
+    let markdown = '';
+    
+    switch(reportType) {
+        case 'ioc':
+            markdown = displayIOCReport();
+            const iocType = reportData.ioc_type || 'Unknown';
+            document.getElementById('reportTitle').textContent = `IOC Report: ${iocType.toUpperCase()}`;
+            break;
+        case 'case':
+            markdown = displayCaseReport();
+            document.getElementById('reportTitle').textContent = `Case Report: ${reportData.case_name || 'Unknown'}`;
+            break;
+        case 'incident':
+            markdown = displayIncidentReport();
+            document.getElementById('reportTitle').textContent = `Incident Report: ${reportData.incident_name || 'Unknown'}`;
+            break;
+        case 'checklist':
+            markdown = displayChecklistReport();
+            document.getElementById('reportTitle').textContent = `Checklist Report: ${reportData.checklist_title || reportData.title || 'Unknown'}`;
+            break;
+    }
+    
+    document.getElementById('generatedAt').textContent = new Date(reportData.generated_at).toLocaleString();
+    // Render markdown to HTML
+    content.innerHTML = marked.parse(markdown);
+}
+
+function displayIOCReport() {
+    return `## IOC Details
+
+| Field | Value |
+|-------|-------|
+| **Type** | ${reportData.ioc_type || 'Unknown'} |
+| **Value** | ${reportData.ioc_value || 'N/A'} |
+| **Related Indicators** | ${reportData.relations_count || 0} |
+
+## Analysis
+
+${reportData.analysis || 'No analysis generated'}
+`;
+}
+
+function displayCaseReport() {
+    return `## Case Summary
+
+| Field | Value |
+|-------|-------|
+| **Name** | ${reportData.case_name || 'Unknown'} |
+| **Incidents** | ${reportData.incidents_count || 0} |
+| **IOCs** | ${reportData.iocs_count || 0} |
+
+## Investigation Report
+
+${reportData.report || reportData.analysis || 'No report generated'}
+`;
+}
+
+function displayIncidentReport() {
+    return `## Incident Summary
+
+| Field | Value |
+|-------|-------|
+| **Name** | ${reportData.incident_name || 'Unknown'} |
+| **Associated IOCs** | ${reportData.iocs_count || 0} |
+
+## Threat Analysis
+
+${reportData.analysis || 'No analysis generated'}
+`;
+}
+
+function displayChecklistReport() {
+    // If we have an LLM-enhanced report, display it prominently
+    if (reportData.analysis) {
+        return `## Checklist Analysis Report
+
+${reportData.analysis}
+`;
+    }
+    
+    // Fall back to structured summary if no LLM report
+    let itemsMarkdown = '';
+    if (reportData.items && reportData.items.length > 0) {
+        itemsMarkdown = reportData.items.map(item => {
+            const checkbox = item.completed ? '✓' : '☐';
+            let itemText = `- [${checkbox}] **${item.title}**`;
+            if (item.description) {
+                itemText += `\n  - ${item.description}`;
+            }
+            return itemText;
+        }).join('\n');
+    }
+    
+    return `## Checklist
+
+| Field | Value |
+|-------|-------|
+| **Title** | ${reportData.checklist_title || reportData.title || 'Unknown'} |
+
+## Description
+
+${reportData.description || 'No description provided'}
+
+## Items
+
+${itemsMarkdown || 'No items in checklist'}
+`;
+}
+
+function downloadReport() {
+    if (!reportData) return;
+    
+    let markdown = '';
+    switch(reportType) {
+        case 'ioc':
+            markdown = displayIOCReport();
+            break;
+        case 'case':
+            markdown = displayCaseReport();
+            break;
+        case 'incident':
+            markdown = displayIncidentReport();
+            break;
+        case 'checklist':
+            markdown = displayChecklistReport();
+            break;
+    }
+    
+    const element = document.createElement('a');
+    element.setAttribute('href', 'data:text/markdown;charset=utf-8,' + encodeURIComponent(markdown));
+    element.setAttribute('download', `report-${reportType}-${reportId}.md`);
+    element.style.display = 'none';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+}
+
+function showError(message) {
+    document.getElementById('reportContent').innerHTML = 
+        `<div class="alert alert-danger">${escapeHtml(message)}</div>`;
+}
+
+function displayError(errorData) {
+    const content = document.getElementById('reportContent');
+    
+    let errorHtml = `<div class="alert alert-danger">
+        <h4 class="alert-heading">Report Generation Error</h4>
+        <hr>
+        <p><strong>Error Message:</strong> ${escapeHtml(errorData.error || 'Unknown error occurred')}</p>`;
+    
+    // Add detailed error information if available
+    if (errorData.error_details) {
+        if (errorData.error_details.type) {
+            errorHtml += `<p><strong>Error Type:</strong> ${escapeHtml(errorData.error_details.type)}</p>`;
+        }
+        if (errorData.error_details.timestamp) {
+            errorHtml += `<p><strong>Occurred at:</strong> ${escapeHtml(errorData.error_details.timestamp)}</p>`;
+        }
+        if (errorData.error_details.full_message) {
+            errorHtml += `<p><strong>Details:</strong></p>
+            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">
+${escapeHtml(errorData.error_details.full_message)}
+            </pre>`;
+        }
+    }
+    
+    errorHtml += `<hr>
+    <p class="mb-0"><small>Task ID: <code>${escapeHtml(errorData.task_id || 'Unknown')}</code></small></p>
+    </div>`;
+    
+    content.innerHTML = errorHtml;
+    
+    // Update title and subtitle
+    document.getElementById('reportTitle').textContent = 'Report Generation Failed';
+    document.getElementById('reportSubtitle').textContent = 'An error occurred during generation';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+
+<style>
+@media print {
+    .top-bar { display: none; }
+    .btn { display: none; }
+}
+
+/* Report specific styles are in static/css/style.css */
+</style>
+{% endblock %}

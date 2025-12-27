@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}Role Management - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Role Management</h4>
+        <small class="text-muted">Create and manage user roles and permissions</small>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+        <i class="bi bi-plus me-2"></i> Create Role
+    </button>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Roles List -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Defined Roles</h6>
+            </div>
+            <div class="card-body">
+                <div id="rolesList" class="role-items">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-hourglass-split"></i> Loading roles...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Role Details Panel -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Role Details</h6>
+            </div>
+            <div class="card-body" id="roleDetailsPanel">
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-info-circle"></i>
+                    <p class="mt-2 mb-0">Select a role to view details</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Permission Legend -->
+        <div class="card mt-3">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Permission Categories</h6>
+            </div>
+            <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="categoriesList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Role Modal -->
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Create New Role</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="roleForm">
+                    <div class="mb-3">
+                        <label for="roleName" class="form-label">Role Name *</label>
+                        <input type="text" class="form-control" id="roleName" required
+                               placeholder="e.g., security_manager">
+                        <small class="text-muted">Lowercase, no spaces</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="roleDisplayName" class="form-label">Display Name *</label>
+                        <input type="text" class="form-control" id="roleDisplayName" required
+                               placeholder="e.g., Security Manager">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="roleDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="roleDescription" rows="2"
+                                  placeholder="Brief description of this role"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Permissions *</label>
+                        <div id="permissionsList" class="permissions-list">
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-hourglass-split"></i> Loading permissions...
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info" id="systemRoleWarning" style="display:none;">
+                        <i class="bi bi-exclamation-circle me-2"></i>
+                        <strong>System Role</strong> - This is a built-in role that cannot be edited or deleted.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRoleBtn" onclick="saveRole()">Create Role</button>
+                <button type="button" class="btn btn-danger" id="deleteRoleBtn" onclick="deleteRole()" style="display:none;">Delete Role</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.role-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.role-item {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.role-item:hover {
+    border-color: #0d6efd;
+    background-color: #f8f9fa;
+}
+
+.role-item.active {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+    border-left: 4px solid #0d6efd;
+}
+
+.role-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.5rem;
+}
+
+.role-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.95rem;
+}
+
+.role-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.role-system {
+    background-color: #e7e7e7;
+    color: #555;
+}
+
+.role-description {
+    font-size: 0.9rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+}
+
+.role-stats {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.85rem;
+    color: #999;
+}
+
+.permissions-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.permission-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.permission-item input {
+    margin-top: 0.25rem;
+}
+
+.permission-item label {
+    margin: 0;
+    font-size: 0.9rem;
+    flex: 1;
+}
+
+.category-section {
+    margin-bottom: 1rem;
+}
+
+.category-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #ddd;
+}
+
+.permission-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background-color: #f0f0f0;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin: 0.25rem;
+}
+
+.permission-badge.active {
+    background-color: #0d6efd;
+    color: white;
+}
+</style>
+
+<script>
+let currentEditingRole = null;
+let allPermissions = {};
+let allRoles = {};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadRoles();
+    loadPermissions();
+    loadCategories();
+});
+
+function loadRoles() {
+    fetch('/api/rbac/roles', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('api_key') || '',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        allRoles = {};
+        const rolesList = document.getElementById('rolesList');
+        rolesList.innerHTML = '';
+
+        data.roles.forEach(role => {
+            allRoles[role.name] = role;
+            const roleEl = createRoleElement(role);
+            rolesList.appendChild(roleEl);
+        });
+    })
+    .catch(err => {
+        console.error('Error loading roles:', err);
+        document.getElementById('rolesList').innerHTML = 
+            '<div class="alert alert-danger">Failed to load roles</div>';
+    });
+}
+
+function createRoleElement(role) {
+    const el = document.createElement('div');
+    el.className = 'role-item';
+    el.onclick = () => selectRole(role);
+
+    const badge = role.is_system ? 
+        '<span class="role-badge role-system">System</span>' : 
+        '<span class="role-badge" style="background-color: ' + (role.color || '#0d6efd') + '; color: white;">Custom</span>';
+
+    el.innerHTML = `
+        <div class="role-item-header">
+            <span class="role-name">${role.display_name}</span>
+            ${badge}
+        </div>
+        <div class="role-description">${role.description || 'No description'}</div>
+        <div class="role-stats">
+            <span><i class="bi bi-shield-check me-1"></i> ${role.permissions ? role.permissions.length : 0} permissions</span>
+            <span><i class="bi bi-calendar-event me-1"></i> ${new Date(role.created_at).toLocaleDateString()}</span>
+        </div>
+    `;
+
+    return el;
+}
+
+function selectRole(role) {
+    currentEditingRole = role;
+    document.querySelectorAll('.role-item').forEach(el => el.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+
+    showRoleDetails(role);
+}
+
+function showRoleDetails(role) {
+    const panel = document.getElementById('roleDetailsPanel');
+    const perms = role.permissions || [];
+    const permsList = perms.map(p => {
+        const desc = allPermissions[p] || p;
+        return `<li><code>${p}</code> - ${desc}</li>`;
+    }).join('');
+
+    panel.innerHTML = `
+        <div>
+            <h6 class="mb-2">${role.display_name}</h6>
+            <p class="text-muted small mb-3">${role.description || 'No description'}</p>
+            
+            <div class="mb-3">
+                <small class="text-muted">Role ID:</small>
+                <code>${role.name}</code>
+            </div>
+
+            <div class="mb-3">
+                <small class="text-muted">Type:</small>
+                <span class="badge ${role.is_system ? 'bg-secondary' : 'bg-primary'}">
+                    ${role.is_system ? 'System' : 'Custom'}
+                </span>
+            </div>
+
+            <hr>
+
+            <small class="text-muted d-block mb-2">Permissions (${perms.length}):</small>
+            <div class="overflow-auto" style="max-height: 300px;">
+                <ul class="list-unstyled small">
+                    ${permsList}
+                </ul>
+            </div>
+
+            <hr>
+
+            <button class="btn btn-sm btn-primary" onclick="editRole('${role.name}')">
+                <i class="bi bi-pencil me-1"></i> Edit
+            </button>
+            ${!role.is_system ? `
+                <button class="btn btn-sm btn-danger" onclick="confirmDelete('${role.name}')">
+                    <i class="bi bi-trash me-1"></i> Delete
+                </button>
+            ` : ''}
+        </div>
+    `;
+}
+
+function loadPermissions() {
+    fetch('/api/rbac/permissions', {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        allPermissions = data.permissions;
+        renderPermissionsList(data.permissions, data.categories);
+    });
+}
+
+function renderPermissionsList(permissions, categories) {
+    const container = document.getElementById('permissionsList');
+    let html = '';
+
+    // Group by category
+    const categoryMap = {};
+    Object.entries(categories).forEach(([cat, perms]) => {
+        html += `<div class="category-section col-12"><div class="category-name">${cat}</div>`;
+        Object.entries(perms).forEach(([perm, desc]) => {
+            html += `
+                <div class="permission-item">
+                    <input type="checkbox" class="form-check-input permission-check" value="${perm}" id="perm_${perm}">
+                    <label class="form-check-label" for="perm_${perm}">${desc}</label>
+                </div>
+            `;
+        });
+        html += '</div>';
+    });
+
+    container.innerHTML = html;
+}
+
+function loadCategories() {
+    fetch('/api/rbac/permissions', {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => r.json())
+    .then(data => {
+        const container = document.getElementById('categoriesList');
+        let html = '';
+
+        Object.entries(data.categories).forEach(([cat, perms]) => {
+            html += `<div class="category-section">
+                <div class="category-name">${cat}</div>`;
+            Object.keys(perms).forEach(perm => {
+                html += `<span class="permission-badge">${perm}</span>`;
+            });
+            html += '</div>';
+        });
+
+        container.innerHTML = html;
+    });
+}
+
+function editRole(roleName) {
+    const role = allRoles[roleName];
+    if (!role) return;
+
+    currentEditingRole = role;
+    document.getElementById('modalTitle').textContent = `Edit Role: ${role.display_name}`;
+    document.getElementById('roleName').value = role.name;
+    document.getElementById('roleName').disabled = true;
+    document.getElementById('roleDisplayName').value = role.display_name;
+    document.getElementById('roleDescription').value = role.description || '';
+
+    // Set checked permissions
+    document.querySelectorAll('.permission-check').forEach(check => {
+        check.checked = (role.permissions || []).includes(check.value);
+    });
+
+    if (role.is_system) {
+        document.getElementById('systemRoleWarning').style.display = 'block';
+        document.getElementById('saveRoleBtn').style.display = 'none';
+        document.getElementById('deleteRoleBtn').style.display = 'none';
+        document.getElementById('roleForm').style.pointerEvents = 'none';
+        document.getElementById('roleForm').style.opacity = '0.6';
+    } else {
+        document.getElementById('systemRoleWarning').style.display = 'none';
+        document.getElementById('saveRoleBtn').style.display = 'inline-block';
+        document.getElementById('deleteRoleBtn').style.display = 'inline-block';
+        document.getElementById('roleForm').style.pointerEvents = 'auto';
+        document.getElementById('roleForm').style.opacity = '1';
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('createRoleModal'));
+    modal.show();
+}
+
+function saveRole() {
+    const roleName = document.getElementById('roleName').value.trim();
+    const displayName = document.getElementById('roleDisplayName').value.trim();
+    const description = document.getElementById('roleDescription').value.trim();
+
+    const checkedPerms = Array.from(document.querySelectorAll('.permission-check:checked'))
+        .map(el => el.value);
+
+    if (!roleName || !displayName || checkedPerms.length === 0) {
+        alert('Please fill in all required fields and select at least one permission');
+        return;
+    }
+
+    const isEdit = currentEditingRole !== null && currentEditingRole.name === roleName;
+    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit ? `/api/rbac/roles/${roleName}` : '/api/rbac/roles';
+
+    const data = {
+        name: roleName,
+        display_name: displayName,
+        description: description,
+        permissions: checkedPerms
+    };
+
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to save role');
+        return r.json();
+    })
+    .then(data => {
+        alert('Role saved successfully');
+        bootstrap.Modal.getInstance(document.getElementById('createRoleModal')).hide();
+        currentEditingRole = null;
+        document.getElementById('roleName').disabled = false;
+        document.getElementById('modalTitle').textContent = 'Create New Role';
+        document.getElementById('roleForm').reset();
+        loadRoles();
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
+    });
+}
+
+function deleteRole() {
+    if (!currentEditingRole || currentEditingRole.is_system) {
+        alert('Cannot delete system roles');
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete the role "${currentEditingRole.display_name}"?`)) {
+        return;
+    }
+
+    fetch(`/api/rbac/roles/${currentEditingRole.name}`, {
+        method: 'DELETE',
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Failed to delete role');
+        return r.json();
+    })
+    .then(data => {
+        alert('Role deleted successfully');
+        bootstrap.Modal.getInstance(document.getElementById('createRoleModal')).hide();
+        currentEditingRole = null;
+        loadRoles();
+    })
+    .catch(err => {
+        alert('Error: ' + err.message);
+    });
+}
+
+function confirmDelete(roleName) {
+    const role = allRoles[roleName];
+    if (role.is_system) {
+        alert('Cannot delete system roles');
+        return;
+    }
+
+    editRole(roleName);
+}
+</script>
+{% endblock %}
