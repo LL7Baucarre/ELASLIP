@@ -154,9 +154,7 @@ class ToolsService:
                 timeout=600  # 10 minutes timeout
             )
             
-            # Log for debugging
             import sys
-            print(f"NMAP DEBUG: returncode={result.returncode}, stdout_len={len(result.stdout)}, stderr_len={len(result.stderr)}", file=sys.stderr)
             if result.stderr:
                 print(f"NMAP STDERR: {result.stderr}", file=sys.stderr)
             
@@ -655,11 +653,6 @@ class ToolsService:
             
             output = result.stdout + result.stderr
             raw_output = output
-            
-            # Log for debugging
-            import sys
-            print(f"PING DEBUG: system={system}, output_len={len(output)}, returncode={result.returncode}", file=sys.stderr)
-            print(f"PING OUTPUT:\n{output}", file=sys.stderr)
             
             # Check for actual connectivity - even if return code != 0, may have partial results
             packets_received = 0

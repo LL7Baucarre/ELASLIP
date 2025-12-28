@@ -186,9 +186,7 @@ def dashboard():
     try:
         recent = ioc_service.list(page=1, per_page=5)
         import sys
-        print(f"DEBUG: recent dict keys: {recent.keys()}", file=sys.stderr)
-        print(f"DEBUG: recent total: {recent.get('total')}", file=sys.stderr)
-        print(f"DEBUG: recent items count: {len(recent.get('items', []))}", file=sys.stderr)
+
         template_iocs = [make_ioc_template_friendly(ioc) for ioc in recent.get('items', [])]
     except Exception as e:
         import sys
@@ -254,7 +252,6 @@ def dashboard():
             'updated_at': ioc.get('modified', ioc.get('created', ''))
         }
         import sys
-        print(f"DEBUG IOC entry: {entry}", file=sys.stderr)
         all_recent.append(entry)
     for case in recent_cases:
         all_recent.append({
@@ -442,38 +439,6 @@ def get_graph_data():
         'count': len(nodes),
         'relations_count': len(edges)
     })
-
-
-@main_bp.route('/api/debug/relations')
-@login_required
-def debug_relations():
-    """Debug endpoint to check relations in Elasticsearch."""
-    service = IOCService()
-    
-    try:
-        all_relations = service.es.search(
-            'ioc_relations',
-            {'size': 100, 'query': {'match_all': {}}}
-        )
-        
-        relations_list = []
-        for rel in all_relations.get('hits', {}).get('hits', []):
-            relations_list.append({
-                'id': rel.get('_id'),
-                'data': rel.get('_source', {})
-            })
-        
-        return jsonify({
-            'total': all_relations.get('hits', {}).get('total', {}).get('value', 0),
-            'relations': relations_list
-        })
-    except Exception as e:
-        import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        })
-
 
 @main_bp.route('/api/iocs/<ioc_id>/graph-data')
 @login_required

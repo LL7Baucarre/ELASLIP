@@ -526,29 +526,29 @@ class IOCService(BaseListService):
         query = {"bool": {"must": []}}
         
         if ioc_type:
-            query["bool"]["must"].append({"term": {"ioc_type": ioc_type}})
+            query["bool"]["must"].append({"term": {"x_metadata.ioc_type": ioc_type}})
         
         if labels:
             for label in labels:
                 query["bool"]["must"].append({"term": {"labels": label}})
         
         if tlp:
-            query["bool"]["must"].append({"term": {"tlp": tlp}})
+            query["bool"]["must"].append({"term": {"x_metadata.tlp": tlp}})
         
         if threat_level:
-            query["bool"]["must"].append({"term": {"threat_level": threat_level}})
+            query["bool"]["must"].append({"term": {"x_metadata.threat_level": threat_level}})
         
         if confidence:
             query["bool"]["must"].append({"term": {"confidence": confidence}})
         
         if campaigns:
-            query["bool"]["must"].append({"term": {"campaigns": campaigns}})
+            query["bool"]["must"].append({"term": {"x_metadata.campaigns": campaigns}})
         
         if source:
             query["bool"]["must"].append({
                 "nested": {
-                    "path": "sources",
-                    "query": {"term": {"sources.name": source}}
+                    "path": "x_metadata.sources",
+                    "query": {"term": {"x_metadata.sources.name": source}}
                 }
             })
         

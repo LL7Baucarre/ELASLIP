@@ -714,13 +714,21 @@ def list_iocs():
         'confidence': None
     })
     
-    if labels:
-        filters['labels'] = labels
-    if campaigns:
-        filters['campaigns'] = campaigns
+    # Map 'type' parameter to 'ioc_type' for service method
+    if 'type' in filters:
+        filters['ioc_type'] = filters.pop('type')
     
     service = IOCService()
-    result = service.list(page=page, per_page=per_page, **filters)
+    result = service.list(
+        page=page, 
+        per_page=per_page,
+        ioc_type=filters.get('ioc_type'),
+        tlp=filters.get('tlp'),
+        threat_level=filters.get('threat_level'),
+        confidence=filters.get('confidence'),
+        labels=labels if labels else None,
+        campaigns=campaigns if campaigns else None
+    )
     
     return jsonify(result)
 

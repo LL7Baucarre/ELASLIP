@@ -47,6 +47,9 @@ class Config:
     WEBHOOK_MAX_RETRIES = 3
     WEBHOOK_RETRY_DELAY = 5  # seconds
     
+    # Logging
+    LOG_LEVEL = os.getenv('LOG_LEVEL', 'DEBUG').upper()
+    
     # Upload settings
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     

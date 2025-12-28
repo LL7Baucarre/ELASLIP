@@ -1,5 +1,6 @@
 """Service for generating reports using LLM (Ollama or OpenAI-compatible)."""
 
+import json
 import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -828,6 +829,58 @@ class ReportService:
                     refs_list.append(f"- {source}")
             refs_text = '\n'.join(refs_list)
         
+        # Extract enrichment data (stored in x_enrichment.api_results or x_enrichment)
+        enrichment_section = ""
+        x_enrichment = ioc.get('x_enrichment', {})
+        
+        if x_enrichment:
+            enrichment_items = []
+            
+            # Check for api_results (array of results)
+            api_results = x_enrichment.get('api_results', [])
+            if isinstance(api_results, list):
+                for api_result in api_results:
+                    if isinstance(api_result, dict):
+                        api_name = api_result.get('api_name', 'Unknown API')
+                        items = []
+                        for key, value in api_result.items():
+                            if key not in ['timestamp', 'api_name', 'success', 'error'] and value is not None:
+                                # Format value for readability
+                                if isinstance(value, (list, dict)):
+                                    value_str = json.dumps(value, indent=2) if isinstance(value, dict) else ', '.join(map(str, value))
+                                else:
+                                    value_str = str(value)
+                                items.append(f"  - {key}: {value_str}")
+                        
+                        if items:
+                            enrichment_items.append(f"**{api_name}**:\n" + '\n'.join(items))
+            
+            # Also check for other top-level enrichment keys (not api_results, enriched_at, enriched_by)
+            for key, value in x_enrichment.items():
+                if key not in ['api_results', 'enriched_at', 'enriched_by', 'timestamp'] and isinstance(value, dict):
+                    # This might be API data structured differently
+                    items = []
+                    for subkey, subvalue in value.items():
+                        if subkey not in ['timestamp'] and subvalue is not None:
+                            if isinstance(subvalue, (list, dict)):
+                                subvalue_str = json.dumps(subvalue, indent=2) if isinstance(subvalue, dict) else ', '.join(map(str, subvalue))
+                            else:
+                                subvalue_str = str(subvalue)
+                            items.append(f"  - {subkey}: {subvalue_str}")
+                    
+                    if items:
+                        enrichment_items.append(f"**{key}**:\n" + '\n'.join(items))
+            
+            if enrichment_items:
+                enrichment_section = f"""
+
+## Enrichment Data from External APIs
+
+This indicator has been enriched with data from the following external sources:
+
+{chr(10).join(enrichment_items)}
+"""
+        
         # Build a more detailed prompt that emphasizes relations
         relations_section = ""
         if relations:
@@ -845,6 +898,19 @@ IMPORTANT: You MUST analyze each of the {len(relations)} related indicators list
 """
         
         language_instruction = self._get_language_instruction()
+        
+        # Build enrichment analysis prompt if data exists
+        enrichment_analysis_prompt = ""
+        if enrichment_section:
+            enrichment_analysis_prompt = """
+**CRITICAL ANALYSIS REQUIREMENT**: This indicator has been enriched with external intelligence data (shown above in "Enrichment Data from External APIs" section). You MUST:
+- Analyze each data point from the enrichment sources
+- Explain what each enriched attribute tells us about the threat
+- Compare the enriched data with the base threat level to determine if the threat is higher or lower
+- Use specific numbers and findings from the enrichment data
+- Highlight any concerning patterns or signatures found during enrichment
+"""
+        
         return language_instruction + f"""Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
 
 ## IOC Details
@@ -870,15 +936,38 @@ IMPORTANT: You MUST analyze each of the {len(relations)} related indicators list
 - **Created**: {ioc.get('created', ioc.get('created_at', 'Unknown'))}
 - **Modified**: {ioc.get('modified', ioc.get('modified_at', 'Unknown'))}
 - **Status**: {x_metadata.get('status', ioc.get('status', 'Active'))}
-{f"- **External References**:" + chr(10) + refs_text if refs_text else ""}
+{f"- **External References**:" + chr(10) + refs_text if refs_text else ""}{enrichment_section}
 {relations_section}
 
+## Analysis Instructions
+
+{enrichment_analysis_prompt}
+
 Please provide in **Markdown format**:
-1. What this indicator represents and its role in potential attacks
-2. Potential threats it indicates based on its type and severity
-3. Analysis of how related indicators amplify or contextualize this threat (CRITICAL: mention each related indicator and how it connects)
-4. Recommended mitigation and detection steps
-5. Summary of the threat landscape based on the indicator network"""
+
+1. **Indicator Overview**: What this indicator represents and its role in potential attacks
+
+2. **Base Threat Assessment**: Potential threats it indicates based on its type and severity level
+
+3. **Enrichment Intelligence Analysis** (IF ENRICHMENT DATA IS PRESENT): 
+   - Detailed analysis of each enrichment data source
+   - Specific findings from external APIs (e.g., detection ratios, reputation scores, ISP/geolocation)
+   - Impact of enrichment data on threat assessment
+   - Any suspicious patterns identified through enrichment
+
+4. **Related Indicators Analysis** (IF RELATED INDICATORS ARE PRESENT):
+   - How each related indicator connects to this threat
+   - How related indicators amplify or provide additional context to the threat
+   - Combined threat picture when considering all related indicators
+
+5. **Threat Level Justification**: Final threat assessment based on base data + enrichment + relations
+
+6. **Recommended Actions**: 
+   - Detection methods
+   - Mitigation strategies
+   - Monitoring recommendations
+
+7. **Summary**: Overall threat landscape and recommended priority level"""
     
     def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for case analysis."""

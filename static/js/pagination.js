@@ -194,3 +194,35 @@ function buildQueryString(params) {
     });
     return qs.toString();
 }
+/**
+ * Create per-page selector dropdown
+ * @param {number} currentPerPage - Current per_page value
+ * @param {function} onChangeCallback - Callback function when selection changes
+ * @returns {string} HTML for the selector
+ */
+function createPerPageSelector(currentPerPage, onChangeCallback) {
+    const options = [20, 50, 100];
+    let html = `<select class="form-select form-select-sm" style="width: auto; display: inline-block;" onchange="if(window.${onChangeCallback}) window.${onChangeCallback}(this.value);">`;
+    
+    options.forEach(opt => {
+        const selected = opt === currentPerPage ? 'selected' : '';
+        html += `<option value="${opt}" ${selected}>${opt} items</option>`;
+    });
+    
+    html += `</select>`;
+    return html;
+}
+
+/**
+ * Update page and per_page parameters in URL
+ * @param {number} page - New page number
+ * @param {number} perPage - New per_page value
+ */
+function updatePaginationParams(page = 1, perPage = null) {
+    const url = new URL(window.location);
+    url.searchParams.set('page', page);
+    if (perPage) {
+        url.searchParams.set('per_page', perPage);
+    }
+    window.location.href = url.toString();
+}
