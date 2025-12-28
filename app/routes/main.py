@@ -45,10 +45,49 @@ def make_ioc_template_friendly(ioc):
     
     # Create a wrapper that provides both STIX structure and convenience access
     class IOCWrapper(dict):
+        """
+        Wrapper for IOC documents supporting both old and new STIX 2.1 structure.
+        
+        Supports accessing fields from:
+        1. Direct root level (standard STIX 2.1 fields)
+        2. x_* prefixed fields (custom STIX 2.1 extensions)
+        3. x_metadata for backward compatibility (old structure)
+        
+        Provides transparent access to custom properties without needing x_ prefix or x_metadata nesting.
+        """
+        # Map convenience field names to their actual locations in the structure
+        FIELD_MAPPING = {
+            'threat_level': 'x_threat_level',  # New structure: x_threat_level at root
+            'tlp': 'x_tlp',
+            'campaigns': 'x_campaigns',
+            'risk_score': 'x_risk_score',
+            'status': 'x_status',
+            'ioc_type': 'x_ioc_type',
+            'ioc_value': 'x_ioc_value',
+            'value': 'x_ioc_value',  # Alias for ioc_value (template display)
+            'current_version': 'x_current_version',
+            'pattern_hash': 'x_pattern_hash',
+        }
+        
         def __getattribute__(self, name):
             # Avoid infinite recursion with internal methods
-            if name.startswith('_') or name in ('get', 'keys', 'values', 'items', 'pop', 'update', 'clear'):
+            if name.startswith('_') or name in ('get', 'keys', 'values', 'items', 'pop', 'update', 'clear', 'FIELD_MAPPING'):
                 return super().__getattribute__(name)
+            
+            # Check field mapping for convenient access without x_ prefix
+            mapping = super().__getattribute__('FIELD_MAPPING')
+            if name in mapping:
+                try:
+                    return dict.__getitem__(self, mapping[name])
+                except KeyError:
+                    # Try old structure for backward compatibility
+                    try:
+                        x_metadata = dict.__getitem__(self, 'x_metadata')
+                        if isinstance(x_metadata, dict) and name in x_metadata:
+                            return x_metadata[name]
+                    except KeyError:
+                        pass
+                    return None
             
             # Try direct dict access first
             try:
@@ -56,7 +95,7 @@ def make_ioc_template_friendly(ioc):
             except KeyError:
                 pass
             
-            # Then try x_metadata for custom fields
+            # Then try x_metadata for old structure compatibility
             try:
                 x_metadata = dict.__getitem__(self, 'x_metadata')
                 if isinstance(x_metadata, dict) and name in x_metadata:
@@ -68,13 +107,29 @@ def make_ioc_template_friendly(ioc):
             return super().__getattribute__(name)
         
         def __getitem__(self, key):
+            # Check field mapping for convenient access without x_ prefix
+            if key in self.FIELD_MAPPING:
+                mapped_key = self.FIELD_MAPPING[key]
+                # Try new structure first
+                try:
+                    return dict.__getitem__(self, mapped_key)
+                except KeyError:
+                    pass
+                # Try old structure for backward compatibility
+                try:
+                    x_metadata = dict.__getitem__(self, 'x_metadata')
+                    if isinstance(x_metadata, dict) and key in x_metadata:
+                        return x_metadata[key]
+                except KeyError:
+                    pass
+            
             # Direct key access from dict
             try:
                 return dict.__getitem__(self, key)
             except KeyError:
                 pass
             
-            # Try x_metadata for convenience fields (custom STIX properties)
+            # Try x_metadata for convenience fields (old structure)
             convenience_fields = {'ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 
                                 'risk_score', 'status', 'created_by', 'asn', 'country'}
             if key in convenience_fields:
@@ -96,26 +151,61 @@ def make_ioc_template_friendly(ioc):
     # Create wrapper from existing IOC dict
     wrapped = IOCWrapper(ioc)
     return wrapped
-
-
-def admin_required(f):
-    """Decorator to require admin privileges."""
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('Admin privileges required', 'error')
-            return redirect(url_for('main.dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 @main_bp.route('/')
 def index():
     """Landing page."""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     return redirect(url_for('auth.login'))
+
+
+@main_bp.route('/profile')
+@login_required
+def user_profile():
+    """User profile page."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es = ElasticsearchService()
+    user_id = str(current_user.id)
+    
+    # Get user activity count (last 30 days)
+    try:
+        from datetime import datetime, timedelta
+        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        activity_result = es.search('audit', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'user_id': user_id}},
+                        {'range': {'timestamp': {'gte': thirty_days_ago}}}
+                    ]
+                }
+            },
+            'size': 0
+        })
+        activity_count = activity_result['hits']['total']['value']
+    except:
+        activity_count = 0
+    
+    # Get user reports count (if applicable)
+    try:
+        reports_result = es.search('reports', {
+            'query': {'term': {'user_id': user_id}},
+            'size': 0
+        })
+        reports_count = reports_result['hits']['total']['value']
+    except:
+        reports_count = 0
+    
+    # Get user permissions
+    rbac = RBACService()
+    user_permissions = rbac.get_user_permissions(current_user)
+    
+    return render_template('auth/profile.html',
+                         user=current_user,
+                         activity_count=activity_count,
+                         reports_count=reports_count,
+                         user_permissions=user_permissions)
 
 
 @main_bp.route('/dashboard')
@@ -186,9 +276,7 @@ def dashboard():
     try:
         recent = ioc_service.list(page=1, per_page=5)
         import sys
-        print(f"DEBUG: recent dict keys: {recent.keys()}", file=sys.stderr)
-        print(f"DEBUG: recent total: {recent.get('total')}", file=sys.stderr)
-        print(f"DEBUG: recent items count: {len(recent.get('items', []))}", file=sys.stderr)
+
         template_iocs = [make_ioc_template_friendly(ioc) for ioc in recent.get('items', [])]
     except Exception as e:
         import sys
@@ -254,7 +342,6 @@ def dashboard():
             'updated_at': ioc.get('modified', ioc.get('created', ''))
         }
         import sys
-        print(f"DEBUG IOC entry: {entry}", file=sys.stderr)
         all_recent.append(entry)
     for case in recent_cases:
         all_recent.append({
@@ -298,6 +385,7 @@ def dashboard():
 
 @main_bp.route('/iocs')
 @login_required
+@permission_required('ioc.view', 'ioc.create', 'ioc.edit', require_all=False)
 def iocs_list():
     """IOC listing page."""
     return render_template('iocs/list.html')
@@ -305,6 +393,7 @@ def iocs_list():
 
 @main_bp.route('/iocs/add')
 @login_required
+@permission_required('ioc.create')
 def iocs_add():
     """Add IOC page."""
     return render_template('iocs/add.html')
@@ -312,6 +401,7 @@ def iocs_add():
 
 @main_bp.route('/iocs/<ioc_id>')
 @login_required
+@permission_required('ioc.view')
 def iocs_detail(ioc_id):
     """IOC detail page."""
     service = IOCService()
@@ -334,11 +424,15 @@ def iocs_detail(ioc_id):
                 'api_results': x_enrichment.get('api_results', [])
             }
     
-    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data)
+    # Get STIX 2.1 compliant version (without backward-compat aliases) for JSON display
+    stix_json = service.get_stix_compliant(ioc_id)
+    
+    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data, stix_json=stix_json)
 
 
 @main_bp.route('/iocs/graph')
 @login_required
+@permission_required('ioc.relations.view')
 def iocs_graph():
     """IOC graph visualization page."""
     return render_template('iocs/graph.html')
@@ -442,38 +536,6 @@ def get_graph_data():
         'count': len(nodes),
         'relations_count': len(edges)
     })
-
-
-@main_bp.route('/api/debug/relations')
-@login_required
-def debug_relations():
-    """Debug endpoint to check relations in Elasticsearch."""
-    service = IOCService()
-    
-    try:
-        all_relations = service.es.search(
-            'ioc_relations',
-            {'size': 100, 'query': {'match_all': {}}}
-        )
-        
-        relations_list = []
-        for rel in all_relations.get('hits', {}).get('hits', []):
-            relations_list.append({
-                'id': rel.get('_id'),
-                'data': rel.get('_source', {})
-            })
-        
-        return jsonify({
-            'total': all_relations.get('hits', {}).get('total', {}).get('value', 0),
-            'relations': relations_list
-        })
-    except Exception as e:
-        import traceback
-        return jsonify({
-            'error': str(e),
-            'traceback': traceback.format_exc()
-        })
-
 
 @main_bp.route('/api/iocs/<ioc_id>/graph-data')
 @login_required
@@ -584,6 +646,7 @@ def get_ioc_graph_data(ioc_id):
 
 @main_bp.route('/search')
 @login_required
+@permission_required('search.advanced')
 def search_page():
     """Search page."""
     return render_template('search.html')
@@ -591,6 +654,7 @@ def search_page():
 
 @main_bp.route('/import')
 @login_required
+@permission_required('ioc.import')
 def import_page():
     """Import page."""
     return render_template('import.html')
@@ -613,7 +677,7 @@ def settings():
 
 @main_bp.route('/api/settings', methods=['GET', 'PUT'])
 @login_required
-@admin_required
+@permission_required('admin.settings.view', 'admin.settings.edit')
 def api_settings():
     """Get or update site settings (admin only)."""
     if request.method == 'GET':
@@ -651,6 +715,7 @@ def api_settings():
 
 @main_bp.route('/settings/api-keys')
 @login_required
+@permission_required('api.keys.view')
 def settings_api_keys():
     """API Keys settings page."""
     return render_template('settings/api_keys.html')
@@ -658,6 +723,7 @@ def settings_api_keys():
 
 @main_bp.route('/settings/external-apis')
 @login_required
+@permission_required('api.external.view')
 def settings_external_apis():
     """External APIs settings page."""
     return render_template('settings/external_apis.html')
@@ -665,6 +731,7 @@ def settings_external_apis():
 
 @main_bp.route('/settings/webhooks')
 @login_required
+@permission_required('webhook.view')
 def settings_webhooks():
     """Webhooks settings page."""
     return render_template('settings/webhooks.html')
@@ -672,7 +739,7 @@ def settings_webhooks():
 
 @main_bp.route('/settings/roles')
 @login_required
-@admin_required
+@permission_required('admin.roles.manage')
 def settings_roles():
     """Roles and permissions management page (admin only)."""
     return render_template('settings/roles.html')
@@ -680,7 +747,7 @@ def settings_roles():
 
 @main_bp.route('/settings/scheduled-tasks')
 @login_required
-@admin_required
+@permission_required('admin.tasks.manage')
 def settings_scheduled_tasks():
     """Scheduled tasks settings page (admin only)."""
     return render_template('settings/scheduled_tasks.html')
@@ -688,7 +755,7 @@ def settings_scheduled_tasks():
 
 @main_bp.route('/settings/llm')
 @login_required
-@admin_required
+@permission_required('admin.llm.manage')
 def settings_llm():
     """LLM report settings page (admin only)."""
     from app.config import Config
@@ -704,7 +771,7 @@ def reports_dashboard():
 
 @main_bp.route('/api/scheduled-tasks/run', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.execute')
 def run_scheduled_task():
     """Run a scheduled task manually."""
     from app.tasks.expiration_tasks import (
@@ -761,7 +828,7 @@ def run_scheduled_task():
 
 @main_bp.route('/api/scheduled-tasks/history', methods=['GET'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.history')
 def get_task_history():
     """Get recent task execution history."""
     from app.services.elasticsearch_service import ElasticsearchService
@@ -788,7 +855,7 @@ def get_task_history():
 
 @main_bp.route('/api/scheduled-tasks/config', methods=['GET', 'PUT'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.config')
 def task_config():
     """Get or update task configuration."""
     from app.services.elasticsearch_service import ElasticsearchService
@@ -833,7 +900,7 @@ def api_docs():
 
 @main_bp.route('/admin/users')
 @login_required
-@admin_required
+@permission_required('admin.users.view')
 def users_management():
     """User management page (admin only)."""
     users = User.get_all()
@@ -842,7 +909,7 @@ def users_management():
 
 @main_bp.route('/admin/users/create', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.create')
 def create_user():
     """Create a new user (admin only)."""
     # Handle both JSON and form data
@@ -895,7 +962,7 @@ def create_user():
 
 @main_bp.route('/admin/users/<user_id>/edit', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.edit')
 def edit_user(user_id):
     """Edit user (admin only)."""
     user = User.get_by_id(user_id)
@@ -967,7 +1034,7 @@ def edit_user(user_id):
 
 @main_bp.route('/admin/users/<user_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.delete')
 def delete_user(user_id):
     """Delete user (admin only)."""
     if user_id == current_user.id:
@@ -999,6 +1066,7 @@ def delete_user(user_id):
 
 @main_bp.route('/cases')
 @login_required
+@permission_required('case.view', 'case.create', require_all=False)
 def cases_list():
     """Cases listing page."""
     return render_template('cases/list.html')
@@ -1006,6 +1074,7 @@ def cases_list():
 
 @main_bp.route('/cases/new')
 @login_required
+@permission_required('case.create')
 def cases_new():
     """Create new case page."""
     return render_template('cases/new.html')
@@ -1013,6 +1082,7 @@ def cases_new():
 
 @main_bp.route('/cases/<case_id>')
 @login_required
+@permission_required('case.view')
 def cases_detail(case_id):
     """Case detail page."""
     from app.services.case_service import CaseService
@@ -1028,6 +1098,7 @@ def cases_detail(case_id):
 
 @main_bp.route('/incidents')
 @login_required
+@permission_required('incident.view', 'incident.create', require_all=False)
 def incidents_list():
     """Incidents listing page."""
     return render_template('incidents/list.html')
@@ -1035,6 +1106,7 @@ def incidents_list():
 
 @main_bp.route('/incidents/new')
 @login_required
+@permission_required('incident.create')
 def incidents_new():
     """Create new incident page."""
     return render_template('incidents/new.html')
@@ -1042,6 +1114,7 @@ def incidents_new():
 
 @main_bp.route('/incidents/<incident_id>')
 @login_required
+@permission_required('incident.view')
 def incidents_detail(incident_id):
     """Incident detail page with report editor."""
     from app.services.case_service import IncidentService
@@ -1065,6 +1138,7 @@ def snippets_library():
 
 @main_bp.route('/report')
 @login_required
+@permission_required('report.view')
 def view_report():
     """View generated report page."""
     return render_template('report.html')

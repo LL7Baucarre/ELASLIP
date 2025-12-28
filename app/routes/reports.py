@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request, abort, render_template
 from flask_login import login_required, current_user
-from app.auth import permission_required
+from app.decorators import permission_required
 from app.services.report_service import ReportService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.config import Config
@@ -85,8 +85,38 @@ def get_report_config():
     })
 
 
+@bp.route('/api/reports/default-prompts', methods=['GET'])
+@login_required
+def get_default_prompts():
+    """
+    Get default prompts for all report types (for reference in UI)
+    ---
+    tags:
+      - Reports
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Default prompts for IOC, Case, Incident, and Checklist
+        schema:
+          type: object
+          properties:
+            ioc:
+              type: string
+            case:
+              type: string
+            incident:
+              type: string
+            checklist:
+              type: string
+    """
+    default_prompts = report_service.get_default_prompts()
+    return jsonify(default_prompts)
+
+
 @bp.route('/api/reports/test-connection', methods=['POST'])
 @login_required
+@permission_required('admin.settings.view')
 def test_llm_connection():
     """
     Test LLM connection and get available models (Admin only)
@@ -241,6 +271,7 @@ def test_llm_connection():
 
 @bp.route('/api/reports/available-models', methods=['POST'])
 @login_required
+@permission_required('admin.settings.view')
 def get_available_models():
     """
     Get available LLM models from server (Admin only)
@@ -396,6 +427,7 @@ def get_available_models():
 
 @bp.route('/api/reports/config', methods=['POST'])
 @login_required
+@permission_required('admin.settings.edit')
 def update_report_config():
     """
     Update LLM configuration (Admin only)
@@ -800,8 +832,6 @@ def generate_checklist_report(checklist_id):
             'message': 'Report generation started'
         })
     except Exception as e:
-        import sys
-        print(f"DEBUG: Error in generate_checklist_report: {str(e)}", file=sys.stderr)
         return jsonify({'error': str(e)}), 500
 
 
@@ -953,17 +983,25 @@ def get_report_status(task_id):
     try:
         response = es_service.get('elasmisp_app_config', f'report_{task_id}')
         if not response or not response.get('found'):
-            return jsonify({'error': 'Report not found'}), 404
+            return jsonify({'error': 'Report not found', 'status': 'not_found'}), 404
         
         config = response.get('_source', {})
         
         # Check if user has permission to view this report
         if config.get('user_id') != current_user.username and not current_user.is_admin:
-            return jsonify({'error': 'Access denied'}), 403
+            return jsonify({'error': 'Access denied', 'status': 'forbidden'}), 403
+        
+        # Ensure error messages are strings (not complex objects)
+        if 'error' in config and config['error'] is not None:
+            config['error'] = str(config['error'])
         
         return jsonify(config)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'error': str(e),
+            'status': 'error',
+            'message': 'Failed to retrieve report status'
+        }), 500
 
 
 @bp.route('/api/reports/list', methods=['GET'])
@@ -1123,13 +1161,11 @@ def view_report(task_id):
         
         return jsonify(report_data)
     except Exception as e:
-        import sys, traceback
-        print(f"DEBUG: Exception in view_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @bp.route('/api/reports/<task_id>', methods=['DELETE'])
 @login_required
+@permission_required('report.delete')
 def delete_report(task_id):
     """
     Delete a generated report
@@ -1188,7 +1224,4 @@ def delete_report(task_id):
         
         return jsonify({'success': True, 'message': 'Report deleted successfully'})
     except Exception as e:
-        import sys, traceback
-        print(f"DEBUG: Exception in delete_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
         return jsonify({'error': str(e)}), 500

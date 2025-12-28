@@ -116,31 +116,93 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="custom_prompt_ioc" class="form-label">Custom IOC Report Prompt (Optional)</label>
+                        <label for="custom_prompt_ioc" class="form-label">Custom IOC Report Prompt</label>
                         <textarea class="form-control" id="custom_prompt_ioc" name="custom_prompt_ioc" 
-                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {type}, {value}, {severity}, {description}, {relations}"></textarea>
-                        <small class="text-muted">Custom prompt template for IOC analysis</small>
+                                  rows="8" placeholder="Custom prompt template for IOC analysis"></textarea>
+                        <small class="text-muted d-block mt-2">Custom prompt template for IOC analysis</small>
+                        <div class="bg-light p-3 rounded mt-2" style="font-size: 0.9rem;">
+                            <strong>Available Variables:</strong>
+                            <div class="mt-2">
+                                <code>{type}</code> - IOC type (e.g., ipv4, domain, sha256)<br/>
+                                <code>{value}</code> - IOC value (e.g., IP address, domain name, hash)<br/>
+                                <code>{severity}</code> - Threat level (critical, high, medium, low, informational)<br/>
+                                <code>{description}</code> - IOC description<br/>
+                                <code>{relations}</code> - Related IOCs information
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="restoreDefaultPrompt('ioc')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Default
+                        </button>
                     </div>
 
                     <div class="mb-3">
-                        <label for="custom_prompt_case" class="form-label">Custom Case Report Prompt (Optional)</label>
+                        <label for="custom_prompt_case" class="form-label">Custom Case Report Prompt</label>
                         <textarea class="form-control" id="custom_prompt_case" name="custom_prompt_case" 
-                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {name}, {status}, {priority}, {description}, {incidents_count}, {incidents}, {iocs_count}, {iocs}"></textarea>
-                        <small class="text-muted">Custom prompt template for case analysis</small>
+                                  rows="8" placeholder="Custom prompt template for case analysis"></textarea>
+                        <small class="text-muted d-block mt-2">Custom prompt template for case analysis</small>
+                        <div class="bg-light p-3 rounded mt-2" style="font-size: 0.9rem;">
+                            <strong>Available Variables:</strong>
+                            <div class="mt-2">
+                                <code>{name}</code> - Case name/title<br/>
+                                <code>{status}</code> - Case status (open, investigating, resolved, closed)<br/>
+                                <code>{priority}</code> - Priority level<br/>
+                                <code>{description}</code> - Case description<br/>
+                                <code>{incidents_count}</code> - Number of associated incidents<br/>
+                                <code>{incidents}</code> - Formatted list of incidents<br/>
+                                <code>{iocs_count}</code> - Number of indicators<br/>
+                                <code>{iocs}</code> - Formatted list of IOCs
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="restoreDefaultPrompt('case')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Default
+                        </button>
                     </div>
 
                     <div class="mb-3">
-                        <label for="custom_prompt_incident" class="form-label">Custom Incident Report Prompt (Optional)</label>
+                        <label for="custom_prompt_incident" class="form-label">Custom Incident Report Prompt</label>
                         <textarea class="form-control" id="custom_prompt_incident" name="custom_prompt_incident" 
-                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {name}, {description}, {type}, {severity}, {status}, {iocs_count}, {iocs}"></textarea>
-                        <small class="text-muted">Custom prompt template for incident analysis</small>
+                                  rows="8" placeholder="Custom prompt template for incident analysis"></textarea>
+                        <small class="text-muted d-block mt-2">Custom prompt template for incident analysis</small>
+                        <div class="bg-light p-3 rounded mt-2" style="font-size: 0.9rem;">
+                            <strong>Available Variables:</strong>
+                            <div class="mt-2">
+                                <code>{name}</code> - Incident title/name<br/>
+                                <code>{description}</code> - Incident description<br/>
+                                <code>{type}</code> - Incident category/type<br/>
+                                <code>{severity}</code> - Severity level (critical, high, medium, low)<br/>
+                                <code>{status}</code> - Current status (open, investigating, resolved, closed)<br/>
+                                <code>{iocs_count}</code> - Number of associated IOCs<br/>
+                                <code>{iocs}</code> - Formatted list of indicators
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="restoreDefaultPrompt('incident')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Default
+                        </button>
                     </div>
 
                     <div class="mb-3">
-                        <label for="custom_prompt_checklist" class="form-label">Custom Checklist Report Prompt (Optional)</label>
+                        <label for="custom_prompt_checklist" class="form-label">Custom Checklist Report Prompt</label>
                         <textarea class="form-control" id="custom_prompt_checklist" name="custom_prompt_checklist" 
-                                  rows="4" placeholder="Leave empty to use default prompt.&#10;Available variables: {name}, {description}, {items_count}, {items}"></textarea>
-                        <small class="text-muted">Custom prompt template for checklist analysis</small>
+                                  rows="8" placeholder="Custom prompt template for checklist analysis"></textarea>
+                        <small class="text-muted d-block mt-2">Custom prompt template for checklist analysis</small>
+                        <div class="bg-light p-3 rounded mt-2" style="font-size: 0.9rem;">
+                            <strong>Available Variables:</strong>
+                            <div class="mt-2">
+                                <code>{title}</code> - Checklist title/name<br/>
+                                <code>{description}</code> - Checklist description<br/>
+                                <code>{items}</code> - Formatted list of completed work items<br/>
+                                <code>{tags}</code> - Associated tags<br/>
+                                <code>{campaigns}</code> - Associated security campaigns<br/>
+                                <code>{related_cases}</code> - Related case names<br/>
+                                <code>{related_incidents}</code> - Related incident names<br/>
+                                <code>{assigned_to}</code> - Name of assigned team member<br/>
+                                <code>{created_by}</code> - Creator name<br/>
+                                <code>{global_comments}</code> - Team observations and comments
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="restoreDefaultPrompt('checklist')">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Restore Default
+                        </button>
                     </div>
 
                     <button type="button" class="btn btn-primary" onclick="saveLLMConfig()">
@@ -208,10 +270,17 @@ async function loadLLMConfig() {
         document.getElementById('url').value = data.url || 'http://ollama:11434';
         document.getElementById('api_key').value = '';  // Don't show password
         document.getElementById('generation_language').value = data.generation_language || 'en';
-        document.getElementById('custom_prompt_ioc').value = data.custom_prompt_ioc || '';
-        document.getElementById('custom_prompt_case').value = data.custom_prompt_case || '';
-        document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || '';
-        document.getElementById('custom_prompt_checklist').value = data.custom_prompt_checklist || '';
+        
+        // Load default prompts first
+        if (Object.keys(defaultPrompts).length === 0) {
+            await loadDefaultPrompts();
+        }
+        
+        // Load custom prompts or use defaults if empty
+        document.getElementById('custom_prompt_ioc').value = data.custom_prompt_ioc || defaultPrompts.ioc || '';
+        document.getElementById('custom_prompt_case').value = data.custom_prompt_case || defaultPrompts.case || '';
+        document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || defaultPrompts.incident || '';
+        document.getElementById('custom_prompt_checklist').value = data.custom_prompt_checklist || defaultPrompts.checklist || '';
         
         // Store the actual API key and lock if it exists
         currentApiKey = data.api_key || '';
@@ -226,16 +295,19 @@ async function loadLLMConfig() {
         updateProviderUI();
     } catch (error) {
         console.error('Error loading config:', error);
-        // Set defaults if loading fails
+        // Load default prompts even if config fails
+        if (Object.keys(defaultPrompts).length === 0) {
+            await loadDefaultPrompts();
+        }
         document.getElementById('enabled').checked = false;
         document.getElementById('provider').value = 'auto';
         document.getElementById('url').value = 'http://ollama:11434';
         document.getElementById('api_key').value = '';
         document.getElementById('generation_language').value = 'en';
-        document.getElementById('custom_prompt_ioc').value = '';
-        document.getElementById('custom_prompt_case').value = '';
-        document.getElementById('custom_prompt_incident').value = '';
-        document.getElementById('custom_prompt_checklist').value = '';
+        document.getElementById('custom_prompt_ioc').value = defaultPrompts.ioc || '';
+        document.getElementById('custom_prompt_case').value = defaultPrompts.case || '';
+        document.getElementById('custom_prompt_incident').value = defaultPrompts.incident || '';
+        document.getElementById('custom_prompt_checklist').value = defaultPrompts.checklist || '';
         
         // Load available models with default URL
         await loadAvailableModels('http://ollama:11434', 'mistral', 'auto');
@@ -499,6 +571,10 @@ function unlockApiKeyUI() {
     apiKeyInput.focus();
 }
 
+function showNotification(message, type) {
+    showTopRightNotification(message, type);
+}
+
 function showTopRightNotification(message, type) {
     // Create notification container if it doesn't exist
     let container = document.getElementById('topRightNotifications');
@@ -531,5 +607,45 @@ function showTopRightNotification(message, type) {
         notification.remove();
     }, 8000);
 }
+
+// Store for default prompts
+let defaultPrompts = {};
+
+// Load default prompts on page load
+async function loadDefaultPrompts() {
+    try {
+        const response = await fetch('/api/reports/default-prompts');
+        if (response.ok) {
+            defaultPrompts = await response.json();
+            console.log('Default prompts loaded successfully');
+        }
+    } catch (error) {
+        console.error('Error loading default prompts:', error);
+    }
+}
+
+// Restore default prompt in textarea
+async function restoreDefaultPrompt(type) {
+    if (!defaultPrompts[type]) {
+        if (Object.keys(defaultPrompts).length === 0) {
+            await loadDefaultPrompts();
+        }
+    }
+    
+    const textareaId = `custom_prompt_${type}`;
+    const textarea = document.getElementById(textareaId);
+    
+    if (defaultPrompts[type]) {
+        textarea.value = defaultPrompts[type];
+        showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} prompt restored to default`, 'success');
+    } else {
+        showNotification('Error: Default prompt not found', 'warning');
+    }
+}
+
+// Load default prompts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadDefaultPrompts();
+}, { once: true });
 </script>
 {% endblock %}

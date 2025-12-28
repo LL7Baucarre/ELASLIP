@@ -683,10 +683,21 @@ def get_scan(scan_id):
     if scan['user_id'] != g.current_user.id:
         return jsonify({'error': 'Not authorized'}), 403
     
+    # Preserve raw_output before any transformations
+    raw_output = scan.get('raw_output', '')
+    import sys
+    print(f"DEBUG: Scan tool={scan.get('tool')}, raw_output_length={len(raw_output) if raw_output else 0}, raw_output_type={type(raw_output)}", file=sys.stderr)
+    print(f"DEBUG: Scan keys in ES: {list(scan.keys())}", file=sys.stderr)
+    
     # Flatten the structure - move nested 'result' fields to root level for frontend compatibility
     if 'result' in scan:
         nested_result = scan.pop('result')
+        print(f"DEBUG: nested_result keys: {list(nested_result.keys())}", file=sys.stderr)
         scan.update(nested_result)
+    
+    # Ensure raw_output is available at root level
+    if raw_output:
+        scan['raw_output'] = raw_output
     
     scan['id'] = scan_id
     return jsonify(scan)

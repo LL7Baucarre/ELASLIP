@@ -4,56 +4,189 @@
 
 {% block content %}
 <div class="top-bar">
-    <h4 class="mb-0">My Profile</h4>
+    <div>
+        <h4 class="mb-0"><i class="bi bi-person-circle me-2"></i>My Profile</h4>
+        <small class="text-muted">Manage your account and settings</small>
+    </div>
 </div>
 
 <div class="row">
-    <div class="col-md-6">
-        <div class="card">
+    <!-- Account Information -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
             <div class="card-header bg-white">
                 <h6 class="mb-0">Account Information</h6>
             </div>
             <div class="card-body">
-                <table class="table table-borderless">
-                    <tr>
-                        <th width="30%">Username</th>
-                        <td>{{ user.username }}</td>
-                    </tr>
-                    <tr>
-                        <th>Email</th>
-                        <td>{{ user.email }}</td>
-                    </tr>
-                    <tr>
-                        <th>Created</th>
-                        <td>{{ user.created_at[:10] if user.created_at else 'N/A' }}</td>
-                    </tr>
-                </table>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">Username</label>
+                        <p class="fs-5"><strong>{{ user.username }}</strong></p>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">Email</label>
+                        <p class="fs-5"><strong>{{ user.email or 'Not set' }}</strong></p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted">Account Created</label>
+                        <p class="fs-5"><strong>{{ user.created_at[:10] if user.created_at else 'N/A' }}</strong></p>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-md-6">
-        <div class="card">
+
+        <!-- Role & Permissions -->
+        <div class="card mb-4">
             <div class="card-header bg-white">
-                <h6 class="mb-0">Quick Links</h6>
+                <h6 class="mb-0">Role & Permissions</h6>
             </div>
             <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('main.settings_api_keys') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-key me-2"></i> Manage API Keys
-                    </a>
-                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-plug me-2"></i> External APIs
-                    </a>
-                    <a href="{{ url_for('main.settings_webhooks') }}" class="btn btn-outline-info">
-                        <i class="bi bi-broadcast me-2"></i> Webhooks
-                    </a>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger">
-                        <i class="bi bi-box-arrow-right me-2"></i> Logout
-                    </a>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Role</label>
+                        <p class="fs-5">
+                            <span class="badge bg-primary">{{ user.role.title() if user.role else 'Viewer' }}</span>
+                            {% if user.is_admin %}
+                            <span class="badge bg-danger">Administrator</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted">Total Permissions</label>
+                        <p class="fs-5"><strong>{{ user_permissions|length }}</strong></p>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label text-muted">Permission Summary</label>
+                    <div id="permissionsContainer">
+                        <!-- Permissions will be grouped by category here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Stats -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-muted mb-2">Recent Activity</h5>
+                        <h3 class="mb-0">{{ activity_count }}</h3>
+                        <small class="text-muted">Actions (last 30 days)</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-muted mb-2">Reports Generated</h5>
+                        <h3 class="mb-0">{{ reports_count }}</h3>
+                        <small class="text-muted">LLM Reports</small>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.settings_api_keys') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-key me-2"></i> API Keys
+                    </a>
+                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-plug me-2"></i> External APIs
+                    </a>
+                    <a href="{{ url_for('main.settings_webhooks') }}" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-broadcast me-2"></i> Webhooks
+                    </a>
+                    {% if current_user.is_admin %}
+                    <a href="{{ url_for('main.settings_roles') }}" class="btn btn-outline-warning btn-sm">
+                        <i class="bi bi-shield-lock me-2"></i> Roles
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">Account Settings</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.settings') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-sliders me-2"></i> Full Settings
+                    </a>
+                    <a href="{{ url_for('main.activity_timeline') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-clock-history me-2"></i> Activity Log
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logout -->
+        <div class="card border-danger">
+            <div class="card-header bg-danger bg-opacity-10">
+                <h6 class="mb-0 text-danger">Logout</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">Leave your account and logout from all sessions.</p>
+                <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm w-100">
+                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const permissions = {{ user_permissions|tojson }};
+    
+    // Group permissions by category
+    const grouped = {};
+    permissions.forEach(perm => {
+        const category = perm.split('.')[0].toUpperCase();
+        if (!grouped[category]) {
+            grouped[category] = [];
+        }
+        grouped[category].push(perm);
+    });
+    
+    // Build HTML
+    const container = document.getElementById('permissionsContainer');
+    let html = '';
+    
+    Object.entries(grouped).forEach(([category, perms]) => {
+        html += `
+            <div class="mb-3">
+                <h6 class="text-uppercase text-muted" style="font-size: 0.8rem; font-weight: 600;">
+                    ${category} <span class="badge bg-secondary">${perms.length}</span>
+                </h6>
+                <div>
+        `;
+        
+        perms.forEach(perm => {
+            html += `<span class="badge bg-light text-dark me-1 mb-1">${perm.split('.').slice(1).join('.')}</span>`;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html || '<p class="text-muted">No permissions assigned</p>';
+});
+</script>
 {% endblock %}

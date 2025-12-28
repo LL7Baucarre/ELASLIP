@@ -21,9 +21,16 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="finops-tab" data-bs-toggle="tab" data-bs-target="#finops-pane" type="button" role="tab" aria-controls="finops-pane" aria-selected="false">
-            <i class="fas fa-chart-line me-2"></i>FinOps (LLM Tokens)
+            <i class="fas fa-chart-line me-2"></i>LLM Usage
         </button>
     </li>
+    {% if has_any_permission('admin.elasticsearch.stats', 'audit.view') %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="elasticsearch-tab" data-bs-toggle="tab" data-bs-target="#elasticsearch-pane" type="button" role="tab" aria-controls="elasticsearch-pane" aria-selected="false">
+            <i class="fas fa-database me-2"></i>Elasticsearch Stats
+        </button>
+    </li>
+    {% endif %}
 </ul>
 
 <div class="tab-content">
@@ -265,6 +272,97 @@
             </div>
         </div>
     </div>
+
+    <!-- Elasticsearch Stats Tab -->
+    {% if has_any_permission('admin.elasticsearch.stats', 'audit.view') %}
+    <div class="tab-pane fade" id="elasticsearch-pane" role="tabpanel" aria-labelledby="elasticsearch-tab">
+        <!-- Elasticsearch Stats -->
+        <div class="row mb-3 g-2">
+            <div class="col-md-2">
+                <div class="card bg-primary bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Total Indices</h5>
+                        <h3 id="es-total-indices" class="mb-0">-</h3>
+                        <small class="text-muted">Number of indices</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Total Documents</h5>
+                        <h3 id="es-total-documents" class="mb-0">-</h3>
+                        <small class="text-muted">All documents</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Total Size</h5>
+                        <h3 id="es-total-size" class="mb-0">-</h3>
+                        <small class="text-muted">Disk usage</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Cluster Health</h5>
+                        <h3 id="es-cluster-health" class="mb-0">-</h3>
+                        <small class="text-muted">Status</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-secondary bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Active Shards</h5>
+                        <h3 id="es-active-shards" class="mb-0">-</h3>
+                        <small class="text-muted">Shard count</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger bg-opacity-10">
+                    <div class="card-body">
+                        <h5 class="mb-1">Nodes</h5>
+                        <h3 id="es-node-count" class="mb-0">-</h3>
+                        <small class="text-muted">Active nodes</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Index Details -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Index Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Index Name</th>
+                                <th>Documents</th>
+                                <th>Size</th>
+                                <th>Primary Shards</th>
+                                <th>Replica Shards</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="es-indices-tbody">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -761,7 +859,7 @@ function updateTopConsumers(consumers) {
     tbody.innerHTML = rows;
 }
 
-// Load FinOps data when tab is shown
+// Load Elasticsearch stats when tab is shown
 document.addEventListener('DOMContentLoaded', function() {
     const finopsTab = document.getElementById('finops-tab');
     if (finopsTab) {
@@ -769,7 +867,77 @@ document.addEventListener('DOMContentLoaded', function() {
             loadFinopsData();
         });
     }
+    
+    const esTab = document.getElementById('elasticsearch-tab');
+    if (esTab) {
+        esTab.addEventListener('shown.bs.tab', function() {
+            loadElasticsearchStats();
+        });
+    }
 });
+
+async function loadElasticsearchStats() {
+    try {
+        const response = await fetch('/api/audit/elasticsearch/stats');
+        if (!response.ok) {
+            console.error('Failed to load Elasticsearch stats:', response.statusText);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // Update summary cards
+        document.getElementById('es-total-indices').textContent = data.indices_count || 0;
+        document.getElementById('es-total-documents').textContent = (data.total_documents || 0).toLocaleString();
+        document.getElementById('es-total-size').textContent = formatBytes(data.total_size_bytes || 0);
+        document.getElementById('es-cluster-health').textContent = (data.cluster_health || 'Unknown').toUpperCase();
+        document.getElementById('es-active-shards').textContent = data.active_shards || 0;
+        document.getElementById('es-node-count').textContent = data.node_count || 0;
+        
+        // Update indices table
+        updateIndicesTable(data.indices || []);
+    } catch (error) {
+        console.error('Error loading Elasticsearch stats:', error);
+        document.getElementById('es-indices-tbody').innerHTML = 
+            '<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>';
+    }
+}
+
+function updateIndicesTable(indices) {
+    const tbody = document.getElementById('es-indices-tbody');
+    
+    if (indices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No indices found</td></tr>';
+        return;
+    }
+    
+    const rows = indices.map(index => {
+        const sizeGB = (index.size_bytes / (1024 * 1024 * 1024)).toFixed(2);
+        const statusBadge = index.status === 'green' ? 'bg-success' : 
+                           index.status === 'yellow' ? 'bg-warning' : 'bg-danger';
+        
+        return `
+            <tr>
+                <td><code>${index.name}</code></td>
+                <td>${(index.doc_count || 0).toLocaleString()}</td>
+                <td>${formatBytes(index.size_bytes || 0)}</td>
+                <td>${index.primary_shards || 0}</td>
+                <td>${index.replica_shards || 0}</td>
+                <td><span class="badge ${statusBadge}">${index.status || 'unknown'}</span></td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = rows;
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
 </script>
 
 <!-- Chart.js -->

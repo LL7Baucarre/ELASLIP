@@ -16,6 +16,7 @@ api_config_bp = Blueprint('api_config', __name__)
 
 @api_config_bp.route('', methods=['GET'])
 @login_or_api_key_required
+@permission_required('api.external.view')
 def list_api_configs():
     """List all API configurations for current user."""
     es = ElasticsearchService()
@@ -138,6 +139,7 @@ def create_api_config():
 
 @api_config_bp.route('/<config_id>', methods=['GET'])
 @login_or_api_key_required
+@permission_required('api.external.view')
 def get_api_config(config_id):
     """Get a single API configuration."""
     es = ElasticsearchService()
@@ -269,6 +271,7 @@ def delete_api_config(config_id):
 
 @api_config_bp.route('/test', methods=['POST'])
 @login_or_api_key_required
+@permission_required('api.external.test')
 def test_api_config_template():
     """
     Test an API configuration template without saving it.
@@ -308,6 +311,7 @@ def test_api_config_template():
 
 @api_config_bp.route('/<config_id>/test', methods=['POST'])
 @login_or_api_key_required
+@permission_required('api.external.test')
 def test_api_config(config_id):
     """
     Test an API configuration with a sample value.
@@ -357,6 +361,7 @@ def test_api_config(config_id):
 
 @api_config_bp.route('/enrich', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.enrich')
 def enrich_ioc():
     """
     Enrich an IOC value using external APIs.

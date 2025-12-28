@@ -24,6 +24,7 @@ WEBHOOK_EVENTS = [
 
 @webhook_bp.route('', methods=['GET'])
 @login_or_api_key_required
+@permission_required('webhook.view')
 def list_webhooks():
     """List all webhooks for current user."""
     es = ElasticsearchService()
@@ -111,6 +112,7 @@ def create_webhook():
 
 @webhook_bp.route('/<webhook_id>', methods=['GET'])
 @login_or_api_key_required
+@permission_required('webhook.view')
 def get_webhook(webhook_id):
     """Get a single webhook."""
     es = ElasticsearchService()
@@ -209,6 +211,7 @@ def delete_webhook(webhook_id):
 
 @webhook_bp.route('/test', methods=['POST'])
 @login_or_api_key_required
+@permission_required('webhook.test')
 def test_webhook_url():
     """Test a webhook URL without saving it."""
     data = request.get_json()
@@ -238,6 +241,7 @@ def test_webhook_url():
 
 @webhook_bp.route('/<webhook_id>/test', methods=['POST'])
 @login_or_api_key_required
+@permission_required('webhook.test')
 def test_webhook_endpoint(webhook_id):
     """
     Test a webhook by sending a sample payload.
@@ -412,6 +416,7 @@ def retry_webhook_delivery(log_id):
 
 
 @webhook_bp.route('/events', methods=['GET'])
+@login_or_api_key_required
 def get_available_events():
     """Get list of available webhook events."""
     return jsonify({'events': WEBHOOK_EVENTS})

@@ -77,11 +77,6 @@
                                 <a href="{{ url_for('checklists.detail_page', checklist_id=checklist.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                {% if has_permission('checklist.edit') %}
-                                <button class="btn btn-sm btn-outline-secondary" onclick="editChecklist('{{ checklist.id }}')">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                {% endif %}
                                 {% if has_permission('checklist.delete') %}
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteChecklist('{{ checklist.id }}', '{{ checklist.title }}')">
                                     <i class="bi bi-trash"></i>

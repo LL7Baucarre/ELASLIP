@@ -247,38 +247,44 @@ class STIXIndicator:
         """
         indicator_dict = self.to_dict()
         
-        # Add custom properties with x_ prefix (STIX 2.1 compliant)
-        custom_props = {}
-        
+        # Add custom properties with x_ prefix at root level (STIX 2.1 compliant)
+        # These are domain-specific custom fields that should NOT go in x_metadata
         if ioc_type:
-            custom_props['ioc_type'] = ioc_type
+            indicator_dict['x_ioc_type'] = ioc_type
         if ioc_value:
-            custom_props['ioc_value'] = ioc_value
+            indicator_dict['x_ioc_value'] = ioc_value
         if pattern_hash:
-            custom_props['pattern_hash'] = pattern_hash
+            indicator_dict['x_pattern_hash'] = pattern_hash
         if threat_level:
-            custom_props['threat_level'] = threat_level
+            indicator_dict['x_threat_level'] = threat_level
         if tlp:
-            custom_props['tlp'] = tlp
+            indicator_dict['x_tlp'] = tlp
         if campaigns:
-            custom_props['campaigns'] = campaigns
+            indicator_dict['x_campaigns'] = campaigns
         if risk_score is not None:
-            custom_props['risk_score'] = risk_score
+            indicator_dict['x_risk_score'] = risk_score
         if status:
-            custom_props['status'] = status
+            indicator_dict['x_status'] = status
         if current_version is not None:
-            custom_props['current_version'] = current_version
+            indicator_dict['x_current_version'] = current_version
+        
+        # Build x_metadata with only metadata (created_by, sources, etc.)
+        x_metadata = {}
         
         # Add user information to metadata
         if user_id or username:
-            custom_props['created_by'] = {
+            x_metadata['created_by'] = {
                 'user_id': user_id,
                 'username': username
             }
         
-        # Add all custom properties under x_metadata (STIX 2.1 custom object)
-        if custom_props:
-            indicator_dict['x_metadata'] = custom_props
+        # Add sources to x_metadata for persistence in Elasticsearch
+        if self.sources:
+            x_metadata['sources'] = self.sources
+        
+        # Add x_metadata only if it has content (created_by or sources)
+        if x_metadata:
+            indicator_dict['x_metadata'] = x_metadata
         
         # Ensure confidence is an integer 0-100 (STIX reserved field)
         if confidence is not None:

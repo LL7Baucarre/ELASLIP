@@ -100,9 +100,14 @@ def process_batch_scans(self, job_id: str, user_id: str, scans: List[Dict]):
                 # Save to Elasticsearch
                 scan_id = str(uuid.uuid4())
                 
+                # Extract raw_output before creating copy (so it's not in result)
+                raw_output = result.get('raw_output', '')
+                import sys
+                print(f"DEBUG process_batch: tool={tool}, raw_output_length={len(raw_output) if raw_output else 0}, raw_output_type={type(raw_output)}", file=sys.stderr)
+                
                 result_copy = dict(result)
-                result_copy.pop('raw_output', None)
                 result_copy.pop('timestamp', None)
+                result_copy.pop('raw_output', None)  # Remove from copy so we don't duplicate it
                 
                 scan_doc = {
                     'user_id': user_id,
@@ -110,6 +115,7 @@ def process_batch_scans(self, job_id: str, user_id: str, scans: List[Dict]):
                     'target': target,
                     'success': result.get('success', False),
                     'result': result_copy,
+                    'raw_output': raw_output,  # Store at root level for easy access
                     'batch_job_id': job_id,
                     'timestamp': datetime.utcnow().isoformat() + 'Z'
                 }
@@ -206,9 +212,14 @@ def single_scan(self, tool: str, target: str, user_id: str, **kwargs):
             # Save to Elasticsearch
             scan_id = str(uuid.uuid4())
             
+            # Extract raw_output before creating copy (so it's not in result)
+            raw_output = result.get('raw_output', '')
+            import sys
+            print(f"DEBUG single_scan: tool={tool}, raw_output_length={len(raw_output) if raw_output else 0}, raw_output_type={type(raw_output)}", file=sys.stderr)
+            
             result_copy = dict(result)
-            result_copy.pop('raw_output', None)
             result_copy.pop('timestamp', None)
+            result_copy.pop('raw_output', None)  # Remove from copy so we don't duplicate it
             
             scan_doc = {
                 'user_id': user_id,
@@ -216,6 +227,7 @@ def single_scan(self, tool: str, target: str, user_id: str, **kwargs):
                 'target': target,
                 'success': result.get('success', False),
                 'result': result_copy,
+                'raw_output': raw_output,  # Store at root level for easy access
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }
             
