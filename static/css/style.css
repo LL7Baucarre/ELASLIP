@@ -271,6 +271,17 @@
     color: var(--text-color);
 }
 
+[data-theme="dark"] .list-group-item-action.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .list-group-item-action:hover {
+    background-color: rgba(52, 152, 219, 0.1);
+    color: var(--text-color);
+}
+
 [data-theme="dark"] .btn-close {
     filter: invert(1);
 }
