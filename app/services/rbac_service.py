@@ -117,9 +117,18 @@ PERMISSIONS = {
     'admin.roles.create': 'Create custom roles',
     'admin.roles.edit': 'Edit roles',
     'admin.roles.delete': 'Delete custom roles',
+    'admin.roles.manage': 'Manage all roles',
     'admin.settings': 'Manage site settings',
+    'admin.settings.view': 'View site settings',
+    'admin.settings.edit': 'Edit site settings',
     'admin.audit': 'View audit logs',
     'admin.tasks': 'Manage scheduled tasks',
+    'admin.tasks.execute': 'Execute scheduled tasks',
+    'admin.tasks.config': 'Configure scheduled tasks',
+    'admin.tasks.history': 'View task history',
+    'admin.tasks.manage': 'Manage all scheduled tasks',
+    'admin.llm.manage': 'Manage LLM settings and reports',
+    'admin.elasticsearch.stats': 'View Elasticsearch statistics',
 }
 
 

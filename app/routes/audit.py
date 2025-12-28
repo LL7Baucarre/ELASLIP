@@ -226,3 +226,97 @@ def get_stats():
     stats = service.get_stats(days=days)
     
     return jsonify(stats), 200
+
+
+# Elasticsearch Statistics Route
+from app.decorators import permission_required
+
+@audit_bp.route('/elasticsearch/stats', methods=['GET'])
+@login_or_api_key_required
+@permission_required('admin.elasticsearch.stats', 'audit.view', require_all=False)
+def get_elasticsearch_stats():
+    """
+    Get Elasticsearch cluster and index statistics.
+    ---
+    tags:
+      - Elasticsearch Stats
+    summary: Get Elasticsearch statistics
+    responses:
+      200:
+        description: Elasticsearch statistics
+    """
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es = ElasticsearchService()
+    
+    try:
+        # Get cluster health
+        health = es.client.cluster.health()
+        
+        # Get node count
+        nodes = es.client.nodes.info(filter_path='nodes.*.name')
+        node_count = len(nodes.get('nodes', {}))
+        
+        # Get indices stats
+        indices_stats = es.client.indices.stats(expand_wildcards='all')
+        indices_data = []
+        total_docs = 0
+        total_size = 0
+        
+        for index_name, index_info in indices_stats.get('indices', {}).items():
+            # Skip system indices
+            if index_name.startswith('.'):
+                continue
+                
+            doc_count = index_info['primaries']['docs']['count']
+            size_bytes = index_info['primaries']['store']['size_in_bytes']
+            
+            # Get index settings for shard info
+            try:
+                index_settings = es.client.indices.get_settings(index=index_name)
+                num_shards = int(index_settings[index_name]['settings']['index']['number_of_shards'])
+                num_replicas = int(index_settings[index_name]['settings']['index']['number_of_replicas'])
+            except:
+                num_shards = 1
+                num_replicas = 0
+            
+            # Get index status
+            try:
+                index_health = es.client.cluster.health(index=index_name)
+                status = index_health.get('status', 'unknown')
+            except:
+                status = 'unknown'
+            
+            indices_data.append({
+                'name': index_name,
+                'doc_count': doc_count,
+                'size_bytes': size_bytes,
+                'primary_shards': num_shards,
+                'replica_shards': num_replicas,
+                'status': status
+            })
+            
+            total_docs += doc_count
+            total_size += size_bytes
+        
+        return jsonify({
+            'cluster_health': health.get('status', 'unknown'),
+            'active_shards': health.get('active_shards', 0),
+            'node_count': node_count,
+            'indices_count': len(indices_data),
+            'total_documents': total_docs,
+            'total_size_bytes': total_size,
+            'indices': indices_data
+        }), 200
+    
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'cluster_health': 'error',
+            'active_shards': 0,
+            'node_count': 0,
+            'indices_count': 0,
+            'total_documents': 0,
+            'total_size_bytes': 0,
+            'indices': []
+        }), 200
