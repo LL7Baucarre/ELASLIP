@@ -295,6 +295,7 @@ def dashboard():
 
 @main_bp.route('/iocs')
 @login_required
+@permission_required('ioc.view', 'ioc.create', 'ioc.edit', require_all=False)
 def iocs_list():
     """IOC listing page."""
     return render_template('iocs/list.html')
@@ -302,6 +303,7 @@ def iocs_list():
 
 @main_bp.route('/iocs/add')
 @login_required
+@permission_required('ioc.create')
 def iocs_add():
     """Add IOC page."""
     return render_template('iocs/add.html')
@@ -309,6 +311,7 @@ def iocs_add():
 
 @main_bp.route('/iocs/<ioc_id>')
 @login_required
+@permission_required('ioc.view')
 def iocs_detail(ioc_id):
     """IOC detail page."""
     service = IOCService()
@@ -336,6 +339,7 @@ def iocs_detail(ioc_id):
 
 @main_bp.route('/iocs/graph')
 @login_required
+@permission_required('ioc.relations.view')
 def iocs_graph():
     """IOC graph visualization page."""
     return render_template('iocs/graph.html')
@@ -549,6 +553,7 @@ def get_ioc_graph_data(ioc_id):
 
 @main_bp.route('/search')
 @login_required
+@permission_required('search.advanced')
 def search_page():
     """Search page."""
     return render_template('search.html')
@@ -556,6 +561,7 @@ def search_page():
 
 @main_bp.route('/import')
 @login_required
+@permission_required('ioc.import')
 def import_page():
     """Import page."""
     return render_template('import.html')
@@ -616,6 +622,7 @@ def api_settings():
 
 @main_bp.route('/settings/api-keys')
 @login_required
+@permission_required('api.keys.view')
 def settings_api_keys():
     """API Keys settings page."""
     return render_template('settings/api_keys.html')
@@ -623,6 +630,7 @@ def settings_api_keys():
 
 @main_bp.route('/settings/external-apis')
 @login_required
+@permission_required('api.external.view')
 def settings_external_apis():
     """External APIs settings page."""
     return render_template('settings/external_apis.html')
@@ -630,6 +638,7 @@ def settings_external_apis():
 
 @main_bp.route('/settings/webhooks')
 @login_required
+@permission_required('webhook.view')
 def settings_webhooks():
     """Webhooks settings page."""
     return render_template('settings/webhooks.html')
@@ -964,6 +973,7 @@ def delete_user(user_id):
 
 @main_bp.route('/cases')
 @login_required
+@permission_required('case.view', 'case.create', require_all=False)
 def cases_list():
     """Cases listing page."""
     return render_template('cases/list.html')
@@ -971,6 +981,7 @@ def cases_list():
 
 @main_bp.route('/cases/new')
 @login_required
+@permission_required('case.create')
 def cases_new():
     """Create new case page."""
     return render_template('cases/new.html')
@@ -978,6 +989,7 @@ def cases_new():
 
 @main_bp.route('/cases/<case_id>')
 @login_required
+@permission_required('case.view')
 def cases_detail(case_id):
     """Case detail page."""
     from app.services.case_service import CaseService
@@ -993,6 +1005,7 @@ def cases_detail(case_id):
 
 @main_bp.route('/incidents')
 @login_required
+@permission_required('incident.view', 'incident.create', require_all=False)
 def incidents_list():
     """Incidents listing page."""
     return render_template('incidents/list.html')
@@ -1000,6 +1013,7 @@ def incidents_list():
 
 @main_bp.route('/incidents/new')
 @login_required
+@permission_required('incident.create')
 def incidents_new():
     """Create new incident page."""
     return render_template('incidents/new.html')
@@ -1007,6 +1021,7 @@ def incidents_new():
 
 @main_bp.route('/incidents/<incident_id>')
 @login_required
+@permission_required('incident.view')
 def incidents_detail(incident_id):
     """Incident detail page with report editor."""
     from app.services.case_service import IncidentService
@@ -1030,6 +1045,7 @@ def snippets_library():
 
 @main_bp.route('/report')
 @login_required
+@permission_required('report.view')
 def view_report():
     """View generated report page."""
     return render_template('report.html')

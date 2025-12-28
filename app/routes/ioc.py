@@ -743,6 +743,7 @@ def get_stats():
 
 
 @ioc_bp.route('/types', methods=['GET'])
+@login_or_api_key_required
 def get_supported_types():
     """Get supported IOC types."""
     return jsonify({
@@ -907,6 +908,7 @@ def get_ioc_sources(ioc_id):
 
 
 @ioc_bp.route('/validate', methods=['POST'])
+@login_or_api_key_required
 def validate_ioc():
     """
     Validate an IOC value without creating it.
@@ -953,6 +955,7 @@ def validate_ioc():
 
 @ioc_bp.route('/stix', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.import')
 def create_from_stix():
     """
     Create an IOC from raw STIX 2.1 JSON.
