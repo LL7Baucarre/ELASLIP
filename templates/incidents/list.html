@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="h3 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Incidents</h1>
-            <p class="text-muted mb-0">Security incidents with IOCs and report generation</p>
+            <p class="text-muted mb-0">Security incidents with IOCs</p>
         </div>
         {% if has_permission('incident.create') %}
         <a href="{{ url_for('main.incidents_new') }}" class="btn btn-primary">
