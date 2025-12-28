@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify, g
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.ioc_service import IOCService
 from datetime import datetime
@@ -87,6 +88,7 @@ def get_ioc_relations(ioc_id):
 
 @ioc_relations_bp.route('/ioc/<ioc_id>/relations', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.relations.create')
 def create_ioc_relation(ioc_id):
     """
     Link an IOC to one or more other IOCs.
@@ -237,6 +239,7 @@ def create_ioc_relation(ioc_id):
 
 @ioc_relations_bp.route('/ioc/<ioc_id>/relations/<relation_id>', methods=['DELETE'])
 @login_or_api_key_required
+@permission_required('ioc.relations.delete')
 def delete_ioc_relation(ioc_id, relation_id):
     """
     Delete a relation between IOCs.
@@ -288,6 +291,7 @@ def delete_ioc_relation(ioc_id, relation_id):
 
 @ioc_relations_bp.route('/search/by-relation', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.relations.view')
 def search_by_relation():
     """Search IOCs by following relations (graph traversal)."""
     es = ElasticsearchService()

@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, request, abort, render_template
 from flask_login import login_required, current_user
-from app.auth import permission_required
+from app.decorators import permission_required
 from app.services.report_service import ReportService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.config import Config
@@ -87,6 +87,7 @@ def get_report_config():
 
 @bp.route('/api/reports/test-connection', methods=['POST'])
 @login_required
+@permission_required('admin.settings.view')
 def test_llm_connection():
     """
     Test LLM connection and get available models (Admin only)
@@ -241,6 +242,7 @@ def test_llm_connection():
 
 @bp.route('/api/reports/available-models', methods=['POST'])
 @login_required
+@permission_required('admin.settings.view')
 def get_available_models():
     """
     Get available LLM models from server (Admin only)
@@ -396,6 +398,7 @@ def get_available_models():
 
 @bp.route('/api/reports/config', methods=['POST'])
 @login_required
+@permission_required('admin.settings.edit')
 def update_report_config():
     """
     Update LLM configuration (Admin only)
@@ -1133,6 +1136,7 @@ def view_report(task_id):
 
 @bp.route('/api/reports/<task_id>', methods=['DELETE'])
 @login_required
+@permission_required('report.delete')
 def delete_report(task_id):
     """
     Delete a generated report

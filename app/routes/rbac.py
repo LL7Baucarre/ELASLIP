@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.rbac_service import RBACService
 from app.rbac_matrix import get_permission_matrix, get_categories
 
@@ -102,7 +103,8 @@ def create_role():
         "permissions": ["ioc.view", "ioc.create", "case.view"]
     }
     """
-
+    rbac = RBACService()
+    
     data = request.get_json()
     
     if not data:

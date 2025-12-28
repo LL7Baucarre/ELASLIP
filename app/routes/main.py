@@ -97,19 +97,7 @@ def make_ioc_template_friendly(ioc):
     wrapped = IOCWrapper(ioc)
     return wrapped
 
-
-def admin_required(f):
-    """Decorator to require admin privileges."""
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated or not current_user.is_admin:
-            flash('Admin privileges required', 'error')
-            return redirect(url_for('main.dashboard'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
+    
 @main_bp.route('/')
 def index():
     """Landing page."""
@@ -584,7 +572,7 @@ def settings():
 
 @main_bp.route('/api/settings', methods=['GET', 'PUT'])
 @login_required
-@admin_required
+@permission_required('admin.settings.view', 'admin.settings.edit')
 def api_settings():
     """Get or update site settings (admin only)."""
     if request.method == 'GET':
@@ -646,7 +634,7 @@ def settings_webhooks():
 
 @main_bp.route('/settings/roles')
 @login_required
-@admin_required
+@permission_required('admin.roles.manage')
 def settings_roles():
     """Roles and permissions management page (admin only)."""
     return render_template('settings/roles.html')
@@ -654,7 +642,7 @@ def settings_roles():
 
 @main_bp.route('/settings/scheduled-tasks')
 @login_required
-@admin_required
+@permission_required('admin.tasks.manage')
 def settings_scheduled_tasks():
     """Scheduled tasks settings page (admin only)."""
     return render_template('settings/scheduled_tasks.html')
@@ -662,7 +650,7 @@ def settings_scheduled_tasks():
 
 @main_bp.route('/settings/llm')
 @login_required
-@admin_required
+@permission_required('admin.llm.manage')
 def settings_llm():
     """LLM report settings page (admin only)."""
     from app.config import Config
@@ -678,7 +666,7 @@ def reports_dashboard():
 
 @main_bp.route('/api/scheduled-tasks/run', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.execute')
 def run_scheduled_task():
     """Run a scheduled task manually."""
     from app.tasks.expiration_tasks import (
@@ -735,7 +723,7 @@ def run_scheduled_task():
 
 @main_bp.route('/api/scheduled-tasks/history', methods=['GET'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.history')
 def get_task_history():
     """Get recent task execution history."""
     from app.services.elasticsearch_service import ElasticsearchService
@@ -762,7 +750,7 @@ def get_task_history():
 
 @main_bp.route('/api/scheduled-tasks/config', methods=['GET', 'PUT'])
 @login_required
-@admin_required
+@permission_required('admin.tasks.config')
 def task_config():
     """Get or update task configuration."""
     from app.services.elasticsearch_service import ElasticsearchService
@@ -807,7 +795,7 @@ def api_docs():
 
 @main_bp.route('/admin/users')
 @login_required
-@admin_required
+@permission_required('admin.users.view')
 def users_management():
     """User management page (admin only)."""
     users = User.get_all()
@@ -816,7 +804,7 @@ def users_management():
 
 @main_bp.route('/admin/users/create', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.create')
 def create_user():
     """Create a new user (admin only)."""
     # Handle both JSON and form data
@@ -869,7 +857,7 @@ def create_user():
 
 @main_bp.route('/admin/users/<user_id>/edit', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.edit')
 def edit_user(user_id):
     """Edit user (admin only)."""
     user = User.get_by_id(user_id)
@@ -941,7 +929,7 @@ def edit_user(user_id):
 
 @main_bp.route('/admin/users/<user_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@permission_required('admin.users.delete')
 def delete_user(user_id):
     """Delete user (admin only)."""
     if user_id == current_user.id:

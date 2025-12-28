@@ -235,6 +235,7 @@ def get_versions(ioc_id):
 
 @ioc_bp.route('/<ioc_id>/versions/<int:version>/restore', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def restore_version(ioc_id, version):
     """
     Restore an IOC to a previous version.
@@ -613,6 +614,7 @@ def get_expiring_soon():
 
 @ioc_bp.route('/archive-expired', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def archive_expired():
     """
     Archive all expired IOCs.
@@ -909,6 +911,7 @@ def get_ioc_sources(ioc_id):
 
 @ioc_bp.route('/validate', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.create')
 def validate_ioc():
     """
     Validate an IOC value without creating it.
@@ -1168,6 +1171,7 @@ def enrich_ioc(ioc_id):
 
 @ioc_bp.route('/<ioc_id>/store-enrichment', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def store_enrichment(ioc_id):
     """
     Store selected enrichment fields into IOC's x_enrichment object.
