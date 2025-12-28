@@ -396,9 +396,10 @@ def generate_random_iocs(count=100):
         else:
             value = 'unknown'
         
-        # Random metadata
+        # Random metadata (STIX 2.1 compliant)
         threat_levels = ['low', 'medium', 'high', 'critical']
-        confidence_levels = ['low', 'medium', 'high', 'very-high']
+        # Confidence as integer (0-100) for STIX 2.1 compliance
+        confidence_values = [25, 50, 75, 100]
         tlp_levels = ['white', 'green', 'amber', 'red']
         labels = [
             'malware', 'phishing', 'botnet', 'c2', 'trojan', 
@@ -427,7 +428,7 @@ def generate_random_iocs(count=100):
             'name': f'{ioc_type.upper()}: {value[:30]}',
             'description': f'Demo IOC for {ioc_type}: {value}',
             'threat_level': random.choice(threat_levels),
-            'confidence': random.choice(confidence_levels),
+            'confidence': random.choice(confidence_values),  # Integer 0-100 for STIX 2.1
             'tlp': random.choice(tlp_levels),
             'labels': random.sample(labels, random.randint(1, 3)),
             'source': {'name': random.choice(sources), 'timestamp': datetime.utcnow().isoformat()},
