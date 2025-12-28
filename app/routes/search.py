@@ -8,6 +8,7 @@ from app.services.enrichment_service import EnrichmentService
 from app.services.ioc_service import IOCService
 from app.utils.pattern_generator import PatternGenerator
 from app.utils.request_helpers import get_pagination_params, parse_comma_separated_list
+from app.utils.ioc_adapter import normalize_ioc_for_api
 
 search_bp = Blueprint('search', __name__)
 es_service = ElasticsearchService()
@@ -181,8 +182,8 @@ def search_iocs():
     
     response = {
         'query': query_text,
-        'items': items,
-        'results': items,  # Alias for frontend compatibility
+        'items': [normalize_ioc_for_api(item) for item in items],
+        'results': [normalize_ioc_for_api(item) for item in items],  # Alias for frontend compatibility
         'total': result['hits']['total']['value'],
         'page': page,
         'per_page': per_page
@@ -374,7 +375,7 @@ def search_iocs_api():
             items.append(item)
         
         return jsonify({
-            'items': items,
+            'items': [normalize_ioc_for_api(item) for item in items],
             'total': es_result['hits']['total']['value']
         })
     

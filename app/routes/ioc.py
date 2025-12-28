@@ -11,6 +11,7 @@ from app.services.ioc_service import IOCService
 from app.services.audit_service import AuditService
 from app.utils.pattern_generator import PatternGenerator
 from app.utils.request_helpers import get_pagination_params, parse_comma_separated_list, build_filters_dict
+from app.utils.ioc_adapter import normalize_ioc_for_api
 
 ioc_bp = Blueprint('ioc', __name__, url_prefix=None)
 
@@ -575,7 +576,7 @@ def get_expired():
     expired = service.get_expired_iocs()
     
     return jsonify({
-        'expired': expired,
+        'expired': [normalize_ioc_for_api(ioc) for ioc in expired],
         'count': len(expired)
     }), 200
 
@@ -606,7 +607,7 @@ def get_expiring_soon():
     expiring = service.get_expiring_soon(days=days)
     
     return jsonify({
-        'expiring_soon': expiring,
+        'expiring_soon': [normalize_ioc_for_api(ioc) for ioc in expiring],
         'count': len(expiring),
         'days': days
     }), 200
@@ -732,6 +733,9 @@ def list_iocs():
         campaigns=campaigns if campaigns else None
     )
     
+    # Normalize each IOC for API response
+    result['items'] = [normalize_ioc_for_api(ioc) for ioc in result['items']]
+    
     return jsonify(result)
 
 
@@ -758,14 +762,16 @@ def get_supported_types():
 @permission_required('ioc.view')
 def get_ioc(ioc_id):
     """Get a single IOC by ID."""
+    from app.utils.ioc_adapter import normalize_ioc_for_api
+    
     service = IOCService()
     ioc = service.get(ioc_id)
     
     if not ioc:
         return jsonify({'error': 'IOC not found'}), 404
     
-    # Return STIX 2.1 pure format
-    return jsonify(ioc)
+    # Return normalized STIX 2.1 format with backward-compatible field names
+    return jsonify(normalize_ioc_for_api(ioc))
 
 
 @ioc_bp.route('/<ioc_id>', methods=['PUT', 'PATCH'])

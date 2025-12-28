@@ -45,10 +45,49 @@ def make_ioc_template_friendly(ioc):
     
     # Create a wrapper that provides both STIX structure and convenience access
     class IOCWrapper(dict):
+        """
+        Wrapper for IOC documents supporting both old and new STIX 2.1 structure.
+        
+        Supports accessing fields from:
+        1. Direct root level (standard STIX 2.1 fields)
+        2. x_* prefixed fields (custom STIX 2.1 extensions)
+        3. x_metadata for backward compatibility (old structure)
+        
+        Provides transparent access to custom properties without needing x_ prefix or x_metadata nesting.
+        """
+        # Map convenience field names to their actual locations in the structure
+        FIELD_MAPPING = {
+            'threat_level': 'x_threat_level',  # New structure: x_threat_level at root
+            'tlp': 'x_tlp',
+            'campaigns': 'x_campaigns',
+            'risk_score': 'x_risk_score',
+            'status': 'x_status',
+            'ioc_type': 'x_ioc_type',
+            'ioc_value': 'x_ioc_value',
+            'value': 'x_ioc_value',  # Alias for ioc_value (template display)
+            'current_version': 'x_current_version',
+            'pattern_hash': 'x_pattern_hash',
+        }
+        
         def __getattribute__(self, name):
             # Avoid infinite recursion with internal methods
-            if name.startswith('_') or name in ('get', 'keys', 'values', 'items', 'pop', 'update', 'clear'):
+            if name.startswith('_') or name in ('get', 'keys', 'values', 'items', 'pop', 'update', 'clear', 'FIELD_MAPPING'):
                 return super().__getattribute__(name)
+            
+            # Check field mapping for convenient access without x_ prefix
+            mapping = super().__getattribute__('FIELD_MAPPING')
+            if name in mapping:
+                try:
+                    return dict.__getitem__(self, mapping[name])
+                except KeyError:
+                    # Try old structure for backward compatibility
+                    try:
+                        x_metadata = dict.__getitem__(self, 'x_metadata')
+                        if isinstance(x_metadata, dict) and name in x_metadata:
+                            return x_metadata[name]
+                    except KeyError:
+                        pass
+                    return None
             
             # Try direct dict access first
             try:
@@ -56,7 +95,7 @@ def make_ioc_template_friendly(ioc):
             except KeyError:
                 pass
             
-            # Then try x_metadata for custom fields
+            # Then try x_metadata for old structure compatibility
             try:
                 x_metadata = dict.__getitem__(self, 'x_metadata')
                 if isinstance(x_metadata, dict) and name in x_metadata:
@@ -68,13 +107,29 @@ def make_ioc_template_friendly(ioc):
             return super().__getattribute__(name)
         
         def __getitem__(self, key):
+            # Check field mapping for convenient access without x_ prefix
+            if key in self.FIELD_MAPPING:
+                mapped_key = self.FIELD_MAPPING[key]
+                # Try new structure first
+                try:
+                    return dict.__getitem__(self, mapped_key)
+                except KeyError:
+                    pass
+                # Try old structure for backward compatibility
+                try:
+                    x_metadata = dict.__getitem__(self, 'x_metadata')
+                    if isinstance(x_metadata, dict) and key in x_metadata:
+                        return x_metadata[key]
+                except KeyError:
+                    pass
+            
             # Direct key access from dict
             try:
                 return dict.__getitem__(self, key)
             except KeyError:
                 pass
             
-            # Try x_metadata for convenience fields (custom STIX properties)
+            # Try x_metadata for convenience fields (old structure)
             convenience_fields = {'ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 
                                 'risk_score', 'status', 'created_by', 'asn', 'country'}
             if key in convenience_fields:
@@ -96,8 +151,6 @@ def make_ioc_template_friendly(ioc):
     # Create wrapper from existing IOC dict
     wrapped = IOCWrapper(ioc)
     return wrapped
-
-    
 @main_bp.route('/')
 def index():
     """Landing page."""
@@ -371,7 +424,10 @@ def iocs_detail(ioc_id):
                 'api_results': x_enrichment.get('api_results', [])
             }
     
-    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data)
+    # Get STIX 2.1 compliant version (without backward-compat aliases) for JSON display
+    stix_json = service.get_stix_compliant(ioc_id)
+    
+    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data, stix_json=stix_json)
 
 
 @main_bp.route('/iocs/graph')
