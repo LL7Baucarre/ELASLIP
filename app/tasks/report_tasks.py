@@ -485,7 +485,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         checklist_service = ChecklistService()
         checklist = checklist_service.get_checklist(checklist_id)
         
-        
         if not checklist:
             report_entry['status'] = 'failed'
             report_entry['error'] = 'Checklist not found'
@@ -510,7 +509,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 
         # Call LLM to enhance the report if configured
         if report_service.is_configured():
-           
             # Mark as queued while waiting for lock
             report_entry['status'] = 'queued'
             es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
@@ -543,14 +541,17 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 finally:
                     release_report_lock()
             except Exception as llm_err:
+                # LLM generation failed, but we still save what we have
+                report_entry['error'] = f'LLM generation failed: {str(llm_err)}'
         
-                report_entry['status'] = 'completed'
-                report_entry['completed_at'] = datetime.utcnow().isoformat()
-                report_entry['report_data'] = report_data
-                report_entry['entity_name'] = checklist.get('title', checklist_id)
+        # Update status to completed regardless of LLM success/failure
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = checklist.get('title', checklist_id)
         
         es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
-                
+        
         audit.log(
             action='report_generated',
             entity_type='checklist',
@@ -562,7 +563,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
-       
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['error'] = str(e)
@@ -570,13 +570,15 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         try:
             es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
         except Exception as save_err:
-            audit.log(
-                action='report_generation_failed',
-                entity_type='checklist',
-                entity_id=checklist_id,
-                username=user_id,
-                entity_name=f'Checklist Report {checklist_id}',
-                changes={'error': str(e)}
+            pass
+        
+        audit.log(
+            action='report_generation_failed',
+            entity_type='checklist',
+            entity_id=checklist_id,
+            username=user_id,
+            entity_name=f'Checklist Report {checklist_id}',
+            changes={'error': str(e)}
         )
         
         return {'status': 'error', 'error': str(e), 'task_id': task_id}
