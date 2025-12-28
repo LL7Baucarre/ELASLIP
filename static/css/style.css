@@ -500,6 +500,16 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    text-decoration: none;
+    transition: color 0.2s, background-color 0.2s;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.sidebar .user-info .user-name:hover {
+    color: rgba(255,255,255,0.9);
+    background-color: rgba(255,255,255,0.1);
 }
 
 .sidebar .user-info .theme-toggle {

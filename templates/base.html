@@ -126,10 +126,10 @@
         
         <div class="user-section">
             <div class="user-info">
-                <div class="user-name">
+                <a href="{{ url_for('main.user_profile') }}" class="user-name" title="View profile">
                     <i class="bi bi-person-circle me-2"></i>
                     <span>{{ current_user.username }}</span>
-                </div>
+                </a>
                 <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                     <i class="bi bi-moon-fill" id="themeIcon"></i>
                 </div>

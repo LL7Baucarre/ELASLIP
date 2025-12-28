@@ -106,6 +106,55 @@ def index():
     return redirect(url_for('auth.login'))
 
 
+@main_bp.route('/profile')
+@login_required
+def user_profile():
+    """User profile page."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es = ElasticsearchService()
+    user_id = str(current_user.id)
+    
+    # Get user activity count (last 30 days)
+    try:
+        from datetime import datetime, timedelta
+        thirty_days_ago = (datetime.utcnow() - timedelta(days=30)).isoformat()
+        activity_result = es.search('audit', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'user_id': user_id}},
+                        {'range': {'timestamp': {'gte': thirty_days_ago}}}
+                    ]
+                }
+            },
+            'size': 0
+        })
+        activity_count = activity_result['hits']['total']['value']
+    except:
+        activity_count = 0
+    
+    # Get user reports count (if applicable)
+    try:
+        reports_result = es.search('reports', {
+            'query': {'term': {'user_id': user_id}},
+            'size': 0
+        })
+        reports_count = reports_result['hits']['total']['value']
+    except:
+        reports_count = 0
+    
+    # Get user permissions
+    rbac = RBACService()
+    user_permissions = rbac.get_user_permissions(current_user)
+    
+    return render_template('auth/profile.html',
+                         user=current_user,
+                         activity_count=activity_count,
+                         reports_count=reports_count,
+                         user_permissions=user_permissions)
+
+
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
