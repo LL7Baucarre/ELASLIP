@@ -304,6 +304,111 @@ class ReportService:
         language_name = language_map.get(self.generation_language, 'English')
         return f"You are a helpful security analyst. IMPORTANT: You must respond ONLY in {language_name}. Every word, every sentence must be in {language_name}. Do not use English. Use only {language_name}.\n\n"
     
+    def get_default_prompts(self) -> Dict[str, str]:
+        """
+        Get default prompts for all report types.
+        
+        Returns:
+            Dictionary with default prompts for ioc, case, incident, and checklist
+        """
+        return {
+            'ioc': """Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+
+## IOC Details
+- **Type**: {type}
+- **IOC Value**: {value}
+- **Threat Level**: {severity}
+
+## Description
+{description}
+
+## Related Indicators
+{relations}
+
+Please provide in Markdown format:
+1. Indicator Overview
+2. Base Threat Assessment
+3. Enrichment Intelligence Analysis (if available)
+4. Related Indicators Analysis (if available)
+5. Threat Level Justification
+6. Recommended Actions
+7. Summary""",
+            
+            'case': """Generate a comprehensive security case investigation report:
+
+## Case Information
+- **Name**: {name}
+- **Status**: {status}
+- **Priority**: {priority}
+- **Description**: {description}
+
+## Context
+- **Number of Associated Incidents**: {incidents_count}
+- **Number of Indicators**: {iocs_count}
+
+## Associated Incidents
+{incidents}
+
+## Associated IOCs
+{iocs}
+
+Please provide a professional security investigation report with sections for:
+1. Executive Summary
+2. Incident Timeline
+3. Threat Assessment
+4. Compromised Assets and Impact
+5. Technical Indicators Analysis
+6. Investigation Findings
+7. Recommendations and Actions
+8. Risk Assessment""",
+            
+            'incident': """Analyze this security incident and generate a comprehensive threat report:
+
+## Incident Details
+- **Name**: {name}
+- **Type**: {type}
+- **Severity**: {severity}
+- **Status**: {status}
+- **Description**: {description}
+
+## Associated Indicators ({iocs_count}):
+{iocs}
+
+Please provide in Markdown format:
+1. Incident Summary (include key timeline events)
+2. Attack Vector Analysis
+3. Affected Systems and Assets
+4. Indicators and their role in the incident
+5. Key Analyst Observations
+6. Immediate Actions Required
+7. Long-term Recommendations and Lessons Learned""",
+            
+            'checklist': """Generate a detailed work report for a security checklist:
+
+## Checklist Overview
+- **Title**: {title}
+- **Description**: {description}
+- **Assigned To**: {assigned_to}
+- **Created By**: {created_by}
+- **Tags**: {tags}
+- **Related Campaigns**: {campaigns}
+- **Related Cases**: {related_cases}
+- **Related Incidents**: {related_incidents}
+
+## Work Performed
+{items}
+
+## Team Observations
+{global_comments}
+
+Please provide a detailed analysis including:
+1. Summary of all completed work items
+2. Impact and importance of each action
+3. How items address security concerns
+4. Key findings and discoveries
+5. Recommendations for follow-up"""
+        }
+    
     def generate_ioc_report(self, ioc_id: str) -> Dict[str, Any]:
         """
         Generate a report for an IOC and its relations.

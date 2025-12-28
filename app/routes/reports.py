@@ -85,6 +85,35 @@ def get_report_config():
     })
 
 
+@bp.route('/api/reports/default-prompts', methods=['GET'])
+@login_required
+def get_default_prompts():
+    """
+    Get default prompts for all report types (for reference in UI)
+    ---
+    tags:
+      - Reports
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Default prompts for IOC, Case, Incident, and Checklist
+        schema:
+          type: object
+          properties:
+            ioc:
+              type: string
+            case:
+              type: string
+            incident:
+              type: string
+            checklist:
+              type: string
+    """
+    default_prompts = report_service.get_default_prompts()
+    return jsonify(default_prompts)
+
+
 @bp.route('/api/reports/test-connection', methods=['POST'])
 @login_required
 @permission_required('admin.settings.view')
