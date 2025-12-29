@@ -55,8 +55,10 @@ class SubmissionService(BaseListService):
         submission_id = f"submission--{uuid.uuid4()}"
         now = datetime.utcnow().isoformat() + 'Z'
         
-        # Check if similar IOCs already exist
-        matched_iocs = self._find_matching_iocs(ioc_type, ioc_value)
+        # Check if this is a duplicate submission
+        existing_submissions = self._find_duplicate_submissions_for_value(ioc_type, ioc_value)
+        is_duplicate = len(existing_submissions) > 0
+        duplicate_of = existing_submissions[0] if is_duplicate else None
         
         submission = {
             'id': submission_id,
@@ -69,8 +71,9 @@ class SubmissionService(BaseListService):
             'description': description,
             'reason': reason,
             'tags': tags or [],
-            'status': 'pending',  # pending, processed, created_ioc, rejected
-            'matched_iocs': matched_iocs,
+            'status': 'duplicate' if is_duplicate else 'pending',
+            'duplicate_of': duplicate_of,
+            'matched_iocs': [],
             'created_ioc_id': None,
             'analyst_notes': None,
             'analyst_user_id': None,
@@ -87,7 +90,26 @@ class SubmissionService(BaseListService):
         submission['id'] = submission_id
         return submission
     
-    def _find_matching_iocs(self, ioc_type: str, ioc_value: str) -> List[str]:
+    def _find_duplicate_submissions_for_value(self, ioc_type: str, ioc_value: str) -> List[str]:
+        """Find existing pending submissions for the same IOC type and value."""
+        try:
+            query = {
+                'query': {
+                    'bool': {
+                        'must': [
+                            {'term': {'ioc_type': ioc_type}},
+                            {'term': {'ioc_value.keyword': ioc_value}},
+                            {'term': {'status': 'pending'}}
+                        ]
+                    }
+                },
+                'size': 1,
+                'sort': [{'created_at': {'order': 'asc'}}]
+            }
+            result = self.es.search(self.index, query)
+            return [hit['_id'] for hit in result.get('hits', {}).get('hits', [])]
+        except Exception:
+            return []
         """Find IOCs that match the submission."""
         try:
             query = {
@@ -300,3 +322,121 @@ class SubmissionService(BaseListService):
             analyst_user_id=analyst_user_id,
             analyst_username=analyst_username
         )
+    
+    def find_duplicate_submissions(self, submission_id: str) -> List[Dict]:
+        """
+        Find duplicate submissions for the same IOC.
+        Duplicates are defined as submissions with the same ioc_type + ioc_value.
+        
+        Args:
+            submission_id: The submission ID to find duplicates for
+        
+        Returns:
+            List of duplicate submissions (excluding the current one)
+        """
+        submission = self.get_submission(submission_id)
+        if not submission:
+            return []
+        
+        try:
+            query = {
+                'query': {
+                    'bool': {
+                        'must': [
+                            {'term': {'ioc_type': submission['ioc_type']}},
+                            {'term': {'ioc_value.keyword': submission['ioc_value']}}
+                        ],
+                        'must_not': [
+                            {'term': {'_id': submission_id}}
+                        ]
+                    }
+                },
+                'size': 100,
+                'sort': [{'created_at': {'order': 'desc'}}]
+            }
+            result = self.es.search(self.index, query)
+            duplicates = self.build_hits_from_search(result)
+            return duplicates
+        except Exception:
+            return []
+    
+    def mark_duplicate(self, submission_id: str, original_submission_id: str) -> Dict:
+        """
+        Mark a submission as a duplicate of another.
+        
+        Args:
+            submission_id: The duplicate submission ID
+            original_submission_id: The original submission ID
+        
+        Returns:
+            Updated submission
+        """
+        submission = self.get_submission(submission_id)
+        if not submission:
+            raise ValueError(f"Submission {submission_id} not found")
+        
+        original = self.get_submission(original_submission_id)
+        if not original:
+            raise ValueError(f"Original submission {original_submission_id} not found")
+        
+        update = {
+            'doc': {
+                'status': 'duplicate',
+                'duplicate_of': original_submission_id,
+                'updated_at': datetime.utcnow().isoformat() + 'Z'
+            }
+        }
+        
+        self.es.update(index=self.index, doc_id=submission_id, body=update)
+        return self.get_submission(submission_id)
+    
+    def merge_duplicate_submissions(self, submission_ids: List[str], primary_submission_id: str = None) -> Dict:
+        """
+        Merge multiple duplicate submissions into one.
+        
+        Args:
+            submission_ids: List of submission IDs to merge
+            primary_submission_id: The ID of the submission to keep (if None, uses the first one)
+        
+        Returns:
+            The primary submission with merged data
+        """
+        if not submission_ids:
+            raise ValueError("At least one submission ID required")
+        
+        if primary_submission_id is None:
+            primary_submission_id = submission_ids[0]
+        
+        primary = self.get_submission(primary_submission_id)
+        if not primary:
+            raise ValueError(f"Primary submission {primary_submission_id} not found")
+        
+        # Collect tags and submitter info from all duplicates
+        all_tags = set(primary.get('tags', []))
+        submitter_emails = [primary.get('submitter_email')] if primary.get('submitter_email') else []
+        
+        # Mark all other submissions as duplicates
+        for sub_id in submission_ids:
+            if sub_id != primary_submission_id:
+                submission = self.get_submission(sub_id)
+                if submission:
+                    # Add tags
+                    all_tags.update(submission.get('tags', []))
+                    # Collect emails
+                    if submission.get('submitter_email'):
+                        submitter_emails.append(submission['submitter_email'])
+                    
+                    # Mark as duplicate
+                    self.mark_duplicate(sub_id, primary_submission_id)
+        
+        # Update primary with merged data
+        update = {
+            'doc': {
+                'tags': list(all_tags),
+                'submitter_emails': list(set(submitter_emails)),
+                'updated_at': datetime.utcnow().isoformat() + 'Z'
+            }
+        }
+        
+        self.es.update(index=self.index, doc_id=primary_submission_id, body=update)
+        return self.get_submission(primary_submission_id)

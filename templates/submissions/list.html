@@ -14,7 +14,7 @@
 <div class="card mb-4">
     <div class="card-body">
         <form class="row g-3" id="filterForm">
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Status</label>
                 <select class="form-select" id="filterStatus">
                     <option value="">All Status</option>
@@ -24,7 +24,16 @@
                     <option value="rejected">Rejected</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="filterIsDuplicate">
+                    <label class="form-check-label" for="filterIsDuplicate">
+                        Hide Duplicates
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-3">
                 <label class="form-label">&nbsp;</label>
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-funnel"></i> Filter
@@ -47,13 +56,14 @@
                         <th>Submitter</th>
                         <th>Confidence</th>
                         <th>Status</th>
+                        <th>Duplicates</th>
                         <th>Created</th>
                         <th>Action</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for submission in submissions['items'] %}
-                    <tr>
+                    <tr data-is-duplicate="{% if submission.status == 'duplicate' %}true{% else %}false{% endif %}">
                         <td>
                             <span class="badge bg-info">{{ submission.ioc_type.upper() }}</span>
                         </td>
@@ -79,9 +89,16 @@
                                 <span class="badge bg-success"><i class="bi bi-check-circle"></i> IOC Created</span>
                             {% elif submission.status == 'rejected' %}
                                 <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
+                            {% elif submission.status == 'duplicate' %}
+                                <span class="badge bg-info"><i class="bi bi-files"></i> Duplicate</span>
                             {% else %}
                                 <span class="badge bg-secondary">{{ submission.status.upper() }}</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('submissions.view_submission', submission_id=submission.id) }}" class="badge bg-light text-dark" title="Check for duplicates">
+                                <i class="bi bi-link-45deg"></i>
+                            </a>
                         </td>
                         <td>
                             <small class="text-muted">{{ submission.created_at[:10] }}</small>
@@ -149,7 +166,63 @@
 document.getElementById('filterForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const status = document.getElementById('filterStatus').value;
-    window.location.href = `?status=${status}`;
+    const isDuplicate = document.getElementById('filterIsDuplicate').checked;
+    
+    // Filter rows in the table
+    const rows = document.querySelectorAll('table tbody tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+        let show = true;
+        
+        // Filter by status
+        if (status) {
+            const rowStatus = row.querySelector('td:nth-child(5)');
+            const statusText = rowStatus.textContent.toLowerCase();
+            if (!statusText.includes(status)) {
+                show = false;
+            }
+        }
+        
+        // Filter by isDuplicate
+        if (isDuplicate) {
+            const isRowDuplicate = row.getAttribute('data-is-duplicate') === 'true';
+            if (isRowDuplicate) {
+                show = false;
+            }
+        }
+        
+        row.style.display = show ? '' : 'none';
+        if (show) visibleCount++;
+    });
+    
+    // Show message if no results
+    if (visibleCount === 0) {
+        const tbody = document.querySelector('table tbody');
+        if (!tbody.querySelector('.no-results-row')) {
+            const tr = document.createElement('tr');
+            tr.className = 'no-results-row';
+            tr.innerHTML = '<td colspan="8" class="text-center py-4 text-muted">No submissions match the selected filters</td>';
+            tbody.appendChild(tr);
+        }
+    } else {
+        const noResultsRow = document.querySelector('.no-results-row');
+        if (noResultsRow) noResultsRow.remove();
+    }
+});
+
+// Restore filter state on page load
+window.addEventListener('load', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const status = urlParams.get('status');
+    const isDuplicate = urlParams.get('isDuplicate');
+    
+    if (status) {
+        document.getElementById('filterStatus').value = status;
+    }
+    if (isDuplicate === 'true') {
+        document.getElementById('filterIsDuplicate').checked = true;
+    }
 });
 </script>
 {% endblock %}
