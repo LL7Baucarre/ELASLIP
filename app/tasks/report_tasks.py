@@ -143,10 +143,10 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
             entity_id=ioc_id,
             username=user_id,
             entity_name=f'IOC Report {ioc_id}',
-            changes={'error': str(e)}
+            changes={'error': error_msg[:200]}  # Store shorter version in audit
         )
         
-        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+        return {'status': 'error', 'error': error_msg, 'task_id': task_id}
 
 
 @shared_task(name='tasks.generate_case_report')
@@ -460,7 +460,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
     # Get task ID from Celery
     task_id = generate_checklist_report.request.id
     
-    print(f"DEBUG: Starting checklist report generation. Task ID: {task_id}, Checklist ID: {checklist_id}", file=sys.stderr)
     
     # Initialize report_entry early for error handling
     report_entry = {
@@ -481,8 +480,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         from app.services.checklist_service import ChecklistService
         checklist_service = ChecklistService()
         checklist = checklist_service.get_checklist(checklist_id)
-        
-        print(f"DEBUG: Retrieved checklist: {checklist is not None}", file=sys.stderr)
         
         if not checklist:
             report_entry['status'] = 'failed'
@@ -506,13 +503,9 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             'created_at': checklist.get('created_at'),
             'generated_at': datetime.utcnow().isoformat()
         }
-        
-        print(f"DEBUG: Generated report data with {len(report_data.get('items', []))} items", file=sys.stderr)
-        
+                
         # Call LLM to enhance the report if configured
         if report_service.is_configured():
-            print(f"DEBUG: LLM is configured, waiting for queue slot", file=sys.stderr)
-            
             # Mark as queued while waiting for lock
             report_entry['status'] = 'queued'
             es.index('elaslip_app_config', f'report_{task_id}', report_entry)
@@ -520,7 +513,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             try:
                 # Acquire lock to ensure only one report generates at a time
                 if not acquire_report_lock(timeout=600):
-                    print(f"DEBUG: Failed to acquire report lock after timeout", file=sys.stderr)
                     raise RuntimeError("Report generation queue is full. Please try again later.")
                 
                 # Update status to processing once we have the lock
@@ -529,9 +521,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 es.index('elaslip_app_config', f'report_{task_id}', report_entry)
                 
                 try:
-                    print(f"DEBUG: Lock acquired, generating enhanced report", file=sys.stderr)
                     enhanced = report_service.generate_checklist_report(checklist_id)
-                    print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
                     report_data['analysis'] = enhanced.get('analysis', '')
                     
                     # Record token usage if available
@@ -546,16 +536,12 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                             user_id=user_id
                         )
                 finally:
-                    # Always release the lock
                     release_report_lock()
-                    print(f"DEBUG: Report lock released", file=sys.stderr)
             except Exception as llm_err:
-                print(f"DEBUG: LLM enhancement failed: {str(llm_err)}", file=sys.stderr)
-                # Continue without LLM enhancement
-        else:
-            print(f"DEBUG: LLM not configured, skipping enhancement", file=sys.stderr)
+                # LLM generation failed, but we still save what we have
+                report_entry['error'] = f'LLM generation failed: {str(llm_err)}'
         
-        # Save completed report
+        # Update status to completed regardless of LLM success/failure
         report_entry['status'] = 'completed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
@@ -563,8 +549,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         
         print(f"DEBUG: Saving completed report", file=sys.stderr)
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
-        
-        print(f"DEBUG: Report saved successfully. Stored at app_config/report_{task_id}", file=sys.stderr)
         
         audit.log(
             action='report_generated',
@@ -577,10 +561,6 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
-        import traceback
-        print(f"DEBUG: Exception in generate_checklist_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
-        
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['error'] = str(e)
@@ -588,7 +568,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         try:
             es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         except Exception as save_err:
-            print(f"DEBUG: Failed to save error report: {str(save_err)}", file=sys.stderr)
+            pass
         
         audit.log(
             action='report_generation_failed',

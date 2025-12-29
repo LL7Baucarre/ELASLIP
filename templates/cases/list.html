@@ -130,7 +130,15 @@
 
             <!-- Pagination -->
             <nav id="pagination" class="d-flex justify-content-between align-items-center mt-3">
-                <div class="text-muted" id="paginationInfo">Showing 0 of 0</div>
+                <div class="text-muted">
+                    <label for="itemsPerPage" class="form-label me-2">Items per page:</label>
+                    <select id="itemsPerPage" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span id="paginationInfo" class="ms-3">Showing 0 of 0</span>
+                </div>
                 <ul class="pagination mb-0" id="paginationList"></ul>
             </nav>
         </div>
@@ -141,7 +149,7 @@
 {% block extra_js %}
 <script>
 let currentPage = 1;
-const perPage = 20;
+let perPage = 20;
 
 function loadCases() {
     const params = new URLSearchParams({
@@ -255,6 +263,22 @@ function resetFilters() {
     currentPage = 1;
     loadCases();
 }
+
+// Handle per_page selector changes
+document.addEventListener('DOMContentLoaded', function() {
+    const itemsPerPageSelect = document.getElementById('itemsPerPage');
+    if (itemsPerPageSelect) {
+        itemsPerPageSelect.addEventListener('change', function() {
+            const newPerPage = parseInt(this.value);
+            if (newPerPage !== perPage) {
+                perPage = newPerPage;
+                currentPage = 1;  // Reset to page 1 when changing items per page
+                loadCases();
+            }
+        });
+    }
+    loadCases();
+});
 
 function deleteCase(caseId) {
     if (!confirm('Are you sure you want to delete this case?')) return;

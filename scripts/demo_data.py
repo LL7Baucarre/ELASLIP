@@ -368,7 +368,7 @@ def generate_checklists():
 
 
 def generate_random_iocs(count=100):
-    """Generate random IOCs of various types."""
+    """Generate random IOCs of various types - STIX 2.1 compliant."""
     # Only use types supported by STIX pattern generation
     ioc_types = ['ipv4', 'domain', 'email', 'url', 'md5', 'sha1', 'sha256', 'asn']
 
@@ -396,9 +396,10 @@ def generate_random_iocs(count=100):
         else:
             value = 'unknown'
         
-        # Random metadata
+        # Random metadata (STIX 2.1 compliant)
         threat_levels = ['low', 'medium', 'high', 'critical']
-        confidence_levels = ['low', 'medium', 'high']
+        # Confidence as integer (0-100) for STIX 2.1 compliance
+        confidence_values = [25, 50, 75, 100]
         tlp_levels = ['white', 'green', 'amber', 'red']
         labels = [
             'malware', 'phishing', 'botnet', 'c2', 'trojan', 
@@ -417,20 +418,23 @@ def generate_random_iocs(count=100):
             'Unknown', 'Unattributed', 'Generic Malware', 'Opportunistic'
         ]
         
+        # Generate dates
+        created_date = datetime.utcnow() - timedelta(days=random.randint(1, 365))
+        expires_date = datetime.utcnow() + timedelta(days=random.randint(1, 365))
+        
         ioc = {
             'ioc_type': ioc_type,
             'ioc_value': value,
-            'name': f'{ioc_type.upper()} - {value[:30]}',
+            'name': f'{ioc_type.upper()}: {value[:30]}',
             'description': f'Demo IOC for {ioc_type}: {value}',
             'threat_level': random.choice(threat_levels),
-            'confidence': random.choice(confidence_levels),
+            'confidence': random.choice(confidence_values),  # Integer 0-100 for STIX 2.1
             'tlp': random.choice(tlp_levels),
             'labels': random.sample(labels, random.randint(1, 3)),
-            'sources': [{'name': random.choice(sources), 'reference': f'ref-{uuid.uuid4()}'}],
-            'campaigns': random.sample(campaigns, random.randint(1, 3)),  # Changed from 0, 2 to 1, 3 to ensure at least 1 campaign
-            'valid_from': (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat(),
-            'valid_until': (datetime.utcnow() + timedelta(days=random.randint(1, 365))).isoformat(),
-            'status': random.choice(['active', 'inactive', 'false_positive']),
+            'source': {'name': random.choice(sources), 'timestamp': datetime.utcnow().isoformat()},
+            'campaigns': random.sample(campaigns, random.randint(1, 3)),
+            'valid_from': created_date.isoformat() + 'Z',
+            'valid_until': expires_date.isoformat() + 'Z',
         }
         
         iocs.append(ioc)
@@ -464,11 +468,6 @@ def populate_demo_data():
         created_ids = []
         for i, ioc in enumerate(iocs, 1):
             try:
-                # Convert sources list to single source dict
-                source = None
-                if ioc.get('sources'):
-                    source = ioc['sources'][0]  # Take first source
-                
                 ioc_doc, is_new = service.create(
                     ioc_type=ioc['ioc_type'],
                     value=ioc['ioc_value'],
@@ -478,10 +477,12 @@ def populate_demo_data():
                     confidence=ioc.get('confidence'),
                     tlp=ioc.get('tlp'),
                     labels=ioc.get('labels', []),
-                    source=source,
+                    source=ioc.get('source'),
                     campaigns=ioc.get('campaigns', []),
                     valid_from=ioc.get('valid_from'),
-                    valid_until=ioc.get('valid_until')
+                    valid_until=ioc.get('valid_until'),
+                    user_id='demo_generator',
+                    username='demo'
                 )
                 created_ids.append(ioc_doc['id'])
                 if i % 10 == 0:

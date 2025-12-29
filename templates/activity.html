@@ -21,7 +21,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="finops-tab" data-bs-toggle="tab" data-bs-target="#finops-pane" type="button" role="tab" aria-controls="finops-pane" aria-selected="false">
-            <i class="fas fa-chart-line me-2"></i>FinOps (LLM Tokens)
+            <i class="fas fa-chart-line me-2"></i>LLM Usage
         </button>
     </li>
     <li class="nav-item" role="presentation">
@@ -995,6 +995,69 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+async function loadElasticsearchStats() {
+    try {
+        const response = await fetch('/api/audit/elasticsearch/stats');
+        if (!response.ok) {
+            console.error('Failed to load Elasticsearch stats:', response.statusText);
+            return;
+        }
+        
+        const data = await response.json();
+        
+        // Update summary cards
+        document.getElementById('es-total-indices').textContent = data.indices_count || 0;
+        document.getElementById('es-total-documents').textContent = (data.total_documents || 0).toLocaleString();
+        document.getElementById('es-total-size').textContent = formatBytes(data.total_size_bytes || 0);
+        document.getElementById('es-cluster-health').textContent = (data.cluster_health || 'Unknown').toUpperCase();
+        document.getElementById('es-active-shards').textContent = data.active_shards || 0;
+        document.getElementById('es-node-count').textContent = data.node_count || 0;
+        
+        // Update indices table
+        updateIndicesTable(data.indices || []);
+    } catch (error) {
+        console.error('Error loading Elasticsearch stats:', error);
+        document.getElementById('es-indices-tbody').innerHTML = 
+            '<tr><td colspan="6" class="text-center text-danger">Error loading data</td></tr>';
+    }
+}
+
+function updateIndicesTable(indices) {
+    const tbody = document.getElementById('es-indices-tbody');
+    
+    if (indices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No indices found</td></tr>';
+        return;
+    }
+    
+    const rows = indices.map(index => {
+        const sizeGB = (index.size_bytes / (1024 * 1024 * 1024)).toFixed(2);
+        const statusBadge = index.status === 'green' ? 'bg-success' : 
+                           index.status === 'yellow' ? 'bg-warning' : 'bg-danger';
+        
+        return `
+            <tr>
+                <td><code>${index.name}</code></td>
+                <td>${(index.doc_count || 0).toLocaleString()}</td>
+                <td>${formatBytes(index.size_bytes || 0)}</td>
+                <td>${index.primary_shards || 0}</td>
+                <td>${index.replica_shards || 0}</td>
+                <td><span class="badge ${statusBadge}">${index.status || 'unknown'}</span></td>
+            </tr>
+        `;
+    }).join('');
+    
+    tbody.innerHTML = rows;
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
 </script>
 
 <!-- Chart.js -->

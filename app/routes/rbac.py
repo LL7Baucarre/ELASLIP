@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 
 from app.auth import login_or_api_key_required
+from app.decorators import permission_required
 from app.services.rbac_service import RBACService
 from app.rbac_matrix import get_permission_matrix, get_categories
 
@@ -87,6 +88,7 @@ def get_role(role_name):
 
 @rbac_bp.route('/roles', methods=['POST'])
 @login_required
+@permission_required('admin.roles.create')
 def create_role():
     """
     Create a new custom role.
@@ -101,10 +103,7 @@ def create_role():
         "permissions": ["ioc.view", "ioc.create", "case.view"]
     }
     """
-    # Check admin permission
     rbac = RBACService()
-    if not rbac.user_has_permission(current_user, 'admin.roles.create'):
-        return jsonify({'error': 'Insufficient permissions'}), 403
     
     data = request.get_json()
     
@@ -150,6 +149,7 @@ def create_role():
 
 @rbac_bp.route('/roles/<role_name>', methods=['PUT'])
 @login_required
+@permission_required('admin.roles.edit')
 def update_role(role_name):
     """
     Update a custom role (cannot modify system roles).
@@ -157,8 +157,6 @@ def update_role(role_name):
     Required permissions: admin.roles.edit
     """
     rbac = RBACService()
-    if not rbac.user_has_permission(current_user, 'admin.roles.edit'):
-        return jsonify({'error': 'Insufficient permissions'}), 403
     
     role = rbac.get_role(role_name)
     if not role:
@@ -199,6 +197,7 @@ def update_role(role_name):
 
 @rbac_bp.route('/roles/<role_name>', methods=['DELETE'])
 @login_required
+@permission_required('admin.roles.delete')
 def delete_role(role_name):
     """
     Delete a custom role (cannot delete system roles).
@@ -206,8 +205,6 @@ def delete_role(role_name):
     Required permissions: admin.roles.delete
     """
     rbac = RBACService()
-    if not rbac.user_has_permission(current_user, 'admin.roles.delete'):
-        return jsonify({'error': 'Insufficient permissions'}), 403
     
     role = rbac.get_role(role_name)
     if not role:

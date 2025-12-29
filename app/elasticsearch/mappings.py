@@ -37,22 +37,47 @@ IOC_MAPPING = {
             "valid_from": {"type": "date"},
             "valid_until": {"type": "date"},
             "labels": {"type": "keyword"},
-            "confidence": {"type": "keyword"},
-            "threat_level": {"type": "keyword"},
-            "tlp": {"type": "keyword"},
-            "campaigns": {"type": "keyword"},
+            "confidence": {"type": "integer"},
+            "revoked": {"type": "boolean"},
             "lang": {"type": "keyword"},
             "external_references": {
                 "type": "nested",
                 "properties": {
                     "source_name": {"type": "keyword"},
                     "url": {"type": "keyword"},
-                    "external_id": {"type": "keyword"}
+                    "external_id": {"type": "keyword"},
+                    "description": {"type": "text"}
                 }
             },
             "object_marking_refs": {"type": "keyword"},
             "granular_markings": {"type": "nested"},
             "indicator_types": {"type": "keyword"},
+            # Custom STIX 2.1 extensions with x_ prefix (domain-specific properties)
+            "x_ioc_type": {"type": "keyword"},
+            "x_ioc_value": {"type": "keyword"},
+            "x_pattern_hash": {"type": "keyword"},
+            "x_threat_level": {"type": "keyword"},
+            "x_tlp": {"type": "keyword"},
+            "x_campaigns": {"type": "keyword"},
+            "x_risk_score": {"type": "integer"},
+            "x_status": {"type": "keyword"},
+            "x_current_version": {"type": "integer"},
+            "x_enrichment": {
+                "type": "object",
+                "properties": {
+                    "api_results": {
+                        "type": "nested",
+                        "properties": {
+                            "api_id": {"type": "keyword"},
+                            "api_name": {"type": "keyword"},
+                            "asn": {"type": "keyword"},
+                            "country_name": {"type": "keyword"},
+                            "enriched_at": {"type": "date"},
+                            "enriched_by": {"type": "keyword"}
+                        }
+                    }
+                }
+            },
             "x_metadata": {
                 "type": "object",
                 "properties": {

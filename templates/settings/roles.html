@@ -129,10 +129,20 @@
     background-color: #f8f9fa;
 }
 
+[data-theme="dark"] .role-item:hover {
+    border-color: #3498db;
+    background-color: rgba(52, 152, 219, 0.15);
+}
+
 .role-item.active {
     border-color: #0d6efd;
     background-color: #e7f1ff;
     border-left: 4px solid #0d6efd;
+}
+
+[data-theme="dark"] .role-item.active {
+    border-color: #3498db;
+    background-color: rgba(52, 152, 219, 0.2);
 }
 
 .role-item-header {
@@ -148,6 +158,10 @@
     font-size: 0.95rem;
 }
 
+[data-theme="dark"] .role-name {
+    color: #e9ecef;
+}
+
 .role-badge {
     display: inline-block;
     padding: 0.25rem 0.75rem;
@@ -161,10 +175,19 @@
     color: #555;
 }
 
+[data-theme="dark"] .role-system {
+    background-color: #495057;
+    color: #e9ecef;
+}
+
 .role-description {
     font-size: 0.9rem;
     color: #666;
     margin-bottom: 0.5rem;
+}
+
+[data-theme="dark"] .role-description {
+    color: #adb5bd;
 }
 
 .role-stats {
@@ -172,6 +195,10 @@
     gap: 1rem;
     font-size: 0.85rem;
     color: #999;
+}
+
+[data-theme="dark"] .role-stats {
+    color: #868e96;
 }
 
 .permissions-list {
@@ -213,6 +240,11 @@
     border-bottom: 1px solid #ddd;
 }
 
+[data-theme="dark"] .category-name {
+    color: #e9ecef;
+    border-bottom-color: #495057;
+}
+
 .permission-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
@@ -220,10 +252,21 @@
     border-radius: 0.25rem;
     font-size: 0.75rem;
     margin: 0.25rem;
+    color: #333;
+}
+
+[data-theme="dark"] .permission-badge {
+    background-color: #495057;
+    color: #e9ecef;
 }
 
 .permission-badge.active {
     background-color: #0d6efd;
+    color: white;
+}
+
+[data-theme="dark"] .permission-badge.active {
+    background-color: #3498db;
     color: white;
 }
 </style>

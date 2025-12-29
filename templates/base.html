@@ -17,7 +17,6 @@
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
         <ul class="nav">
-            <li class="nav-section-title">MANAGEMENT</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
@@ -60,13 +59,6 @@
                 </a>
             </li>
             {% endif %}
-            {% if has_any_permission('snippet.view', 'snippet.create') %}
-            <li class="nav-item">
-                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
-                    <i class="bi bi-file-earmark-text"></i> Snippets
-                </a>
-            </li>
-            {% endif %}
             {% if has_any_permission('checklist.view', 'checklist.create') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'checklists' in request.endpoint %}active{% endif %}" href="{{ url_for('checklists.list_page') }}">
@@ -83,6 +75,13 @@
             {% endif %}
             
             <li class="nav-section-title">TOOLS</li>
+            {% if has_any_permission('snippet.view', 'snippet.create') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
+                    <i class="bi bi-file-earmark-text"></i> Snippets
+                </a>
+            </li>
+            {% endif %}
             {% if has_permission('ioc.import') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
@@ -105,7 +104,7 @@
             </li>
             {% endif %}
             
-            <li class="nav-section-title">CONFIG</li>
+            <li class="nav-section-title">MANAGEMENT</li>
             {% if has_any_permission('admin.users.view', 'admin.users.create', 'admin.users.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'users_management' in request.endpoint %}active{% endif %}" href="{{ url_for('main.users_management') }}">
@@ -134,10 +133,10 @@
         
         <div class="user-section">
             <div class="user-info">
-                <div class="user-name">
+                <a href="{{ url_for('main.user_profile') }}" class="user-name" title="View profile">
                     <i class="bi bi-person-circle me-2"></i>
                     <span>{{ current_user.username }}</span>
-                </div>
+                </a>
                 <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                     <i class="bi bi-moon-fill" id="themeIcon"></i>
                 </div>

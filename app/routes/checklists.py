@@ -64,6 +64,7 @@ def api_create():
     checklist = checklist_service.create_checklist(
         title=title,
         description=description,
+        items=data.get('items', []),
         created_by=current_user.username,
         created_by_id=current_user.id,
         tags=data.get('tags', []),
@@ -96,9 +97,13 @@ def api_update(checklist_id):
     if 'campaigns' in data:
         updates['campaigns'] = data['campaigns']
     if 'related_cases' in data:
-        updates['related_cases'] = data['related_cases']
+        # Extract IDs from objects if needed, keep original for display
+        related_cases = data['related_cases']
+        updates['related_cases'] = related_cases
     if 'related_incidents' in data:
-        updates['related_incidents'] = data['related_incidents']
+        # Extract IDs from objects if needed, keep original for display
+        related_incidents = data['related_incidents']
+        updates['related_incidents'] = related_incidents
     if 'assigned_to' in data:
         updates['assigned_to'] = data['assigned_to']
     if 'assigned_to_name' in data:

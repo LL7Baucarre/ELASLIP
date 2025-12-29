@@ -199,7 +199,13 @@
     <div class="card-footer bg-white">
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                Showing <span id="showingCount">0</span> of <span id="totalCount">0</span> IOCs
+                <label for="itemsPerPage" class="form-label me-2">Items per page:</label>
+                <select id="itemsPerPage" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <span id="showingCount" class="ms-3">0</span> of <span id="totalCount">0</span> IOCs
             </div>
             <nav>
                 <ul class="pagination mb-0" id="pagination">
@@ -213,7 +219,7 @@
 {% block extra_js %}
 <script>
 let currentPage = 1;
-const perPage = 20;
+let perPage = 20;
 let sortColumn = null;
 let sortOrder = 'asc'; // 'asc' or 'desc'
 let allIOCs = []; // Store all IOCs for client-side sorting
@@ -255,6 +261,20 @@ function loadIOCs(page = 1) {
         $('#totalCount').text(data.total);
     });
 }
+
+$(document).ready(function() {
+    // Handle per_page selector changes
+    $('#itemsPerPage').change(function() {
+        const newPerPage = parseInt($(this).val());
+        if (newPerPage !== perPage) {
+            perPage = newPerPage;
+            currentPage = 1;  // Reset to page 1 when changing items per page
+            loadIOCs(1);
+        }
+    });
+    
+    loadIOCs(1);
+});
 
 function sortTable(column) {
     // Toggle sort order if clicking the same column

@@ -22,25 +22,33 @@ def dispatch_webhook(self, event: str, data: Dict[str, Any]):
     """
     es = ElasticsearchService()
     
-    # Find all webhooks subscribed to this event
-    result = es.search('webhooks', {
-        'query': {
-            'bool': {
-                'must': [
-                    {'term': {'enabled': True}},
-                    {'term': {'events': event}}
-                ]
-            }
-        },
-        'size': 100
-    })
-    
-    for hit in result['hits']['hits']:
-        webhook = hit['_source']
-        webhook['id'] = hit['_id']
+    try:
+        # Find all webhooks subscribed to this event
+        result = es.search('webhooks', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'enabled': True}},
+                        {'term': {'events': event}}
+                    ]
+                }
+            },
+            'size': 100
+        })
         
-        # Send webhook asynchronously
-        send_webhook.delay(webhook['id'], webhook['url'], event, data)
+        # Check if result has hits
+        if not result or 'hits' not in result:
+            return
+        
+        for hit in result['hits']['hits']:
+            webhook = hit['_source']
+            webhook['id'] = hit['_id']
+            
+            # Send webhook asynchronously
+            send_webhook.delay(webhook['id'], webhook['url'], event, data)
+    except Exception as e:
+        # Log but don't fail - webhooks are secondary to main functionality
+        print(f"[WEBHOOK ERROR] Error dispatching webhook for {event}: {str(e)}")
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=5)

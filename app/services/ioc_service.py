@@ -50,8 +50,8 @@ class IOCService(BaseListService):
         
         This method:
         1. Removes all enrichment_* fields from root (they should be in x_enrichment)
-        2. Ensures timestamps have UTC 'Z' suffix
-        3. Removes invalid/duplicate fields
+        2. Removes ALL old non-prefixed duplicate fields (campaigns, threat_level, tlp, etc.)
+        3. Ensures timestamps have UTC 'Z' suffix
         4. Groups enrichment data into x_enrichment object
         
         Args:
@@ -78,30 +78,37 @@ class IOCService(BaseListService):
             'x_metadata', 'x_enrichment'
         }
         
+        # OLD/DUPLICATE FIELDS TO REJECT (STIX 2.1 non-compliant)
+        # These should NEVER appear at root level - they must use x_ prefix
+        ILLEGAL_DUPLICATE_FIELDS = {
+            'campaigns', 'threat_level', 'tlp', 'status', 'risk_score',
+            'current_version', 'ioc_type', 'ioc_value', 'pattern_hash',
+            'asn', 'country'
+        }
+        
         sanitized = {}
         enrichment_fields = {}
         
         for key, value in ioc.items():
+            # Reject old/duplicate fields EXPLICITLY
+            if key in ILLEGAL_DUPLICATE_FIELDS:
+                # Skip these - they must use x_ prefix instead
+                continue
+            
             # Skip enrichment_* fields at root - they go to x_enrichment
             if key.startswith('enrichment_'):
                 enrichment_fields[key.replace('enrichment_', '')] = value
                 continue
             
-            # Skip invalid root-level custom fields (not STIX-compliant)
-            if key in ['risk_score', 'current_version', 'threat_level', 'tlp', 
-                      'campaigns', 'status', 'asn', 'country', 'ioc_type', 'ioc_value',
-                      'pattern_hash', 'sources']:
-                # These go to x_metadata, not root
-                continue
-            
-            # Keep only valid STIX properties
-            if key in STIX_2_1_PROPERTIES:
+            # Keep only valid STIX properties and custom x_* fields
+            if key in STIX_2_1_PROPERTIES or key.startswith('x_'):
                 # Fix timestamp format - ensure UTC 'Z' suffix
                 if key in ['created', 'modified'] and isinstance(value, str):
                     # Remove milliseconds if present and ensure Z suffix
                     value = IOCService._ensure_timestamp_format(value)
                 
                 sanitized[key] = value
+                continue
         
         # Ensure x_metadata exists and is valid, preserve from original
         if 'x_metadata' in ioc and isinstance(ioc['x_metadata'], dict):
@@ -170,7 +177,39 @@ class IOCService(BaseListService):
         return timestamp + 'Z'
 
     def _enrich_with_metadata(self, doc: Dict) -> Dict:
-        """Extract x_metadata fields to root level for frontend compatibility."""
+        """
+        Add convenience aliases for x_* custom fields to support backward compatibility.
+        
+        Maps x_threat_level → threat_level, x_tlp → tlp, etc. for frontend access.
+        This ensures both old code (accessing threat_level) and new code (accessing x_threat_level) work.
+        """
+        # Map x_* fields to convenient names (for templates and old code)
+        field_mappings = {
+            'x_threat_level': 'threat_level',
+            'x_tlp': 'tlp',
+            'x_campaigns': 'campaigns',
+            'x_status': 'status',
+            'x_risk_score': 'risk_score',
+            'x_ioc_type': 'ioc_type',
+            'x_ioc_value': ['ioc_value', 'value'],  # Both ioc_value AND value as aliases
+            'x_current_version': 'current_version',
+            'x_pattern_hash': 'pattern_hash',
+        }
+        
+        # Add convenience aliases if not already present
+        for x_field, convenient_names in field_mappings.items():
+            if x_field in doc:
+                # Handle both single string and list of aliases
+                if isinstance(convenient_names, list):
+                    for convenient_name in convenient_names:
+                        if convenient_name not in doc:
+                            doc[convenient_name] = doc[x_field]
+                else:
+                    if convenient_names not in doc:
+                        doc[convenient_names] = doc[x_field]
+        
+        # Also handle old structure for backward compatibility
+        # If data comes from old structure, extract from x_metadata
         if 'x_metadata' in doc and isinstance(doc['x_metadata'], dict):
             metadata = doc['x_metadata']
             # Add essential metadata fields to root level
@@ -344,13 +383,33 @@ class IOCService(BaseListService):
         if existing:
             return self._add_source_to_existing(existing, source), False
         
-        # Create new IOC
-        ioc_doc = indicator.to_dict()
-        ioc_doc['pattern_hash'] = pattern_hash
-        ioc_doc['ioc_type'] = ioc_type
-        ioc_doc['ioc_value'] = ioc_value
+        # Create new IOC with proper x_metadata structure
+        ioc_doc = indicator.to_dict_with_metadata(
+            ioc_type=ioc_type,
+            ioc_value=ioc_value,
+            pattern_hash=pattern_hash,
+            status='active',
+            current_version=1
+        )
         
         self.es.index(self.index, indicator.id, ioc_doc)
+        
+        # Create initial version snapshot
+        self._create_version_snapshot(indicator.id, ioc_doc, None, 'system')
+        
+        # Log to audit trail
+        try:
+            self.audit.log(
+                action='create',
+                entity_type='ioc',
+                entity_id=indicator.id,
+                entity_name=ioc_doc.get('name', ioc_value or 'unknown'),
+                changes={'created': True},
+                user_id='system',
+                username='system'
+            )
+        except Exception:
+            pass
         
         self._trigger_webhook('ioc.created', ioc_doc)
         
@@ -369,13 +428,43 @@ class IOCService(BaseListService):
             return doc
         return None
     
+    def get_stix_compliant(self, ioc_id: str) -> Optional[Dict]:
+        """
+        Get IOC by ID as PURE STIX 2.1 compliant document (no backward-compat aliases).
+        
+        This returns ONLY the valid STIX 2.1 fields without the convenience aliases
+        added by _enrich_with_metadata(). Use this for displaying/exporting the
+        official STIX JSON representation.
+        
+        Removes: threat_level, tlp, campaigns, status, risk_score, ioc_type, 
+                 ioc_value, current_version, pattern_hash, value
+        
+        Returns: Document with ONLY x_* fields (custom) and standard STIX fields
+        """
+        result = self.es.get(self.index, ioc_id)
+        if result:
+            doc = result['_source'].copy()
+            doc['id'] = result['_id']
+            
+            # Remove backward-compat aliases (keep only x_* custom properties)
+            aliases_to_remove = {
+                'threat_level', 'tlp', 'campaigns', 'status', 'risk_score',
+                'ioc_type', 'ioc_value', 'current_version', 'pattern_hash', 'value'
+            }
+            
+            for alias in aliases_to_remove:
+                doc.pop(alias, None)
+            
+            return doc
+        return None
+    
     def update(self, ioc_id: str, updates: Dict, user_id: str = None, username: str = None) -> Optional[Dict]:
         """
         Update an IOC with versioning support.
         
         Args:
             ioc_id: IOC ID
-            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns, valid_from, valid_until, status, x_enrichment, x_metadata)
+            updates: Fields to update (labels, name, description, threat_level, confidence, tlp, campaigns, valid_from, valid_until, status)
             user_id: User ID making the update (for audit trail)
             username: Username making the update
         
@@ -386,21 +475,38 @@ class IOCService(BaseListService):
         if not existing:
             return None
         
-        # Allow updating both standard fields and custom STIX fields with x_ prefix
-        # STIX 2.1 compliant: only x_* and specific root properties are allowed
-        allowed_fields = [
-            'labels', 'name', 'description', 'valid_from', 'valid_until',
-            'x_enrichment', 'x_metadata'  # STIX 2.1 custom properties
-        ]
+        # Metadata fields that map to x_* at root level (STIX 2.1 custom properties)
+        metadata_fields = {
+            'threat_level': 'x_threat_level',
+            'confidence': 'confidence',  # This is standard STIX 2.1 (integer)
+            'tlp': 'x_tlp',
+            'campaigns': 'x_campaigns',
+            'status': 'x_status'
+        }
+        
+        # Allow updating both standard STIX fields and custom properties
+        allowed_root_fields = ['labels', 'name', 'description', 'valid_from', 'valid_until']
+        
         update_doc = {}
+        
         for k, v in updates.items():
-            # REJECT enrichment_* fields at root (they violate STIX 2.1)
+            # Skip enrichment_* fields at root
             if k.startswith('enrichment_'):
-                # Skip these - they should go in x_enrichment
                 continue
             
-            # Allow only STIX-compliant fields
-            if k in allowed_fields or k.startswith('x_'):
+            # Map metadata fields to their x_* equivalents
+            if k in metadata_fields:
+                es_field_name = metadata_fields[k]
+                if v is not None:
+                    # Convert confidence string to integer if needed
+                    if k == 'confidence' and isinstance(v, str):
+                        v = self.CONFIDENCE_SCORES.get(v.lower(), 50)  # Default to 50 if invalid
+                    update_doc[es_field_name] = v
+            # Allow standard STIX fields
+            elif k in allowed_root_fields:
+                update_doc[k] = v
+            # Allow x_* custom fields
+            elif k.startswith('x_'):
                 update_doc[k] = v
         
         # If x_metadata is provided, merge it with existing x_metadata
@@ -428,13 +534,14 @@ class IOCService(BaseListService):
         update_doc['x_metadata']['risk_score'] = risk_score
         
         # Increment version
-        current_version = existing.get('current_version', 1)
+        current_version = existing.get('x_current_version', 1)
         new_version = current_version + 1
-        update_doc['current_version'] = new_version
+        update_doc['x_current_version'] = new_version
         
         # Create version snapshot with the NEW version number
         snapshot_for_version = existing.copy()
-        snapshot_for_version['current_version'] = new_version
+        snapshot_for_version.update(update_doc)
+        snapshot_for_version['x_current_version'] = new_version
         self._create_version_snapshot(ioc_id, snapshot_for_version, updates, user_id, username)
         
         self.es.update(self.index, ioc_id, {'doc': update_doc})
@@ -549,8 +656,8 @@ class IOCService(BaseListService):
         if source:
             query["bool"]["must"].append({
                 "nested": {
-                    "path": "sources",
-                    "query": {"term": {"sources.name": source}}
+                    "path": "x_metadata.sources",
+                    "query": {"term": {"x_metadata.sources.name": source}}
                 }
             })
         
@@ -674,7 +781,7 @@ class IOCService(BaseListService):
     def _find_by_pattern_hash(self, pattern_hash: str) -> Optional[Dict]:
         """Find IOC by pattern hash."""
         result = self.es.search(self.index, {
-            "query": {"term": {"pattern_hash": pattern_hash}},
+            "query": {"term": {"x_metadata.pattern_hash": pattern_hash}},
             "size": 1
         })
         

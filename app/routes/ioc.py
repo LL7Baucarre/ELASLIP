@@ -235,6 +235,7 @@ def get_versions(ioc_id):
 
 @ioc_bp.route('/<ioc_id>/versions/<int:version>/restore', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def restore_version(ioc_id, version):
     """
     Restore an IOC to a previous version.
@@ -574,7 +575,7 @@ def get_expired():
     expired = service.get_expired_iocs()
     
     return jsonify({
-        'expired': expired,
+        'expired': [normalize_ioc_for_api(ioc) for ioc in expired],
         'count': len(expired)
     }), 200
 
@@ -605,7 +606,7 @@ def get_expiring_soon():
     expiring = service.get_expiring_soon(days=days)
     
     return jsonify({
-        'expiring_soon': expiring,
+        'expiring_soon': [normalize_ioc_for_api(ioc) for ioc in expiring],
         'count': len(expiring),
         'days': days
     }), 200
@@ -613,6 +614,7 @@ def get_expiring_soon():
 
 @ioc_bp.route('/archive-expired', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def archive_expired():
     """
     Archive all expired IOCs.
@@ -714,13 +716,24 @@ def list_iocs():
         'confidence': None
     })
     
-    if labels:
-        filters['labels'] = labels
-    if campaigns:
-        filters['campaigns'] = campaigns
+    # Map 'type' parameter to 'ioc_type' for service method
+    if 'type' in filters:
+        filters['ioc_type'] = filters.pop('type')
     
     service = IOCService()
-    result = service.list(page=page, per_page=per_page, **filters)
+    result = service.list(
+        page=page, 
+        per_page=per_page,
+        ioc_type=filters.get('ioc_type'),
+        tlp=filters.get('tlp'),
+        threat_level=filters.get('threat_level'),
+        confidence=filters.get('confidence'),
+        labels=labels if labels else None,
+        campaigns=campaigns if campaigns else None
+    )
+    
+    # Normalize each IOC for API response
+    result['items'] = [normalize_ioc_for_api(ioc) for ioc in result['items']]
     
     return jsonify(result)
 
@@ -735,6 +748,7 @@ def get_stats():
 
 
 @ioc_bp.route('/types', methods=['GET'])
+@login_or_api_key_required
 def get_supported_types():
     """Get supported IOC types."""
     return jsonify({
@@ -747,6 +761,8 @@ def get_supported_types():
 @permission_required('ioc.view')
 def get_ioc(ioc_id):
     """Get a single IOC by ID."""
+    from app.utils.ioc_adapter import normalize_ioc_for_api
+    
     service = IOCService()
     ioc = service.get(ioc_id)
     
@@ -918,6 +934,8 @@ def get_ioc_sources(ioc_id):
 
 
 @ioc_bp.route('/validate', methods=['POST'])
+@login_or_api_key_required
+@permission_required('ioc.create')
 def validate_ioc():
     """
     Validate an IOC value without creating it.
@@ -964,6 +982,7 @@ def validate_ioc():
 
 @ioc_bp.route('/stix', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.import')
 def create_from_stix():
     """
     Create an IOC from raw STIX 2.1 JSON.
@@ -1176,6 +1195,7 @@ def enrich_ioc(ioc_id):
 
 @ioc_bp.route('/<ioc_id>/store-enrichment', methods=['POST'])
 @login_or_api_key_required
+@permission_required('ioc.edit')
 def store_enrichment(ioc_id):
     """
     Store selected enrichment fields into IOC's x_enrichment object.

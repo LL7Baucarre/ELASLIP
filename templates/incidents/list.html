@@ -8,7 +8,7 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h1 class="h3 mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Incidents</h1>
-            <p class="text-muted mb-0">Security incidents with IOCs and report generation</p>
+            <p class="text-muted mb-0">Security incidents with IOCs</p>
         </div>
         {% if has_permission('incident.create') %}
         <a href="{{ url_for('main.incidents_new') }}" class="btn btn-primary">
@@ -91,7 +91,15 @@
 
     <!-- Pagination -->
     <nav class="d-flex justify-content-between align-items-center mt-4">
-        <div class="text-muted" id="paginationInfo">Showing 0 of 0</div>
+        <div class="text-muted">
+            <label for="itemsPerPage" class="form-label me-2">Items per page:</label>
+            <select id="itemsPerPage" class="form-select form-select-sm" style="width: auto; display: inline-block;">
+                <option value="12" selected>12</option>
+                <option value="24">24</option>
+                <option value="48">48</option>
+            </select>
+            <span id="paginationInfo" class="ms-3">Showing 0 of 0</span>
+        </div>
         <ul class="pagination mb-0" id="paginationList"></ul>
     </nav>
 </div>
@@ -100,7 +108,7 @@
 {% block extra_js %}
 <script>
 let currentPage = 1;
-const perPage = 12;
+let perPage = 12;
 
 function loadIncidents() {
     const params = new URLSearchParams({
@@ -214,12 +222,26 @@ function debounce(func, wait) {
     };
 }
 
+// Handle per_page selector changes
+const itemsPerPageSelect = document.getElementById('itemsPerPage');
+if (itemsPerPageSelect) {
+    itemsPerPageSelect.addEventListener('change', function() {
+        const newPerPage = parseInt(this.value);
+        if (newPerPage !== perPage) {
+            perPage = newPerPage;
+            currentPage = 1;  // Reset to page 1 when changing items per page
+            loadIncidents();
+        }
+    });
+}
+
 document.getElementById('searchInput').addEventListener('input', debounce(loadIncidents, 300));
 document.getElementById('statusFilter').addEventListener('change', loadIncidents);
 document.getElementById('severityFilter').addEventListener('change', loadIncidents);
 document.getElementById('categoryFilter').addEventListener('change', loadIncidents);
 document.getElementById('sortBy').addEventListener('change', loadIncidents);
 
+loadIncidents();  // Load on page load
 loadIncidents();
 </script>
 {% endblock %}

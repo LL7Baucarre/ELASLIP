@@ -43,27 +43,39 @@
                         </div>
 
                         <div class="mb-3">
-                            <label for="campaigns" class="form-label">Campaigns</label>
-                            <input type="text" class="form-control" id="campaigns"
-                                   placeholder="Enter campaign names separated by commas">
-                        </div>
-
-                        <div class="mb-3">
                             <label for="relatedCases" class="form-label">Related Cases</label>
-                            <input type="text" class="form-control" id="relatedCases"
-                                   placeholder="Enter case IDs or names separated by commas">
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="relatedCases"
+                                       placeholder="Search cases..."
+                                       autocomplete="off">
+                                <div id="casesDropdown" class="list-group" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; top: calc(100% + 5px); left: 0; z-index: 1050; background: white; border: 1px solid #dee2e6; border-radius: 0.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                            </div>
+                            <div id="selectedCases" class="d-flex flex-wrap gap-2 mt-2"></div>
+                            <input type="hidden" id="casesList" name="cases_list">
                         </div>
 
                         <div class="mb-3">
                             <label for="relatedIncidents" class="form-label">Related Incidents</label>
-                            <input type="text" class="form-control" id="relatedIncidents"
-                                   placeholder="Enter incident IDs or names separated by commas">
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="relatedIncidents"
+                                       placeholder="Search incidents..."
+                                       autocomplete="off">
+                                <div id="incidentsDropdown" class="list-group" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; top: calc(100% + 5px); left: 0; z-index: 1050; background: white; border: 1px solid #dee2e6; border-radius: 0.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                            </div>
+                            <div id="selectedIncidents" class="d-flex flex-wrap gap-2 mt-2"></div>
+                            <input type="hidden" id="incidentsList" name="incidents_list">
                         </div>
 
                         <div class="mb-3">
                             <label for="assignedTo" class="form-label">Assign To</label>
-                            <input type="text" class="form-control" id="assignedTo"
-                                   placeholder="Username or user ID">
+                            <div class="position-relative">
+                                <input type="text" class="form-control" id="assignedTo"
+                                       placeholder="Search users..."
+                                       autocomplete="off">
+                                <div id="usersDropdown" class="list-group" style="display: none; position: absolute; width: 100%; max-height: 200px; overflow-y: auto; top: calc(100% + 5px); left: 0; z-index: 1050; background: white; border: 1px solid #dee2e6; border-radius: 0.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
+                            </div>
+                            <div id="selectedUser" class="mt-2"></div>
+                            <input type="hidden" id="assignedToId" name="assigned_to_id">
                         </div>
 
                         <div class="mb-3">
@@ -183,11 +195,10 @@ document.getElementById('createChecklistForm').addEventListener('submit', functi
         description,
         items,
         tags: parseTags(document.getElementById('tags').value),
-        campaigns: parseTags(document.getElementById('campaigns').value),
-        related_cases: parseTags(document.getElementById('relatedCases').value),
-        related_incidents: parseTags(document.getElementById('relatedIncidents').value),
-        assigned_to: document.getElementById('assignedTo').value.trim(),
-        assigned_to_name: document.getElementById('assignedTo').value.trim()
+        related_cases: window.selectedCases,
+        related_incidents: window.selectedIncidents,
+        assigned_to: window.selectedUser ? (typeof window.selectedUser === 'object' ? window.selectedUser.id : window.selectedUser) : '',
+        assigned_to_name: window.selectedUser ? (typeof window.selectedUser === 'object' ? window.selectedUser.username : window.selectedUser) : ''
     };
     
     fetch('/checklists/api/create', {
@@ -235,6 +246,215 @@ function addItemRow() {
 function removeItemRow(rowId) {
     document.getElementById(rowId).remove();
 }
+
+// ===== SEARCH DROPDOWNS FOR NEW CHECKLIST (Vanilla JS) =====
+window.selectedCases = [];
+window.selectedIncidents = [];
+window.selectedUser = null;
+
+// Helper function for fetch API calls
+function apiFetch(url, params) {
+    const queryString = new URLSearchParams(params).toString();
+    return fetch(`${url}?${queryString}`).then(r => r.json());
+}
+
+// Cases
+function searchCases(query) {
+    if (query.length < 1) return;
+    apiFetch('/api/cases', { q: query, per_page: 10 }).then(response => {
+        const cases = response.items || response.results || [];
+        let html = '';
+        if (cases.length === 0) {
+            html = '<div class="list-group-item text-muted text-center py-2">No cases found</div>';
+        } else {
+            cases.forEach(caseItem => {
+                const caseId = caseItem.id || caseItem.case_id;
+                const caseTitle = caseItem.title || caseItem.name;
+                const exists = selectedCases.some(c => (typeof c === 'object' ? c.id : c) === caseId);
+                if (!exists) {
+                    html += `<a href="#" class="list-group-item list-group-item-action case-item" data-case-id="${caseId}" data-case-title="${caseTitle}"><strong>${caseTitle}</strong><br><small class="text-muted">${caseId}</small></a>`;
+                }
+            });
+        }
+        const dropdown = document.getElementById('casesDropdown');
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+        document.querySelectorAll('.case-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const caseId = item.dataset.caseId;
+                const caseTitle = item.dataset.caseTitle;
+                const exists = window.selectedCases.some(c => (typeof c === 'object' ? c.id : c) === caseId);
+                if (!exists) {
+                    window.selectedCases.push({id: caseId, title: caseTitle});
+                    updateCasesBadges();
+                    dropdown.style.display = 'none';
+                    document.getElementById('relatedCases').value = '';
+                }
+            });
+        });
+    }).catch(err => console.error('Cases search error:', err));
+}
+
+function updateCasesBadges() {
+    let html = '';
+    window.selectedCases.forEach(caseItem => {
+        const caseTitle = typeof caseItem === 'object' ? caseItem.title : caseItem;
+        const caseId = typeof caseItem === 'object' ? caseItem.id : caseItem;
+        html += `<span class="badge bg-info"><i class="bi bi-x-circle-fill me-1"></i>${caseTitle} <a href="#" onclick="removeCase('${caseId}'); return false;" class="text-white ms-1">×</a></span>`;
+    });
+    document.getElementById('selectedCases').innerHTML = html;
+}
+
+function removeCase(caseId) {
+    window.selectedCases = window.selectedCases.filter(c => (typeof c === 'object' ? c.id : c) !== caseId);
+    updateCasesBadges();
+}
+
+// Incidents
+function searchIncidents(query) {
+    if (query.length < 1) return;
+    apiFetch('/api/incidents', { q: query, per_page: 10 }).then(response => {
+        const incidents = response.items || response.results || [];
+        let html = '';
+        if (incidents.length === 0) {
+            html = '<div class="list-group-item text-muted text-center py-2">No incidents found</div>';
+        } else {
+            incidents.forEach(incident => {
+                const incidentId = incident.id || incident.incident_id;
+                const incidentTitle = incident.title || incident.name;
+                const exists = selectedIncidents.some(i => (typeof i === 'object' ? i.id : i) === incidentId);
+                if (!exists) {
+                    html += `<a href="#" class="list-group-item list-group-item-action incident-item" data-incident-id="${incidentId}" data-incident-title="${incidentTitle}"><strong>${incidentTitle}</strong><br><small class="text-muted">${incidentId}</small></a>`;
+                }
+            });
+        }
+        const dropdown = document.getElementById('incidentsDropdown');
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+        document.querySelectorAll('.incident-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const incidentId = item.dataset.incidentId;
+                const incidentTitle = item.dataset.incidentTitle;
+                const exists = window.selectedIncidents.some(i => (typeof i === 'object' ? i.id : i) === incidentId);
+                if (!exists) {
+                    window.selectedIncidents.push({id: incidentId, title: incidentTitle});
+                    updateIncidentsBadges();
+                    dropdown.style.display = 'none';
+                    document.getElementById('relatedIncidents').value = '';
+                }
+            });
+        });
+    }).catch(err => console.error('Incidents search error:', err));
+}
+
+function updateIncidentsBadges() {
+    let html = '';
+    window.selectedIncidents.forEach(incident => {
+        const incidentTitle = typeof incident === 'object' ? incident.title : incident;
+        const incidentId = typeof incident === 'object' ? incident.id : incident;
+        html += `<span class="badge bg-warning"><i class="bi bi-x-circle-fill me-1"></i>${incidentTitle} <a href="#" onclick="removeIncident('${incidentId}'); return false;" class="text-white ms-1">×</a></span>`;
+    });
+    document.getElementById('selectedIncidents').innerHTML = html;
+}
+
+function removeIncident(incidentId) {
+    window.selectedIncidents = window.selectedIncidents.filter(i => (typeof i === 'object' ? i.id : i) !== incidentId);
+    updateIncidentsBadges();
+}
+
+// Users
+function searchUsers(query) {
+    if (query.length < 1) return;
+    apiFetch('/api/rbac/users', { q: query, per_page: 10 }).then(response => {
+        const users = response.items || response.results || [];
+        let html = '';
+        if (users.length === 0) {
+            html = '<div class="list-group-item text-muted text-center py-2">No users found</div>';
+        } else {
+            users.forEach(user => {
+                const userId = user.id || user.user_id;
+                const username = user.username || user.name;
+                html += `<a href="#" class="list-group-item list-group-item-action user-item" data-user-id="${userId}" data-username="${username}"><strong>${username}</strong><br><small class="text-muted">${user.email || ''}</small></a>`;
+            });
+        }
+        const dropdown = document.getElementById('usersDropdown');
+        dropdown.innerHTML = html;
+        dropdown.style.display = 'block';
+        document.querySelectorAll('.user-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const userId = item.dataset.userId;
+                const username = item.dataset.username;
+                selectedUser = {id: userId, username: username};
+                updateUserBadge();
+                dropdown.style.display = 'none';
+                document.getElementById('assignedTo').value = '';
+            });
+        });
+    }).catch(err => console.error('Users search error:', err));
+}
+
+function updateUserBadge() {
+    let html = '';
+    if (window.selectedUser) {
+        const username = typeof window.selectedUser === 'object' ? window.selectedUser.username : window.selectedUser;
+        html = `<span class="badge bg-success"><i class="bi bi-x-circle-fill me-1"></i>${username} <a href="#" onclick="removeUser(); return false;" class="text-white ms-1">×</a></span>`;
+    }
+    document.getElementById('selectedUser').innerHTML = html;
+}
+
+function removeUser() {
+    window.selectedUser = null;
+    updateUserBadge();
+}
+
+// Initialize search event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('relatedCases').addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length > 1) {
+            searchCases(query);
+        } else {
+            document.getElementById('casesDropdown').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('relatedIncidents').addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length > 1) {
+            searchIncidents(query);
+        } else {
+            document.getElementById('incidentsDropdown').style.display = 'none';
+        }
+    });
+    
+    document.getElementById('assignedTo').addEventListener('input', function() {
+        const query = this.value.trim();
+        if (query.length > 1) {
+            searchUsers(query);
+        } else {
+            document.getElementById('usersDropdown').style.display = 'none';
+        }
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#campaigns') && !e.target.closest('#campaignsDropdown')) {
+            document.getElementById('campaignsDropdown').style.display = 'none';
+        }
+        if (!e.target.closest('#relatedCases') && !e.target.closest('#casesDropdown')) {
+            document.getElementById('casesDropdown').style.display = 'none';
+        }
+        if (!e.target.closest('#relatedIncidents') && !e.target.closest('#incidentsDropdown')) {
+            document.getElementById('incidentsDropdown').style.display = 'none';
+        }
+        if (!e.target.closest('#assignedTo') && !e.target.closest('#usersDropdown')) {
+            document.getElementById('usersDropdown').style.display = 'none';
+        }
+    });
+});
 
 // Load template on page load
 window.addEventListener('load', loadTemplateData);

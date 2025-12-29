@@ -53,10 +53,12 @@
                 <i class="bi bi-clock-history me-2"></i> Scheduled Tasks
             </a>
             {% endif %}
+            {% if has_any_permission('admin.llm.manage', 'report.create') %}
             <a href="{{ url_for('main.settings_llm') }}" 
                class="list-group-item list-group-item-action" target="_self">
                 <i class="bi bi-robot me-2"></i> LLM Reports
             </a>
+            {% endif %}
         </div>
     </div>
     
