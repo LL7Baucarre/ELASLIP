@@ -144,3 +144,4 @@ htmlcov/
 app/__pycache__/*
 TODO
 .github/copilot-instructions.md
+tests

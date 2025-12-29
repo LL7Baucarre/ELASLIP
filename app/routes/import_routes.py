@@ -51,13 +51,22 @@ def create_import():
         return jsonify({'error': 'Empty file content'}), 400
     
     if not file_type:
-        # Try to detect from filename
+        # Try to detect from filename first
         file_type = detect_file_type(filename)
+        
+        # If we still don't have a type and it's JSON, analyze the content
+        if not file_type and filename.lower().endswith('.json'):
+            file_type = detect_json_file_type(file_content)
+        
+        # If we still don't have a type and it's XML, analyze the content
+        if not file_type and filename.lower().endswith('.xml'):
+            file_type = detect_xml_file_type(file_content)
     
     if not file_type:
         return jsonify({
-            'error': 'File type not specified',
-            'supported_types': ['stix', 'misp', 'openioc', 'iodef']
+            'error': 'File type not specified or could not be detected',
+            'supported_types': ['stix', 'misp', 'openioc', 'iodef'],
+            'hint': 'Please specify file type explicitly or use a filename that contains the type (e.g., event.misp.json, indicators.iodef.xml)'
         }), 400
     
     file_type = file_type.lower()
@@ -184,10 +193,10 @@ def delete_import(job_id):
 
 
 def detect_file_type(filename: str) -> str:
-    """Detect file type from filename."""
+    """Detect file type from filename with better heuristics."""
     filename = filename.lower()
     
-    if 'stix' in filename or filename.endswith('.json'):
+    if 'stix' in filename:
         return 'stix'
     elif 'misp' in filename:
         return 'misp'
@@ -195,7 +204,76 @@ def detect_file_type(filename: str) -> str:
         return 'openioc'
     elif 'iodef' in filename:
         return 'iodef'
+    # For .json files, don't assume type - let caller analyze content
+    elif filename.endswith('.json'):
+        return None
+    # Don't assume XML type - let caller specify or analyze content
     elif filename.endswith('.xml'):
-        return 'openioc'  # Default XML to OpenIOC
+        return None
     
     return None
+
+
+def detect_json_file_type(content: str) -> str:
+    """
+    Detect JSON file type by analyzing structure.
+    
+    Args:
+        content: JSON file content
+    
+    Returns:
+        'misp', 'stix', or None if type cannot be determined
+    """
+    try:
+        import json
+        data = json.loads(content)
+        
+        # Check for MISP structure
+        if 'Event' in data:
+            return 'misp'
+        
+        # Check for STIX structure
+        if isinstance(data, dict):
+            if data.get('type') in ['bundle', 'indicator']:
+                return 'stix'
+            if 'spec_version' in data and '2.' in str(data.get('spec_version', '')):
+                return 'stix'
+        
+    except (json.JSONDecodeError, TypeError):
+        pass
+    
+    return None
+
+
+def detect_xml_file_type(content: str) -> str:
+    """
+    Detect XML file type by analyzing root element and namespaces.
+    
+    Args:
+        content: XML file content
+    
+    Returns:
+        'iodef', 'openioc', or None if type cannot be determined
+    """
+    try:
+        from lxml import etree
+        root = etree.fromstring(content.encode('utf-8'))
+        
+        # Check namespaces
+        ns = root.nsmap.get(None, '')
+        if 'iodef' in ns.lower():
+            return 'iodef'
+        elif 'ioc' in ns.lower() and 'mandiant' in ns.lower():
+            return 'openioc'
+        
+        # Check root tag name
+        tag = root.tag.split('}')[-1].lower()
+        if 'incident' in tag:
+            return 'iodef'
+        elif 'ioc' in tag:
+            return 'openioc'
+    except Exception:
+        pass
+    
+    return None
+
