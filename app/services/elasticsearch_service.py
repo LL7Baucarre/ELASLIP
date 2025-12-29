@@ -11,7 +11,7 @@ class ElasticsearchService:
     
     _instance = None
     _client = None
-    INDEX_PREFIX = "elasmisp_"
+    INDEX_PREFIX = "elaslip_"
     
     def __new__(cls):
         if cls._instance is None:

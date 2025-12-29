@@ -60,7 +60,7 @@ def get_report_config():
     
     # Try to get from Elasticsearch first
     try:
-        response = es_service.get('elasmisp_app_config', 'llm_config')
+        response = es_service.get('elaslip_app_config', 'llm_config')
         if response and response.get('found'):
             config = response.get('_source', {})
             # Add configured status
@@ -479,7 +479,7 @@ def update_report_config():
     
     # Save to Elasticsearch for persistence
     try:
-        es_service.index('elasmisp_app_config', 'llm_config', config)
+        es_service.index('elaslip_app_config', 'llm_config', config)
     except Exception as e:
         return jsonify({'error': f'Failed to save configuration: {str(e)}'}), 500
     
@@ -548,7 +548,7 @@ def generate_ioc_report(ioc_id):
         # This allows synchronous-like behavior with async workers
         for attempt in range(50):  # 50 * 0.1 = 5 seconds
             try:
-                response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
                 if response and response.get('found'):
                     config = response.get('_source', {})
                     if config.get('status') == 'completed':
@@ -628,7 +628,7 @@ def generate_case_report(case_id):
         # This allows synchronous-like behavior with async workers
         for attempt in range(50):  # 50 * 0.1 = 5 seconds
             try:
-                response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
                 if response and response.get('found'):
                     config = response.get('_source', {})
                     if config.get('status') == 'completed':
@@ -703,7 +703,7 @@ def generate_incident_report(incident_id):
         # This allows synchronous-like behavior with async workers
         for attempt in range(50):  # 50 * 0.1 = 5 seconds
             try:
-                response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
                 if response and response.get('found'):
                     config = response.get('_source', {})
                     if config.get('status') == 'completed':
@@ -778,7 +778,7 @@ def generate_checklist_report(checklist_id):
         # This allows synchronous-like behavior with async workers
         for attempt in range(50):  # 50 * 0.1 = 5 seconds
             try:
-                response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
                 if response and response.get('found'):
                     config = response.get('_source', {})
                     if config.get('status') == 'completed':
@@ -847,7 +847,7 @@ def get_task_status(task_id):
     """
     try:
         # Check Elasticsearch for our stored report status
-        es_response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+        es_response = es_service.get('elaslip_app_config', f'report_{task_id}')
         es_found = es_response and es_response.get('found', False)
         
         if not es_found:
@@ -951,7 +951,7 @@ def get_report_status(task_id):
         description: Access denied
     """
     try:
-        response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+        response = es_service.get('elaslip_app_config', f'report_{task_id}')
         if not response or not response.get('found'):
             return jsonify({'error': 'Report not found'}), 404
         
@@ -1032,7 +1032,7 @@ def list_reports():
                 'size': 100
             }
         
-        result = es_service.search('elasmisp_app_config', query)
+        result = es_service.search('elaslip_app_config', query)
         reports = []
         
         for hit in result.get('hits', {}).get('hits', []):
@@ -1084,7 +1084,7 @@ def view_report(task_id):
         description: Access denied
     """
     try:
-        response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+        response = es_service.get('elaslip_app_config', f'report_{task_id}')
         if not response or not response.get('found'):
             return jsonify({'error': 'Report not found', 'status': 'error'}), 404
         
@@ -1163,7 +1163,7 @@ def delete_report(task_id):
         from app.services.audit_service import AuditService
         audit = AuditService()
         
-        response = es_service.get('elasmisp_app_config', f'report_{task_id}')
+        response = es_service.get('elaslip_app_config', f'report_{task_id}')
         if not response or not response.get('found'):
             return jsonify({'error': 'Report not found'}), 404
         
@@ -1174,7 +1174,7 @@ def delete_report(task_id):
             return jsonify({'error': 'Access denied'}), 403
         
         # Delete the report from Elasticsearch
-        es_service.delete('elasmisp_app_config', f'report_{task_id}')
+        es_service.delete('elaslip_app_config', f'report_{task_id}')
         
         # Log the deletion
         audit.log(

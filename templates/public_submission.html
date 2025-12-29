@@ -233,12 +233,19 @@
             document.getElementById('searchLoading').style.display = 'none';
 
             if (!data.found) {
-                // Pre-fill the submit form with search values
-                document.getElementById('submitIocValue').value = iocValue;
-                if (iocType) {
-                    document.getElementById('submitIocType').value = iocType;
-                } else if (data.detected_type) {
-                    document.getElementById('submitIocType').value = data.detected_type;
+                // Pre-fill the submit form with search values (only if form exists)
+                const submitTypeField = document.getElementById('submitIocType');
+                const submitValueField = document.getElementById('submitIocValue');
+                
+                if (submitValueField) {
+                    submitValueField.value = iocValue;
+                }
+                if (submitTypeField) {
+                    if (iocType) {
+                        submitTypeField.value = iocType;
+                    } else if (data.detected_type) {
+                        submitTypeField.value = data.detected_type;
+                    }
                 }
                 document.getElementById('searchNoResults').style.display = 'block';
             } else {

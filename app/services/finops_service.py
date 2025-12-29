@@ -12,7 +12,7 @@ class FinOpsService:
     def __init__(self):
         """Initialize FinOps service."""
         self.es = ElasticsearchService()
-        self.index_name = 'elasmisp_finops_token_usage'
+        self.index_name = 'elaslip_finops_token_usage'
     
     def record_token_usage(self, 
                           report_type: str,

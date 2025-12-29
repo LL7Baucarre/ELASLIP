@@ -80,11 +80,11 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         }
         
         # Save pending report
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Mark as queued while waiting for lock
         report_entry['status'] = 'queued'
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Acquire lock to ensure only one report generates at a time
         if not acquire_report_lock(timeout=600):
@@ -93,7 +93,7 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         try:
             # Generate report
@@ -119,7 +119,7 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
         report_entry['entity_name'] = report_data.get('ioc_value', ioc_id)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generated',
@@ -135,7 +135,7 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['error'] = str(e)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generation_failed',
@@ -183,11 +183,11 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         }
         
         # Save pending report
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Mark as queued while waiting for lock
         report_entry['status'] = 'queued'
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Acquire lock to ensure only one report generates at a time
         if not acquire_report_lock(timeout=600):
@@ -196,7 +196,7 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         try:
             # Generate report
@@ -222,7 +222,7 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
         report_entry['entity_name'] = report_data.get('case_name', case_id)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generated',
@@ -238,7 +238,7 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['error'] = str(e)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generation_failed',
@@ -286,11 +286,11 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         }
         
         # Save pending report
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Mark as queued while waiting for lock
         report_entry['status'] = 'queued'
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Acquire lock to ensure only one report generates at a time
         if not acquire_report_lock(timeout=600):
@@ -299,7 +299,7 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         # Update status to processing once we have the lock
         report_entry['status'] = 'processing'
         report_entry['started_at'] = datetime.utcnow().isoformat()
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         try:
             # Generate report
@@ -325,7 +325,7 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['report_data'] = report_data
         report_entry['entity_name'] = report_data.get('incident_name', incident_id)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generated',
@@ -341,7 +341,7 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
         report_entry['error'] = str(e)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         audit.log(
             action='report_generation_failed',
@@ -488,12 +488,12 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             report_entry['status'] = 'failed'
             report_entry['error'] = 'Checklist not found'
             report_entry['completed_at'] = datetime.utcnow().isoformat()
-            es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+            es.index('elaslip_app_config', f'report_{task_id}', report_entry)
             return {'status': 'error', 'error': 'Checklist not found', 'task_id': task_id}
         
         # Save pending report
         print(f"DEBUG: Saving pending report to {f'report_{task_id}'}", file=sys.stderr)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Generate report
         report_data = {
@@ -515,7 +515,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             
             # Mark as queued while waiting for lock
             report_entry['status'] = 'queued'
-            es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+            es.index('elaslip_app_config', f'report_{task_id}', report_entry)
             
             try:
                 # Acquire lock to ensure only one report generates at a time
@@ -526,7 +526,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 # Update status to processing once we have the lock
                 report_entry['status'] = 'processing'
                 report_entry['started_at'] = datetime.utcnow().isoformat()
-                es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+                es.index('elaslip_app_config', f'report_{task_id}', report_entry)
                 
                 try:
                     print(f"DEBUG: Lock acquired, generating enhanced report", file=sys.stderr)
@@ -562,7 +562,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         report_entry['entity_name'] = checklist.get('title', checklist_id)
         
         print(f"DEBUG: Saving completed report", file=sys.stderr)
-        es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         print(f"DEBUG: Report saved successfully. Stored at app_config/report_{task_id}", file=sys.stderr)
         
@@ -586,7 +586,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         report_entry['error'] = str(e)
         
         try:
-            es.index('elasmisp_app_config', f'report_{task_id}', report_entry)
+            es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         except Exception as save_err:
             print(f"DEBUG: Failed to save error report: {str(save_err)}", file=sys.stderr)
         

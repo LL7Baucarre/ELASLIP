@@ -13,7 +13,7 @@ class SubmissionService(BaseListService):
     
     def __init__(self):
         super().__init__()
-        self.index = 'elasmisp_submissions'
+        self.index = 'elaslip_submissions'
     
     def create_submission(self,
                          ioc_type: str,
@@ -101,7 +101,7 @@ class SubmissionService(BaseListService):
                 },
                 'size': 100
             }
-            result = self.es.search('elasmisp_ioc', query)
+            result = self.es.search('elaslip_ioc', query)
             return [hit['_id'] for hit in result.get('hits', {}).get('hits', [])]
         except Exception:
             return []

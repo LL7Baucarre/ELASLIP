@@ -280,7 +280,7 @@ def api_generate_report(checklist_id):
         
         # Create initial ES document so status check works immediately
         es_service = ElasticsearchService()
-        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+        es_service.index('elaslip_app_config', f'report_{task_id}', {
             'type': 'checklist',
             'entity_id': checklist_id,
             'status': 'queued',
