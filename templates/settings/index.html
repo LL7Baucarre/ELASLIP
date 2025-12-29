@@ -114,9 +114,9 @@
         <!-- Site Configuration Section (Admin Only) -->
         {% if current_user.is_admin %}
         <div id="site-config-section" style="display: none;">
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header bg-white">
-                    <h6 class="mb-0">Site Configuration</h6>
+                    <h6 class="mb-0">Site Branding</h6>
                 </div>
                 <div class="card-body">
                     <p class="text-muted mb-3">Customize your site appearance and branding</p>
@@ -133,6 +133,61 @@
                                    placeholder="e.g., IOC Manager" required>
                             <div class="form-text">Used in browser tabs and page titles</div>
                         </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check me-1"></i> Save Branding
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Public Submissions Configuration -->
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">Public Submission Portal</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">Control access to the public submission portal</p>
+                    <form id="publicSubmissionsConfigForm">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="publicSearchEnabled" 
+                                       name="public_search_enabled">
+                                <label class="form-check-label" for="publicSearchEnabled">
+                                    <strong>Enable Public Search</strong>
+                                </label>
+                                <div class="form-text">Allow anonymous users to search for IOCs</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="publicSubmitEnabled" 
+                                       name="public_submissions_submit_enabled">
+                                <label class="form-check-label" for="publicSubmitEnabled">
+                                    <strong>Enable Submissions</strong>
+                                </label>
+                                <div class="form-text">Allow users to submit new IOCs through the portal</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="publicAllowAnonymous" 
+                                       name="public_submissions_allow_anonymous">
+                                <label class="form-check-label" for="publicAllowAnonymous">
+                                    <strong>Allow Anonymous Submissions</strong>
+                                </label>
+                                <div class="form-text">Allow submissions without requiring an account</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="maxResults" class="form-label">Maximum Search Results</label>
+                            <input type="number" class="form-control" id="maxResults" 
+                                   name="public_submissions_max_results" min="1" max="1000" value="50">
+                            <div class="form-text">Maximum number of results returned in public search (1-1000)</div>
+                        </div>
+
                         <button type="submit" class="btn btn-success">
                             <i class="bi bi-check me-1"></i> Save Configuration
                         </button>
@@ -168,6 +223,17 @@ function switchSection(section, e) {
             success: function(data) {
                 $('#siteName').val(data.site_name);
                 $('#siteTitle').val(data.site_title);
+            }
+        });
+        // Load public submissions settings
+        $.ajax({
+            url: '/api/settings/public-submissions',
+            method: 'GET',
+            success: function(data) {
+                $('#publicSearchEnabled').prop('checked', data.public_search_enabled);
+                $('#publicSubmitEnabled').prop('checked', data.public_submissions_submit_enabled);
+                $('#publicAllowAnonymous').prop('checked', data.public_submissions_allow_anonymous);
+                $('#maxResults').val(data.public_submissions_max_results);
             }
         });
     } else {
@@ -236,6 +302,27 @@ $('#siteConfigForm').submit(function(e) {
         },
         error: function(xhr) {
             showAlert(xhr.responseJSON?.error || 'Failed to save configuration', 'danger');
+        }
+    });
+});
+
+$('#publicSubmissionsConfigForm').submit(function(e) {
+    e.preventDefault();
+    
+    $.ajax({
+        url: '/api/settings/public-submissions',
+        method: 'PUT',
+        data: JSON.stringify({
+            public_search_enabled: $('#publicSearchEnabled').is(':checked'),
+            public_submissions_submit_enabled: $('#publicSubmitEnabled').is(':checked'),
+            public_submissions_allow_anonymous: $('#publicAllowAnonymous').is(':checked'),
+            public_submissions_max_results: parseInt($('#maxResults').val()) || 50
+        }),
+        success: function(data) {
+            showAlert('Public submission settings saved successfully (reload page to see changes)', 'success');
+        },
+        error: function(xhr) {
+            showAlert(xhr.responseJSON?.error || 'Failed to save settings', 'danger');
         }
     });
 });

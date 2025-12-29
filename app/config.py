@@ -62,7 +62,8 @@ class Config:
     LLM_GENERATION_LANGUAGE = os.getenv('LLM_GENERATION_LANGUAGE', 'en')
     
     # Public Submissions Configuration
-    PUBLIC_SUBMISSIONS_ENABLED = os.getenv('PUBLIC_SUBMISSIONS_ENABLED', 'true').lower() == 'true'
+    PUBLIC_SEARCH_ENABLED = os.getenv('PUBLIC_SEARCH_ENABLED', 'true').lower() == 'true'
+    PUBLIC_SUBMISSIONS_SUBMIT_ENABLED = os.getenv('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', 'true').lower() == 'true'
     PUBLIC_SUBMISSIONS_MAX_RESULTS = int(os.getenv('PUBLIC_SUBMISSIONS_MAX_RESULTS', '10'))
     PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS = os.getenv('PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', 'true').lower() == 'true'
 
