@@ -10,7 +10,7 @@ from app.decorators import permission_required, check_permission
 from app.services.ioc_service import IOCService
 from app.services.audit_service import AuditService
 from app.utils.pattern_generator import PatternGenerator
-from app.utils.request_helpers import get_pagination_params, parse_comma_separated_list, build_filters_dict
+from app.utils.request_helpers import get_pagination_params, parse_comma_separated_list, build_filters_dict, transform_ioc_to_stix_compliant
 
 ioc_bp = Blueprint('ioc', __name__, url_prefix=None)
 
@@ -753,8 +753,11 @@ def get_ioc(ioc_id):
     if not ioc:
         return jsonify({'error': 'IOC not found'}), 404
     
-    # Return STIX 2.1 pure format
-    return jsonify(ioc)
+    # Transform to STIX 2.1 compliant format for display
+    stix_compliant = transform_ioc_to_stix_compliant(ioc)
+    
+    # Return STIX 2.1 compliant format
+    return jsonify(stix_compliant)
 
 
 @ioc_bp.route('/<ioc_id>', methods=['PUT', 'PATCH'])
