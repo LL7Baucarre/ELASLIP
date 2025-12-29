@@ -167,6 +167,74 @@ def public_search():
         return jsonify({'error': str(e)}), 500
 
 
+@public_bp.route('/api/status/<submission_id>', methods=['GET'])
+def public_get_submission_status(submission_id):
+    """
+    Public API - Get submission status by ID.
+    Allows submitters to check the status of their submission.
+    
+    Returns status information including:
+    - pending: Awaiting review
+    - duplicate: Marked as duplicate of another submission
+    - created_ioc: IOC was created from this submission
+    - rejected: Submission was rejected
+    - processed: Submission was processed
+    """
+    try:
+        service = SubmissionService()
+        submission = service.get_submission(submission_id)
+        
+        if not submission:
+            return jsonify({'error': 'Submission not found'}), 404
+        
+        # Determine message based on status
+        messages = {
+            'pending': 'Your submission is pending review by our analysts.',
+            'duplicate': 'This submission is a duplicate of another submission that was submitted earlier.',
+            'created_ioc': 'An IOC has been created from your submission and is now in our database.',
+            'rejected': 'Your submission has been reviewed and rejected.',
+            'processed': 'Your submission has been processed.'
+        }
+        
+        # Get info about the duplicate if it exists
+        original_info = None
+        if submission.get('duplicate_of'):
+            try:
+                original = service.get_submission(submission['duplicate_of'])
+                if original:
+                    original_info = {
+                        'submission_id': original['id'],
+                        'submitted_at': original.get('created_at'),
+                        'submitter': original.get('submitter_name') or original.get('submitter_email') or 'Anonymous'
+                    }
+            except:
+                pass
+        
+        response = {
+            'submission_id': submission_id,
+            'status': submission['status'],
+            'message': messages.get(submission['status'], 'Unknown status'),
+            'submitted_at': submission.get('created_at'),
+            'ioc_type': submission['ioc_type'],
+            'ioc_value': submission['ioc_value'],
+            'duplicate_of': original_info
+        }
+        
+        # Add created IOC info if applicable
+        if submission.get('created_ioc_id'):
+            response['created_ioc_id'] = submission['created_ioc_id']
+        
+        # Add rejection reason if applicable
+        if submission.get('analyst_notes') and submission['status'] == 'rejected':
+            response['rejection_reason'] = submission['analyst_notes']
+        
+        return jsonify(response), 200
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error getting submission status: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
+
+
 @public_bp.route('/api/submit', methods=['POST'])
 def public_submit():
     """
@@ -777,3 +845,99 @@ def api_reject_submission(submission_id):
         description: Submission not found
     """
     return reject_submission(submission_id)
+
+
+@submissions_bp.route('/<submission_id>/duplicates', methods=['GET'])
+@login_required
+@permission_required('submission.view')
+def get_submission_duplicates(submission_id):
+    """Get duplicate submissions for a given submission."""
+    try:
+        service = SubmissionService()
+        duplicates = service.find_duplicate_submissions(submission_id)
+        
+        return render_template('submissions/duplicates.html',
+                             submission_id=submission_id,
+                             duplicates=duplicates)
+    except Exception as e:
+        current_app.logger.exception(f"Error getting duplicates for {submission_id}: {str(e)}")
+        return render_template('error.html', error='Failed to load duplicates'), 500
+
+
+@submissions_bp.route('/<submission_id>/api/duplicates', methods=['GET'])
+@login_required
+@permission_required('submission.view')
+def api_get_submission_duplicates(submission_id):
+    """API - Get duplicate submissions."""
+    try:
+        service = SubmissionService()
+        submission = service.get_submission(submission_id)
+        if not submission:
+            return jsonify({'error': 'Submission not found'}), 404
+        
+        duplicates = service.find_duplicate_submissions(submission_id)
+        
+        return jsonify({
+            'submission_id': submission_id,
+            'duplicates': duplicates,
+            'count': len(duplicates)
+        }), 200
+    
+    except Exception as e:
+        current_app.logger.exception(f"Error getting duplicates: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@submissions_bp.route('/<submission_id>/api/mark-duplicate', methods=['POST'])
+@login_required
+@permission_required('submission.manage')
+def api_mark_duplicate(submission_id):
+    """API - Mark submission as duplicate of another."""
+    try:
+        data = request.get_json()
+        original_id = data.get('original_submission_id')
+        
+        if not original_id:
+            return jsonify({'error': 'original_submission_id is required'}), 400
+        
+        service = SubmissionService()
+        result = service.mark_duplicate(submission_id, original_id)
+        
+        return jsonify({
+            'message': 'Submission marked as duplicate',
+            'submission': result
+        }), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        current_app.logger.exception(f"Error marking duplicate: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@submissions_bp.route('/api/merge-duplicates', methods=['POST'])
+@login_required
+@permission_required('submission.manage')
+def api_merge_duplicates():
+    """API - Merge multiple duplicate submissions."""
+    try:
+        data = request.get_json()
+        submission_ids = data.get('submission_ids', [])
+        primary_id = data.get('primary_submission_id')
+        
+        if not submission_ids or len(submission_ids) < 2:
+            return jsonify({'error': 'At least 2 submission IDs required'}), 400
+        
+        service = SubmissionService()
+        result = service.merge_duplicate_submissions(submission_ids, primary_id)
+        
+        return jsonify({
+            'message': 'Submissions merged successfully',
+            'primary_submission': result
+        }), 200
+    
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception(f"Error merging duplicates: {str(e)}")
+        return jsonify({'error': str(e)}), 500

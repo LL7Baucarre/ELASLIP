@@ -151,6 +151,18 @@
         </div>
         {% endif %}
         
+        <!-- Duplicate Submissions -->
+        <div class="card mb-4" id="duplicatesCard" style="display: none;">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Duplicate Submissions Found</h5>
+            </div>
+            <div class="card-body p-0">
+                <div id="duplicatesList" class="list-group list-group-flush">
+                    <!-- Populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
         <!-- Analyst Notes & Actions -->
         {% if has_permission('submission.manage') %}
         <div class="card">
@@ -248,6 +260,7 @@
 <div class="modal fade" id="createIocModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
+
             <div class="modal-header">
                 <h5 class="modal-title">Create IOC from Submission</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -329,6 +342,68 @@
 
 <script>
 const submissionId = '{{ submission.id }}';
+
+// Load duplicate submissions
+function loadDuplicates() {
+    fetch(`/submissions/${submissionId}/api/duplicates`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.count > 0) {
+                const card = document.getElementById('duplicatesCard');
+                const list = document.getElementById('duplicatesList');
+                
+                list.innerHTML = data.duplicates.map(dup => `
+                    <div class="list-group-item d-flex justify-content-between align-items-start p-3">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">
+                                <a href="/submissions/${dup.id}" target="_blank">
+                                    ${escapeHtml(dup.ioc_value.substring(0, 40))}
+                                    ${dup.ioc_value.length > 40 ? '...' : ''}
+                                </a>
+                            </h6>
+                            <small class="text-muted d-block">
+                                Submitted: ${dup.created_at.substring(0, 10)} 
+                                by ${dup.submitter_email || 'Anonymous'}
+                            </small>
+                            <small class="text-muted d-block">
+                                Status: <span class="badge bg-secondary">${dup.status}</span>
+                            </small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-primary" onclick="markAsDuplicate('${dup.id}', '${submissionId}')">
+                            <i class="bi bi-check"></i> Mark as Duplicate
+                        </button>
+                    </div>
+                `).join('');
+                
+                card.style.display = 'block';
+            }
+        })
+        .catch(err => console.error('Failed to load duplicates:', err));
+}
+
+function markAsDuplicate(duplicateId, primaryId) {
+    if (!confirm('Mark this submission as a duplicate?')) return;
+    
+    fetch(`/submissions/${duplicateId}/api/mark-duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ original_submission_id: primaryId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert('Marked as duplicate');
+        location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Load duplicates on page load
+window.addEventListener('load', loadDuplicates);
 
 // Create IOC Handler
 {% if has_permission('submission.create') %}

@@ -167,19 +167,23 @@
                                 <div id="submitSuccess" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 9999; overflow: auto;">
                                     <div style="min-height: 100%; display: flex; align-items: center; justify-content: center;">
                                         <div style="text-align: center; max-width: 600px; padding: 40px;">
-                                            <div style="font-size: 64px; color: #28a745; margin-bottom: 30px;">
-                                                <i class="bi bi-check-circle"></i>
+                                            <div id="successIcon" style="font-size: 64px; margin-bottom: 30px;">
+                                                <i class="bi bi-check-circle" style="color: #28a745;"></i>
                                             </div>
-                                            <h1 class="mb-4">Submission Successful!</h1>
-                                            <div class="alert alert-success mb-4">
-                                                <h5 class="alert-heading">
-                                                    <i class="bi bi-check-circle"></i> Reference ID
+                                            <h1 class="mb-4" id="successTitle">Submission Received!</h1>
+                                            <div id="statusAlert" class="alert mb-4">
+                                                <h5 class="alert-heading mb-2">
+                                                    <i class="bi bi-info-circle"></i> <span id="statusLabel">Status</span>
                                                 </h5>
-                                                <p id="successMessage" style="font-size: 18px; font-weight: bold; margin-bottom: 0;"></p>
+                                                <p id="statusMessage" style="font-size: 16px; margin-bottom: 0;"></p>
                                             </div>
-                                            <p class="text-muted mb-4">Your submission has been received and will be reviewed by our analysts. You can use the Reference ID to track the status of your submission.</p>
+                                            <div class="alert alert-info mb-4">
+                                                <h5 class="alert-heading">Reference ID</h5>
+                                                <p id="successMessage" style="font-size: 18px; font-weight: bold; margin-bottom: 0; word-break: break-all;"></p>
+                                            </div>
+                                            <p class="text-muted mb-4" id="statusInfo">Your submission has been received and will be reviewed by our analysts. You can use the Reference ID to check the status of your submission.</p>
                                             <button class="btn btn-primary btn-lg" onclick="location.reload()">
-                                                <i class="bi bi-arrow-clockwise"></i> Search Another Indicator
+                                                <i class="bi bi-arrow-clockwise"></i> Submit Another Indicator
                                             </button>
                                         </div>
                                     </div>
@@ -365,8 +369,45 @@
 
             if (response.ok) {
                 document.getElementById('submitForm').reset();
+                
+                // Get submission status
+                const statusResponse = await fetch(`${apiBase}/status/${data.id}`);
+                const statusData = await statusResponse.json();
+                
+                // Update UI based on status
+                const successEl = document.getElementById('submitSuccess');
+                const statusAlert = document.getElementById('statusAlert');
+                const successIcon = document.getElementById('successIcon');
+                const successTitle = document.getElementById('successTitle');
+                
                 document.getElementById('successMessage').innerHTML = `${data.id}`;
-                document.getElementById('submitSuccess').style.display = 'block';
+                document.getElementById('statusLabel').innerHTML = statusData.status.toUpperCase();
+                document.getElementById('statusMessage').innerHTML = statusData.message;
+                
+                // Change appearance based on status
+                if (statusData.status === 'duplicate') {
+                    statusAlert.className = 'alert alert-warning mb-4';
+                    successIcon.innerHTML = '<i class="bi bi-exclamation-triangle" style="color: #ff9800;"></i>';
+                    successTitle.innerHTML = 'Duplicate Submission';
+                    if (statusData.duplicate_of && statusData.duplicate_of.original_info) {
+                        document.getElementById('statusMessage').innerHTML += `<br><small class="text-muted">Duplicate of submission ${statusData.duplicate_of.submission_id} submitted on ${statusData.duplicate_of.submitted_at.substring(0, 10)} by ${statusData.duplicate_of.submitter}</small>`;
+                    }
+                } else if (statusData.status === 'created_ioc') {
+                    statusAlert.className = 'alert alert-success mb-4';
+                    successIcon.innerHTML = '<i class="bi bi-check-circle-fill" style="color: #28a745;"></i>';
+                    successTitle.innerHTML = 'IOC Created!';
+                } else if (statusData.status === 'rejected') {
+                    statusAlert.className = 'alert alert-danger mb-4';
+                    successIcon.innerHTML = '<i class="bi bi-x-circle" style="color: #dc3545;"></i>';
+                    successTitle.innerHTML = 'Submission Rejected';
+                    if (statusData.rejection_reason) {
+                        document.getElementById('statusMessage').innerHTML += `<br><small>Reason: ${statusData.rejection_reason}</small>`;
+                    }
+                } else {
+                    statusAlert.className = 'alert alert-info mb-4';
+                }
+                
+                successEl.style.display = 'block';
             } else {
                 showError('submitError', data.error || 'Submission failed');
             }
