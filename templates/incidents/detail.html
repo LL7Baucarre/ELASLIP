@@ -592,14 +592,19 @@ function loadIOCs() {
                 <table class="table table-sm">
                     <thead><tr><th>Value</th><th>Type</th><th>Threat Level</th><th></th></tr></thead>
                     <tbody>
-                        ${valid.map(ioc => `
-                            <tr>
-                                <td><a href="/iocs/${ioc.id}">${escapeHtml(ioc.ioc_value || ioc.value)}</a></td>
-                                <td><span class="badge bg-secondary">${ioc.ioc_type}</span></td>
-                                <td>${ioc.threat_level || '-'}</td>
-                                <td><button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')"><i class="bi bi-x"></i></button></td>
-                            </tr>
-                        `).join('')}
+                        ${valid.map(ioc => {
+                            const value = ioc.ioc_value || ioc.value || (ioc.x_metadata && ioc.x_metadata.ioc_value);
+                            const type = (ioc.x_metadata && ioc.x_metadata.ioc_type) || ioc.ioc_type || 'unknown';
+                            const threat_level = (ioc.x_metadata && ioc.x_metadata.threat_level) || ioc.threat_level || '-';
+                            return `
+                                <tr>
+                                    <td><a href="/iocs/${ioc.id}">${escapeHtml(value)}</a></td>
+                                    <td><span class="badge bg-secondary">${type}</span></td>
+                                    <td>${threat_level}</td>
+                                    <td><button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')"><i class="bi bi-x"></i></button></td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
             `;
