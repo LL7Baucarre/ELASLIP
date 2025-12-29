@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Submission Duplicates - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0">Duplicate Submissions</h4>
+            <small class="text-muted">Manage duplicate submissions for consolidation</small>
+        </div>
+        <a href="{{ url_for('submissions.view_submission', submission_id=submission_id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Submission
+        </a>
+    </div>
+</div>
+
+{% if duplicates %}
+<div class="card">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Found {{ duplicates|length }} Duplicate Submission(s)</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">These submissions have the same IOC type and value. Consider merging them or marking as duplicates.</p>
+    </div>
+</div>
+
+<div class="row mt-4">
+    {% for dup in duplicates %}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">{{ dup.ioc_type.upper() }}: {{ dup.ioc_value[:40] }}{% if dup.ioc_value|length > 40 %}...{% endif %}</h6>
+                <span class="badge bg-{{ 'warning' if dup.status == 'pending' else 'success' if dup.status == 'created_ioc' else 'secondary' }}">
+                    {{ dup.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Submitter:</strong> {{ dup.submitter_name or 'Anonymous' }}
+                    {% if dup.submitter_email %}<br><code class="small">{{ dup.submitter_email }}</code>{% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Submitted:</strong> {{ dup.created_at }}
+                </div>
+                
+                {% if dup.description %}
+                <div class="mb-3">
+                    <strong>Description:</strong>
+                    <p class="text-muted small">{{ dup.description }}</p>
+                </div>
+                {% endif %}
+                
+                {% if dup.reason %}
+                <div class="mb-3">
+                    <strong>Reason:</strong>
+                    <p class="text-muted small">{{ dup.reason }}</p>
+                </div>
+                {% endif %}
+                
+                <div class="mb-3">
+                    <strong>Confidence:</strong> 
+                    <span class="badge bg-{{ 'success' if dup.confidence == 'high' else 'warning' if dup.confidence == 'medium' else 'secondary' }}">
+                        {{ dup.confidence.upper() }}
+                    </span>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('submissions.view_submission', submission_id=dup.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" onclick="markAsDuplicate('{{ dup.id }}', '{{ submission_id }}')">
+                        <i class="bi bi-check"></i> Mark as Duplicate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-check-circle" style="font-size: 48px; color: #28a745;"></i>
+        <p class="text-muted mt-3">No duplicate submissions found</p>
+        <a href="{{ url_for('submissions.view_submission', submission_id=submission_id) }}" class="btn btn-outline-primary">
+            Back to Submission
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function markAsDuplicate(duplicateId, primaryId) {
+    if (!confirm('Mark this submission as a duplicate?')) return;
+    
+    fetch(`/submissions/${duplicateId}/api/mark-duplicate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ original_submission_id: primaryId })
+    })
+    .then(r => r.json())
+    .then(data => {
+        alert('Marked as duplicate successfully');
+        location.reload();
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+</script>
+
+{% endblock %}
