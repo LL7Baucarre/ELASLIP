@@ -81,6 +81,11 @@ PERMISSION_CATEGORIES = {
         'report.create': 'Create reports',
         'report.export': 'Export reports',
     },
+    'Public Submissions': {
+        'submission.view': 'View public submissions',
+        'submission.create': 'Create IOCs from submissions',
+        'submission.manage': 'Manage submissions (review, reject)',
+    },
     'Administration': {
         'admin.users.view': 'View users',
         'admin.users.create': 'Create users',
@@ -110,6 +115,7 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view', 'keys_create', 'keys_delete', 'external_view', 'external_configure', 'external_test'],
         'Webhook Management': ['view', 'create', 'edit', 'delete', 'test'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
+        'Public Submissions': ['view', 'create', 'manage'],
         'Administration': ['users_view', 'users_create', 'users_edit', 'users_delete', 'users_assign_role', 'roles_view', 'roles_create', 'roles_edit', 'roles_delete', 'settings', 'audit', 'tasks', 'import_jobs'],
     },
     'Security Analyst': {
@@ -122,6 +128,7 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view', 'keys_create', 'external_view', 'external_test'],
         'Webhook Management': ['view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
+        'Public Submissions': ['view', 'create', 'manage'],
     },
     'Threat Intel Officer': {
         'IOC Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
@@ -132,6 +139,7 @@ PERMISSION_MATRIX = {
         'Timeline Management': ['view', 'create'],
         'API & Integration': ['access', 'keys_view', 'external_view', 'external_test'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
+        'Public Submissions': ['view', 'create', 'manage'],
     },
     'Incident Responder': {
         'IOC Management': ['view', 'create', 'edit', 'relations'],
@@ -143,6 +151,7 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view'],
         'Webhook Management': ['view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
+        'Public Submissions': ['view', 'create'],
     },
     'Manager': {
         'IOC Management': ['view', 'export', 'relations'],
@@ -153,6 +162,7 @@ PERMISSION_MATRIX = {
         'Timeline Management': ['view'],
         'API & Integration': ['access', 'keys_view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
+        'Public Submissions': ['view', 'manage'],
         'Administration': ['users_view', 'roles_view', 'audit'],
     },
     'Viewer': {
@@ -163,6 +173,8 @@ PERMISSION_MATRIX = {
         'Snippets & Templates': ['view'],
         'Timeline Management': ['view'],
         'API & Integration': ['access', 'keys_view'],
+        'Search & Reports': ['advanced', 'view', 'export'],
+        'Public Submissions': ['view'],
         'Search & Reports': ['advanced', 'view', 'export'],
     }
 }

@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Submission Detail - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h4 class="mb-0">Submission Detail</h4>
+            <small class="text-muted">Review and manage external submission</small>
+        </div>
+        <a href="{{ url_for('submissions.list_submissions') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+    </div>
+</div>
+
+<!-- Submission Info -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Submission Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>IOC Type</strong></label>
+                        <p class="text-monospace">
+                            <span class="badge bg-info">{{ submission.ioc_type.upper() }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>IOC Value</strong></label>
+                        <p class="text-monospace" style="word-break: break-all;">
+                            {{ submission.ioc_value }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Confidence Level</strong></label>
+                        <p>
+                            <span class="badge bg-{{ 'success' if submission.confidence == 'high' else 'warning' if submission.confidence == 'medium' else 'secondary' }}">
+                                {{ submission.confidence.upper() }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Status</strong></label>
+                        <p>
+                            {% if submission.status == 'pending' %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Review</span>
+                            {% elif submission.status == 'created_ioc' %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> IOC Created</span>
+                            {% elif submission.status == 'rejected' %}
+                                <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ submission.status.upper() }}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                
+                {% if submission.description %}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Description</strong></label>
+                    <p class="text-muted">{{ submission.description }}</p>
+                </div>
+                {% endif %}
+                
+                {% if submission.reason %}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Reason for Submission</strong></label>
+                    <p class="text-muted">{{ submission.reason }}</p>
+                </div>
+                {% endif %}
+                
+                {% if submission.tags and submission.tags|length > 0 %}
+                <div class="mb-3">
+                    <label class="form-label"><strong>Tags</strong></label>
+                    <div>
+                        {% for tag in submission.tags %}
+                        <span class="badge bg-secondary me-1">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Submitter Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Submitter Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Name</strong></label>
+                        <p>{{ submission.submitter_name or 'Not provided' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Email</strong></label>
+                        <p><a href="mailto:{{ submission.submitter_email }}">{{ submission.submitter_email }}</a></p>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label"><strong>Organization</strong></label>
+                    <p>{{ submission.submitter_organization or 'Not provided' }}</p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Submitted</strong></label>
+                        <p class="text-muted">{{ submission.created_at }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label"><strong>Last Updated</strong></label>
+                        <p class="text-muted">{{ submission.updated_at }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Matched IOCs -->
+        {% if matched_iocs %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Matching IOCs in Database</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for ioc in matched_iocs %}
+                    <a href="{{ url_for('main.iocs_detail', ioc_id=ioc.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ ioc.name or 'Unnamed IOC' }}</h6>
+                                <p class="text-muted small mb-0">
+                                    Type: <span class="badge bg-info">{{ ioc.x_metadata.ioc_type.upper() }}</span>
+                                    Threat Level: <span class="badge bg-{{ 'danger' if ioc.x_metadata.threat_level == 'critical' else 'warning' if ioc.x_metadata.threat_level in ['high', 'medium'] else 'success' }}">{{ ioc.x_metadata.threat_level.upper() }}</span>
+                                </p>
+                            </div>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Analyst Notes & Actions -->
+        {% if has_permission('submission.manage') %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Analyst Review</h5>
+            </div>
+            <div class="card-body">
+                <form id="reviewForm">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Analyst Notes</strong></label>
+                        <textarea class="form-control" id="analystNotes" rows="3" placeholder="Add your analysis notes here...">{{ submission.analyst_notes or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Response Actions</strong></label>
+                        <textarea class="form-control" id="responseActions" rows="3" placeholder="Recommended actions or response...">{{ submission.response_actions or '' }}</textarea>
+                    </div>
+                    
+                    {% if submission.status != 'created_ioc' %}
+                    <div class="d-flex gap-2">
+                        {% if has_permission('submission.create') %}
+                        <button type="button" class="btn btn-success" id="createIocBtn" data-bs-toggle="modal" data-bs-target="#createIocModal">
+                            <i class="bi bi-plus-circle"></i> Create IOC
+                        </button>
+                        {% endif %}
+                        
+                        {% if submission.status == 'pending' %}
+                        <button type="button" class="btn btn-primary" id="approveBtn">
+                            <i class="bi bi-check-circle"></i> Approve
+                        </button>
+                        {% endif %}
+                        
+                        {% if submission.status != 'rejected' %}
+                        <button type="button" class="btn btn-danger" id="rejectBtn">
+                            <i class="bi bi-x-circle"></i> Reject
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Sidebar Stats -->
+    <div class="col-lg-4">
+        {% if submission.created_ioc_id %}
+        <div class="card mb-4 border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> IOC Created</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">An IOC has been created from this submission.</p>
+                <a href="{{ url_for('main.iocs_detail', ioc_id=submission.created_ioc_id) }}" class="btn btn-success w-100">
+                    View Created IOC
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if submission.analyst_username %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Reviewed By</h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-1"><strong>{{ submission.analyst_username }}</strong></p>
+                {% if submission.reviewed_at %}
+                <small class="text-muted">{{ submission.reviewed_at }}</small>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Info</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">Matched IOCs</small>
+                    <h4 class="mb-0">{{ matched_iocs|length }}</h4>
+                </div>
+                <hr>
+                <small class="text-muted d-block mb-2">Submission ID</small>
+                <code class="small" style="word-break: break-all;">{{ submission.id }}</code>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create IOC Modal -->
+{% if has_permission('submission.create') %}
+<div class="modal fade" id="createIocModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create IOC from Submission</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createIocForm">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="iocName" 
+                                   value="{{ submission.ioc_type.upper() }}: {{ submission.ioc_value[:30] }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Threat Level</label>
+                            <select class="form-select" id="iocThreatLevel">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">TLP</label>
+                            <select class="form-select" id="iocTlp">
+                                <option value="white">White</option>
+                                <option value="green">Green</option>
+                                <option value="amber" selected>Amber</option>
+                                <option value="red">Red</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Confidence</label>
+                            <select class="form-select" id="iocConfidence">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" id="iocDescription" rows="2" 
+                                  placeholder="Optional description">{{ submission.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Response Actions</label>
+                        <textarea class="form-control" id="iocResponseActions" rows="2" 
+                                  placeholder="Actions to take"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Labels (comma-separated)</label>
+                        <input type="text" class="form-control" id="iocLabels" 
+                               value="{{ submission.tags|join(', ') if submission.tags else '' }}"
+                               placeholder="malware, ransomware, apt">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Campaigns (comma-separated)</label>
+                        <input type="text" class="form-control" id="iocCampaigns" placeholder="campaign1, campaign2">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmCreateIocBtn">
+                    <i class="bi bi-check-circle"></i> Create IOC
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+const submissionId = '{{ submission.id }}';
+
+// Create IOC Handler
+{% if has_permission('submission.create') %}
+document.getElementById('confirmCreateIocBtn').addEventListener('click', async () => {
+    const labels = document.getElementById('iocLabels').value
+        .split(',')
+        .map(l => l.trim())
+        .filter(l => l);
+    
+    const campaigns = document.getElementById('iocCampaigns').value
+        .split(',')
+        .map(c => c.trim())
+        .filter(c => c);
+    
+    try {
+        const response = await fetch(
+            `{{ url_for('submissions.api_create_ioc_from_submission', submission_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', submissionId),
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: document.getElementById('iocName').value,
+                    description: document.getElementById('iocDescription').value,
+                    labels: labels,
+                    threat_level: document.getElementById('iocThreatLevel').value,
+                    tlp: document.getElementById('iocTlp').value,
+                    confidence: document.getElementById('iocConfidence').value,
+                    response_actions: document.getElementById('iocResponseActions').value,
+                    campaigns: campaigns
+                })
+            }
+        );
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert('Error: ' + (data.error || 'Failed to create IOC'));
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+{% endif %}
+
+// Approve Button
+{% if has_permission('submission.manage') %}
+document.getElementById('approveBtn')?.addEventListener('click', async () => {
+    if (!confirm('Approve this submission?')) return;
+    
+    try {
+        const response = await fetch(
+            `{{ url_for('submissions.api_review_submission', submission_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', submissionId),
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'processed',
+                    analyst_notes: document.getElementById('analystNotes').value,
+                    response_actions: document.getElementById('responseActions').value
+                })
+            }
+        );
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Failed to approve submission');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+
+// Reject Button
+document.getElementById('rejectBtn')?.addEventListener('click', async () => {
+    if (!confirm('Reject this submission?')) return;
+    
+    try {
+        const response = await fetch(
+            `{{ url_for('submissions.api_reject_submission', submission_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', submissionId),
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    rejection_reason: document.getElementById('analystNotes').value
+                })
+            }
+        );
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Failed to reject submission');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

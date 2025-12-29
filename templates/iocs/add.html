@@ -187,6 +187,12 @@
                             </div>
                             
                             <div class="mb-4">
+                                <label for="iocResponseActions" class="form-label">Response Actions</label>
+                                <textarea class="form-control" id="iocResponseActions" name="response_actions" rows="3"
+                                          placeholder="Recommended response actions (blocking, isolation, monitoring, etc.)..."></textarea>
+                            </div>
+                            
+                            <div class="mb-4">
                                 <label for="linkedIocs" class="form-label">Link Related IOCs</label>
                                 <div id="linkedIocSelect" class="form-text mb-2">Type to search for existing IOCs to link...</div>
                                 <input type="text" class="form-control" id="linkedIocSearch" 
@@ -806,7 +812,8 @@ $('#addIocForm').submit(function(e) {
         valid_from: $('#iocValidFrom').val() ? new Date($('#iocValidFrom').val()).toISOString() : null,
         valid_until: $('#iocValidUntil').val() ? new Date($('#iocValidUntil').val()).toISOString() : null,
         name: $('#iocName').val(),
-        description: $('#iocDescription').val()
+        description: $('#iocDescription').val(),
+        response_actions: $('#iocResponseActions').val()
     };
     
     if (!formData.type || !formData.value) {

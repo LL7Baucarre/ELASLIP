@@ -130,6 +130,7 @@ def create_app(config_name=None):
     from app.routes.checklist_templates import bp as checklist_templates_bp
     from app.routes.rbac import rbac_bp
     from app.routes.finops import finops_bp
+    from app.routes.submissions import submissions_bp, public_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -148,6 +149,8 @@ def create_app(config_name=None):
     app.register_blueprint(checklist_templates_bp)
     app.register_blueprint(rbac_bp, url_prefix='/api/rbac')
     app.register_blueprint(finops_bp)
+    app.register_blueprint(submissions_bp)
+    app.register_blueprint(public_bp)
 
     
     # Health check endpoint

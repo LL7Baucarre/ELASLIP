@@ -65,6 +65,7 @@ IOC_MAPPING = {
                     "risk_score": {"type": "integer"},
                     "status": {"type": "keyword"},
                     "current_version": {"type": "integer"},
+                    "response_actions": {"type": "text"},
                     "created_by": {
                         "type": "object",
                         "properties": {
@@ -82,6 +83,40 @@ IOC_MAPPING = {
                     }
                 }
             }
+        }
+    }
+}
+
+
+# Submissions Index Mapping - External user submissions
+SUBMISSIONS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "submission_type": {"type": "keyword"},  # 'external_submission'
+            "ioc_type": {"type": "keyword"},  # md5, sha256, ipv4, domain, email, url, etc.
+            "ioc_value": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "submitter_email": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "submitter_name": {"type": "text"},
+            "submitter_organization": {"type": "text"},
+            "description": {"type": "text"},
+            "reason": {"type": "text"},
+            "tags": {"type": "keyword"},
+            "status": {"type": "keyword"},  # 'pending', 'processed', 'created_ioc', 'rejected'
+            "matched_iocs": {"type": "keyword"},  # IOC IDs that match this submission
+            "created_ioc_id": {"type": "keyword"},  # IOC ID created from this submission
+            "analyst_notes": {"type": "text"},
+            "analyst_user_id": {"type": "keyword"},
+            "analyst_username": {"type": "keyword"},
+            "reviewed_at": {"type": "date"},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"},
+            "response_actions": {"type": "text"},  # Actions recommended/taken
+            "confidence": {"type": "keyword"}  # high, medium, low
         }
     }
 }
@@ -675,6 +710,7 @@ INDICES = {
     "elasmisp_snippets": SNIPPETS_MAPPING,
     "elasmisp_checklists": CHECKLISTS_MAPPING,
     "elasmisp_checklist_templates": CHECKLIST_TEMPLATES_MAPPING,
+    "elasmisp_submissions": SUBMISSIONS_MAPPING,
     "elasmisp_app_config": APP_CONFIG_MAPPING,
     "elasmisp_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING
 }

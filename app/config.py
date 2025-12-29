@@ -39,6 +39,8 @@ class Config:
     # Session
     SESSION_TYPE = 'redis'
     PERMANENT_SESSION_LIFETIME = 86400  # 24 hours
+    SESSION_COOKIE_SAMESITE = 'Lax'  # Allow cookies in AJAX requests
+    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
     
     # Enrichment cache TTL (seconds)
     ENRICHMENT_CACHE_TTL = 3600  # 1 hour
@@ -58,6 +60,11 @@ class Config:
     LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'auto')  # 'auto', 'ollama', or 'openai'
     LLM_ENABLED = os.getenv('LLM_ENABLED', 'false').lower() == 'true'
     LLM_GENERATION_LANGUAGE = os.getenv('LLM_GENERATION_LANGUAGE', 'en')
+    
+    # Public Submissions Configuration
+    PUBLIC_SUBMISSIONS_ENABLED = os.getenv('PUBLIC_SUBMISSIONS_ENABLED', 'true').lower() == 'true'
+    PUBLIC_SUBMISSIONS_MAX_RESULTS = int(os.getenv('PUBLIC_SUBMISSIONS_MAX_RESULTS', '10'))
+    PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS = os.getenv('PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', 'true').lower() == 'true'
 
 
 class DevelopmentConfig(Config):

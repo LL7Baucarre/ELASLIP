@@ -274,6 +274,16 @@
                         </td>
                     </tr>
                     <tr>
+                        <th>Response Actions</th>
+                        <td>
+                            {% if ioc.x_metadata.get('response_actions') %}
+                            <span class="badge bg-info">Has Actions</span> {{ ioc.x_metadata.get('response_actions') }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Labels</th>
                         <td>
                             {% for label in ioc.labels or [] %}
@@ -426,6 +436,11 @@
                     <div class="mb-3">
                         <label for="editDescription" class="form-label">Description</label>
                         <textarea class="form-control" id="editDescription" rows="3">{{ ioc.description or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editResponseActions" class="form-label">Response Actions</label>
+                        <textarea class="form-control" id="editResponseActions" rows="3">{{ ioc.x_metadata.get('response_actions') or '' }}</textarea>
+                        <div class="form-text">Recommended response actions (blocking, isolation, monitoring, etc.)</div>
                     </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="bi bi-save me-1"></i> Save Changes
@@ -1295,6 +1310,7 @@ $(document).ready(function() {
             campaigns: $('#editCampaigns').val().split(',').map(c => c.trim()).filter(c => c),
             labels: $('#editLabels').val().split(',').map(l => l.trim()).filter(l => l),
             description: $('#editDescription').val(),
+            response_actions: $('#editResponseActions').val(),
             valid_from: $('#editValidFrom').val() ? new Date($('#editValidFrom').val()).toISOString() : null,
             valid_until: $('#editValidUntil').val() ? new Date($('#editValidUntil').val()).toISOString() : null
         };

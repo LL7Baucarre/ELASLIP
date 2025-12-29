@@ -833,6 +833,22 @@ def update_ioc(ioc_id):
     user_id = str(current_user.id)
     username = current_user.username
     
+    # Transform metadata fields into x_metadata structure
+    # Fields like threat_level, tlp, confidence, campaigns should go in x_metadata
+    x_metadata_updates = {}
+    fields_for_x_metadata = ['threat_level', 'confidence', 'tlp', 'campaigns', 'risk_score', 'status', 'response_actions']
+    
+    for field in fields_for_x_metadata:
+        if field in data:
+            x_metadata_updates[field] = data[field]
+    
+    # If there are x_metadata updates, add them to the data
+    if x_metadata_updates:
+        data['x_metadata'] = x_metadata_updates
+        # Remove them from root level
+        for field in fields_for_x_metadata:
+            data.pop(field, None)
+    
     ioc = service.update(ioc_id, data, user_id=user_id, username=username)
     
     if not ioc:

@@ -1,4 +1,4 @@
-git branch -m main{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Search - {{ SITE_TITLE }}{% endblock %}
 
@@ -212,10 +212,13 @@ function performSearch() {
     $.ajax({
         url: '/api/search?' + $.param(params),
         method: 'GET',
+        xhrFields: { withCredentials: true },
         success: function(data) {
+            console.log('API Response:', data);  // DEBUG
             displayResults(data);
         },
         error: function(xhr) {
+            console.error('Search error:', xhr);  // DEBUG
             showAlert('Search failed: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
         }
     });
@@ -224,6 +227,9 @@ function performSearch() {
 function displayResults(data) {
     const results = data.items || [];
     const total = data.total || 0;
+    
+    console.log('Display results - results:', results);  // DEBUG
+    console.log('Display results - total:', total);  // DEBUG
     
     $('#resultCount').text(total);
     
