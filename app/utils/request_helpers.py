@@ -235,3 +235,77 @@ def build_filters_dict(filter_specs: Dict[str, Optional[List[str]]]) -> Dict[str
         if value:
             filters[filter_name] = value
     return filters
+
+
+def transform_ioc_to_stix_compliant(ioc: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transform IOC to STIX 2.1 compliant format for display.
+    
+    This function creates a view-friendly STIX object by:
+    1. Moving non-standard fields to x_metadata
+    2. Converting TLP to proper marking definition
+    3. Removing non-STIX fields from top level
+    4. Preserving all original data in x_metadata
+    
+    Args:
+        ioc: The IOC document (dict)
+    
+    Returns:
+        STIX 2.1 compliant dict suitable for display
+    """
+    import copy
+    
+    # Create a deep copy to avoid modifying the original
+    stix = copy.deepcopy(ioc)
+    
+    # Initialize or preserve x_metadata
+    if 'x_metadata' not in stix:
+        stix['x_metadata'] = {}
+    
+    # Ensure all custom fields are in x_metadata
+    custom_fields = {
+        'ioc_type': ioc.get('ioc_type'),
+        'ioc_value': ioc.get('ioc_value'),
+        'threat_level': ioc.get('threat_level'),
+        'tlp': ioc.get('tlp'),
+        'campaigns': ioc.get('campaigns'),
+        'confidence': ioc.get('confidence'),
+        'risk_score': ioc.get('risk_score'),
+        'status': ioc.get('status'),
+        'response_actions': ioc.get('response_actions')
+    }
+    
+    for field, value in custom_fields.items():
+        if value is not None and field not in stix['x_metadata']:
+            stix['x_metadata'][field] = value
+    
+    # Fix TLP - convert string to proper marking reference
+    tlp_value = stix.get('tlp')
+    if tlp_value and isinstance(tlp_value, str):
+        tlp_mapping = {
+            'white': 'marking-definition--36218b84-3861-514a-8360-29160fbf96b0',
+            'green': 'marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da',
+            'amber': 'marking-definition--f88d31f6-486f-44da-b317-01333bde0b82',
+            'red': 'marking-definition--5e57c739-391a-4eb3-b6be-7d15ca92d5ed'
+        }
+        tlp_lower = tlp_value.lower()
+        if tlp_lower in tlp_mapping:
+            # Add object_marking_refs if not present
+            if 'object_marking_refs' not in stix:
+                stix['object_marking_refs'] = []
+            marking_def = tlp_mapping[tlp_lower]
+            if marking_def not in stix['object_marking_refs']:
+                stix['object_marking_refs'].append(marking_def)
+    
+    # List of fields that are NOT part of STIX 2.1 Indicator spec and should be removed from top level
+    non_stix_top_level_fields = [
+        'ioc_type', 'ioc_value', 'risk_score', 'status', 'threat_level',
+        'confidence', 'campaigns', 'response_actions', 'tlp'
+    ]
+    
+    # Remove non-STIX fields from top level (they are already in x_metadata)
+    for field in non_stix_top_level_fields:
+        if field in stix:
+            del stix[field]
+    
+    return stix

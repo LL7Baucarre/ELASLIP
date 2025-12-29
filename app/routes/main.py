@@ -11,6 +11,7 @@ from app.services.checklist_service import ChecklistService
 from app.services.rbac_service import RBACService, DEFAULT_ROLES
 from app.auth import User
 from app.decorators import permission_required
+from app.utils.request_helpers import transform_ioc_to_stix_compliant
 
 main_bp = Blueprint('main', __name__)
 
@@ -324,8 +325,11 @@ def iocs_detail(ioc_id):
     if not ioc:
         return render_template('errors/404.html'), 404
     
-    # Make IOC template-friendly
-    ioc = make_ioc_template_friendly(ioc)
+    # Make IOC template-friendly for HTML access
+    ioc_template = make_ioc_template_friendly(ioc)
+    
+    # Transform to STIX 2.1 compliant format for JSON display only
+    stix_json_display = transform_ioc_to_stix_compliant(ioc)
     
     # Extract enrichment data for template display
     enrichment_data = None
@@ -338,7 +342,8 @@ def iocs_detail(ioc_id):
                 'api_results': x_enrichment.get('api_results', [])
             }
     
-    return render_template('iocs/detail.html', ioc=ioc, enrichment_data=enrichment_data)
+    # Pass both versions: ioc_template for HTML rendering, stix_json_display for the JSON view
+    return render_template('iocs/detail.html', ioc=ioc_template, stix_json_display=stix_json_display, enrichment_data=enrichment_data)
 
 
 @main_bp.route('/iocs/graph')
