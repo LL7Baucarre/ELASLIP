@@ -1,5 +1,6 @@
 """Routes for public submissions and submission management."""
 
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, current_app
 from flask_login import login_required, current_user
 
@@ -300,6 +301,26 @@ def public_submit():
             tags=tags,
             confidence=confidence
         )
+        
+        # Dispatch webhook for public submission
+        from app.tasks.webhook_tasks import dispatch_webhook
+        try:
+            dispatch_webhook.delay('public_submission.created', {
+                'submission_id': submission['id'],
+                'ioc_type': ioc_type,
+                'ioc_value': ioc_value,
+                'submitter_email': submitter_email,
+                'submitter_name': submitter_name,
+                'submitter_organization': submitter_organization,
+                'description': description,
+                'reason': reason,
+                'tags': tags,
+                'confidence': confidence,
+                'matched_count': len(submission.get('matched_iocs', [])),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            current_app.logger.warning(f"Failed to dispatch webhook for public submission: {str(e)}")
         
         # Log successful submission
         audit.log(

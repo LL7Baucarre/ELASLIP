@@ -18,7 +18,8 @@ WEBHOOK_EVENTS = [
     'ioc.created',
     'ioc.updated',
     'ioc.deleted',
-    'import.completed'
+    'import.completed',
+    'public_submission.created'
 ]
 
 
