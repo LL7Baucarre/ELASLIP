@@ -643,25 +643,22 @@ class IOCService(BaseListService):
         
         result = self.es.aggregate(self.index, {
             "by_type": {
-                "terms": {"field": "x_metadata.ioc_type", "size": 100}
+                "terms": {"field": "x_metadata.ioc_type.keyword", "size": 100}
             },
             "by_label": {
-                "terms": {"field": "labels", "size": 20}
+                "terms": {"field": "labels.keyword", "size": 20}
             },
             "by_tlp": {
-                "terms": {"field": "tlp", "size": 5}
+                "terms": {"field": "x_metadata.tlp.keyword", "size": 5}
             },
             "by_threat_level": {
-                "terms": {"field": "threat_level", "size": 5}
+                "terms": {"field": "x_metadata.threat_level.keyword", "size": 5}
             },
             "by_status": {
-                "terms": {"field": "x_metadata.status", "size": 5}
+                "terms": {"field": "x_metadata.status.keyword", "size": 5}
             },
             "avg_risk_score": {
                 "avg": {"field": "x_metadata.risk_score"}
-            },
-            "total": {
-                "value_count": {"field": "id"}
             }
         })
         
