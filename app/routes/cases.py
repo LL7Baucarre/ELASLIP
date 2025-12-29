@@ -76,6 +76,10 @@ def list_cases():
         'search': None
     })
     
+    # Normalize status: convert underscores to hyphens
+    if filters and filters.get('status'):
+        filters['status'] = filters['status'].replace('_', '-')
+    
     result = case_service.list_cases(
         page=page, per_page=per_page, filters=filters if filters else None, sort=sort
     )
@@ -348,6 +352,7 @@ def list_incidents():
     filters = build_filters_dict({
         'status': None,
         'severity': None,
+        'category': None,
         'search': None
     })
     

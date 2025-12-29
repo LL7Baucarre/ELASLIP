@@ -109,11 +109,11 @@
             </div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
-                    {% set status_order = ['open', 'investigating', 'resolved', 'closed'] %}
+                    {% set status_order = ['open', 'in-progress', 'closed', 'on-hold'] %}
                     {% for status in status_order %}
                         {% if cases_status_stats.get(status, 0) > 0 %}
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span class="badge bg-{% if status == 'open' %}warning{% elif status == 'investigating' %}info{% elif status == 'resolved' %}success{% else %}secondary{% endif %}">{{ status|capitalize }}</span>
+                            <span class="badge bg-{% if status == 'open' %}warning{% elif status == 'in-progress' %}info{% elif status == 'closed' %}success{% else %}secondary{% endif %}">{{ status|capitalize }}</span>
                             <span class="badge bg-secondary">{{ cases_status_stats.get(status, 0) }}</span>
                         </li>
                         {% endif %}

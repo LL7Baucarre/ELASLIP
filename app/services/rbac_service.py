@@ -112,6 +112,10 @@ PERMISSIONS = {
     'submission.create': 'Create IOCs from submissions',
     'submission.manage': 'Manage/approve/reject submissions',
     
+    # ============== Audit & Monitoring ==============
+    'audit.view': 'View audit logs and Elasticsearch stats',
+    'audit.export': 'Export audit logs',
+    
     # ============== Administration ==============
     'admin.users.view': 'View users',
     'admin.users.create': 'Create users',
@@ -169,6 +173,8 @@ DEFAULT_ROLES = {
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Public Submissions
             'submission.view', 'submission.create', 'submission.manage',
+            # Audit & Monitoring
+            'audit.view',
             # Admin
             'admin.audit',
         ],
@@ -204,6 +210,8 @@ DEFAULT_ROLES = {
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Public Submissions
             'submission.view', 'submission.create', 'submission.manage',
+            # Audit & Monitoring
+            'audit.view',
             # Admin
             'admin.audit',
         ],
@@ -239,6 +247,8 @@ DEFAULT_ROLES = {
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
             # Public Submissions
             'submission.view', 'submission.create',
+            # Audit & Monitoring
+            'audit.view',
             # Admin
             'admin.audit',
         ],

@@ -506,7 +506,7 @@ def populate_demo_data():
         
         incident_categories = ['malware', 'phishing', 'data_breach', 'ransomware', 'ddos', 'exploit']
         severities = ['low', 'medium', 'high', 'critical']
-        statuses_case = ['open', 'in_progress', 'closed']
+        statuses_case = ['open', 'in-progress', 'closed']
         
         created_cases = []
         created_incidents = []
@@ -546,7 +546,7 @@ def populate_demo_data():
                             'case_id': case['id'],
                             'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
                             'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['detected', 'acknowledged', 'contained', 'resolved']),
+                            'status': random.choice(['detected', 'analyzing', 'contained', 'eradicated', 'recovered', 'closed']),
                             'severity': random.choice(severities),
                             'category': random.choice(incident_categories),
                             'ioc_ids': incident_iocs,

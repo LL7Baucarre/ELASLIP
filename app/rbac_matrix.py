@@ -86,6 +86,10 @@ PERMISSION_CATEGORIES = {
         'submission.create': 'Create IOCs from submissions',
         'submission.manage': 'Manage submissions (review, reject)',
     },
+    'Audit & Monitoring': {
+        'audit.view': 'View audit logs and Elasticsearch stats',
+        'audit.export': 'Export audit logs',
+    },
     'Administration': {
         'admin.users.view': 'View users',
         'admin.users.create': 'Create users',
@@ -97,7 +101,7 @@ PERMISSION_CATEGORIES = {
         'admin.roles.edit': 'Edit roles',
         'admin.roles.delete': 'Delete custom roles',
         'admin.settings': 'Manage site settings',
-        'admin.audit': 'View audit logs',
+        'admin.audit': 'Manage audit system',
         'admin.tasks': 'Manage scheduled tasks',
         'admin.import_jobs': 'Manage import jobs',
     }
@@ -116,6 +120,7 @@ PERMISSION_MATRIX = {
         'Webhook Management': ['view', 'create', 'edit', 'delete', 'test'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
         'Public Submissions': ['view', 'create', 'manage'],
+        'Audit & Monitoring': ['view', 'export'],
         'Administration': ['users_view', 'users_create', 'users_edit', 'users_delete', 'users_assign_role', 'roles_view', 'roles_create', 'roles_edit', 'roles_delete', 'settings', 'audit', 'tasks', 'import_jobs'],
     },
     'Security Analyst': {
@@ -129,6 +134,7 @@ PERMISSION_MATRIX = {
         'Webhook Management': ['view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
         'Public Submissions': ['view', 'create', 'manage'],
+        'Audit & Monitoring': ['view'],
     },
     'Threat Intel Officer': {
         'IOC Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
@@ -140,6 +146,7 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view', 'external_view', 'external_test'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
         'Public Submissions': ['view', 'create', 'manage'],
+        'Audit & Monitoring': ['view'],
     },
     'Incident Responder': {
         'IOC Management': ['view', 'create', 'edit', 'relations'],
@@ -152,6 +159,7 @@ PERMISSION_MATRIX = {
         'Webhook Management': ['view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
         'Public Submissions': ['view', 'create'],
+        'Audit & Monitoring': ['view'],
     },
     'Manager': {
         'IOC Management': ['view', 'export', 'relations'],
@@ -163,6 +171,7 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view'],
         'Search & Reports': ['advanced', 'view', 'create', 'export'],
         'Public Submissions': ['view', 'manage'],
+        'Audit & Monitoring': ['view'],
         'Administration': ['users_view', 'roles_view', 'audit'],
     },
     'Viewer': {
@@ -175,7 +184,6 @@ PERMISSION_MATRIX = {
         'API & Integration': ['access', 'keys_view'],
         'Search & Reports': ['advanced', 'view', 'export'],
         'Public Submissions': ['view'],
-        'Search & Reports': ['advanced', 'view', 'export'],
     }
 }
 

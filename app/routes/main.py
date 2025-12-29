@@ -887,6 +887,59 @@ def task_config():
         return jsonify({'error': str(e)}), 500
 
 
+@main_bp.route('/api/elasticsearch/stats', methods=['GET'])
+@login_required
+@permission_required('audit.view')
+def elasticsearch_stats():
+    """Get Elasticsearch cluster health and indices statistics."""
+    try:
+        from app.services.elasticsearch_service import ElasticsearchService
+        es_service = ElasticsearchService()
+        
+        # Get cluster health
+        cluster_health = es_service.client.cluster.health()
+        
+        # Get indices stats
+        indices_stats = es_service.client.indices.stats(expand_wildcards='all')
+        
+        # Build indices info
+        indices_info = {}
+        if 'indices' in indices_stats:
+            for index_name, index_data in indices_stats['indices'].items():
+                if index_name.startswith('.'):
+                    continue  # Skip system indices
+                
+                indices_info[index_name] = {
+                    'health': cluster_health.get('indices', {}).get(index_name, {}).get('status', 'unknown'),
+                    'status': 'open',  # Most indices are open
+                    'docs_count': index_data.get('primaries', {}).get('docs', {}).get('count', 0),
+                    'size_in_bytes': index_data.get('primaries', {}).get('store', {}).get('size_in_bytes', 0),
+                    'number_of_shards': index_data.get('index', {}).get('number_of_shards', 1),
+                    'number_of_replicas': index_data.get('index', {}).get('number_of_replicas', 0)
+                }
+        
+        return jsonify({
+            'status': 'success',
+            'cluster_health': {
+                'status': cluster_health.get('status', 'unknown'),
+                'number_of_nodes': cluster_health.get('number_of_nodes', 0),
+                'number_of_data_nodes': cluster_health.get('number_of_data_nodes', 0),
+                'active_primary_shards': cluster_health.get('active_primary_shards', 0),
+                'active_shards': cluster_health.get('active_shards', 0),
+                'unassigned_shards': cluster_health.get('unassigned_shards', 0),
+                'number_of_indices': cluster_health.get('number_of_indices', 0)
+            },
+            'indices': indices_info
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
+
+
 @main_bp.route('/api-docs')
 @login_required
 def api_docs():

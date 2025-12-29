@@ -24,11 +24,14 @@ class CaseService:
         """Create a new case."""
         case_id = secrets.token_hex(16)
         
+        # Normalize status: convert underscores to hyphens
+        status = (data.get('status', 'open') or 'open').replace('_', '-')
+        
         case_doc = {
             'id': case_id,
             'title': data.get('title', '').strip(),
             'description': data.get('description', ''),
-            'status': data.get('status', 'open'),
+            'status': status,
             'priority': data.get('priority', 'medium'),
             'severity': data.get('severity', 'medium'),
             'case_type': data.get('case_type', 'investigation'),
@@ -86,8 +89,12 @@ class CaseService:
         update_doc = {k: v for k, v in updates.items() if k in allowed_fields}
         update_doc['updated_at'] = datetime.utcnow().isoformat() + 'Z'
         
+        # Normalize status: convert underscores to hyphens
+        if 'status' in update_doc and update_doc['status']:
+            update_doc['status'] = update_doc['status'].replace('_', '-')
+        
         # Handle status changes
-        if updates.get('status') == 'closed' and case['status'] != 'closed':
+        if update_doc.get('status') == 'closed' and case['status'] != 'closed':
             update_doc['closed_at'] = datetime.utcnow().isoformat() + 'Z'
         
         self.es.update('cases', case_id, {'doc': update_doc})
@@ -132,8 +139,10 @@ class CaseService:
         query = {'bool': {'must': []}}
         
         if filters:
+            # Normalize status filter
             if filters.get('status'):
-                query['bool']['must'].append({'term': {'status': filters['status']}})
+                normalized_status = filters['status'].replace('_', '-')
+                query['bool']['must'].append({'term': {'status': normalized_status}})
             if filters.get('priority'):
                 query['bool']['must'].append({'term': {'priority': filters['priority']}})
             if filters.get('case_type'):
