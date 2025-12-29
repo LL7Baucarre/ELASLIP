@@ -24,6 +24,11 @@
             <i class="fas fa-chart-line me-2"></i>FinOps (LLM Tokens)
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="elastic-tab" data-bs-toggle="tab" data-bs-target="#elastic-pane" type="button" role="tab" aria-controls="elastic-pane" aria-selected="false">
+            <i class="fas fa-database me-2"></i>Elasticsearch
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content">
@@ -262,6 +267,105 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Elasticsearch Tab -->
+    <div class="tab-pane fade" id="elastic-pane" role="tabpanel" aria-labelledby="elastic-tab">
+        <!-- Cluster Health Stats -->
+        <div class="row mb-4 g-2">
+            <div class="col-md-2">
+                <div class="card bg-primary bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Cluster Status</h6>
+                        <h4 id="elastic-status" class="mb-0">-</h4>
+                        <br>
+                        <small class="text-muted">Overall health</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-info bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Active Nodes</h6>
+                        <h4 id="elastic-nodes" class="mb-0">-</h4>
+                        <small class="text-muted">Cluster nodes</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-success bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Total Indices</h6>
+                        <h4 id="elastic-indices-count" class="mb-0">-</h4>
+                        <small class="text-muted">Indices created</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-warning bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Active Shards</h6>
+                        <h4 id="elastic-shards-active" class="mb-0">-</h4>
+                        <small class="text-muted">Shards running</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card bg-danger bg-opacity-10">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Unassigned Shards</h6>
+                        <h4 id="elastic-shards-unassigned" class="mb-0">-</h4>
+                        <small class="text-muted">Shards unassigned</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="mb-1 small">Updated</h6>
+                        <h5 id="elastic-updated" class="mb-0" style="font-size: 0.9rem;">-</h5>
+                        <small class="text-muted">Last refresh</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indices Statistics -->
+        <div class="card">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">Indices Statistics</h6>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadElasticsearchStats()">
+                    <i class="fas fa-sync-alt me-1"></i> Refresh
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Index Name</th>
+                                <th>Status</th>
+                                <th>Documents</th>
+                                <th>Size</th>
+                                <th>Shards</th>
+                                <th>Replicas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="elastic-indices-tbody">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    Loading indices...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-muted small">
+                Last updated: <span id="elastic-indices-updated">-</span>
             </div>
         </div>
     </div>
@@ -761,12 +865,133 @@ function updateTopConsumers(consumers) {
     tbody.innerHTML = rows;
 }
 
+function loadElasticsearchData() {
+    const index = document.getElementById('elastic-index').value;
+    const fromDate = document.getElementById('elastic-from-date').value;
+    const toDate = document.getElementById('elastic-to-date').value;
+    const searchQuery = document.getElementById('elastic-search').value;
+    
+    const params = new URLSearchParams();
+    if (index) params.append('index', index);
+    if (fromDate) params.append('from_date', fromDate);
+    if (toDate) params.append('to_date', toDate);
+    if (searchQuery) params.append('search', searchQuery);
+    
+    const tbody = document.getElementById('elastic-results-tbody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center"><span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Loading...</td></tr>';
+    
+    fetch(`/api/audit/logs?${params}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.items && data.items.length > 0) {
+                const rows = data.items.map(item => {
+                    const timestamp = new Date(item.timestamp || item.created_at).toLocaleString();
+                    const index = item._index || 'audit_logs';
+                    const action = item.action || 'N/A';
+                    const doc = item.entity_type + (item.entity_id ? ': ' + item.entity_id.substring(0, 12) + '...' : '');
+                    return `
+                        <tr>
+                            <td><small>${timestamp}</small></td>
+                            <td><small>${index}</small></td>
+                            <td><small>${doc}</small></td>
+                            <td><span class="badge bg-info">${action}</span></td>
+                        </tr>
+                    `;
+                }).join('');
+                tbody.innerHTML = rows;
+                document.getElementById('elastic-info').textContent = `Showing ${data.items.length} of ${data.total || 0} results`;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No results found</td></tr>';
+                document.getElementById('elastic-info').textContent = 'No results';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Error loading data</td></tr>';
+        });
+}
+
+function loadElasticsearchStats() {
+    fetch('/api/elasticsearch/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const health = data.cluster_health || {};
+                const indices = data.indices || {};
+                
+                // Update health stats
+                const statusColor = health.status === 'green' ? 'success' : health.status === 'yellow' ? 'warning' : 'danger';
+                document.getElementById('elastic-status').textContent = health.status ? health.status.toUpperCase() : '-';
+                document.getElementById('elastic-status').className = `badge bg-${statusColor} fs-6`;
+                
+                document.getElementById('elastic-nodes').textContent = health.number_of_nodes || 0;
+                document.getElementById('elastic-indices-count').textContent = health.number_of_indices || 0;
+                document.getElementById('elastic-shards-active').textContent = health.active_shards || 0;
+                document.getElementById('elastic-shards-unassigned').textContent = health.unassigned_shards || 0;
+                
+                const now = new Date().toLocaleTimeString();
+                document.getElementById('elastic-updated').textContent = now;
+                document.getElementById('elastic-indices-updated').textContent = now;
+                
+                // Update indices table
+                const tbody = document.getElementById('elastic-indices-tbody');
+                if (indices && Object.keys(indices).length > 0) {
+                    const rows = Object.entries(indices).map(([indexName, indexStats]) => {
+                        const status = indexStats.status || 'unknown';
+                        const docs = (indexStats.docs_count || 0).toLocaleString();
+                        const size = indexStats.size_in_bytes ? formatBytes(indexStats.size_in_bytes) : '-';
+                        const shards = indexStats.number_of_shards || 0;
+                        const replicas = indexStats.number_of_replicas || 0;
+                        
+                        const statusBadge = status === 'open' ? '<span class="badge bg-info">open</span>' : 
+                                          '<span class="badge bg-secondary">' + status + '</span>';
+                        
+                        return `
+                            <tr>
+                                <td><code style="font-size: 0.85rem;">${indexName}</code></td>
+                                <td>${statusBadge}</td>
+                                <td>${docs}</td>
+                                <td>${size}</td>
+                                <td>${shards}</td>
+                                <td>${replicas}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                    tbody.innerHTML = rows;
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No indices found</td></tr>';
+                }
+            } else {
+                document.getElementById('elastic-indices-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error loading Elasticsearch stats</td></tr>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            document.getElementById('elastic-indices-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Connection error</td></tr>';
+        });
+}
+
+function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
 // Load FinOps data when tab is shown
 document.addEventListener('DOMContentLoaded', function() {
     const finopsTab = document.getElementById('finops-tab');
     if (finopsTab) {
         finopsTab.addEventListener('shown.bs.tab', function() {
             loadFinopsData();
+        });
+    }
+    
+    const elasticTab = document.getElementById('elastic-tab');
+    if (elasticTab) {
+        elasticTab.addEventListener('shown.bs.tab', function() {
+            loadElasticsearchStats();
         });
     }
 });
