@@ -116,8 +116,8 @@ def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     
-    # Redirect to public submission portal if enabled, otherwise to login
-    if current_app.config.get('PUBLIC_SUBMISSIONS_ENABLED', False):
+    # Redirect to public search portal if enabled, otherwise to login
+    if current_app.config.get('PUBLIC_SEARCH_ENABLED', False):
         return redirect(url_for('public_submissions.public_submission_page'))
     
     return redirect(url_for('auth.login'))
@@ -259,7 +259,6 @@ def dashboard():
             'updated_at': ioc.get('modified', ioc.get('created', ''))
         }
         import sys
-        print(f"DEBUG IOC entry: {entry}", file=sys.stderr)
         all_recent.append(entry)
     for case in recent_cases:
         all_recent.append({
@@ -651,6 +650,60 @@ def api_settings():
         'message': 'Settings updated successfully',
         'site_name': site_name,
         'site_title': site_title
+    })
+
+
+@main_bp.route('/api/settings/public-submissions', methods=['GET', 'PUT'])
+@login_required
+@admin_required
+def api_settings_public_submissions():
+    """Get or update public submissions settings (admin only)."""
+    if request.method == 'GET':
+        return jsonify({
+            'public_search_enabled': current_app.config.get('PUBLIC_SEARCH_ENABLED', True),
+            'public_submissions_submit_enabled': current_app.config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True),
+            'public_submissions_allow_anonymous': current_app.config.get('PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', True),
+            'public_submissions_max_results': current_app.config.get('PUBLIC_SUBMISSIONS_MAX_RESULTS', 50)
+        })
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'JSON body required'}), 400
+    
+    # Convert values to appropriate types
+    public_search_enabled = data.get('public_search_enabled', True)
+    public_submissions_submit_enabled = data.get('public_submissions_submit_enabled', True)
+    public_submissions_allow_anonymous = data.get('public_submissions_allow_anonymous', True)
+    public_submissions_max_results = data.get('public_submissions_max_results', 50)
+    
+    # Validate max results
+    try:
+        public_submissions_max_results = int(public_submissions_max_results)
+        if public_submissions_max_results < 1 or public_submissions_max_results > 1000:
+            return jsonify({'error': 'public_submissions_max_results must be between 1 and 1000'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'public_submissions_max_results must be an integer'}), 400
+    
+    # Update .env file
+    env_file = '.env'
+    if os.path.exists(env_file):
+        set_key(env_file, 'PUBLIC_SEARCH_ENABLED', str(public_search_enabled).lower())
+        set_key(env_file, 'PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', str(public_submissions_submit_enabled).lower())
+        set_key(env_file, 'PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', str(public_submissions_allow_anonymous).lower())
+        set_key(env_file, 'PUBLIC_SUBMISSIONS_MAX_RESULTS', str(public_submissions_max_results))
+    
+    # Update current app config
+    current_app.config['PUBLIC_SEARCH_ENABLED'] = public_search_enabled
+    current_app.config['PUBLIC_SUBMISSIONS_SUBMIT_ENABLED'] = public_submissions_submit_enabled
+    current_app.config['PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS'] = public_submissions_allow_anonymous
+    current_app.config['PUBLIC_SUBMISSIONS_MAX_RESULTS'] = public_submissions_max_results
+    
+    return jsonify({
+        'message': 'Public submissions settings updated successfully',
+        'public_search_enabled': public_search_enabled,
+        'public_submissions_submit_enabled': public_submissions_submit_enabled,
+        'public_submissions_allow_anonymous': public_submissions_allow_anonymous,
+        'public_submissions_max_results': public_submissions_max_results
     })
 
 

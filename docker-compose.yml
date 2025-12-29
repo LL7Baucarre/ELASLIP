@@ -87,10 +87,11 @@ services:
     networks:
       - ioc-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD:-elastic123} http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD:-elastic123} http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 30
+      start_period: 40s
     restart: unless-stopped
 
   redis:

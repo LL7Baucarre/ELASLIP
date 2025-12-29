@@ -18,8 +18,8 @@ public_bp = Blueprint('public_submissions', __name__, url_prefix='/public-submis
 @public_bp.route('/', methods=['GET'])
 def public_submission_page():
     """Public submission page (accessible without login)."""
-    if not current_app.config.get('PUBLIC_SUBMISSIONS_ENABLED', True):
-        return render_template('error.html', error='Public submissions are disabled'), 403
+    if not current_app.config.get('PUBLIC_SEARCH_ENABLED', True):
+        return render_template('error.html', error='Public search is disabled'), 403
     
     return render_template('public_submission.html')
 
@@ -75,8 +75,8 @@ def public_search():
       400:
         description: Invalid request
     """
-    if not current_app.config.get('PUBLIC_SUBMISSIONS_ENABLED', True):
-        return jsonify({'error': 'Public submissions are disabled'}), 403
+    if not current_app.config.get('PUBLIC_SEARCH_ENABLED', True):
+        return jsonify({'error': 'Public search is disabled'}), 403
     
     try:
         # Support both GET and POST
@@ -105,7 +105,8 @@ def public_search():
             ioc_type = detected_type
         
         service = SubmissionService()
-        result = service.public_search(ioc_type, ioc_value)
+        max_results = current_app.config.get('PUBLIC_SUBMISSIONS_MAX_RESULTS', 50)
+        result = service.public_search(ioc_type, ioc_value, max_results=max_results)
         
         # Add detected type to response
         result['detected_type'] = detected_type or ioc_type
@@ -171,10 +172,13 @@ def public_submit():
       400:
         description: Invalid request
       403:
-        description: Public submissions disabled
+        description: Public search disabled
     """
-    if not current_app.config.get('PUBLIC_SUBMISSIONS_ENABLED', True):
-        return jsonify({'error': 'Public submissions are disabled'}), 403
+    if not current_app.config.get('PUBLIC_SEARCH_ENABLED', True):
+        return jsonify({'error': 'Public search is disabled'}), 403
+    
+    if not current_app.config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True):
+        return jsonify({'error': 'Public IOC submissions are not available at this time'}), 403
     
     try:
         data = request.get_json()

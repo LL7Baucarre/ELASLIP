@@ -1,7 +1,53 @@
 import logging
 import logging.handlers
 import os
+import time
+import sys
+from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import ConnectionError, NotFoundError
 from app import create_app
+
+# Wait for Elasticsearch to be ready before creating app
+def wait_for_elasticsearch(max_retries=30, retry_delay=2):
+    """Wait for Elasticsearch to be fully ready"""
+    from app.config import Config
+    
+    es_url = os.getenv('ELASTICSEARCH_URL', 'http://elastic:elastic123@elasticsearch:9200')
+    es_user = os.getenv('ELASTICSEARCH_USER', 'elastic')
+    es_password = os.getenv('ELASTICSEARCH_PASSWORD', 'elastic123')
+    
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            # Create temp ES client
+            es_temp = Elasticsearch([es_url])
+            
+            # Try to get cluster health
+            health = es_temp.cluster.health()
+            
+            # Check if cluster is at least yellow (ready to accept requests)
+            if health.get('status') in ['yellow', 'green']:
+                print(f"✓ Elasticsearch is ready (status: {health.get('status')})")
+                es_temp.close()
+                return True
+            else:
+                print(f"⏳ Elasticsearch cluster status: {health.get('status')}, waiting...")
+                
+        except (ConnectionError, Exception) as e:
+            retry_count += 1
+            if retry_count < max_retries:
+                print(f"⏳ Waiting for Elasticsearch ({retry_count}/{max_retries})... Error: {str(e)[:100]}")
+                time.sleep(retry_delay)
+            else:
+                print(f"✗ Failed to connect to Elasticsearch after {max_retries} retries")
+                return False
+    
+    return False
+
+# Ensure Elasticsearch is ready before starting app
+if not wait_for_elasticsearch():
+    print("ERROR: Elasticsearch did not become ready in time")
+    sys.exit(1)
 
 app = create_app()
 
