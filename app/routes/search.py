@@ -107,17 +107,17 @@ def search_iocs():
     es_query = {"bool": {"must": [], "filter": []}}
     
     if query_text:
-        # Search in pattern field
+        # Search in pattern field and x_metadata.ioc_value
         es_query["bool"]["must"].append({
             "multi_match": {
                 "query": query_text,
-                "fields": ["pattern", "pattern.keyword", "ioc_value", "name", "description"],
+                "fields": ["pattern", "pattern.keyword", "x_metadata.ioc_value", "name", "description"],
                 "type": "best_fields"
             }
         })
     
     if ioc_type:
-        es_query["bool"]["filter"].append({"term": {"ioc_type": ioc_type.lower()}})
+        es_query["bool"]["filter"].append({"term": {"x_metadata.ioc_type": ioc_type.lower()}})
     
     if labels:
         for label in labels:
@@ -147,7 +147,7 @@ def search_iocs():
     es = ElasticsearchService()
     from_idx = (page - 1) * per_page
     
-    result = es.search('ioc', {
+    es_body = {
         "query": es_query,
         "from": from_idx,
         "size": per_page,
@@ -159,7 +159,9 @@ def search_iocs():
                 "description": {}
             }
         }
-    })
+    }
+    
+    result = es.search('ioc', es_body)
     
     items = []
     ioc_service = IOCService()

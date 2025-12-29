@@ -76,6 +76,11 @@ class PatternGenerator:
     SUPPORTED_TYPES = list(PATTERN_TEMPLATES.keys())
     
     @classmethod
+    def get_supported_types(cls) -> list:
+        """Get list of supported IOC types."""
+        return cls.SUPPORTED_TYPES
+    
+    @classmethod
     def validate_value(cls, ioc_type: str, value: str) -> bool:
         """
         Validate an IOC value against its type.
@@ -257,3 +262,61 @@ class PatternGenerator:
         normalized = re.sub(r'\s+', ' ', normalized)
         
         return hashlib.sha256(normalized.encode()).hexdigest()
+
+    @classmethod
+    def auto_detect_type(cls, value: str) -> Optional[str]:
+        """
+        Auto-detect the IOC type from a value.
+        
+        Args:
+            value: The IOC value to detect
+        
+        Returns:
+            The detected IOC type, or None if no match found
+        """
+        value = value.strip()
+        
+        # Try each validator in order of specificity
+        # Check hash types first (most specific)
+        if cls.VALIDATORS['md5'].match(value):
+            return 'md5'
+        if cls.VALIDATORS['sha1'].match(value):
+            return 'sha1'
+        if cls.VALIDATORS['sha256'].match(value):
+            return 'sha256'
+        
+        # Check IPv6 before IPv4
+        if cls.VALIDATORS['ipv6'].match(value):
+            return 'ipv6'
+        if cls.VALIDATORS['ipv4'].match(value):
+            return 'ipv4'
+        
+        # Check ASN (needs to be before domain/email)
+        if cls.VALIDATORS['asn'].match(value):
+            return 'asn'
+        
+        # Check URL before domain
+        if cls.VALIDATORS['url'].match(value):
+            return 'url'
+        
+        # Check email before domain
+        if cls.VALIDATORS['email'].match(value):
+            return 'email'
+        
+        # Check domain
+        if cls.VALIDATORS['domain'].match(value):
+            return 'domain'
+        
+        # Check process name
+        if cls.VALIDATORS['process-name'].match(value):
+            return 'process-name'
+        
+        # Check registry key
+        if cls.VALIDATORS['registry-key'].match(value):
+            return 'registry-key'
+        
+        # Check file path
+        if cls.VALIDATORS['file-path'].match(value):
+            return 'file-path'
+        
+        return None

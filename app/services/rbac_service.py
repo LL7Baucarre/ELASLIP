@@ -107,6 +107,11 @@ PERMISSIONS = {
     'tools.execute': 'Execute analysis tools',
     'tools.configure': 'Configure tools',
     
+    # ============== Public Submissions ==============
+    'submission.view': 'View external submissions',
+    'submission.create': 'Create IOCs from submissions',
+    'submission.manage': 'Manage/approve/reject submissions',
+    
     # ============== Administration ==============
     'admin.users.view': 'View users',
     'admin.users.create': 'Create users',
@@ -162,6 +167,8 @@ DEFAULT_ROLES = {
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Public Submissions
+            'submission.view', 'submission.create', 'submission.manage',
             # Admin
             'admin.audit',
         ],
@@ -195,6 +202,8 @@ DEFAULT_ROLES = {
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Public Submissions
+            'submission.view', 'submission.create', 'submission.manage',
             # Admin
             'admin.audit',
         ],
@@ -228,6 +237,8 @@ DEFAULT_ROLES = {
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
             'checklist.template.view', 'checklist.template.create', 'checklist.template.edit', 'checklist.template.delete', 'checklist.template.use',
+            # Public Submissions
+            'submission.view', 'submission.create',
             # Admin
             'admin.audit',
         ],
@@ -257,6 +268,8 @@ DEFAULT_ROLES = {
             # Checklists
             'checklist.view', 'checklist.comment.create',
             'checklist.template.view', 'checklist.template.use',
+            # Public Submissions
+            'submission.view',
         ],
         'is_system': True,
         'is_editable': False

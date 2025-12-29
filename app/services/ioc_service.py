@@ -174,7 +174,7 @@ class IOCService(BaseListService):
         if 'x_metadata' in doc and isinstance(doc['x_metadata'], dict):
             metadata = doc['x_metadata']
             # Add essential metadata fields to root level
-            for key in ['ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 'status', 'risk_score']:
+            for key in ['ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 'status', 'risk_score', 'sources']:
                 if key in metadata and key not in doc:
                     doc[key] = metadata[key]
         return doc
@@ -403,15 +403,29 @@ class IOCService(BaseListService):
             if k in allowed_fields or k.startswith('x_'):
                 update_doc[k] = v
         
+        # If x_metadata is provided, merge it with existing x_metadata
+        if 'x_metadata' in update_doc:
+            existing_x_metadata = existing.get('x_metadata', {})
+            # Merge the metadata - updates override existing
+            merged_x_metadata = {**existing_x_metadata, **update_doc['x_metadata']}
+            update_doc['x_metadata'] = merged_x_metadata
+        
         # Ensure modified timestamp has Z suffix
         modified_ts = datetime.utcnow().isoformat() + 'Z'
         update_doc['modified'] = modified_ts
         
         # Recalculate risk score if relevant fields changed
-        threat_level = updates.get('threat_level', existing.get('threat_level'))
-        confidence = updates.get('confidence', existing.get('confidence'))
-        tlp = updates.get('tlp', existing.get('tlp'))
-        update_doc['risk_score'] = self.calculate_risk_score(threat_level, confidence, tlp)
+        # Get from x_metadata since that's where they are now
+        x_meta_updates = update_doc.get('x_metadata', {})
+        threat_level = x_meta_updates.get('threat_level', existing.get('x_metadata', {}).get('threat_level'))
+        confidence = x_meta_updates.get('confidence', existing.get('x_metadata', {}).get('confidence'))
+        tlp = x_meta_updates.get('tlp', existing.get('x_metadata', {}).get('tlp'))
+        
+        # Calculate new risk score and add to x_metadata
+        risk_score = self.calculate_risk_score(threat_level, confidence, tlp)
+        if 'x_metadata' not in update_doc:
+            update_doc['x_metadata'] = existing.get('x_metadata', {})
+        update_doc['x_metadata']['risk_score'] = risk_score
         
         # Increment version
         current_version = existing.get('current_version', 1)
@@ -506,23 +520,31 @@ class IOCService(BaseListService):
         query = {"bool": {"must": []}}
         
         if ioc_type:
-            query["bool"]["must"].append({"term": {"ioc_type": ioc_type}})
+            query["bool"]["must"].append({"term": {"x_metadata.ioc_type": ioc_type}})
         
         if labels:
             for label in labels:
                 query["bool"]["must"].append({"term": {"labels": label}})
         
         if tlp:
-            query["bool"]["must"].append({"term": {"tlp": tlp}})
+            query["bool"]["must"].append({"term": {"x_metadata.tlp": tlp}})
         
         if threat_level:
-            query["bool"]["must"].append({"term": {"threat_level": threat_level}})
+            query["bool"]["must"].append({"term": {"x_metadata.threat_level": threat_level}})
         
         if confidence:
-            query["bool"]["must"].append({"term": {"confidence": confidence}})
+            # Map confidence labels to numeric ranges
+            confidence_ranges = {
+                'low': {'gte': 0, 'lte': 33},
+                'medium': {'gte': 34, 'lte': 66},
+                'high': {'gte': 67, 'lte': 85},
+                'very-high': {'gte': 86, 'lte': 100}
+            }
+            if confidence in confidence_ranges:
+                query["bool"]["must"].append({"range": {"confidence": confidence_ranges[confidence]}})
         
         if campaigns:
-            query["bool"]["must"].append({"term": {"campaigns": campaigns}})
+            query["bool"]["must"].append({"term": {"x_metadata.campaigns": campaigns}})
         
         if source:
             query["bool"]["must"].append({

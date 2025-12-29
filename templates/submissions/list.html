@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Submissions - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Public Submissions</h4>
+        <small class="text-muted">External IOC submissions awaiting review</small>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form class="row g-3" id="filterForm">
+            <div class="col-md-4">
+                <label class="form-label">Status</label>
+                <select class="form-select" id="filterStatus">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending Review</option>
+                    <option value="processed">Processed</option>
+                    <option value="created_ioc">IOC Created</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Submissions List -->
+<div class="card">
+    <div class="card-body">
+        {% if submissions['items'] %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Value</th>
+                        <th>Submitter</th>
+                        <th>Confidence</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in submissions['items'] %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-info">{{ submission.ioc_type.upper() }}</span>
+                        </td>
+                        <td>
+                            <code>{{ submission.ioc_value[:50] }}</code>
+                            {% if submission.ioc_value|length > 50 %}...{% endif %}
+                        </td>
+                        <td>
+                            <small>
+                                {{ submission.submitter_name or 'Anonymous' }}
+                                {% if submission.submitter_email %}<br><code>{{ submission.submitter_email }}</code>{% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if submission.confidence == 'high' else 'warning' if submission.confidence == 'medium' else 'secondary' }}">
+                                {{ submission.confidence.upper() }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if submission.status == 'pending' %}
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending</span>
+                            {% elif submission.status == 'created_ioc' %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> IOC Created</span>
+                            {% elif submission.status == 'rejected' %}
+                                <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ submission.status.upper() }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ submission.created_at[:10] }}</small>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('submissions.view_submission', submission_id=submission.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% set total_pages = ((submissions.total - 1) // submissions.per_page) + 1 if submissions.total > 0 else 1 %}
+        {% if total_pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if submissions.page > 1 %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1&status={{ request.args.get('status', '') }}">First</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ submissions.page - 1 }}&status={{ request.args.get('status', '') }}">Previous</a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in range(1, total_pages + 1) %}
+                    {% if page_num == submissions.page %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% elif page_num <= submissions.page + 2 and page_num >= submissions.page - 2 %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_num }}&status={{ request.args.get('status', '') }}">{{ page_num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if submissions.page < total_pages %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ submissions.page + 1 }}&status={{ request.args.get('status', '') }}">Next</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ total_pages }}&status={{ request.args.get('status', '') }}">Last</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 48px; color: #d1d5db;"></i>
+            <p class="text-muted mt-3">No submissions to display</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.getElementById('filterForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const status = document.getElementById('filterStatus').value;
+    window.location.href = `?status=${status}`;
+});
+</script>
+{% endblock %}

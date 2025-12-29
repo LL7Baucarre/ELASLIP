@@ -1,0 +1,366 @@
+{% extends "base.html" %}
+
+{% block title %}IOC Submission Portal - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-upload"></i> IOC Submission Portal</h1>
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+            <i class="bi bi-box-arrow-in-right"></i> Login
+        </a>
+    </div>
+    <p class="text-muted">Search existing indicators or submit new threats to our intelligence database</p>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchPanel" type="button" role="tab">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="submit-tab" data-bs-toggle="tab" data-bs-target="#submitPanel" type="button" role="tab">
+                <i class="bi bi-pencil-square"></i> Submit
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Search Tab -->
+        <div class="tab-pane fade show active" id="searchPanel" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4"><i class="bi bi-search"></i> Search for Existing Indicators</h5>
+                    
+                    <form id="searchForm">
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-8">
+                                <label class="form-label">Search IOC Value</label>
+                                <input type="text" class="form-control" id="searchIocValue" placeholder="MD5, SHA256, IP, Domain, Email, URL, ASN..." required>
+                                <small class="text-muted d-block mt-1">Type will be auto-detected. Leave empty to manually select type.</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">IOC Type (Optional)</label>
+                                <select class="form-select" id="searchIocType">
+                                    <option value="">Auto-detect</option>
+                                    <option value="md5">MD5 Hash</option>
+                                    <option value="sha1">SHA1 Hash</option>
+                                    <option value="sha256">SHA256 Hash</option>
+                                    <option value="ipv4">IPv4 Address</option>
+                                    <option value="domain">Domain</option>
+                                    <option value="email">Email Address</option>
+                                    <option value="url">URL</option>
+                                    <option value="asn">ASN</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </form>
+
+                    <!-- Search Loading -->
+                    <div id="searchLoading" style="display: none; text-align: center; padding: 40px;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Searching...</span>
+                        </div>
+                        <p class="mt-3">Searching intelligence database...</p>
+                    </div>
+
+                    <!-- Search Error -->
+                    <div id="searchError" style="display: none; margin-top: 20px;"></div>
+
+                    <!-- Search Results -->
+                    <div id="searchResults" style="display: none; margin-top: 30px;">
+                        <h5 class="mb-3"><i class="bi bi-list-check"></i> <span id="resultCount"></span></h5>
+                        <div id="resultsList"></div>
+                    </div>
+
+                    <!-- No Results -->
+                    <div id="searchNoResults" style="display: none; margin-top: 30px;">
+                        <div class="alert alert-info text-center py-5">
+                            <i class="bi bi-inbox" style="font-size: 48px; display: block; margin-bottom: 16px;"></i>
+                            <p>No matching indicators found in our database.</p>
+                            <p class="text-muted">Switch to the Submit tab to report this indicator.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Tab -->
+        <div class="tab-pane fade" id="submitPanel" role="tabpanel">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4"><i class="bi bi-pencil-square"></i> Submit New Indicator</h5>
+
+                    <form id="submitForm">
+                        <!-- IOC Information -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">IOC Type <span class="text-danger">*</span></label>
+                                <select class="form-select" id="submitIocType" required>
+                                    <option value="">Select IOC Type...</option>
+                                    <option value="md5">MD5 Hash</option>
+                                    <option value="sha1">SHA1 Hash</option>
+                                    <option value="sha256">SHA256 Hash</option>
+                                    <option value="ipv4">IPv4 Address</option>
+                                    <option value="domain">Domain</option>
+                                    <option value="email">Email Address</option>
+                                    <option value="url">URL</option>
+                                    <option value="asn">ASN</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Value <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="submitIocValue" placeholder="Enter IOC value..." required>
+                            </div>
+                        </div>
+
+                        <!-- Confidence Level -->
+                        <div class="mb-4">
+                            <label class="form-label">Confidence Level</label>
+                            <select class="form-select" id="submitConfidence">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+
+                        <!-- Description & Reason -->
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="submitDescription" rows="3" placeholder="What is this indicator?"></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Reason for Submission</label>
+                                <textarea class="form-control" id="submitReason" rows="3" placeholder="Why are you submitting this indicator?"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information -->
+                        <div class="card bg-light mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title">Contact Information</h6>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                                        <input type="email" class="form-control" id="submitEmail" placeholder="your@email.com" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Name</label>
+                                        <input type="text" class="form-control" id="submitName" placeholder="Your name (optional)">
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <label class="form-label">Organization</label>
+                                    <input type="text" class="form-control" id="submitOrg" placeholder="Your organization (optional)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="mb-4">
+                            <label class="form-label">Tags (comma-separated)</label>
+                            <input type="text" class="form-control" id="submitTags" placeholder="malware, ransomware, apt">
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Submit Indicator
+                            </button>
+                            <button type="reset" class="btn btn-outline-secondary">Clear</button>
+                        </div>
+                    </form>
+
+                    <!-- Submit Success -->
+                    <div id="submitSuccess" style="display: none; margin-top: 30px;">
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">
+                                <i class="bi bi-check-circle"></i> Submission Successful
+                            </h5>
+                            <p id="successMessage"></p>
+                            <hr>
+                            <small>Your submission has been received and will be reviewed by our analysts. You can use the Reference ID to track the status of your submission.</small>
+                        </div>
+                    </div>
+
+                    <!-- Submit Error -->
+                    <div id="submitError" style="display: none; margin-top: 30px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const apiBase = '/public-submission/api';
+
+    // Search Form Handler
+    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const iocType = document.getElementById('searchIocType').value;
+        const iocValue = document.getElementById('searchIocValue').value;
+
+        if (!iocValue) {
+            alert('Please enter an IOC value');
+            return;
+        }
+
+        document.getElementById('searchResults').style.display = 'none';
+        document.getElementById('searchError').style.display = 'none';
+        document.getElementById('searchNoResults').style.display = 'none';
+        document.getElementById('searchLoading').style.display = 'block';
+
+        try {
+            // Build URL with query parameters
+            let url = `${apiBase}/search?q=${encodeURIComponent(iocValue)}`;
+            if (iocType) {
+                url += `&ioc_type=${encodeURIComponent(iocType)}`;
+            }
+
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                xhrFields: { withCredentials: true }
+            });
+
+            const data = await response.json();
+            document.getElementById('searchLoading').style.display = 'none';
+
+            if (!data.found) {
+                document.getElementById('searchNoResults').style.display = 'block';
+            } else {
+                displayResults(data.results);
+                document.getElementById('resultCount').textContent = `Found ${data.count} Match${data.count !== 1 ? 'es' : ''} (Type: ${data.detected_type})`;
+                document.getElementById('searchResults').style.display = 'block';
+            }
+        } catch (error) {
+            document.getElementById('searchLoading').style.display = 'none';
+            showError('searchError', 'Search failed: ' + error.message);
+        }
+    });
+
+    // Display Search Results
+    function displayResults(results) {
+        const list = document.getElementById('resultsList');
+        list.innerHTML = '';
+
+        results.forEach(result => {
+            const threatLevel = result.threat_level || 'unknown';
+            const badgeClass = {
+                'critical': 'bg-danger',
+                'high': 'bg-warning',
+                'medium': 'bg-info',
+                'low': 'bg-success',
+                'informational': 'bg-secondary',
+                'unknown': 'bg-secondary'
+            }[threatLevel] || 'bg-secondary';
+
+            const html = `
+                <div class="card mb-3 border-start border-${badgeClass.includes('danger') ? 'danger' : badgeClass.includes('warning') ? 'warning' : 'info'} border-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-0">${result.name || 'Unnamed Indicator'}</h6>
+                                <small class="text-muted">${result.id}</small>
+                            </div>
+                            <span class="badge ${badgeClass}">
+                                ${threatLevel.toUpperCase()}
+                            </span>
+                        </div>
+                        <p class="text-muted small mb-2">${result.description || 'No description'}</p>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <span class="badge bg-light text-dark">Risk: ${result.risk_score || 0}%</span>
+                            <span class="badge bg-light text-dark">TLP: ${result.tlp || 'UNKNOWN'}</span>
+                            <span class="badge bg-light text-dark">Confidence: ${result.confidence || 'UNKNOWN'}</span>
+                        </div>
+                        ${result.campaigns && result.campaigns.length > 0 ? `
+                            <div class="mb-2">
+                                <small><strong>Campaigns:</strong></small><br>
+                                ${result.campaigns.map(c => `<span class="badge bg-secondary">${c}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                        ${result.response_actions ? `
+                            <div class="alert alert-info py-2 px-3 mb-0">
+                                <small><strong>Response Actions:</strong> ${result.response_actions}</small>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            list.innerHTML += html;
+        });
+    }
+
+    // Submit Form Handler
+    document.getElementById('submitForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const iocType = document.getElementById('submitIocType').value;
+        const iocValue = document.getElementById('submitIocValue').value;
+        const email = document.getElementById('submitEmail').value;
+
+        const tagsInput = document.getElementById('submitTags').value;
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()) : [];
+
+        if (!iocType || !iocValue || !email) {
+            alert('Please fill in required fields');
+            return;
+        }
+
+        document.getElementById('submitSuccess').style.display = 'none';
+        document.getElementById('submitError').style.display = 'none';
+
+        try {
+            const response = await fetch(`${apiBase}/submit`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ioc_type: iocType,
+                    ioc_value: iocValue,
+                    submitter_email: email,
+                    submitter_name: document.getElementById('submitName').value,
+                    submitter_organization: document.getElementById('submitOrg').value,
+                    description: document.getElementById('submitDescription').value,
+                    reason: document.getElementById('submitReason').value,
+                    tags: tags,
+                    confidence: document.getElementById('submitConfidence').value
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById('submitForm').reset();
+                document.getElementById('successMessage').innerHTML = `
+                    <strong>Reference ID:</strong> ${data.id}<br>
+                    Your submission has been received.
+                    ${data.matched_count > 0 ? `We found ${data.matched_count} existing indicator(s) that match your submission.` : 'No matching indicators were found.'}
+                `;
+                document.getElementById('submitSuccess').style.display = 'block';
+            } else {
+                showError('submitError', data.error || 'Submission failed');
+            }
+        } catch (error) {
+            showError('submitError', 'Submission failed: ' + error.message);
+        }
+    });
+
+    // Error Display
+    function showError(elementId, message) {
+        const element = document.getElementById(elementId);
+        element.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-circle"></i> ${message}
+            </div>
+        `;
+        element.style.display = 'block';
+    }
+</script>
+{% endblock %}

@@ -74,6 +74,13 @@
                 </a>
             </li>
             {% endif %}
+            {% if has_any_permission('submission.view', 'submission.manage') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'submissions' in request.endpoint %}active{% endif %}" href="{{ url_for('submissions.list_submissions') }}">
+                    <i class="bi bi-inbox"></i> Submissions
+                </a>
+            </li>
+            {% endif %}
             
             <li class="nav-section-title">TOOLS</li>
             {% if has_permission('ioc.import') %}
@@ -192,7 +199,8 @@
         // Global AJAX setup
         $.ajaxSetup({
             contentType: 'application/json',
-            dataType: 'json'
+            dataType: 'json',
+            xhrFields: { withCredentials: true }
         });
         
         // Flash message helper

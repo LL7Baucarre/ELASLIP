@@ -115,6 +115,11 @@ def index():
     """Landing page."""
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
+    
+    # Redirect to public submission portal if enabled, otherwise to login
+    if current_app.config.get('PUBLIC_SUBMISSIONS_ENABLED', False):
+        return redirect(url_for('public_submissions.public_submission_page'))
+    
     return redirect(url_for('auth.login'))
 
 
