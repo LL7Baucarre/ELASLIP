@@ -104,6 +104,7 @@ PERMISSION_CATEGORIES = {
         'admin.audit': 'Manage audit system',
         'admin.tasks': 'Manage scheduled tasks',
         'admin.import_jobs': 'Manage import jobs',
+        'admin.backup': 'Manage backups and restore',
     }
 }
 
