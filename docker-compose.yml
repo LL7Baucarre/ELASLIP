@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/ll7baucarre/elasmisp:latest
-    container_name: elasmisp-app
+    image: ghcr.io/ll7baucarre/elaslip:latest
+    container_name: elaslip-app
     cap_add:
       - NET_RAW
       - NET_ADMIN
@@ -44,7 +44,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ghcr.io/ll7baucarre/elasmisp:latest
+    image: ghcr.io/ll7baucarre/elaslip:latest
     command: celery -A app.celery_app worker --loglevel=info
     environment:
       - FLASK_ENV=development
@@ -73,7 +73,7 @@ services:
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: elasmisp-elasticsearch
+    container_name: elaslip-elasticsearch
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=true
@@ -96,7 +96,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: elasmisp-redis
+    container_name: elaslip-redis
     ports:
       - "6379:6379"
     volumes:

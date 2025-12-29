@@ -12,7 +12,7 @@ class AuditService:
     
     def __init__(self):
         self.es = ElasticsearchService()
-        self.index = 'elasmisp_audit_logs'
+        self.index = 'elaslip_audit_logs'
     
     def log(self, 
             action: str,

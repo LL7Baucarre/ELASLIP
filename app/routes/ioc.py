@@ -1285,7 +1285,7 @@ def api_generate_ioc_report(ioc_id):
         
         # Create initial ES document so status check works immediately
         es_service = ElasticsearchService()
-        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+        es_service.index('elaslip_app_config', f'report_{task_id}', {
             'type': 'ioc',
             'entity_id': ioc_id,
             'status': 'queued',

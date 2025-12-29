@@ -7,7 +7,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 
   
 
-![ElasMISP Demo](.github/demo.gif)
+![ELASLIP Demo](.github/demo.gif)
 
   
 
@@ -149,7 +149,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 
 git  clone <repo-url>
 
-cd  ElasMISP
+cd  ELASLIP
 
 cp  .env.example  .env
 
@@ -234,8 +234,8 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 | `FLASK_ENV` | `development` | Flask environment
 | `FLASK_APP` | `app` | Flask application entrypoint
 | `SECRET_KEY` | `your-super-secret-key-change-in-production` | Flask secret key (change in production)
-| `SITE_NAME` | `ElasMISP` | Short site name
-| `SITE_TITLE` | `ElasMISP` | Full site title shown in the UI
+| `SITE_NAME` | `ELASLIP` | Short site name
+| `SITE_TITLE` | `ELASLIP` | Full site title shown in the UI
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch URL
 | `ELASTICSEARCH_USER` | `elastic` | Elasticsearch username
 | `ELASTICSEARCH_PASSWORD` | `elastic123` | Elasticsearch password

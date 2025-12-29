@@ -72,7 +72,7 @@ def create_default_admin(es):
     
     # Check if admin exists
     result = es.search(
-        index='elasmisp_users',
+        index='elaslip_users',
         body={
             'query': {'term': {'username.keyword': admin_username}}
         },
@@ -102,7 +102,7 @@ def create_default_admin(es):
             'last_login': None
         }
         
-        es.index(index='elasmisp_users', id=user_id, document=user_data)
+        es.index(index='elaslip_users', id=user_id, document=user_data)
         print(f"  Created default admin user: {admin_username}")
     else:
         print(f"  Admin user already exists: {admin_username}")

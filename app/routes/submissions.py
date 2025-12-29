@@ -78,6 +78,8 @@ def public_search():
     if not current_app.config.get('PUBLIC_SEARCH_ENABLED', True):
         return jsonify({'error': 'Public search is disabled'}), 403
     
+    audit = AuditService()
+    
     try:
         # Support both GET and POST
         if request.method == 'GET':
@@ -97,6 +99,22 @@ def public_search():
         if not ioc_type:
             detected_type = PatternGenerator.auto_detect_type(ioc_value)
             if not detected_type:
+                # Log failed search
+                audit.log(
+                    action='public_search',
+                    entity_type='ioc',
+                    entity_id=ioc_value,
+                    username='anonymous',
+                    entity_name=f'Public Search: {ioc_value}',
+                    changes={
+                        'status': 'failed',
+                        'reason': 'auto_detect_failed',
+                        'ioc_value': ioc_value,
+                        'ioc_type': ioc_type or 'unknown'
+                    },
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
                 return jsonify({
                     'found': False,
                     'error': f'Could not auto-detect IOC type for: {ioc_value}',
@@ -111,8 +129,40 @@ def public_search():
         # Add detected type to response
         result['detected_type'] = detected_type or ioc_type
         
+        # Log successful search
+        audit.log(
+            action='public_search',
+            entity_type='ioc',
+            entity_id=ioc_value,
+            username='anonymous',
+            entity_name=f'Public Search: {ioc_value} ({ioc_type})',
+            changes={
+                'status': 'success',
+                'ioc_type': ioc_type,
+                'ioc_value': ioc_value,
+                'found': result.get('found', False),
+                'count': result.get('count', 0)
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
         return jsonify(result), 200
     except Exception as e:
+        # Log error
+        audit.log(
+            action='public_search',
+            entity_type='ioc',
+            entity_id='unknown',
+            username='anonymous',
+            entity_name='Public Search',
+            changes={
+                'status': 'error',
+                'error': str(e)
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
         return jsonify({'error': str(e)}), 500
 
 
@@ -180,6 +230,8 @@ def public_submit():
     if not current_app.config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True):
         return jsonify({'error': 'Public IOC submissions are not available at this time'}), 403
     
+    audit = AuditService()
+    
     try:
         data = request.get_json()
         
@@ -188,6 +240,22 @@ def public_submit():
         ioc_value = data.get('ioc_value', '').strip()
         
         if not ioc_type or not ioc_value:
+            # Log failed submission attempt
+            audit.log(
+                action='public_submit',
+                entity_type='submission',
+                entity_id='unknown',
+                username='anonymous',
+                entity_name='Public IOC Submission',
+                changes={
+                    'status': 'failed',
+                    'reason': 'missing_required_fields',
+                    'ioc_type': ioc_type,
+                    'ioc_value': ioc_value
+                },
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
             return jsonify({'error': 'Missing required fields: ioc_type, ioc_value'}), 400
         
         # Optional fields
@@ -202,6 +270,22 @@ def public_submit():
         # Validate required anonymous fields if enabled
         if current_app.config.get('PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', True):
             if not submitter_email:
+                # Log failed submission attempt
+                audit.log(
+                    action='public_submit',
+                    entity_type='submission',
+                    entity_id=ioc_value,
+                    username='anonymous',
+                    entity_name=f'Public IOC Submission: {ioc_value}',
+                    changes={
+                        'status': 'failed',
+                        'reason': 'missing_email',
+                        'ioc_type': ioc_type,
+                        'ioc_value': ioc_value
+                    },
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent')
+                )
                 return jsonify({'error': 'Email is required for anonymous submissions'}), 400
         
         service = SubmissionService()
@@ -217,6 +301,27 @@ def public_submit():
             confidence=confidence
         )
         
+        # Log successful submission
+        audit.log(
+            action='public_submit',
+            entity_type='submission',
+            entity_id=submission['id'],
+            username=submitter_email or 'anonymous',
+            entity_name=f'Public IOC Submission: {ioc_value} ({ioc_type})',
+            changes={
+                'status': 'success',
+                'ioc_type': ioc_type,
+                'ioc_value': ioc_value,
+                'submitter_email': submitter_email,
+                'submitter_name': submitter_name,
+                'submitter_organization': submitter_organization,
+                'confidence': confidence,
+                'matched_count': len(submission.get('matched_iocs', []))
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
         return jsonify({
             'id': submission['id'],
             'status': submission['status'],
@@ -226,9 +331,41 @@ def public_submit():
     
     except ValueError as e:
         current_app.logger.error(f"ValueError in public_submit: {str(e)}")
+        
+        # Log error
+        audit.log(
+            action='public_submit',
+            entity_type='submission',
+            entity_id='unknown',
+            username='anonymous',
+            entity_name='Public IOC Submission',
+            changes={
+                'status': 'error',
+                'error': str(e)
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         current_app.logger.exception(f"Exception in public_submit: {str(e)}")
+        
+        # Log error
+        audit.log(
+            action='public_submit',
+            entity_type='submission',
+            entity_id='unknown',
+            username='anonymous',
+            entity_name='Public IOC Submission',
+            changes={
+                'status': 'error',
+                'error': str(e)
+            },
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
 

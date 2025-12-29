@@ -39,7 +39,7 @@ class EncryptionService:
     
     def _derive_key(self, password: str) -> Fernet:
         """Derive a Fernet key from a password."""
-        salt = b'elasmisp_salt_v1'  # Static salt for consistent key derivation
+        salt = b'elaslip_salt_v1'  # Static salt for consistent key derivation
         
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),

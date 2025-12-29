@@ -856,7 +856,7 @@ def task_config():
     
     if request.method == 'GET':
         try:
-            result = es.get('elasmisp_app_config', config_id)
+            result = es.get('elaslip_app_config', config_id)
             return jsonify({'config': result})
         except Exception:
             return jsonify({'config': {
@@ -876,7 +876,7 @@ def task_config():
     }
     
     try:
-        es.index('elasmisp_app_config', config_id, config)
+        es.index('elaslip_app_config', config_id, config)
         return jsonify({'message': 'Configuration saved', 'config': config})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

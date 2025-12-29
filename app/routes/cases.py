@@ -1085,7 +1085,7 @@ def api_generate_case_report(case_id):
         
         # Create initial ES document so status check works immediately
         es_service = ElasticsearchService()
-        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+        es_service.index('elaslip_app_config', f'report_{task_id}', {
             'type': 'case',
             'entity_id': case_id,
             'status': 'queued',
@@ -1134,7 +1134,7 @@ def api_generate_incident_report(incident_id):
         
         # Create initial ES document so status check works immediately
         es_service = ElasticsearchService()
-        es_service.index('elasmisp_app_config', f'report_{task_id}', {
+        es_service.index('elaslip_app_config', f'report_{task_id}', {
             'type': 'incident',
             'entity_id': incident_id,
             'status': 'queued',

@@ -1,5 +1,5 @@
 """
-Demo data generation script for ElasMISP.
+Demo data generation script for ELASLIP.
 Populates the database with random IOCs and relationships for demonstration purposes.
 Only runs if DEMO_DATA_ENABLED=true is set in environment.
 """
@@ -441,7 +441,7 @@ def generate_random_iocs(count=100):
 def populate_demo_data():
     """Populate database with demo data."""
     print("=" * 60)
-    print("ElasMISP Demo Data Generator")
+    print("ELASLIP Demo Data Generator")
     print("=" * 60)
     
     if not is_demo_enabled():

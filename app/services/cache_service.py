@@ -42,7 +42,7 @@ class CacheService:
         """Generate a cache key from prefix and arguments."""
         key_data = f"{prefix}:{json.dumps(args, sort_keys=True)}:{json.dumps(kwargs, sort_keys=True)}"
         key_hash = hashlib.md5(key_data.encode()).hexdigest()
-        return f"elasmisp:{prefix}:{key_hash}"
+        return f"elaslip:{prefix}:{key_hash}"
     
     def get(self, key: str) -> Optional[Any]:
         """
@@ -116,13 +116,13 @@ class CacheService:
     
     def invalidate_ioc_cache(self):
         """Invalidate all IOC-related caches."""
-        self.delete_pattern("elasmisp:stats:*")
-        self.delete_pattern("elasmisp:ioc_list:*")
-        self.delete_pattern("elasmisp:search:*")
+        self.delete_pattern("elaslip:stats:*")
+        self.delete_pattern("elaslip:ioc_list:*")
+        self.delete_pattern("elaslip:search:*")
     
     def invalidate_stats_cache(self):
         """Invalidate stats cache."""
-        self.delete_pattern("elasmisp:stats:*")
+        self.delete_pattern("elaslip:stats:*")
     
     # High-level caching methods
     def cache_stats(self, stats: dict) -> bool:
@@ -163,7 +163,7 @@ class CacheService:
         
         try:
             info = self._redis.info()
-            keys = len(self._redis.keys("elasmisp:*"))
+            keys = len(self._redis.keys("elaslip:*"))
             
             return {
                 'connected': True,

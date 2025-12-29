@@ -27,7 +27,7 @@ class ReportService:
         
         # Try to load config from Elasticsearch first
         try:
-            response = self.es.get('elasmisp_app_config', 'llm_config')
+            response = self.es.get('elaslip_app_config', 'llm_config')
             if response and response.get('found'):
                 config = response.get('_source', {})
                 self.llm_url = config.get('url', os.getenv('LLM_URL', 'http://ollama:11434')).rstrip('/')
@@ -142,7 +142,7 @@ class ReportService:
         # Reload config from Elasticsearch on each call to ensure latest settings
         import sys
         try:
-            response = self.es.get('elasmisp_app_config', 'llm_config')
+            response = self.es.get('elaslip_app_config', 'llm_config')
             if response and response.get('found'):
                 config = response.get('_source', {})
                 old_lang = self.generation_language
