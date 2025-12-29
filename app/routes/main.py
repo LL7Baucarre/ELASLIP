@@ -380,16 +380,22 @@ def get_graph_data():
     for ioc in all_iocs.get('items', []):
         node_id = ioc.get('id')
         node_ids[node_id] = ioc
+        
+        # Build classes with IOC type and threat level
+        ioc_type = ioc.get('ioc_type', 'unknown').replace('-', '_')
+        threat_level = ioc.get('threat_level', 'unknown')
+        classes = f"ioc-{ioc_type} threat-{threat_level}"
+        
         nodes.append({
             'data': {
                 'id': node_id,
                 'label': ioc.get('ioc_value', ioc.get('value', 'Unknown')),
                 'type': ioc.get('ioc_type', ''),
-                'threat_level': ioc.get('threat_level', 'unknown'),
+                'threat_level': threat_level,
                 'confidence': ioc.get('confidence', ''),
                 'tlp': ioc.get('tlp', '')
             },
-            'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+            'classes': classes
         })
     
     # Get relationships from Elasticsearch

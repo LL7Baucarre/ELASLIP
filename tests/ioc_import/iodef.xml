@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<IODEF-Document version="1.00" lang="en" 
+  xmlns="urn:ietf:params:xml:ns:iodef-1.0" 
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  
+  <Incident purpose="reporting">
+    <IncidentID name="csirt.example.com">189493</IncidentID>
+    <ReportTime>2023-10-27T12:00:00+00:00</ReportTime>
+    <Description>Détection d'un scan de port SSH malveillant</Description>
+    
+    <EventData>
+      <Flow>
+        <System category="source">
+          <Node>
+            <Address category="ipv4-addr">198.51.100.1</Address>
+          </Node>
+          <Service ip_protocol="6">
+            <Port>45678</Port>
+          </Service>
+        </System>
+        
+        <System category="target">
+          <Node>
+            <Address category="ipv4-addr">192.168.1.5</Address>
+          </Node>
+          <Service ip_protocol="6">
+            <Port>22</Port>
+          </Service>
+        </System>
+      </Flow>
+    </EventData>
+  </Incident>
+</IODEF-Document>

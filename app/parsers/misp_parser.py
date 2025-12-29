@@ -17,13 +17,22 @@ class MISPParser:
         'ip-src': 'ipv4',
         'ip-dst': 'ipv4',
         'ip': 'ipv4',
+        'ip-src|port': 'ipv4',  # Extract IP part
+        'ip-dst|port': 'ipv4',  # Extract IP part
+        'ipv6': 'ipv6',
+        'ipv6-src': 'ipv6',
+        'ipv6-dst': 'ipv6',
+        'ipv6|port': 'ipv6',
         'domain': 'domain',
         'hostname': 'domain',
+        'domain|ip': 'domain',  # Prefer domain over IP
         'email-src': 'email',
         'email-dst': 'email',
         'email': 'email',
+        'email-attachment': 'email',
         'url': 'url',
-        'link': 'url'
+        'link': 'url',
+        'uri': 'url'
     }
     
     @classmethod
@@ -111,18 +120,25 @@ class MISPParser:
             if category:
                 labels.append(category.lower().replace(' ', '-'))
             
+            # Build rich metadata
+            metadata = {
+                'misp_uuid': attr.get('uuid'),
+                'misp_attribute_type': misp_type,
+                'misp_category': category,
+                'misp_to_ids': attr.get('to_ids'),
+                'misp_timestamp': attr.get('timestamp'),
+                'misp_distribution': attr.get('distribution'),
+                'misp_sharing_group_id': attr.get('sharing_group_id'),
+                'misp_event_distribution': event_info
+            }
+            
             indicator = {
                 'type': ioc_type,
                 'value': value,
                 'labels': labels,
                 'name': attr.get('comment') or f'{ioc_type}: {value}',
                 'description': event_info if event_info else attr.get('comment'),
-                'metadata': {
-                    'misp_uuid': attr.get('uuid'),
-                    'misp_category': category,
-                    'misp_to_ids': attr.get('to_ids'),
-                    'misp_timestamp': attr.get('timestamp')
-                }
+                'metadata': metadata
             }
             
             indicators.append(indicator)

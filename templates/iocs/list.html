@@ -240,7 +240,7 @@ function loadIOCs(page = 1) {
         
         // Add computed properties for sorting
         allIOCs.forEach(ioc => {
-            ioc.sources_count = (ioc.sources || []).length;
+            ioc.sources_count = (ioc.x_metadata?.sources || []).length;
             ioc.relations_count = ioc.relations_count || 0;
         });
         
@@ -421,7 +421,7 @@ function renderIOCs(iocs) {
                 <td>${tlpBadge}</td>
                 <td>${threatBadge}</td>
                 <td>${confidenceBadge}</td>
-                <td><span class="badge bg-info">${(ioc.sources || []).length}</span></td>
+                <td><span class="badge bg-info">${(ioc.x_metadata?.sources || []).length}</span></td>
                 <td>${relationsDisplay}</td>
                 <td><small class="text-muted">${ioc.created ? ioc.created.substring(0, 10) : ''}</small></td>
                 <td>
