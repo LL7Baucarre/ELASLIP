@@ -1,0 +1,21 @@
+{
+  "Event": {
+    "uuid": "c99506a6-1255-4b71-afa5-7b8bd5a89274",
+    "info": "Event de test pour parser - Single IOC",
+    "date": "2023-10-27",
+    "threat_level_id": "3",
+    "analysis": "2",
+    "published": false,
+    "Attribute": [
+      {
+        "uuid": "55f6ea5e-2c60-40e5-9c59-59c80a2b84e1",
+        "type": "ip-dst",
+        "category": "Network activity",
+        "to_ids": true,
+        "timestamp": "1698408000",
+        "value": "192.0.2.50",
+        "comment": "Serveur C2 de test"
+      }
+    ]
+  }
+}

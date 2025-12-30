@@ -35,7 +35,8 @@ class PatternGenerator:
             r'(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$'
         ),
         'domain': re.compile(
-            r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
+            r'^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$',
+            re.IGNORECASE
         ),
         'email': re.compile(
             r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -96,6 +97,12 @@ class PatternGenerator:
         
         if ioc_type not in cls.VALIDATORS:
             return False
+        
+        # Special case for localhost and simple hostnames
+        if ioc_type == 'domain':
+            value_lower = value.lower()
+            if value_lower in ['localhost', 'localhost.localdomain'] or value_lower.endswith('.local'):
+                return True
         
         validator = cls.VALIDATORS[ioc_type]
         return bool(validator.match(value))

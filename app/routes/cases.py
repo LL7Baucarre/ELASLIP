@@ -275,10 +275,10 @@ def get_case_stats():
     # Use Elasticsearch aggregation for accurate counts
     result = es.aggregate('cases', {
         'by_status': {
-            'terms': {'field': 'status', 'size': 10}
+            'terms': {'field': 'status.keyword', 'size': 10}
         },
         'by_priority': {
-            'terms': {'field': 'priority', 'size': 10}
+            'terms': {'field': 'priority.keyword', 'size': 10}
         }
     })
     

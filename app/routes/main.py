@@ -9,6 +9,7 @@ from app.services.ioc_service import IOCService
 from app.services.case_service import CaseService
 from app.services.checklist_service import ChecklistService
 from app.services.rbac_service import RBACService, DEFAULT_ROLES
+from app.services.backup_service import BackupService
 from app.auth import User
 from app.decorators import permission_required
 from app.utils.request_helpers import transform_ioc_to_stix_compliant
@@ -163,7 +164,7 @@ def dashboard():
     # Get stats by status/severity
     try:
         cases_by_status = es.aggregate('cases', {
-            'by_status': {'terms': {'field': 'status', 'size': 10}}
+            'by_status': {'terms': {'field': 'status.keyword', 'size': 10}}
         })
         cases_status_stats = {b['key']: b['doc_count'] 
                              for b in cases_by_status.get('aggregations', {}).get('by_status', {}).get('buckets', [])}
@@ -172,7 +173,7 @@ def dashboard():
     
     try:
         incidents_by_severity = es.aggregate('incidents', {
-            'by_severity': {'terms': {'field': 'severity', 'size': 10}}
+            'by_severity': {'terms': {'field': 'severity.keyword', 'size': 10}}
         })
         incidents_severity_stats = {b['key']: b['doc_count'] 
                                    for b in incidents_by_severity.get('aggregations', {}).get('by_severity', {}).get('buckets', [])}
@@ -181,7 +182,7 @@ def dashboard():
     
     try:
         iocs_by_threat = es.aggregate('ioc', {
-            'by_threat_level': {'terms': {'field': 'x_metadata.threat_level', 'size': 10}}
+            'by_threat_level': {'terms': {'field': 'x_metadata.threat_level.keyword', 'size': 10}}
         })
         iocs_threat_stats = {b['key']: b['doc_count'] 
                             for b in iocs_by_threat.get('aggregations', {}).get('by_threat_level', {}).get('buckets', [])}
@@ -380,16 +381,22 @@ def get_graph_data():
     for ioc in all_iocs.get('items', []):
         node_id = ioc.get('id')
         node_ids[node_id] = ioc
+        
+        # Build classes with IOC type and threat level
+        ioc_type = ioc.get('ioc_type', 'unknown').replace('-', '_')
+        threat_level = ioc.get('threat_level', 'unknown')
+        classes = f"ioc-{ioc_type} threat-{threat_level}"
+        
         nodes.append({
             'data': {
                 'id': node_id,
                 'label': ioc.get('ioc_value', ioc.get('value', 'Unknown')),
                 'type': ioc.get('ioc_type', ''),
-                'threat_level': ioc.get('threat_level', 'unknown'),
+                'threat_level': threat_level,
                 'confidence': ioc.get('confidence', ''),
                 'tlp': ioc.get('tlp', '')
             },
-            'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+            'classes': classes
         })
     
     # Get relationships from Elasticsearch
@@ -756,6 +763,217 @@ def settings_llm():
     """LLM report settings page (admin only)."""
     from app.config import Config
     return render_template('settings/llm.html', config=Config)
+
+
+@main_bp.route('/settings/backup')
+@login_required
+@admin_required
+def settings_backup():
+    """Backup and restore settings page (admin only)."""
+    return render_template('settings/backup.html')
+
+
+@main_bp.route('/api/backups/available-indices', methods=['GET'])
+@login_required
+@admin_required
+def get_available_indices():
+    """Get list of all available indices for backup."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    es_service = ElasticsearchService()
+    
+    try:
+        # Get all indices with the app prefix
+        all_indices = es_service.client.indices.get_alias(index="*")
+        available_indices = [idx for idx in all_indices.keys() if idx.startswith(ElasticsearchService.INDEX_PREFIX)]
+        # Remove prefix for display
+        clean_names = [idx.replace(ElasticsearchService.INDEX_PREFIX, '') for idx in available_indices]
+        return jsonify({
+            'success': True,
+            'indices': sorted(clean_names)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 400
+
+
+@main_bp.route('/api/backups', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def manage_backups():
+    """Get list of backups or create a new backup."""
+    backup_service = BackupService()
+    
+    if request.method == 'GET':
+        backups = backup_service.list_backups()
+        return jsonify({'backups': backups})
+    
+    # POST: Create new backup
+    data = request.get_json() or {}
+    indices = data.get('indices', None)
+    
+    result = backup_service.create_backup(include_indices=indices)
+    status_code = 200 if result.get('success') else 400
+    
+    return jsonify(result), status_code
+
+
+@main_bp.route('/api/backups/<backup_id>', methods=['GET', 'DELETE'])
+@login_required
+@admin_required
+def manage_backup(backup_id):
+    """Get or delete a specific backup."""
+    backup_service = BackupService()
+    
+    if request.method == 'DELETE':
+        result = backup_service.delete_backup(backup_id)
+        status_code = 200 if result.get('success') else 400
+        return jsonify(result), status_code
+    
+    # GET: Get backup info (handled by /info endpoint)
+    backups = backup_service.list_backups()
+    for backup in backups:
+        if backup['backup_id'] == backup_id:
+            return jsonify(backup)
+    
+    return jsonify({'error': 'Backup not found'}), 404
+
+
+@main_bp.route('/api/backups/<backup_id>/info', methods=['GET'])
+@login_required
+@admin_required
+def get_backup_info(backup_id):
+    """Get detailed information about a backup."""
+    backup_service = BackupService()
+    info = backup_service.get_backup_info(backup_id)
+    
+    if 'error' in info:
+        return jsonify(info), 404
+    
+    return jsonify(info)
+
+
+@main_bp.route('/api/backups/restore', methods=['POST'])
+@login_required
+@admin_required
+def restore_backup():
+    """Restore a backup."""
+    data = request.get_json() or {}
+    backup_id = data.get('backup_id')
+    overwrite = data.get('overwrite', False)
+    
+    if not backup_id:
+        return jsonify({'success': False, 'error': 'backup_id is required'}), 400
+    
+    backup_service = BackupService()
+    result = backup_service.restore_backup(backup_id, overwrite=overwrite)
+    status_code = 200 if result.get('success') else 400
+    
+    return jsonify(result), status_code
+
+
+@main_bp.route('/api/backups/<backup_id>/download', methods=['GET'])
+@login_required
+@admin_required
+def download_backup(backup_id):
+    """Download a backup file."""
+    from flask import send_file
+    import os
+    
+    backup_service = BackupService()
+    
+    # Get the backup file path
+    backup_path = backup_service.backup_dir / f'{backup_id}.tar.gz'
+    
+    # Verify the path exists and is a file
+    if not backup_path.exists():
+        current_app.logger.error(f"Backup file not found: {backup_path}")
+        return jsonify({'error': 'Backup not found'}), 404
+    
+    if not backup_path.is_file():
+        current_app.logger.error(f"Backup path is not a file: {backup_path}")
+        return jsonify({'error': 'Backup path is invalid'}), 400
+    
+    try:
+        # Convert to string path for send_file
+        backup_path_str = str(backup_path.resolve())
+        
+        # Verify file is readable
+        if not os.access(backup_path_str, os.R_OK):
+            current_app.logger.error(f"Backup file not readable: {backup_path_str}")
+            return jsonify({'error': 'Cannot read backup file'}), 400
+        
+        return send_file(
+            backup_path_str,
+            mimetype='application/gzip',
+            as_attachment=True,
+            download_name=f'{backup_id}.tar.gz'
+        )
+    except Exception as e:
+        current_app.logger.error(f"Error downloading backup {backup_id}: {str(e)}")
+        import traceback
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({'error': str(e)}), 400
+
+
+@main_bp.route('/api/backups/upload', methods=['POST'])
+@login_required
+@admin_required
+def upload_backup():
+    """Upload and restore a backup file."""
+    from werkzeug.utils import secure_filename
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    overwrite = request.form.get('overwrite', 'false').lower() == 'true'
+    
+    if not file.filename:
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    if not file.filename.endswith('.tar.gz'):
+        return jsonify({'success': False, 'error': 'File must be a .tar.gz backup'}), 400
+    
+    backup_service = BackupService()
+    
+    try:
+        # Save uploaded file
+        filename = secure_filename(file.filename)
+        backup_path = backup_service.backup_dir / filename
+        file.save(str(backup_path))
+        
+        # Extract backup ID from filename
+        backup_id = filename.replace('.tar.gz', '')
+        
+        # Restore the backup
+        result = backup_service.restore_backup(backup_id, overwrite=overwrite)
+        
+        if result.get('success'):
+            return jsonify({
+                'success': True,
+                'message': 'Backup uploaded and restored successfully',
+                'backup_id': backup_id,
+                'details': result
+            })
+        else:
+            # Clean up on restore failure
+            if backup_path.exists():
+                backup_path.unlink()
+            return jsonify({
+                'success': False,
+                'error': result.get('error'),
+                'message': result.get('message')
+            }), 400
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': 'Failed to upload backup'
+        }), 400
 
 
 @main_bp.route('/reports')

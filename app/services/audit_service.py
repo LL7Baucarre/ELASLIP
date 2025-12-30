@@ -191,13 +191,13 @@ class AuditService:
             'size': 0,
             'aggs': {
                 'by_action': {
-                    'terms': {'field': 'action', 'size': 20}
+                    'terms': {'field': 'action.keyword', 'size': 20}
                 },
                 'by_entity_type': {
-                    'terms': {'field': 'entity_type', 'size': 20}
+                    'terms': {'field': 'entity_type.keyword', 'size': 20}
                 },
                 'by_user': {
-                    'terms': {'field': 'username', 'size': 20}
+                    'terms': {'field': 'username.keyword', 'size': 20}
                 },
                 'by_day': {
                     'date_histogram': {
