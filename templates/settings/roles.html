@@ -279,13 +279,13 @@ function createRoleElement(role) {
 
     el.innerHTML = `
         <div class="role-item-header">
-            <span class="role-name">${role.display_name}</span>
+            <span class="role-name">${escapeHtml(role.display_name)}</span>
             ${badge}
         </div>
-        <div class="role-description">${role.description || 'No description'}</div>
+        <div class="role-description">${escapeHtml(role.description || 'No description')}</div>
         <div class="role-stats">
-            <span><i class="bi bi-shield-check me-1"></i> ${role.permissions ? role.permissions.length : 0} permissions</span>
-            <span><i class="bi bi-calendar-event me-1"></i> ${new Date(role.created_at).toLocaleDateString()}</span>
+            <span><i class="bi bi-shield-check me-1"></i> ${escapeHtml(role.permissions ? role.permissions.length : 0)} permissions</span>
+            <span><i class="bi bi-calendar-event me-1"></i> ${escapeHtml(new Date(role.created_at).toLocaleDateString())}</span>
         </div>
     `;
 
@@ -305,17 +305,17 @@ function showRoleDetails(role) {
     const perms = role.permissions || [];
     const permsList = perms.map(p => {
         const desc = allPermissions[p] || p;
-        return `<li><code>${p}</code> - ${desc}</li>`;
+        return `<li><code>${escapeHtml(p)}</code> - ${escapeHtml(desc)}</li>`;
     }).join('');
 
     panel.innerHTML = `
         <div>
-            <h6 class="mb-2">${role.display_name}</h6>
-            <p class="text-muted small mb-3">${role.description || 'No description'}</p>
+            <h6 class="mb-2">${escapeHtml(role.display_name)}</h6>
+            <p class="text-muted small mb-3">${escapeHtml(role.description || 'No description')}</p>
             
             <div class="mb-3">
                 <small class="text-muted">Role ID:</small>
-                <code>${role.name}</code>
+                <code>${escapeHtml(role.name)}</code>
             </div>
 
             <div class="mb-3">

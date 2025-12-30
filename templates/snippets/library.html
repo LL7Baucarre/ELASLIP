@@ -246,7 +246,7 @@ function renderSnippets(snippets) {
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center py-2">
-                    <span class="badge bg-secondary">${s.category}</span>
+                    <span class="badge bg-secondary">${escapeHtml(s.category)}</span>
                     <div>
                         ${s.is_global ? '<i class="bi bi-globe text-primary" title="Global"></i>' : ''}
                     </div>
@@ -255,21 +255,21 @@ function renderSnippets(snippets) {
                     <h6 class="card-title">${escapeHtml(s.title)}</h6>
                     <p class="card-text small text-muted">${escapeHtml(s.description || 'No description')}</p>
                     <div class="d-flex flex-wrap gap-1">
-                        ${(s.tags || []).slice(0, 3).map(t => `<span class="badge bg-light text-dark">${t}</span>`).join('')}
+                        ${(s.tags || []).slice(0, 3).map(t => `<span class="badge bg-light text-dark">${escapeHtml(t)}</span>`).join('')}
                     </div>
                 </div>
                 <div class="card-footer bg-transparent">
                     <div class="btn-group btn-group-sm w-100">
-                        <button class="btn btn-outline-primary" onclick="previewSnippet('${s.id}')" title="Preview">
+                        <button class="btn btn-outline-primary" onclick="previewSnippet('${escapeHtml(s.id)}')" title="Preview">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-secondary" onclick="editSnippet('${s.id}')" title="Edit">
+                        <button class="btn btn-outline-secondary" onclick="editSnippet('${escapeHtml(s.id)}')" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-outline-success" onclick="copySnippet('${s.id}')" title="Copy">
+                        <button class="btn btn-outline-success" onclick="copySnippet('${escapeHtml(s.id)}')" title="Copy">
                             <i class="bi bi-clipboard"></i>
                         </button>
-                        <button class="btn btn-outline-danger" onclick="deleteSnippet('${s.id}')" title="Delete">
+                        <button class="btn btn-outline-danger" onclick="deleteSnippet('${escapeHtml(s.id)}')" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

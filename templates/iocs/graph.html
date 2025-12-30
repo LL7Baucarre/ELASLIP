@@ -1011,11 +1011,11 @@ function showNodeInfo(node) {
     let html = `
         <div class="info-item">
             <strong>Value:</strong>
-            <code>${data.label}</code>
+            <code>${escapeHtml(data.label)}</code>
         </div>
         <div class="info-item">
             <strong>Type:</strong>
-            <span class="badge badge-primary">${data.type}</span>
+            <span class="badge badge-primary">${escapeHtml(data.type)}</span>
         </div>
     `;
 
@@ -1029,7 +1029,7 @@ function showNodeInfo(node) {
         html += `
             <div class="info-item">
                 <strong>Threat:</strong>
-                <span class="badge bg-${threatColor}">${data.threat_level.toUpperCase()}</span>
+                <span class="badge bg-${threatColor}">${escapeHtml(data.threat_level.toUpperCase())}</span>
             </div>
         `;
     }
@@ -1038,7 +1038,7 @@ function showNodeInfo(node) {
         html += `
             <div class="info-item">
                 <strong>Confidence:</strong>
-                <span class="badge badge-success">${data.confidence}</span>
+                <span class="badge badge-success">${escapeHtml(data.confidence)}</span>
             </div>
         `;
     }
@@ -1053,7 +1053,7 @@ function showNodeInfo(node) {
         html += `
             <div class="info-item">
                 <strong>TLP:</strong>
-                <span class="badge bg-${tlpColor}">${data.tlp.toUpperCase()}</span>
+                <span class="badge bg-${tlpColor}">${escapeHtml(data.tlp.toUpperCase())}</span>
             </div>
         `;
     }
@@ -1063,20 +1063,20 @@ function showNodeInfo(node) {
     if (edges.length > 0) {
         html += `
             <div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
-                <strong>Relations (${edges.length}):</strong>
+                <strong>Relations (${escapeHtml(edges.length)}):</strong>
                 <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
         `;
         edges.forEach(edge => {
             const relationLabel = edge.data('label');
             const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
-            html += `<li>${relationLabel}: ${otherNode.data('label')}</li>`;
+            html += `<li>${escapeHtml(relationLabel)}: ${escapeHtml(otherNode.data('label'))}</li>`;
         });
         html += `</ul></div>`;
     }
 
     html += `
         <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-            <a href="/iocs/${data.id}" class="btn btn-sm btn-primary w-100">
+            <a href="/iocs/${escapeHtml(data.id)}" class="btn btn-sm btn-primary w-100">
                 <i class="bi bi-eye me-1"></i> View IOC
             </a>
         </div>
@@ -1174,9 +1174,9 @@ function searchIOC() {
                     const iocId = ioc.id;
                     
                     html += `
-                        <div class="search-result-item" onclick="selectFromSearch('${iocId}', '${iocValue}', event)">
-                            <strong>${iocValue}</strong>
-                            <small class="text-muted">${iocType.toUpperCase()}</small>
+                        <div class="search-result-item" onclick="selectFromSearch('${escapeHtml(iocId)}', '${escapeHtml(iocValue)}', event)">
+                            <strong>${escapeHtml(iocValue)}</strong>
+                            <small class="text-muted">${escapeHtml(iocType.toUpperCase())}</small>
                         </div>
                     `;
                 }
