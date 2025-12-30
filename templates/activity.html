@@ -582,7 +582,7 @@ function renderTimeline(data) {
         const timeAgo = getTimeAgo(log.timestamp);
         
         // Build entity name (text only, no links)
-        let entityHtml = `<span class="timeline-entity">${log.entity_name || log.entity_id}</span>`;
+        let entityHtml = `<span class="timeline-entity">${escapeHtml(log.entity_name || log.entity_id)}</span>`;
         
         // Action badge
         const actionBadges = {
@@ -597,14 +597,14 @@ function renderTimeline(data) {
             'archive': '<span class="badge bg-secondary">Archived</span>'
         };
         
-        const actionBadge = actionBadges[log.action] || `<span class="badge bg-secondary">${log.action}</span>`;
+        const actionBadge = actionBadges[log.action] || `<span class="badge bg-secondary">${escapeHtml(log.action)}</span>`;
         
         // Changes section
         let changesHtml = '';
         if (log.changes && Object.keys(log.changes).length > 0) {
             changesHtml = '<div class="timeline-changes">';
             for (const [key, value] of Object.entries(log.changes)) {
-                changesHtml += `<span class="badge bg-light text-dark me-1">${key}: ${JSON.stringify(value)}</span>`;
+                changesHtml += `<span class="badge bg-light text-dark me-1">${escapeHtml(key)}: ${escapeHtml(JSON.stringify(value))}</span>`;
             }
             changesHtml += '</div>';
         }
@@ -614,16 +614,16 @@ function renderTimeline(data) {
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <span class="timeline-action">${actionBadge}</span>
-                        <span class="ms-2">${log.entity_type}</span>
+                        <span class="ms-2">${escapeHtml(log.entity_type)}</span>
                         <span class="ms-1">${entityHtml}</span>
                     </div>
-                    <div class="timeline-time" title="${time}">${timeAgo}</div>
+                    <div class="timeline-time" title="${escapeHtml(time)}">${escapeHtml(timeAgo)}</div>
                 </div>
                 <div class="mt-1">
                     <span class="timeline-user">
-                        <i class="fas fa-user me-1"></i>${log.username || 'system'}
+                        <i class="fas fa-user me-1"></i>${escapeHtml(log.username || 'system')}
                     </span>
-                    ${log.ip_address ? `<span class="timeline-ip ms-2"><i class="fas fa-network-wired me-1"></i>${log.ip_address}</span>` : ''}
+                    ${log.ip_address ? `<span class="timeline-ip ms-2"><i class="fas fa-network-wired me-1"></i>${escapeHtml(log.ip_address)}</span>` : ''}
                 </div>
                 ${changesHtml}
             </div>
