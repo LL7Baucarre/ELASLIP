@@ -30,36 +30,24 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **AI-Powered Reports** - Generate IOC, Case, Incident, Checklist reports via LLM
 -  **FinOps Dashboard** - Track LLM token usage with analytics
 -  **Security Checklists** - Create, manage, and analyze security operation tasks with AI insights  
-- -  **Webhooks** - Real-time event notifications
+-  **Webhooks** - Real-time event notifications
+-  **Notification system** - Be aware when reports are submitted by LLM
 
 ## Features
   
 ### Core Features
 
 -  **Multi-format Import** - STIX, MISP JSON, OpenIOC, IODEF support
-
 -  **Simple IOC Entry** - Form-based input with automatic STIX pattern generation
-
 -  **IOC Relationships** - Link IOCs with relationship types
-
 -  **IOC Metadata** - Confidence levels, TLP, campaigns tracking
-
 -  **Interactive Graph** - Visualize IOC relationships
-
 -  **Deduplication** - Automatic with source tracking
-
 -  **External API Integration** - VirusTotal, AbuseIPDB, etc.
-
 -  **Swagger UI** - Interactive API documentation
-
 -  **Dockerized** - Complete Docker Compose setup
 
 ### Advanced Features
-
-  
-#### Risk Scoring
-
-- Composite calculation (0-100)  
 
 #### IOC Management
 
@@ -77,48 +65,29 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Assignment** - Assign to users
 -  **Reusable Snippets** - Markdown snippets for common sections
 
-
 #### AI-Powered Report Generation
 
 -  **LLM Integration** - Ollama and OpenAI-compatible providers
-
 -  **Report Types** - IOC, Case, Incident, Checklist reports
-
 -  **Custom Prompts** - Define templates per report type
-
 -  **Markdown Output** - Formatted reports
-
 -  **Language Instruction** - Automatic language prepend
-
 -  **Async Generation** - Background processing with progress tracking
 
-
-#### FinOps - LLM Token Tracking
+#### LLM Token Tracking
 
 -  **Token Counting** - Track prompt and completion tokens
-
 -  **Dashboard** - Real-time consumption metrics in Activity page
-
 -  **Temporal Analysis** - Token usage trends over time
-
 -  **Report Breakdown** - Analyze by report type
-
--  **Cost Tracking** - Monitor by date and model
-
--  **API Access** - Query token data programmatically
 
 #### Checklist Management
 
 -  **Create Checklists** - Task-based security operation checklists
-
 -  **Templates** - Reusable checklist templates
-
 -  **Item Tracking** - Track completion status with descriptions
-
 -  **Campaign/Case Association** - Link to campaigns, cases, incidents
-
 -  **Team Collaboration** - Global comments with timestamps
-
 -  **AI Analysis** - Generate analysis reports of completed checklists
 
 #### Security & Authentication
@@ -139,26 +108,18 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 ## Supported IOC Types
 
 **Hashes**: MD5, SHA1, SHA256
-
 **Network**: IPv4, IPv6, Domain, Email, URL, ASN
-
 **Files/Processes**: File Path, Process Name, Registry Key, Mutex
-
 **Other**: Certificate Serial
 
 ## Quick Start
-
 ### Prerequisites
 
 - Docker & Docker Compose
 
 - (Optional) Ollama for AI reports
 
-  
-
 ### Installation
-
-  
 
 ```bash
 
@@ -179,8 +140,7 @@ docker-compose  up  -d
 # Or with external Elasticsearch
 
 docker-compose  -f  docker-compose.external-elasticsearch.yml  up  -d
-
-  
+ 
 
 # Initialize
 
@@ -193,7 +153,7 @@ docker-compose  exec  app  python  scripts/init_elasticsearch.py
 docker-compose  exec  app  python  scripts/create_admin.py
 
   
-# One liner
+# One liner for quick demo start
 docker compose down -v ; docker compose up -d --build ; docker compose exec app python /app/scripts/demo_data.py ; docker compose logs app worker -f
 
 # Access
@@ -220,11 +180,8 @@ This generates realistic test data useful for exploring features and understandi
 
 ## Configuration
 
-  
 
-### LLM Setup (for AI Reports)
-
-  
+### LLM Setup (for AI Reports)  
 
 **Settings > LLM Settings:**
 
@@ -236,15 +193,12 @@ This generates realistic test data useful for exploring features and understandi
 
 -  **Custom Prompts** (optional): Template per report type
 
-  
-
 Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{name}`, `{status}`, etc.
 
   
 
 ### Environment Variables
-
-  
+ 
 
 | Variable | Default | Description |
 |---|---:|---|
@@ -280,11 +234,7 @@ See `.env.example` for the canonical defaults and examples.
 
 See `http://localhost:5000/apidocs` for full API documentation.
 
-  
-
 ## Docker Deployment
-
-  
 
 ```bash
 
@@ -292,20 +242,14 @@ See `http://localhost:5000/apidocs` for full API documentation.
 
 docker-compose  up  -d
 
-  
-
 # External Elasticsearch
 
 docker-compose  -f  docker-compose.external-elasticsearch.yml  up  -d
 
 ```
 
-
-  
-
 ## Development
 
-  
 
 ```bash
 

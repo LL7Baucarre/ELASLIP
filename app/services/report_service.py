@@ -670,6 +670,210 @@ class ReportService:
             'items_count': len(checklist.get('items', []))
         }
     
+    def regenerate_ioc_report(self, ioc_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
+        """
+        Regenerate an IOC report with correction instructions.
+        
+        Args:
+            ioc_id: The IOC document ID
+            correction_prompt: User's correction/refinement instructions
+            previous_report: The previous report content for context
+            
+        Returns:
+            Report data with regenerated analysis
+        """
+        # Get IOC using the IOC service
+        ioc = self.ioc_service.get(ioc_id)
+        if not ioc:
+            raise ValueError(f"IOC {ioc_id} not found")
+        
+        ioc['id'] = ioc_id
+        relations = self._get_ioc_relations(ioc_id)
+        
+        # Build base prompt
+        base_prompt = self._build_ioc_prompt(ioc, relations)
+        
+        # Build regeneration prompt
+        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
+        
+        # Generate analysis
+        analysis, token_usage = self._call_llm(prompt)
+        
+        return {
+            'ioc_id': ioc_id,
+            'ioc_value': ioc.get('value') or ioc.get('pattern', ''),
+            'ioc_type': ioc.get('type', 'unknown'),
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'analysis': analysis,
+            'relations_count': len(relations),
+            'regenerated': True
+        }
+    
+    def regenerate_case_report(self, case_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
+        """
+        Regenerate a case report with correction instructions.
+        
+        Args:
+            case_id: The case document ID
+            correction_prompt: User's correction/refinement instructions
+            previous_report: The previous report content for context
+            
+        Returns:
+            Report data with regenerated case summary
+        """
+        case = self.case_service.get_case(case_id)
+        if not case:
+            raise ValueError(f"Case {case_id} not found")
+        
+        incidents = self._get_case_incidents(case_id)
+        iocs = self._get_case_iocs(case_id)
+        timeline = self._get_timeline_events(case_id=case_id)
+        comments = self._get_comments('case', case_id)
+        
+        # Build base prompt
+        base_prompt = self._build_case_prompt(case, incidents, iocs, timeline, comments)
+        
+        # Build regeneration prompt
+        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
+        
+        # Generate report
+        report, token_usage = self._call_llm(prompt)
+        
+        return {
+            'case_id': case_id,
+            'case_name': case.get('name') or case.get('title', 'Unknown'),
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'report': report,
+            'incidents_count': len(incidents),
+            'iocs_count': len(iocs),
+            'regenerated': True
+        }
+    
+    def regenerate_incident_report(self, incident_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
+        """
+        Regenerate an incident report with correction instructions.
+        
+        Args:
+            incident_id: The incident document ID
+            correction_prompt: User's correction/refinement instructions
+            previous_report: The previous report content for context
+            
+        Returns:
+            Report data with regenerated incident analysis
+        """
+        incident = self.incident_service.get_incident(incident_id)
+        if not incident:
+            raise ValueError(f"Incident {incident_id} not found")
+        
+        iocs = self._get_incident_iocs(incident_id)
+        timeline = self._get_timeline_events(incident_id=incident_id)
+        comments = self._get_comments('incident', incident_id)
+        
+        # Build base prompt
+        base_prompt = self._build_incident_prompt(incident, iocs, timeline, comments)
+        
+        # Build regeneration prompt
+        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
+        
+        # Generate analysis
+        analysis, token_usage = self._call_llm(prompt)
+        
+        return {
+            'incident_id': incident_id,
+            'incident_name': incident.get('name') or incident.get('title', 'Unknown'),
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'analysis': analysis,
+            'iocs_count': len(iocs),
+            'regenerated': True
+        }
+    
+    def regenerate_checklist_report(self, checklist_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
+        """
+        Regenerate a checklist report with correction instructions.
+        
+        Args:
+            checklist_id: The checklist document ID
+            correction_prompt: User's correction/refinement instructions
+            previous_report: The previous report content for context
+            
+        Returns:
+            Report data with regenerated checklist analysis
+        """
+        from app.services.checklist_service import ChecklistService
+        
+        checklist_service = ChecklistService()
+        checklist = checklist_service.get_checklist(checklist_id)
+        
+        if not checklist:
+            raise ValueError(f"Checklist {checklist_id} not found")
+        
+        # Build base prompt
+        base_prompt = self._build_checklist_prompt(checklist)
+        
+        # Build regeneration prompt
+        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
+        
+        # Generate analysis
+        analysis, token_usage = self._call_llm(prompt)
+        
+        return {
+            'checklist_id': checklist_id,
+            'checklist_title': checklist.get('title', 'Untitled Checklist'),
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'analysis': analysis,
+            'items_count': len(checklist.get('items', [])),
+            'regenerated': True
+        }
+    
+    def _build_regeneration_prompt(self, base_prompt: str, correction_prompt: str, previous_report: str = '') -> str:
+        """
+        Build a prompt for regenerating a report with corrections.
+        
+        Args:
+            base_prompt: The original prompt with all data
+            correction_prompt: User's correction/refinement instructions
+            previous_report: The previous report for context (optional)
+            
+        Returns:
+            Combined prompt for regeneration
+        """
+        language_instruction = self._get_language_instruction()
+        
+        regeneration_context = f"""{language_instruction}You are regenerating a security report based on user feedback.
+
+## USER CORRECTION INSTRUCTIONS
+
+The user has requested the following changes or refinements:
+
+{correction_prompt}
+
+"""
+        
+        if previous_report:
+            regeneration_context += f"""## PREVIOUS REPORT
+
+Here is the previous version of the report that needs to be improved:
+
+{previous_report[:3000]}{'...[truncated]' if len(previous_report) > 3000 else ''}
+
+"""
+        
+        regeneration_context += f"""## ORIGINAL DATA AND INSTRUCTIONS
+
+{base_prompt}
+
+## IMPORTANT
+
+Apply the user's correction instructions to generate an improved version of the report. 
+Focus on addressing the specific feedback while maintaining the professional quality and structure.
+Do NOT wrap the response in code blocks."""
+        
+        return regeneration_context
+
     def _get_ioc_relations(self, ioc_id: str) -> List[Dict]:
         """Get relations for an IOC."""
         query = {

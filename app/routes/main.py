@@ -1401,4 +1401,9 @@ def snippets_library():
 @login_required
 def view_report():
     """View generated report page."""
-    return render_template('report.html')
+    from app.decorators import check_permission
+    can_regenerate_report = check_permission('report.generate_llm')
+    can_regenerate_checklist = check_permission('checklist.generate_llm')
+    return render_template('report.html', 
+                           can_regenerate_report=can_regenerate_report,
+                           can_regenerate_checklist=can_regenerate_checklist)

@@ -18,10 +18,45 @@ marked.setOptions({
         <h4 class="mb-0" id="reportTitle">Report</h4>
         <small class="text-muted" id="reportSubtitle">Generated on <span id="generatedAt"></span></small>
     </div>
-    <div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary btn-sm" onclick="showRegenerateModal()" id="regenerateBtn" style="display: none;">
+            <i class="bi bi-arrow-clockwise me-2"></i> Regenerate
+        </button>
         <button class="btn btn-outline-secondary btn-sm" onclick="downloadReport()">
             <i class="bi bi-download me-2"></i> Download
         </button>
+    </div>
+</div>
+
+<!-- Regenerate Modal -->
+<div class="modal fade" id="regenerateModal" tabindex="-1" aria-labelledby="regenerateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="regenerateModalLabel">
+                    <i class="bi bi-arrow-clockwise me-2"></i> Regenerate Report
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Add instructions to refine the report. The LLM will use the original data plus your corrections.
+                </div>
+                <div class="mb-3">
+                    <label for="correctionPrompt" class="form-label fw-bold">Correction / Refinement Instructions</label>
+                    <textarea class="form-control" id="correctionPrompt" rows="6" 
+                              placeholder="Examples:&#10;- Focus more on the attack timeline&#10;- Add more technical details about the IOCs&#10;- Summarize the executive summary in 2 sentences&#10;- Translate to French&#10;- Be more concise&#10;- Add recommendations for detection rules"></textarea>
+                    <small class="text-muted">Describe what you want to change or improve in the report.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="regenerateReport()">
+                    <i class="bi bi-arrow-clockwise me-2"></i> Regenerate Report
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -41,18 +76,165 @@ marked.setOptions({
 let reportData = null;
 let reportType = null;
 let reportId = null;
+let currentTaskId = null;
+
+// Permissions from backend
+const canRegenerateReport = {{ can_regenerate_report|tojson }};
+const canRegenerateChecklist = {{ can_regenerate_checklist|tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     reportType = urlParams.get('type');  // 'ioc', 'case', 'incident'
     reportId = urlParams.get('id');
-    const taskId = urlParams.get('task_id');
+    currentTaskId = urlParams.get('task_id');
     
     // Call generateReport if we have task_id OR (type AND id)
-    if (taskId || (reportType && reportId)) {
+    if (currentTaskId || (reportType && reportId)) {
         generateReport();
     }
 });
+
+function showRegenerateModal() {
+    const modal = new bootstrap.Modal(document.getElementById('regenerateModal'));
+    modal.show();
+}
+
+async function regenerateReport() {
+    const correctionPrompt = document.getElementById('correctionPrompt').value.trim();
+    
+    if (!correctionPrompt) {
+        alert('Please enter correction or refinement instructions.');
+        return;
+    }
+    
+    // Ensure we have the required data for regeneration
+    if (!reportType) {
+        alert('Cannot regenerate: report type is unknown.');
+        return;
+    }
+    
+    if (!reportId) {
+        // Try to extract from reportData one more time
+        if (reportData) {
+            reportId = reportData.ioc_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
+        }
+        if (!reportId) {
+            alert('Cannot regenerate: report ID is unknown.');
+            return;
+        }
+    }
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('regenerateModal'));
+    modal.hide();
+    
+    // Show loading state
+    document.getElementById('reportContent').innerHTML = 
+        `<div class="text-center py-5">
+            <div class="spinner-border me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Regenerating report with your corrections...</p>
+            <p class="text-muted small">This may take a minute...</p>
+        </div>`;
+    
+    try {
+        let endpoint = '';
+        switch(reportType) {
+            case 'ioc':
+                endpoint = `/api/reports/iocs/${reportId}/regenerate`;
+                break;
+            case 'case':
+                endpoint = `/api/reports/cases/${reportId}/regenerate`;
+                break;
+            case 'incident':
+                endpoint = `/api/reports/incidents/${reportId}/regenerate`;
+                break;
+            case 'checklist':
+                endpoint = `/api/reports/checklists/${reportId}/regenerate`;
+                break;
+            default:
+                throw new Error('Invalid report type for regeneration');
+        }
+        
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                correction_prompt: correctionPrompt,
+                previous_report: reportData ? (reportData.analysis || reportData.report || '') : ''
+            })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to regenerate report');
+        }
+        
+        const result = await response.json();
+        
+        if (result.task_id) {
+            // Redirect to reports list - the new report will appear there
+            window.location.href = '/reports';
+        } else if (result.analysis || result.report) {
+            // Direct response
+            reportData = result;
+            displayReport();
+        }
+    } catch (error) {
+        showError('Error regenerating report: ' + error.message);
+    }
+}
+
+async function pollForReport(taskId) {
+    const maxAttempts = 300;
+    let attempt = 0;
+    
+    while (attempt < maxAttempts) {
+        try {
+            const response = await fetch(`/api/reports/view/${taskId}`);
+            
+            if (response.status === 200) {
+                const data = await response.json();
+                if (data.status === 'error') {
+                    displayError(data);
+                    return;
+                }
+                reportData = data;
+                displayReport();
+                return;
+            }
+            
+            if (response.status === 202) {
+                attempt++;
+                const progressMsg = `Regenerating report (${attempt}/${maxAttempts})...`;
+                document.getElementById('reportContent').innerHTML = 
+                    `<div class="text-center py-5">
+                        <div class="spinner-border me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p>${progressMsg}</p>
+                    </div>`;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+            }
+            
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Server error ${response.status}`);
+        } catch (err) {
+            if (attempt < maxAttempts - 1) {
+                attempt++;
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+            }
+            throw err;
+        }
+    }
+    
+    throw new Error('Report regeneration timeout');
+}
 
 async function generateReport() {
     try {
@@ -177,6 +359,11 @@ function displayReport() {
         reportType = reportData.type;
     }
     
+    // Extract report ID from data if not set from URL params
+    if (!reportId) {
+        reportId = reportData.ioc_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
+    }
+    
     switch(reportType) {
         case 'ioc':
             markdown = displayIOCReport();
@@ -205,6 +392,15 @@ function displayReport() {
     document.getElementById('generatedAt').textContent = new Date(reportData.generated_at).toLocaleString();
     // Render markdown to HTML
     content.innerHTML = marked.parse(markdown);
+    
+    // Show regenerate button if we have report type and id AND user has permission
+    if (reportType && reportId) {
+        const hasPermission = (reportType === 'checklist' && canRegenerateChecklist) ||
+                              (reportType !== 'checklist' && canRegenerateReport);
+        if (hasPermission) {
+            document.getElementById('regenerateBtn').style.display = 'inline-block';
+        }
+    }
 }
 
 function displayIOCReport() {
@@ -340,7 +536,7 @@ function displayError(errorData) {
         }
         if (errorData.error_details.full_message) {
             errorHtml += `<p><strong>Details:</strong></p>
-            <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto;">
+            <pre style="background: var(--code-bg, #f5f5f5); color: var(--text-color, #333); padding: 10px; border-radius: 4px; overflow-x: auto;">
 ${escapeHtml(errorData.error_details.full_message)}
             </pre>`;
         }
