@@ -284,8 +284,8 @@ function createRoleElement(role) {
         </div>
         <div class="role-description">${escapeHtml(role.description || 'No description')}</div>
         <div class="role-stats">
-            <span><i class="bi bi-shield-check me-1"></i> ${escapeHtml(role.permissions ? role.permissions.length : 0)} permissions</span>
-            <span><i class="bi bi-calendar-event me-1"></i> ${escapeHtml(new Date(role.created_at).toLocaleDateString())}</span>
+            <span><i class="bi bi-shield-check me-1"></i> ${role.permissions ? role.permissions.length : 0} permissions</span>
+            <span><i class="bi bi-calendar-event me-1"></i> ${new Date(role.created_at).toLocaleDateString()}</span>
         </div>
     `;
 

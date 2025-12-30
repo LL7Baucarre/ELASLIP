@@ -164,7 +164,7 @@ function renderIncidents(incidents) {
                 <div class="card-footer bg-transparent">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
-                            <i class="bi bi-shield-exclamation me-1"></i>${escapeHtml((inc.ioc_ids || []).length)} IOCs
+                            <i class="bi bi-shield-exclamation me-1"></i>${(inc.ioc_ids || []).length} IOCs
                         </small>
                         <small class="text-muted">${formatDate(inc.created_at)}</small>
                     </div>
