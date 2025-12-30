@@ -260,16 +260,16 @@ function renderSnippets(snippets) {
                 </div>
                 <div class="card-footer bg-transparent">
                     <div class="btn-group btn-group-sm w-100">
-                        <button class="btn btn-outline-primary" onclick="previewSnippet('${escapeHtml(s.id)}')" title="Preview">
+                        <button class="btn btn-outline-primary" onclick="previewSnippet('${s.id}')" title="Preview">
                             <i class="bi bi-eye"></i>
                         </button>
-                        <button class="btn btn-outline-secondary" onclick="editSnippet('${escapeHtml(s.id)}')" title="Edit">
+                        <button class="btn btn-outline-secondary" onclick="editSnippet('${s.id}')" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
-                        <button class="btn btn-outline-success" onclick="copySnippet('${escapeHtml(s.id)}')" title="Copy">
+                        <button class="btn btn-outline-success" onclick="copySnippet('${s.id}')" title="Copy">
                             <i class="bi bi-clipboard"></i>
                         </button>
-                        <button class="btn btn-outline-danger" onclick="deleteSnippet('${escapeHtml(s.id)}')" title="Delete">
+                        <button class="btn btn-outline-danger" onclick="deleteSnippet('${s.id}')" title="Delete">
                             <i class="bi bi-trash"></i>
                         </button>
                     </div>

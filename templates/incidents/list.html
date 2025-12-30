@@ -151,7 +151,7 @@ function renderIncidents(incidents) {
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">
-                        <a href="/incidents/${escapeHtml(inc.id)}" class="text-decoration-none">${escapeHtml(inc.title)}</a>
+                        <a href="/incidents/${inc.id}" class="text-decoration-none">${escapeHtml(inc.title)}</a>
                     </h5>
                     <p class="card-text text-muted small">
                         ${escapeHtml((inc.description || '').substring(0, 150))}${(inc.description || '').length > 150 ? '...' : ''}
