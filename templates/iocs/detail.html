@@ -495,11 +495,11 @@
     <div class="col-md-4">
         <div class="card">
             <div class="card-header bg-white">
-                <h6 class="mb-0">Sources ({{ (ioc.sources or [])|length }})</h6>
+                <h6 class="mb-0">Sources ({{ (ioc.x_metadata.sources or [])|length }})</h6>
             </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
-                    {% for source in ioc.sources or [] %}
+                    {% for source in ioc.x_metadata.sources or [] %}
                     <li class="list-group-item">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
@@ -1295,6 +1295,21 @@ function loadRelatedIOCs() {
     });
 }
 
+function toggleEditValidUntil() {
+    const checkbox = document.getElementById('editAddValidUntil');
+    const wrapper = document.getElementById('editValidUntilWrapper');
+    const input = document.getElementById('editValidUntil');
+    
+    if (checkbox && wrapper && input) {
+        if (checkbox.checked) {
+            wrapper.style.display = 'block';
+        } else {
+            wrapper.style.display = 'none';
+            input.value = ''; // Clear the value when unchecked
+        }
+    }
+}
+
 // Load related IOCs on page load
 $(document).ready(function() {
     loadRelatedIOCs();
@@ -1415,19 +1430,6 @@ $(document).ready(function() {
 
     // Load and initialize relationship graph
     let miniCy = null;
-
-    function toggleEditValidUntil() {
-        const checkbox = $('#editAddValidUntil');
-        const wrapper = $('#editValidUntilWrapper');
-        const input = $('#editValidUntil');
-        
-        if (checkbox.is(':checked')) {
-            wrapper.show();
-        } else {
-            wrapper.hide();
-            input.val(''); // Clear the value when unchecked
-        }
-    }
 
     function initMiniGraph(nodes, edges) {
         if (miniCy) {

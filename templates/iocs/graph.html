@@ -197,14 +197,23 @@
 
     .legend {
         position: absolute;
-        bottom: 20px;
-        left: 20px;
+        top: 80px;
+        right: 20px;
         background: white;
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         z-index: 10;
         font-size: 0.85rem;
+        max-height: calc(100vh - 140px);
+        overflow-y: auto;
+        min-width: 180px;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .legend.collapsed {
+        opacity: 0;
+        visibility: hidden;
     }
     
     [data-theme="dark"] .legend {
@@ -233,6 +242,39 @@
     
     [data-theme="dark"] .legend-color {
         border-color: #e9ecef;
+    }
+
+    .legend-toggle-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        z-index: 11;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.2s;
+    }
+
+    .legend-toggle-btn:hover {
+        background-color: #f8f9fa;
+    }
+    
+    [data-theme="dark"] .legend-toggle-btn {
+        background: #22262a;
+        border-color: #3d4449;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    [data-theme="dark"] .legend-toggle-btn:hover {
+        background-color: #2d333b;
     }
 
     .info-panel {
@@ -571,16 +613,30 @@
     </button>
 </div>
 
+<!-- Legend Toggle Button -->
+<button class="legend-toggle-btn" onclick="toggleLegend()" title="Toggle legend">
+    <i class="bi bi-list"></i>
+    <span id="legendToggleText">Hide</span>
+</button>
+
 <!-- Legend -->
-<div class="legend">
+<div class="legend" id="legendPanel">
     <h6 style="margin-top: 0; margin-bottom: 10px;">IOC Types</h6>
     <div class="legend-item">
         <div class="legend-color" style="background-color: #FF6B6B;"></div>
         <span>IPv4</span>
     </div>
     <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF5252;"></div>
+        <span>IPv6</span>
+    </div>
+    <div class="legend-item">
         <div class="legend-color" style="background-color: #4ECDC4;"></div>
         <span>Domain</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #95E1D3;"></div>
+        <span>Email</span>
     </div>
     <div class="legend-item">
         <div class="legend-color" style="background-color: #A8E6CF;"></div>
@@ -591,8 +647,40 @@
         <span>SHA1</span>
     </div>
     <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFAAA5;"></div>
+        <span>SHA256</span>
+    </div>
+    <div class="legend-item">
         <div class="legend-color" style="background-color: #FFE66D;"></div>
         <span>URL</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #C7CEEA;"></div>
+        <span>ASN</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FF8B94;"></div>
+        <span>File Path</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #FFA07A;"></div>
+        <span>Process Name</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #DDA0DD;"></div>
+        <span>Registry Key</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #BA55D3;"></div>
+        <span>Windows Registry</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #9370DB;"></div>
+        <span>Mutex</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #87CEEB;"></div>
+        <span>Certificate Serial</span>
     </div>
 </div>
 
@@ -842,6 +930,19 @@ function clearSelection() {
     if (cy) {
         cy.elements().unselect();
         document.getElementById('infoPanel').style.display = 'none';
+    }
+}
+
+function toggleLegend() {
+    const legendPanel = document.getElementById('legendPanel');
+    const toggleText = document.getElementById('legendToggleText');
+    
+    legendPanel.classList.toggle('collapsed');
+    
+    if (legendPanel.classList.contains('collapsed')) {
+        toggleText.textContent = 'Show';
+    } else {
+        toggleText.textContent = 'Hide';
     }
 }
 

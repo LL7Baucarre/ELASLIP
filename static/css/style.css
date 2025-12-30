@@ -610,6 +610,36 @@ body {
     color: #1abc9c;
 }
 
+.ioc-type-ipv6 {
+    background: rgba(52, 152, 219, 0.1);
+    color: #2980b9;
+}
+
+.ioc-type-file_path {
+    background: rgba(149, 165, 166, 0.1);
+    color: #7f8c8d;
+}
+
+.ioc-type-process_name {
+    background: rgba(192, 57, 43, 0.1);
+    color: #c0392b;
+}
+
+.ioc-type-registry_key, .ioc-type-windows_registry_key {
+    background: rgba(142, 68, 173, 0.1);
+    color: #8e44ad;
+}
+
+.ioc-type-mutex {
+    background: rgba(230, 126, 34, 0.1);
+    color: #e67e22;
+}
+
+.ioc-type-certificate_serial {
+    background: rgba(44, 62, 80, 0.1);
+    color: #2c3e50;
+}
+
 /* ==================== FORM & INPUT ==================== */
 .search-box {
     position: relative;

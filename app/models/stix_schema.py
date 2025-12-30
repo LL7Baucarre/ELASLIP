@@ -214,20 +214,8 @@ class STIXIndicator:
         if 'indicator_types' not in indicator_dict or not indicator_dict.get('indicator_types'):
             indicator_dict['indicator_types'] = ['malicious-activity']
         
-        # Add sources as external_references (STIX compliant)
-        # Only include source_name and description, NOT metadata
-        if self.sources:
-            external_refs = []
-            for source in self.sources:
-                ref = {
-                    'source_name': source.get('name', 'unknown'),
-                }
-                # Only add description if there's user metadata (user_id, username)
-                if source.get('metadata', {}).get('user_id') or source.get('metadata', {}).get('username'):
-                    ref['description'] = f"Added by {source.get('metadata', {}).get('username', 'unknown')} ({source.get('metadata', {}).get('user_id', 'unknown')})"
-                external_refs.append(ref)
-            if external_refs:
-                indicator_dict['external_references'] = external_refs
+        # Don't add sources or external_references to root level - keep them in x_metadata only
+        # (external_references should only be added if explicitly set, not auto-generated from sources)
         
         return indicator_dict
     
@@ -250,9 +238,10 @@ class STIXIndicator:
         # Add custom properties with x_ prefix (STIX 2.1 compliant)
         custom_props = {}
         
-        if ioc_type:
+        # Always add ioc_type and ioc_value if provided (even if None/empty)
+        if ioc_type is not None:
             custom_props['ioc_type'] = ioc_type
-        if ioc_value:
+        if ioc_value is not None:
             custom_props['ioc_value'] = ioc_value
         if pattern_hash:
             custom_props['pattern_hash'] = pattern_hash
@@ -275,6 +264,10 @@ class STIXIndicator:
                 'user_id': user_id,
                 'username': username
             }
+        
+        # Add sources if available
+        if self.sources:
+            custom_props['sources'] = self.sources
         
         # Add all custom properties under x_metadata (STIX 2.1 custom object)
         if custom_props:
@@ -341,10 +334,11 @@ class STIXBundle:
     @classmethod
     def parse(cls, data: str) -> List[STIXIndicator]:
         """
-        Parse a STIX Bundle from JSON string.
+        Parse STIX objects from JSON string.
+        Handles both individual STIX Indicators and STIX Bundles.
         
         Args:
-            data: JSON string of STIX Bundle
+            data: JSON string of STIX Indicator or STIX Bundle
         
         Returns:
             List of STIXIndicator objects
@@ -352,24 +346,36 @@ class STIXBundle:
         import json
         
         try:
-            bundle_dict = json.loads(data)
+            stix_dict = json.loads(data)
         except json.JSONDecodeError as e:
             raise ValueError(f"Invalid JSON: {str(e)}")
         
-        if bundle_dict.get('type') != 'bundle':
-            raise ValueError("Not a valid STIX Bundle")
-        
         indicators = []
-        objects = bundle_dict.get('objects', [])
+        stix_type = stix_dict.get('type')
         
-        for obj in objects:
-            if obj.get('type') == 'indicator':
-                try:
-                    indicator = STIXIndicator.from_stix_dict(obj)
-                    indicators.append(indicator)
-                except ValueError as e:
-                    # Log but continue processing other indicators
-                    print(f"Warning: Skipping invalid indicator: {e}")
+        if stix_type == 'bundle':
+            # Handle STIX Bundle
+            objects = stix_dict.get('objects', [])
+            for obj in objects:
+                if obj.get('type') == 'indicator':
+                    try:
+                        indicator = STIXIndicator.from_stix_dict(obj)
+                        indicators.append(indicator)
+                    except ValueError as e:
+                        # Log but continue processing other indicators
+                        print(f"Warning: Skipping invalid indicator: {e}")
+        elif stix_type == 'indicator':
+            # Handle single STIX Indicator
+            try:
+                indicator = STIXIndicator.from_stix_dict(stix_dict)
+                indicators.append(indicator)
+            except ValueError as e:
+                raise ValueError(f"Failed to parse STIX Indicator: {str(e)}")
+        else:
+            raise ValueError(f"Unsupported STIX object type: {stix_type}. Expected 'bundle' or 'indicator'")
+        
+        if not indicators:
+            raise ValueError("No valid indicators found in STIX data")
         
         return indicators
     

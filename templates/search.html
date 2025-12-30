@@ -258,7 +258,7 @@ function displayResults(data) {
             ? `<span class="badge bg-secondary">+${ioc.labels.length - 3}</span>` 
             : '';
         
-        const sources = (ioc.sources || []).length;
+        const sources = (ioc.x_metadata?.sources || []).length;
         const created = ioc.created ? ioc.created.substring(0, 10) : 'N/A';
         
         const row = `

@@ -178,6 +178,8 @@ docker-compose  exec  app  python  scripts/init_elasticsearch.py
 docker-compose  exec  app  python  scripts/create_admin.py
 
   
+# One liner
+docker compose down -v ; docker compose up -d --build ; docker compose exec app python /app/scripts/demo_data.py ; docker compose logs app worker -f
 
 # Access
 

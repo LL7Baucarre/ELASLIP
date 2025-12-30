@@ -173,8 +173,8 @@ class IOCService(BaseListService):
         """Extract x_metadata fields to root level for frontend compatibility."""
         if 'x_metadata' in doc and isinstance(doc['x_metadata'], dict):
             metadata = doc['x_metadata']
-            # Add essential metadata fields to root level
-            for key in ['ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 'status', 'risk_score', 'sources']:
+            # Add essential metadata fields to root level (but NOT sources - they stay in x_metadata)
+            for key in ['ioc_type', 'ioc_value', 'threat_level', 'tlp', 'campaigns', 'status', 'risk_score']:
                 if key in metadata and key not in doc:
                     doc[key] = metadata[key]
         return doc
@@ -323,6 +323,9 @@ class IOCService(BaseListService):
         Returns:
             Tuple of (IOC dict, is_new)
         """
+        # Extract IOC type and value from pattern
+        ioc_type, ioc_value = PatternGenerator.extract_value_from_pattern(pattern)
+        
         # Create STIX indicator from pattern
         indicator = STIXIndicator.from_pattern(
             pattern=pattern,
@@ -335,20 +338,45 @@ class IOCService(BaseListService):
         # Generate pattern hash for deduplication
         pattern_hash = PatternGenerator.get_pattern_hash(indicator.pattern)
         
-        # Extract IOC type and value if possible
-        ioc_type, ioc_value = PatternGenerator.extract_value_from_pattern(pattern)
-        
         # Check for existing IOC
         existing = self._find_by_pattern_hash(pattern_hash)
         
         if existing:
-            return self._add_source_to_existing(existing, source), False
+            # If existing IOC is missing ioc_type/ioc_value, add them
+            update_needed = False
+            x_metadata = existing.get('x_metadata', {})
+            
+            if ioc_type and x_metadata.get('ioc_type') is None:
+                x_metadata['ioc_type'] = ioc_type
+                update_needed = True
+            if ioc_value and x_metadata.get('ioc_value') is None:
+                x_metadata['ioc_value'] = ioc_value
+                update_needed = True
+            
+            # Add new source
+            result = self._add_source_to_existing(existing, source)
+            
+            # If we updated the fields, re-save the metadata
+            if update_needed:
+                self.es.update(self.index, result.get('id'), {
+                    'doc': {
+                        'x_metadata': x_metadata,
+                        'modified': datetime.utcnow().isoformat() + 'Z'
+                    }
+                })
+                # Re-fetch to get the updated version
+                result = self.get(result.get('id'))
+            
+            return result, False
         
         # Create new IOC
-        ioc_doc = indicator.to_dict()
-        ioc_doc['pattern_hash'] = pattern_hash
-        ioc_doc['ioc_type'] = ioc_type
-        ioc_doc['ioc_value'] = ioc_value
+        ioc_doc = indicator.to_dict_with_metadata(
+            ioc_type=ioc_type,
+            ioc_value=ioc_value,
+            pattern_hash=pattern_hash,
+            status='active',
+            current_version=1
+        )
         
         self.es.index(self.index, indicator.id, ioc_doc)
         
@@ -615,25 +643,22 @@ class IOCService(BaseListService):
         
         result = self.es.aggregate(self.index, {
             "by_type": {
-                "terms": {"field": "x_metadata.ioc_type", "size": 100}
+                "terms": {"field": "x_metadata.ioc_type.keyword", "size": 100}
             },
             "by_label": {
-                "terms": {"field": "labels", "size": 20}
+                "terms": {"field": "labels.keyword", "size": 20}
             },
             "by_tlp": {
-                "terms": {"field": "tlp", "size": 5}
+                "terms": {"field": "x_metadata.tlp.keyword", "size": 5}
             },
             "by_threat_level": {
-                "terms": {"field": "threat_level", "size": 5}
+                "terms": {"field": "x_metadata.threat_level.keyword", "size": 5}
             },
             "by_status": {
-                "terms": {"field": "x_metadata.status", "size": 5}
+                "terms": {"field": "x_metadata.status.keyword", "size": 5}
             },
             "avg_risk_score": {
                 "avg": {"field": "x_metadata.risk_score"}
-            },
-            "total": {
-                "value_count": {"field": "id"}
             }
         })
         
@@ -674,7 +699,7 @@ class IOCService(BaseListService):
     def _find_by_pattern_hash(self, pattern_hash: str) -> Optional[Dict]:
         """Find IOC by pattern hash."""
         result = self.es.search(self.index, {
-            "query": {"term": {"pattern_hash": pattern_hash}},
+            "query": {"term": {"x_metadata.pattern_hash": pattern_hash}},
             "size": 1
         })
         
@@ -711,20 +736,10 @@ class IOCService(BaseListService):
             sources.append(new_source)
             x_metadata['sources'] = sources
             
-            # Update external_references in STIX object
-            external_refs = []
-            for s in sources:
-                ref = {
-                    'source_name': s.get('name', 'unknown'),
-                }
-                if s.get('metadata'):
-                    ref['description'] = 'Metadata from source'
-                external_refs.append(ref)
-            
+            # Don't add external_references to root - keep sources only in x_metadata
             self.es.update(self.index, existing['id'], {
                 'doc': {
                     'x_metadata': x_metadata,
-                    'external_references': external_refs,
                     'modified': datetime.utcnow().isoformat() + 'Z'
                 }
             })
