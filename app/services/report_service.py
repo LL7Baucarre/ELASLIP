@@ -12,6 +12,175 @@ from app.config import Config
 import os
 
 
+# Default prompt templates
+DEFAULT_PROMPT_IOC = """Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+
+## IOC Details
+- **Type**: {type}
+- **IOC Value**: {value}
+- **IOC Categories**: {indicator_types}
+- **Name**: {name}
+
+## Threat Assessment
+- **Threat Level**: {threat_level}
+- **Risk Score**: {risk_score}
+- **Confidence**: {confidence}
+- **TLP (Traffic Light Protocol)**: {tlp}
+
+## Classification
+- **Labels**: {labels}
+- **Associated Campaigns**: {campaigns}
+
+## Description
+{description}
+
+## Additional Context
+- **Created**: {created}
+- **Modified**: {modified}
+- **Status**: {status}
+- **External References**: {external_references}
+
+{relations_section}
+
+Please provide in **Markdown format**:
+1. What this indicator represents and its role in potential attacks
+2. Potential threats it indicates based on its type and severity
+3. Analysis of how related indicators amplify or contextualize this threat (CRITICAL: mention each related indicator and how it connects)
+4. Recommended mitigation and detection steps
+5. Summary of the threat landscape based on the indicator network"""
+
+DEFAULT_PROMPT_CASE = """# Security Case Investigation Report
+
+Generate a comprehensive, detailed investigation report for this security case. Use ALL the provided data to create an in-depth analysis with specific references to the incidents, IOCs, timeline events, and analyst observations.
+
+## Case Information
+
+**Case Name:** {name}
+**Status:** {status}
+**Priority:** {priority}
+**Severity Level:** {severity}
+**Assigned To:** {assigned_to}
+
+## Case Description
+
+{description}
+
+## Context and Scope
+
+- **Number of Associated Incidents:** {incidents_count}
+- **Number of Indicators:** {iocs_count}
+
+{timeline_details}
+
+{incidents_details}
+
+{iocs_details}
+
+{comments_details}
+
+## Report Requirements
+
+Generate a professional security investigation report with the following sections. Format your response using plain markdown WITHOUT wrapping it in code blocks (no triple backticks).
+
+### 1. Executive Summary
+Provide a brief overview of the case, its significance, and key findings. Reference specific incidents and IOCs.
+
+### 2. Incident Timeline
+Reconstruct the sequence of events chronologically. Reference the timeline events provided above.
+
+### 3. Threat Assessment
+Based on the incidents and IOCs, assess the threat landscape. Include the nature and scope of the threat, actor(s) involved, attack methodology, and specific threats posed.
+
+### 4. Compromised Assets and Impact
+Detail what was impacted, which systems/assets were affected, extent of compromise, and business impact assessment.
+
+### 5. Technical Indicators Analysis
+Analyze each IOC provided and explain what each represents, its role in the overall attack, and threat significance.
+
+### 6. Investigation Findings
+Synthesize the analyst observations and comments with key discoveries from the investigation.
+
+### 7. Recommendations and Actions
+Provide immediate containment actions needed, long-term remediation steps, detection rules, and team responsibilities.
+
+### 8. Risk Assessment
+Current risk level, residual risks, and timeline for remediation.
+
+**IMPORTANT:** This report must be specific, detailed, and reference actual data from the case, incidents, IOCs, timeline, and analyst comments provided."""
+
+DEFAULT_PROMPT_INCIDENT = """Analyze this security incident and generate a comprehensive threat report:
+
+## Incident Details
+- **Incident Name**: {name}
+- **Type**: {type}
+- **Severity**: {severity}
+- **Status**: {status}
+
+## Incident Description
+{description}
+
+## Timeline of Events
+{timeline}
+
+## Analyst Comments and Observations
+{comments}
+
+## MITRE ATT&CK Mapping
+{tactics}
+
+## Incident Metadata
+- **Created**: {created_at}
+- **Detected**: {detected_at}
+- **Resolved**: {resolved_at}
+
+## Associated Indicators ({iocs_count}):
+{iocs}
+
+Please provide in **Markdown format**:
+1. Incident Summary (include key timeline events)
+2. Attack Vector Analysis (include MITRE tactics/techniques)
+3. Affected Systems and Assets
+4. Indicators and their role in the incident
+5. Key Analyst Observations (synthesize comments from the analyst comments section above)
+6. Immediate Actions Required
+7. Long-term Recommendations and Lessons Learned"""
+
+DEFAULT_PROMPT_CHECKLIST = """# Work Report - {name}
+
+## Overview
+
+This report documents the work performed for the following security task checklist:
+
+**Checklist**: {name}
+**Description**: {description}
+**Created By**: {created_by}
+**Assigned To**: {assigned_to}
+**Tags**: {tags}
+**Related Campaigns**: {campaigns}
+**Related Cases**: {related_cases}
+**Related Incidents**: {related_incidents}
+
+## Work Performed
+
+The following work items have been successfully executed:
+
+{items}
+
+## Team Observations and Comments
+
+{global_comments}
+
+Please provide a detailed analysis in plain formatted text (NOT wrapped in code blocks). Include:
+
+1. A detailed summary of all completed work items
+2. The impact and importance of each completed action
+3. How these completed items address the associated security concerns or campaigns
+4. Key findings and discoveries from the completed work
+5. Recommendations for follow-up or related security measures
+
+IMPORTANT: Output plain text formatted with markdown - use headings, bullet points, bold text - but do NOT wrap the entire response in triple backticks or code blocks."""
+
+
 class ReportService:
     """Service to generate reports using LLM providers."""
     
@@ -56,6 +225,10 @@ class ReportService:
     
     def is_configured(self) -> bool:
         """Check if LLM is properly configured."""
+        # Check basic config first
+        if not self.llm_url or not self.llm_model:
+            return False
+        
         provider = self._detect_llm_provider()
         try:
             if provider == 'openai':
