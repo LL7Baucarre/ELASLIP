@@ -70,14 +70,18 @@
                             <i class="bi bi-inbox" style="font-size: 48px; display: block; margin-bottom: 16px;"></i>
                             <p>No matching indicators found in our database.</p>
                             {% if config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True) %}
-                            <p class="text-muted">Submit this indicator below to help improve our intelligence database.</p>
+                                {% if allow_anonymous %}
+                                <p class="text-muted">Submit this indicator below to help improve our intelligence database.</p>
+                                {% else %}
+                                <p class="text-muted">Anonymous submissions are disabled. Please <a href="{{ url_for('auth.login') }}">login</a> to submit indicators.</p>
+                                {% endif %}
                             {% else %}
                             <p class="text-muted">Public submissions are currently disabled.</p>
                             {% endif %}
                         </div>
 
-                        <!-- Submit Form (shown only when no results and submissions enabled) -->
-                        {% if config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True) %}
+                        <!-- Submit Form (shown only when no results, submissions enabled, and anonymous allowed) -->
+                        {% if config.get('PUBLIC_SUBMISSIONS_SUBMIT_ENABLED', True) and allow_anonymous %}
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="card-title mb-4"><i class="bi bi-pencil-square"></i> Submit New Indicator</h5>
@@ -181,7 +185,7 @@
                                                 <h5 class="alert-heading">Reference ID</h5>
                                                 <p id="successMessage" style="font-size: 18px; font-weight: bold; margin-bottom: 0; word-break: break-all;"></p>
                                             </div>
-                                            <p class="text-muted mb-4" id="statusInfo">Your submission has been received and will be reviewed by our analysts. You can use the Reference ID to check the status of your submission.</p>
+                                            <p class="text-muted mb-4" id="statusInfo">Your submission has been received and will be reviewed by our analysts.</p>
                                             <button class="btn btn-primary btn-lg" onclick="location.reload()">
                                                 <i class="bi bi-arrow-clockwise"></i> Submit Another Indicator
                                             </button>

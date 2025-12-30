@@ -27,7 +27,7 @@
             <div class="col-md-3">
                 <label class="form-label">&nbsp;</label>
                 <div class="form-check mt-2">
-                    <input class="form-check-input" type="checkbox" id="filterIsDuplicate">
+                    <input class="form-check-input" type="checkbox" id="filterIsDuplicate" checked>
                     <label class="form-check-label" for="filterIsDuplicate">
                         Hide Duplicates
                     </label>
@@ -63,7 +63,7 @@
                 </thead>
                 <tbody>
                     {% for submission in submissions['items'] %}
-                    <tr data-is-duplicate="{% if submission.status == 'duplicate' %}true{% else %}false{% endif %}">
+                    <tr data-is-duplicate="{% if submission.status == 'duplicate' or submission.duplicate_of %}true{% else %}false{% endif %}">
                         <td>
                             <span class="badge bg-info">{{ submission.ioc_type.upper() }}</span>
                         </td>
@@ -163,13 +163,12 @@
 </div>
 
 <script>
-document.getElementById('filterForm').addEventListener('submit', (e) => {
-    e.preventDefault();
+function applyFilters() {
     const status = document.getElementById('filterStatus').value;
     const isDuplicate = document.getElementById('filterIsDuplicate').checked;
     
     // Filter rows in the table
-    const rows = document.querySelectorAll('table tbody tr');
+    const rows = document.querySelectorAll('table tbody tr:not(.no-results-row)');
     let visibleCount = 0;
     
     rows.forEach(row => {
@@ -178,13 +177,15 @@ document.getElementById('filterForm').addEventListener('submit', (e) => {
         // Filter by status
         if (status) {
             const rowStatus = row.querySelector('td:nth-child(5)');
-            const statusText = rowStatus.textContent.toLowerCase();
-            if (!statusText.includes(status)) {
-                show = false;
+            if (rowStatus) {
+                const statusText = rowStatus.textContent.toLowerCase();
+                if (!statusText.includes(status)) {
+                    show = false;
+                }
             }
         }
         
-        // Filter by isDuplicate
+        // Filter by isDuplicate (hide duplicates when checked)
         if (isDuplicate) {
             const isRowDuplicate = row.getAttribute('data-is-duplicate') === 'true';
             if (isRowDuplicate) {
@@ -197,19 +198,26 @@ document.getElementById('filterForm').addEventListener('submit', (e) => {
     });
     
     // Show message if no results
+    const tbody = document.querySelector('table tbody');
+    const existingNoResults = tbody.querySelector('.no-results-row');
+    if (existingNoResults) existingNoResults.remove();
+    
     if (visibleCount === 0) {
-        const tbody = document.querySelector('table tbody');
-        if (!tbody.querySelector('.no-results-row')) {
-            const tr = document.createElement('tr');
-            tr.className = 'no-results-row';
-            tr.innerHTML = '<td colspan="8" class="text-center py-4 text-muted">No submissions match the selected filters</td>';
-            tbody.appendChild(tr);
-        }
-    } else {
-        const noResultsRow = document.querySelector('.no-results-row');
-        if (noResultsRow) noResultsRow.remove();
+        const tr = document.createElement('tr');
+        tr.className = 'no-results-row';
+        tr.innerHTML = '<td colspan="8" class="text-center py-4 text-muted">No submissions match the selected filters</td>';
+        tbody.appendChild(tr);
     }
+}
+
+document.getElementById('filterForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    applyFilters();
 });
+
+// Auto-apply filter when checkbox or select changes
+document.getElementById('filterIsDuplicate').addEventListener('change', applyFilters);
+document.getElementById('filterStatus').addEventListener('change', applyFilters);
 
 // Restore filter state on page load
 window.addEventListener('load', () => {
@@ -220,9 +228,13 @@ window.addEventListener('load', () => {
     if (status) {
         document.getElementById('filterStatus').value = status;
     }
-    if (isDuplicate === 'true') {
-        document.getElementById('filterIsDuplicate').checked = true;
+    // Only uncheck if explicitly set to false in URL
+    if (isDuplicate === 'false') {
+        document.getElementById('filterIsDuplicate').checked = false;
     }
+    
+    // Always apply filters on load (checkbox is checked by default)
+    applyFilters();
 });
 </script>
 {% endblock %}
