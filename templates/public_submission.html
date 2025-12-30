@@ -284,26 +284,26 @@
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-start mb-2">
                             <div>
-                                <h6 class="mb-0">${result.name || 'Unnamed Indicator'}</h6>
-                                <small class="text-muted">${result.id}</small>
+                                <h6 class="mb-0">${escapeHtml(result.name || 'Unnamed Indicator')}</h6>
+                                <small class="text-muted">${escapeHtml(result.id)}</small>
                             </div>
                             <span class="badge ${badgeClass}">
-                                ${threatLevel.toUpperCase()}
+                                ${escapeHtml(threatLevel.toUpperCase())}
                             </span>
                         </div>
-                        <p class="text-muted small mb-2">${result.description || 'No description'}</p>
+                        <p class="text-muted small mb-2">${escapeHtml(result.description || 'No description')}</p>
                         <div class="d-flex flex-wrap gap-2 mb-3">
-                            <span class="badge bg-light text-dark">Risk: ${result.risk_score || 0}%</span>
-                            <span class="badge bg-light text-dark">TLP: ${result.tlp || 'UNKNOWN'}</span>
-                            <span class="badge bg-light text-dark">Confidence: ${result.confidence || 'UNKNOWN'}</span>
+                            <span class="badge bg-light text-dark">Risk: ${escapeHtml(result.risk_score || 0)}%</span>
+                            <span class="badge bg-light text-dark">TLP: ${escapeHtml(result.tlp || 'UNKNOWN')}</span>
+                            <span class="badge bg-light text-dark">Confidence: ${escapeHtml(result.confidence || 'UNKNOWN')}</span>
                         </div>
                         
                         <!-- Validity Period -->
                         ${(result.valid_from || result.valid_until) ? `
                             <div class="mb-3">
                                 <small><strong>Validity Period:</strong></small><br>
-                                ${result.valid_from ? `<span class="badge bg-warning text-dark">From: ${new Date(result.valid_from).toLocaleDateString()}</span>` : ''}
-                                ${result.valid_until ? `<span class="badge bg-danger">Until: ${new Date(result.valid_until).toLocaleDateString()}</span>` : ''}
+                                ${result.valid_from ? `<span class="badge bg-warning text-dark">From: ${escapeHtml(new Date(result.valid_from).toLocaleDateString())}</span>` : ''}
+                                ${result.valid_until ? `<span class="badge bg-danger">Until: ${escapeHtml(new Date(result.valid_until).toLocaleDateString())}</span>` : ''}
                             </div>
                         ` : ''}
                         
@@ -311,7 +311,7 @@
                         ${result.campaigns && result.campaigns.length > 0 ? `
                             <div class="mb-3">
                                 <small><strong>Campaigns:</strong></small><br>
-                                ${result.campaigns.map(c => `<span class="badge bg-secondary">${c}</span>`).join('')}
+                                ${result.campaigns.map(c => `<span class="badge bg-secondary">${escapeHtml(c)}</span>`).join('')}
                             </div>
                         ` : ''}
                         
@@ -319,7 +319,7 @@
                         ${result.response_actions ? `
                             <div class="alert alert-warning py-2 px-3 mb-0">
                                 <small><strong><i class="bi bi-exclamation-triangle"></i> Response Actions:</strong></small><br>
-                                <small>${result.response_actions}</small>
+                                <small>${escapeHtml(result.response_actions)}</small>
                             </div>
                         ` : ''}
                     </div>
@@ -380,9 +380,9 @@
                 const successIcon = document.getElementById('successIcon');
                 const successTitle = document.getElementById('successTitle');
                 
-                document.getElementById('successMessage').innerHTML = `${data.id}`;
-                document.getElementById('statusLabel').innerHTML = statusData.status.toUpperCase();
-                document.getElementById('statusMessage').innerHTML = statusData.message;
+                document.getElementById('successMessage').textContent = data.id;
+                document.getElementById('statusLabel').textContent = statusData.status.toUpperCase();
+                document.getElementById('statusMessage').textContent = statusData.message;
                 
                 // Change appearance based on status
                 if (statusData.status === 'duplicate') {
@@ -390,7 +390,10 @@
                     successIcon.innerHTML = '<i class="bi bi-exclamation-triangle" style="color: #ff9800;"></i>';
                     successTitle.innerHTML = 'Duplicate Submission';
                     if (statusData.duplicate_of && statusData.duplicate_of.original_info) {
-                        document.getElementById('statusMessage').innerHTML += `<br><small class="text-muted">Duplicate of submission ${statusData.duplicate_of.submission_id} submitted on ${statusData.duplicate_of.submitted_at.substring(0, 10)} by ${statusData.duplicate_of.submitter}</small>`;
+                        const dupMsg = document.createElement('small');
+                        dupMsg.className = 'text-muted';
+                        dupMsg.innerHTML = `<br>Duplicate of submission ${escapeHtml(statusData.duplicate_of.submission_id)} submitted on ${escapeHtml(statusData.duplicate_of.submitted_at.substring(0, 10))} by ${escapeHtml(statusData.duplicate_of.submitter)}`;
+                        document.getElementById('statusMessage').appendChild(dupMsg);
                     }
                 } else if (statusData.status === 'created_ioc') {
                     statusAlert.className = 'alert alert-success mb-4';
@@ -401,7 +404,9 @@
                     successIcon.innerHTML = '<i class="bi bi-x-circle" style="color: #dc3545;"></i>';
                     successTitle.innerHTML = 'Submission Rejected';
                     if (statusData.rejection_reason) {
-                        document.getElementById('statusMessage').innerHTML += `<br><small>Reason: ${statusData.rejection_reason}</small>`;
+                        const reasonMsg = document.createElement('small');
+                        reasonMsg.innerHTML = `<br>Reason: ${escapeHtml(statusData.rejection_reason)}`;
+                        document.getElementById('statusMessage').appendChild(reasonMsg);
                     }
                 } else {
                     statusAlert.className = 'alert alert-info mb-4';
@@ -421,7 +426,7 @@
         const element = document.getElementById(elementId);
         element.innerHTML = `
             <div class="alert alert-danger">
-                <i class="bi bi-exclamation-circle"></i> ${message}
+                <i class="bi bi-exclamation-circle"></i> ${escapeHtml(message)}
             </div>
         `;
         element.style.display = 'block';

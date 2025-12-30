@@ -435,12 +435,12 @@ function validateValue() {
     const isValid = validators[type] && validators[type].test(value);
     
     if (isValid) {
-        validation.html('<i class="bi bi-check-circle"></i> Valid ' + type.toUpperCase() + ' format')
+        validation.html('<i class="bi bi-check-circle"></i> Valid ' + escapeHtml(type.toUpperCase()) + ' format')
             .removeClass('text-danger').addClass('text-success');
         updatePreview(type, value);
         return true;
     } else {
-        validation.html('<i class="bi bi-x-circle"></i> Invalid ' + type.toUpperCase() + ' format')
+        validation.html('<i class="bi bi-x-circle"></i> Invalid ' + escapeHtml(type.toUpperCase()) + ' format')
             .removeClass('text-success').addClass('text-danger');
         $('#previewContent').html('<p class="text-danger">Invalid value format</p>');
         return false;
@@ -453,11 +453,11 @@ function updatePreview(type, value) {
         let pattern;
         if (type === 'asn') {
             const asnNumber = value.toUpperCase().replace('AS', '');
-            pattern = patternTemplates[type].replace('{}', asnNumber);
+            pattern = patternTemplates[type].replace('{}', escapeHtml(asnNumber));
         } else {
-            pattern = patternTemplates[type].replace('{}', value);
+            pattern = patternTemplates[type].replace('{}', escapeHtml(value));
         }
-        const labels = $('#iocLabels').val().split(',').filter(l => l.trim()).map(l => `"${l.trim()}"`).join(', ');
+        const labels = $('#iocLabels').val().split(',').filter(l => l.trim()).map(l => `"${escapeHtml(l.trim())}"`).join(', ');
         
         $('#previewContent').html(`
             <p><strong>STIX Pattern:</strong></p>
@@ -505,7 +505,7 @@ $('#formatJsonBtn').click(function() {
         $('#jsonValidation').html('<i class="bi bi-check-circle"></i> JSON formatted')
             .removeClass('text-danger').addClass('text-success');
     } catch (e) {
-        $('#jsonValidation').html('<i class="bi bi-x-circle"></i> Invalid JSON: ' + e.message)
+        $('#jsonValidation').html('<i class="bi bi-x-circle"></i> Invalid JSON: ' + escapeHtml(e.message))
             .removeClass('text-success').addClass('text-danger');
     }
 });
@@ -541,7 +541,7 @@ function validateStixJson() {
             .removeClass('text-danger').addClass('text-success');
         return true;
     } catch (e) {
-        validation.html('<i class="bi bi-x-circle"></i> ' + e.message)
+        validation.html('<i class="bi bi-x-circle"></i> ' + escapeHtml(e.message))
             .removeClass('text-success').addClass('text-danger');
         return false;
     }
