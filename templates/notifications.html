@@ -174,7 +174,7 @@
 class NotificationPageManager {
     constructor() {
         this.allNotifications = [];
-        this.currentFilter = 'all';
+        this.currentFilter = '';  // Empty string matches the default select option
         this.unreadOnly = false;
         this.init();
     }
@@ -225,8 +225,8 @@ class NotificationPageManager {
     renderNotifications() {
         let filtered = this.allNotifications;
 
-        // Filter by level
-        if (this.currentFilter) {
+        // Filter by level (only if a specific level is selected, not 'all' or empty)
+        if (this.currentFilter && this.currentFilter !== 'all') {
             filtered = filtered.filter(n => n.level === this.currentFilter);
         }
 

@@ -776,3 +776,367 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         )
         
         return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
+# =====================================================
+# REGENERATION TASKS
+# =====================================================
+
+@shared_task(name='tasks.regenerate_ioc_report')
+def regenerate_ioc_report(ioc_id: str, user_id: str, correction_prompt: str, previous_report: str = ''):
+    """Regenerate an IOC report with correction instructions."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = regenerate_ioc_report.request.id
+    
+    try:
+        report_entry = {
+            'id': task_id,
+            'type': 'ioc',
+            'entity_id': ioc_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None,
+            'regenerated': True
+        }
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        try:
+            report_data = report_service.regenerate_ioc_report(ioc_id, correction_prompt, previous_report)
+            
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='ioc_regenerate',
+                    entity_id=ioc_id,
+                    entity_name=report_data.get('ioc_value', ioc_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            release_report_lock()
+        
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('ioc_value', ioc_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='ioc',
+            entity_name=f"{report_data.get('ioc_value', ioc_id)} (Regenerated)",
+            task_id=task_id
+        )
+        
+        audit.log(
+            action='report_regenerated',
+            entity_type='ioc',
+            entity_id=ioc_id,
+            username=user_id,
+            entity_name=f'IOC Report {ioc_id}',
+            changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
+@shared_task(name='tasks.regenerate_case_report')
+def regenerate_case_report(case_id: str, user_id: str, correction_prompt: str, previous_report: str = ''):
+    """Regenerate a case report with correction instructions."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = regenerate_case_report.request.id
+    
+    try:
+        report_entry = {
+            'id': task_id,
+            'type': 'case',
+            'entity_id': case_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None,
+            'regenerated': True
+        }
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        from app.services.case_service import CaseService
+        case_service = CaseService()
+        case = case_service.get_case(case_id)
+        
+        try:
+            report_data = report_service.regenerate_case_report(case_id, correction_prompt, previous_report)
+            
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='case_regenerate',
+                    entity_id=case_id,
+                    entity_name=report_data.get('case_name', case_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            release_report_lock()
+        
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('case_name', case_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='case',
+            entity_name=f"{report_data.get('case_name', case_id)} (Regenerated)",
+            task_id=task_id
+        )
+        
+        audit.log(
+            action='report_regenerated',
+            entity_type='case',
+            entity_id=case_id,
+            username=user_id,
+            entity_name=f'Case Report {case_id}',
+            changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
+@shared_task(name='tasks.regenerate_incident_report')
+def regenerate_incident_report(incident_id: str, user_id: str, correction_prompt: str, previous_report: str = ''):
+    """Regenerate an incident report with correction instructions."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = regenerate_incident_report.request.id
+    
+    try:
+        report_entry = {
+            'id': task_id,
+            'type': 'incident',
+            'entity_id': incident_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None,
+            'regenerated': True
+        }
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        from app.services.case_service import IncidentService
+        incident_service = IncidentService()
+        incident = incident_service.get_incident(incident_id)
+        
+        try:
+            report_data = report_service.regenerate_incident_report(incident_id, correction_prompt, previous_report)
+            
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='incident_regenerate',
+                    entity_id=incident_id,
+                    entity_name=report_data.get('incident_name', incident_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            release_report_lock()
+        
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('incident_name', incident_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='incident',
+            entity_name=f"{report_data.get('incident_name', incident_id)} (Regenerated)",
+            task_id=task_id
+        )
+        
+        audit.log(
+            action='report_regenerated',
+            entity_type='incident',
+            entity_id=incident_id,
+            username=user_id,
+            entity_name=f'Incident Report {incident_id}',
+            changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
+@shared_task(name='tasks.regenerate_checklist_report')
+def regenerate_checklist_report(checklist_id: str, user_id: str, correction_prompt: str, previous_report: str = ''):
+    """Regenerate a checklist report with correction instructions."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = regenerate_checklist_report.request.id
+    
+    try:
+        report_entry = {
+            'id': task_id,
+            'type': 'checklist',
+            'entity_id': checklist_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None,
+            'regenerated': True
+        }
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        from app.services.checklist_service import ChecklistService
+        checklist_service = ChecklistService()
+        checklist = checklist_service.get_checklist(checklist_id)
+        
+        try:
+            report_data = report_service.regenerate_checklist_report(checklist_id, correction_prompt, previous_report)
+            
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='checklist_regenerate',
+                    entity_id=checklist_id,
+                    entity_name=report_data.get('checklist_title', checklist_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            release_report_lock()
+        
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('checklist_title', checklist_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='checklist',
+            entity_name=f"{report_data.get('checklist_title', checklist_id)} (Regenerated)",
+            task_id=task_id
+        )
+        
+        audit.log(
+            action='report_regenerated',
+            entity_type='checklist',
+            entity_id=checklist_id,
+            username=user_id,
+            entity_name=f'Checklist Report {checklist_id}',
+            changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
