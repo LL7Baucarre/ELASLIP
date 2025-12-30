@@ -154,7 +154,9 @@ class NotificationManager {
             
             const iconDiv = document.createElement('div');
             iconDiv.className = 'notification-icon';
-            iconDiv.innerHTML = icon;
+            const iconTemp = document.createElement('template');
+            iconTemp.innerHTML = icon;
+            iconDiv.appendChild(iconTemp.content.firstElementChild);
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'notification-content';
