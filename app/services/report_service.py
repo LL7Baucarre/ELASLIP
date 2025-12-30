@@ -1014,16 +1014,11 @@ Please provide in **Markdown format**:
                 iocs_details += f"   - Status: {ioc_status}\n"
                 iocs_details += f"   - Description: {ioc_desc[:150]}{'...' if len(ioc_desc) > 150 else ''}\n"
         
-        # Build detailed timeline section
+        # Build detailed timeline section with rich content
         timeline_details = ""
         if timeline:
             timeline_details = "### Detailed Timeline\n"
-            for event in timeline[:20]:
-                timestamp = event.get('event_time', event.get('timestamp', 'Unknown'))
-                event_type = event.get('event_type', event.get('type', 'Event'))
-                description = event.get('description', '')
-                timeline_details += f"\n**[{timestamp}] {event_type}**\n"
-                timeline_details += f"   {description}\n"
+            timeline_details += self._build_detailed_timeline_context(timeline, max_events=20)
         
         # Build detailed comments section
         comments_details = ""
@@ -1121,6 +1116,74 @@ Based on the complete investigation:
 
 **IMPORTANT:** This report must be specific, detailed, and reference actual data from the case, incidents, IOCs, timeline, and analyst comments provided. Avoid generic statements. Output plain formatted text, not a code block."""
     
+    
+    def _build_detailed_timeline_context(self, timeline: List[Dict], max_events: int = 15) -> str:
+        """
+        Build detailed context for timeline events including titles and content.
+        
+        Args:
+            timeline: List of timeline event documents
+            max_events: Maximum number of events to include
+            
+        Returns:
+            Formatted string with detailed timeline information
+        """
+        if not timeline:
+            return "No timeline events"
+        
+        detailed_events = []
+        
+        for idx, event in enumerate(timeline[:max_events], 1):
+            try:
+                # Extract event details
+                timestamp = event.get('event_time', event.get('timestamp', 'Unknown'))
+                event_type = event.get('event_type', event.get('type', 'Event'))
+                title = event.get('title', '')
+                content = event.get('content', '')
+                description = event.get('description', '')
+                created_by = event.get('created_by_name', 'Unknown')
+                
+                # Prefer title and content over description for richer details
+                event_details = title or description or 'No details provided'
+                
+                # Extract key information from content if available
+                content_summary = ""
+                if content and len(content) > 50:
+                    # Try to extract first paragraph or key line from content
+                    lines = content.split('\n')
+                    # Skip markdown headers and find actual content
+                    for line in lines:
+                        if line.strip() and not line.startswith('#'):
+                            content_summary = line.strip()
+                            break
+                    if not content_summary and lines:
+                        content_summary = lines[0].strip()
+                
+                # Format the event entry with clear hierarchy
+                event_type_display = event_type.replace('_', ' ').title()
+                
+                event_entry = (
+                    f"**Event #{idx}**: [{timestamp}]\n"
+                    f"   Type: {event_type_display}\n"
+                    f"   Title: {event_details[:100]}{'...' if len(event_details) > 100 else ''}\n"
+                    f"   Analyst: {created_by}"
+                )
+                
+                # Add content summary if available
+                if content_summary:
+                    event_entry += f"\n   Details: {content_summary[:150]}{'...' if len(content_summary) > 150 else ''}"
+                
+                detailed_events.append(event_entry)
+                
+            except Exception:
+                # Fallback to simple format if detailed extraction fails
+                continue
+        
+        if not detailed_events:
+            return "No timeline events with details"
+        
+        return "\n\n".join(detailed_events)
+    
     def _build_incident_prompt(self, incident: Dict, iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for incident analysis."""
         if timeline is None:
@@ -1154,16 +1217,10 @@ Based on the complete investigation:
             except KeyError:
                 pass
         
-        # Format timeline events
+        # Format timeline events with rich details
         timeline_text = "No timeline events"
         if timeline:
-            event_list = []
-            for event in timeline[:15]:  # Limit to 15 events
-                timestamp = event.get('event_time', event.get('timestamp', 'Unknown'))
-                event_type = event.get('event_type', event.get('type', 'Event'))
-                description = event.get('description', '')
-                event_list.append(f"  - [{timestamp}] {event_type}: {description}")
-            timeline_text = '\n'.join(event_list)
+            timeline_text = self._build_detailed_timeline_context(timeline, max_events=15)
         
         # Format comments from the comments parameter
         comments_text = "No analyst comments"
