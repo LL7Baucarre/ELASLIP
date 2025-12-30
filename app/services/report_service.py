@@ -635,6 +635,37 @@ class ReportService:
                 relation_type_display = relation_type.replace('_', ' ').title()
                 ioc_type_display = related_type if related_type != 'indicator' else 'Indicator'
                 
+                # Get relations of the related IOC itself to show threat chain
+                related_ioc_relations = self._get_ioc_relations(other_id)
+                related_ioc_context = ""
+                
+                if related_ioc_relations:
+                    # Filter out back-references to the main IOC
+                    secondary_relations = []
+                    for rel in related_ioc_relations[:3]:  # Limit to 3 secondary relations
+                        rel_source = rel.get('source_id')
+                        rel_target = rel.get('target_id')
+                        
+                        # Skip if this relation just points back to main IOC
+                        if rel_source == ioc.get('id') or rel_target == ioc.get('id'):
+                            continue
+                        
+                        # Get the OTHER IOC in this secondary relation
+                        sec_other_id = rel_target if rel_source == other_id else rel_source
+                        secondary_ioc = self.ioc_service.get(sec_other_id)
+                        
+                        if secondary_ioc:
+                            sec_value = secondary_ioc.get('value') or secondary_ioc.get('pattern', 'Unknown')
+                            if sec_value.startswith('[') and '=' in sec_value:
+                                sec_value = sec_value.split("'")[1] if "'" in sec_value else sec_value
+                            
+                            sec_threat = secondary_ioc.get('x_metadata', {}).get('threat_level', secondary_ioc.get('severity', 'unknown'))
+                            rel_type_display = rel.get('relation_type', 'related').replace('_', ' ').title()
+                            secondary_relations.append(f"- This indicator **{rel_type_display}** {sec_value} (Threat: {sec_threat})")
+                    
+                    if secondary_relations:
+                        related_ioc_context = "\n   Related Connections of this Indicator:\n   " + "\n   ".join(secondary_relations)
+                
                 relation_entry = (
                     f"**Indicator #{idx}**:\n"
                     f"   Relationship: This IOC **{relation_type_display}** another indicator\n"
@@ -642,7 +673,7 @@ class ReportService:
                     f"   Related IOC Value: {related_value}\n"
                     f"   Threat Level: {related_threat}\n"
                     f"   Details: {related_description[:150]}{'...' if len(related_description) > 150 else ''}\n"
-                    f"   Connection Reason: {relation_explanation}"
+                    f"   Connection Reason: {relation_explanation}{related_ioc_context}"
                 )
                 
                 detailed_relations.append(relation_entry)
@@ -668,17 +699,42 @@ class ReportService:
         """
         common = []
         
+        # Helper function to safely convert sources to a set of strings
+        def get_sources_set(ioc):
+            try:
+                sources = ioc.get('x_metadata', {}).get('sources', ioc.get('sources', []))
+                if isinstance(sources, list):
+                    # Filter out dict items, convert rest to strings
+                    return set(str(s) if not isinstance(s, dict) else s.get('name', '') for s in sources if s and (not isinstance(s, dict) or s.get('name')))
+                elif isinstance(sources, dict):
+                    return set(sources.keys()) if sources else set()
+                return set()
+            except:
+                return set()
+        
         # Check for common sources
-        sources1 = set(ioc1.get('x_metadata', {}).get('sources', ioc1.get('sources', [])))
-        sources2 = set(ioc2.get('x_metadata', {}).get('sources', ioc2.get('sources', [])))
+        sources1 = get_sources_set(ioc1)
+        sources2 = get_sources_set(ioc2)
         if sources1 and sources2:
             common_sources = sources1 & sources2
             if common_sources:
                 common.append(f"Both observed in sources: {', '.join(list(common_sources)[:2])}")
         
+        # Helper function to safely convert campaigns to a set
+        def get_campaigns_set(ioc):
+            try:
+                campaigns = ioc.get('x_metadata', {}).get('campaigns', ioc.get('campaigns', []))
+                if isinstance(campaigns, list):
+                    return set(str(c) if not isinstance(c, dict) else c.get('name', '') for c in campaigns if c and (not isinstance(c, dict) or c.get('name')))
+                elif isinstance(campaigns, dict):
+                    return set(campaigns.keys()) if campaigns else set()
+                return set()
+            except:
+                return set()
+        
         # Check for common campaigns
-        campaigns1 = set(ioc1.get('x_metadata', {}).get('campaigns', ioc1.get('campaigns', [])))
-        campaigns2 = set(ioc2.get('x_metadata', {}).get('campaigns', ioc2.get('campaigns', [])))
+        campaigns1 = get_campaigns_set(ioc1)
+        campaigns2 = get_campaigns_set(ioc2)
         if campaigns1 and campaigns2:
             common_campaigns = campaigns1 & campaigns2
             if common_campaigns:
