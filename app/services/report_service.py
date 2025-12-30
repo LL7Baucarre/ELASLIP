@@ -668,17 +668,42 @@ class ReportService:
         """
         common = []
         
+        # Helper function to safely convert sources to a set of strings
+        def get_sources_set(ioc):
+            try:
+                sources = ioc.get('x_metadata', {}).get('sources', ioc.get('sources', []))
+                if isinstance(sources, list):
+                    # Filter out dict items, convert rest to strings
+                    return set(str(s) if not isinstance(s, dict) else s.get('name', '') for s in sources if s and (not isinstance(s, dict) or s.get('name')))
+                elif isinstance(sources, dict):
+                    return set(sources.keys()) if sources else set()
+                return set()
+            except:
+                return set()
+        
         # Check for common sources
-        sources1 = set(ioc1.get('x_metadata', {}).get('sources', ioc1.get('sources', [])))
-        sources2 = set(ioc2.get('x_metadata', {}).get('sources', ioc2.get('sources', [])))
+        sources1 = get_sources_set(ioc1)
+        sources2 = get_sources_set(ioc2)
         if sources1 and sources2:
             common_sources = sources1 & sources2
             if common_sources:
                 common.append(f"Both observed in sources: {', '.join(list(common_sources)[:2])}")
         
+        # Helper function to safely convert campaigns to a set
+        def get_campaigns_set(ioc):
+            try:
+                campaigns = ioc.get('x_metadata', {}).get('campaigns', ioc.get('campaigns', []))
+                if isinstance(campaigns, list):
+                    return set(str(c) if not isinstance(c, dict) else c.get('name', '') for c in campaigns if c and (not isinstance(c, dict) or c.get('name')))
+                elif isinstance(campaigns, dict):
+                    return set(campaigns.keys()) if campaigns else set()
+                return set()
+            except:
+                return set()
+        
         # Check for common campaigns
-        campaigns1 = set(ioc1.get('x_metadata', {}).get('campaigns', ioc1.get('campaigns', [])))
-        campaigns2 = set(ioc2.get('x_metadata', {}).get('campaigns', ioc2.get('campaigns', [])))
+        campaigns1 = get_campaigns_set(ioc1)
+        campaigns2 = get_campaigns_set(ioc2)
         if campaigns1 and campaigns2:
             common_campaigns = campaigns1 & campaigns2
             if common_campaigns:
