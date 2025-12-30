@@ -12,6 +12,243 @@ from app.config import Config
 import os
 
 
+# Default prompt templates - Optimized for LLM generation
+DEFAULT_PROMPT_IOC = """You are a senior threat intelligence analyst. Analyze the following Indicator of Compromise (IOC) and generate a professional threat assessment report.
+
+## INPUT DATA
+
+**IOC Type:** {type}
+**IOC Value:** {value}
+**Threat Level:** {severity}
+**Description:** {description}
+
+**Related Indicators:**
+{relations}
+
+## YOUR TASK
+
+Generate a comprehensive threat assessment in Markdown format with the following sections:
+
+### 1. Executive Summary
+Write 2-3 sentences summarizing what this IOC represents and its threat significance.
+
+### 2. Threat Analysis
+- What type of threat does this indicator represent?
+- What attack techniques or malware families is it associated with?
+- What is the potential impact if this IOC is detected in an environment?
+
+### 3. Related Indicators Analysis
+For each related indicator provided:
+- Explain the connection between indicators
+- Describe how they work together in an attack chain
+- Assess the combined threat level
+
+### 4. Detection & Response
+- How to detect this IOC in your environment
+- Immediate actions to take if detected
+- Tools and techniques for investigation
+
+### 5. Mitigation Recommendations
+- Short-term containment actions
+- Long-term remediation steps
+- Prevention measures
+
+## OUTPUT FORMAT
+- Use Markdown formatting with headers, bullet points, and bold text
+- Be specific and actionable
+- Reference the actual IOC values provided
+- Do NOT wrap the response in code blocks"""
+
+DEFAULT_PROMPT_CASE = """You are a senior security incident response analyst. Generate a comprehensive investigation report for the following security case.
+
+## CASE INFORMATION
+
+**Case Name:** {name}
+**Status:** {status}
+**Priority:** {priority}
+**Severity:** {severity}
+**Assigned To:** {assigned_to}
+**Description:** {description}
+
+**Associated Data:**
+- Incidents: {incidents_count}
+- Indicators of Compromise: {iocs_count}
+
+{timeline_details}
+
+{incidents_details}
+
+{iocs_details}
+
+{comments_details}
+
+## YOUR TASK
+
+Generate a professional security investigation report with the following sections:
+
+### 1. Executive Summary
+Provide a 3-4 sentence overview of the case, key findings, and current status.
+
+### 2. Timeline of Events
+Reconstruct the attack timeline chronologically using the provided events. Include:
+- Initial detection
+- Key milestones
+- Current state
+
+### 3. Threat Assessment
+- Nature and scope of the threat
+- Attack methodology identified
+- Threat actor assessment (if identifiable)
+
+### 4. Technical Analysis
+For each IOC:
+- Its role in the attack
+- How it relates to the incidents
+- Threat significance
+
+### 5. Impact Assessment
+- Affected systems and assets
+- Business impact
+- Data exposure risk
+
+### 6. Investigation Findings
+Synthesize analyst observations and key discoveries.
+
+### 7. Recommendations
+- Immediate containment actions
+- Remediation steps
+- Detection improvements
+- Lessons learned
+
+### 8. Risk Rating
+Provide overall risk assessment (Critical/High/Medium/Low) with justification.
+
+## OUTPUT FORMAT
+- Use Markdown formatting
+- Be specific and reference actual data from the case
+- Provide actionable recommendations
+- Do NOT wrap response in code blocks"""
+
+DEFAULT_PROMPT_INCIDENT = """You are a security incident response specialist. Analyze the following security incident and generate a detailed incident report.
+
+## INCIDENT DATA
+
+**Incident Name:** {name}
+**Type:** {type}
+**Severity:** {severity}
+**Status:** {status}
+**Description:** {description}
+
+**Timeline:**
+{timeline}
+
+**Analyst Comments:**
+{comments}
+
+**MITRE ATT&CK:**
+{tactics}
+
+**Associated IOCs ({iocs_count}):**
+{iocs}
+
+## YOUR TASK
+
+Generate a comprehensive incident report with the following sections:
+
+### 1. Incident Summary
+Summarize the incident in 3-4 sentences: what happened, when, and current status.
+
+### 2. Attack Vector Analysis
+- Initial access method
+- Attack progression
+- MITRE ATT&CK techniques used
+- Attacker objectives
+
+### 3. Affected Assets
+- Systems compromised
+- Data at risk
+- Scope of impact
+
+### 4. Indicators of Compromise
+For each IOC:
+- What it indicates
+- Its role in the attack
+- Detection priority
+
+### 5. Response Actions
+- Actions already taken
+- Recommended next steps
+- Escalation requirements
+
+### 6. Root Cause Analysis
+What allowed this incident to occur and what can prevent recurrence.
+
+### 7. Lessons Learned
+Key takeaways and security improvements needed.
+
+## OUTPUT FORMAT
+- Use Markdown with headers and bullet points
+- Be specific and actionable
+- Reference actual incident data
+- Do NOT wrap response in code blocks"""
+
+DEFAULT_PROMPT_CHECKLIST = """You are a security operations analyst. Generate a work completion report based on the following security checklist.
+
+## CHECKLIST INFORMATION
+
+**Title:** {name}
+**Description:** {description}
+**Created By:** {created_by}
+**Assigned To:** {assigned_to}
+**Tags:** {tags}
+**Related Campaigns:** {campaigns}
+**Related Cases:** {related_cases}
+**Related Incidents:** {related_incidents}
+
+**Completed Work Items:**
+{items}
+
+**Team Comments:**
+{global_comments}
+
+## YOUR TASK
+
+Generate a professional work completion report with the following sections:
+
+### 1. Executive Summary
+Summarize what was accomplished, by whom, and the overall outcome.
+
+### 2. Work Completed
+For each completed item:
+- What was done
+- Why it was important
+- Key outcomes or findings
+
+### 3. Security Impact
+- How this work improves security posture
+- Risks mitigated
+- Compliance improvements (if applicable)
+
+### 4. Key Findings
+Notable discoveries or issues identified during the work.
+
+### 5. Recommendations
+- Follow-up actions needed
+- Additional security measures to consider
+- Process improvements
+
+### 6. Metrics
+- Items completed vs total
+- Time to completion
+- Resources used
+
+## OUTPUT FORMAT
+- Use Markdown formatting
+- Be clear and professional
+- Reference actual work items and comments
+- Do NOT wrap response in code blocks"""
+
+
 class ReportService:
     """Service to generate reports using LLM providers."""
     
@@ -56,6 +293,10 @@ class ReportService:
     
     def is_configured(self) -> bool:
         """Check if LLM is properly configured."""
+        # Check basic config first
+        if not self.llm_url or not self.llm_model:
+            return False
+        
         provider = self._detect_llm_provider()
         try:
             if provider == 'openai':

@@ -513,6 +513,22 @@ body {
     gap: 10px;
 }
 
+.sidebar .user-info-link {
+    flex: 1;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: -8px -10px -8px -10px;
+    transition: all 0.3s ease;
+}
+
+.sidebar .user-info-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateX(4px);
+}
+
 .sidebar .user-info .user-name {
     display: flex;
     align-items: center;
@@ -521,6 +537,10 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.sidebar .user-info-link:hover .user-name {
+    color: rgba(255,255,255,0.95);
 }
 
 .sidebar .user-info .theme-toggle {
