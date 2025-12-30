@@ -73,7 +73,7 @@ def get_report_config():
     return jsonify({
         'enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true',
         'provider': os.getenv('LLM_PROVIDER', 'auto'),
-        'url': os.getenv('LLM_URL', 'http://ollama:11434'),
+        'url': os.getenv('LLM_URL', 'https://ollama:11434'),
         'model': os.getenv('LLM_MODEL', 'mistral'),
         'api_key': os.getenv('LLM_API_KEY', ''),
         'generation_language': os.getenv('LLM_GENERATION_LANGUAGE', 'en'),
@@ -104,7 +104,7 @@ def test_llm_connection():
           properties:
             url:
               type: string
-              default: "http://ollama:11434"
+              default: "https://ollama:11434"
             provider:
               type: string
               default: "auto"
@@ -250,7 +250,7 @@ def get_available_models():
           properties:
             url:
               type: string
-              default: "http://ollama:11434"
+              default: "https://ollama:11434"
             provider:
               type: string
               default: "auto"
@@ -273,9 +273,20 @@ def get_available_models():
         return jsonify({'error': 'Admin access required'}), 403
     
     data = request.get_json()
-    llm_url = data.get('url', os.getenv('LLM_URL', 'http://ollama:11434')).rstrip('/')  # Remove trailing slashes
+    llm_url = data.get('url', os.getenv('LLM_URL', 'https://ollama:11434')).rstrip('/')  # Remove trailing slashes
     provider = data.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
     api_key = data.get('api_key', os.getenv('LLM_API_KEY', ''))
+    
+    # Validate URL scheme - only allow https or localhost/127.0.0.1 for http
+    if not (llm_url.startswith('https://') or 
+            llm_url.startswith('http://localhost:') or 
+            llm_url.startswith('http://127.0.0.1:') or
+            llm_url.startswith('http://[::1]:')):
+        return jsonify({
+            'models': [],
+            'error': 'Invalid URL: only HTTPS or localhost HTTP are allowed',
+            'success': False
+        }), 400
     
     try:
         import requests
@@ -401,7 +412,7 @@ def update_report_config():
               default: "auto"
             url:
               type: string
-              default: "http://ollama:11434"
+              default: "https://ollama:11434"
             model:
               type: string
               default: "mistral"
@@ -441,7 +452,7 @@ def update_report_config():
     config = {
         'enabled': data.get('enabled', False),
         'provider': data.get('provider', 'auto'),
-        'url': data.get('url', 'http://ollama:11434'),
+        'url': data.get('url', 'https://ollama:11434'),
         'model': data.get('model', 'mistral'),
         'api_key': data.get('api_key', ''),
         'generation_language': data.get('generation_language', 'en'),

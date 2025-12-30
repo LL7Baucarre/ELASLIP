@@ -23,26 +23,59 @@ function renderPagination(total, page, perPage, elementId = 'paginationList', ca
     const paginationList = document.getElementById(elementId);
     if (!paginationList) return;
 
+    // Clear existing pagination
+    paginationList.innerHTML = '';
+
     if (totalPages <= 1) {
-        paginationList.innerHTML = '';
         return;
     }
 
-    let html = `<li class="page-item ${page === 1 ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="if(window.${callback}) window.${callback}(${page - 1}); return false;">&laquo;</a>
-    </li>`;
-
-    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-        html += `<li class="page-item ${page === i ? 'active' : ''}">
-            <a class="page-link" href="#" onclick="if(window.${callback}) window.${callback}(${i}); return false;">${i}</a>
-        </li>`;
+    // Helper function to create pagination item
+    function createPageItem(label, pageNum, disabled) {
+        const li = document.createElement('li');
+        li.className = `page-item ${disabled ? 'disabled' : ''}`;
+        
+        const a = document.createElement('a');
+        a.className = 'page-link';
+        a.href = '#';
+        a.textContent = label;
+        
+        if (!disabled) {
+            a.dataset.page = pageNum;
+        }
+        
+        li.appendChild(a);
+        return li;
     }
 
-    html += `<li class="page-item ${page === totalPages ? 'disabled' : ''}">
-        <a class="page-link" href="#" onclick="if(window.${callback}) window.${callback}(${page + 1}); return false;">&raquo;</a>
-    </li>`;
+    // Previous button
+    const prevItem = createPageItem('«', Math.max(1, page - 1), page === 1);
+    paginationList.appendChild(prevItem);
 
-    paginationList.innerHTML = html;
+    // Page numbers
+    for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+        const item = createPageItem(i, i, false);
+        if (i === page) {
+            item.classList.add('active');
+        }
+        paginationList.appendChild(item);
+    }
+
+    // Next button
+    const nextItem = createPageItem('»', Math.min(totalPages, page + 1), page === totalPages);
+    paginationList.appendChild(nextItem);
+
+    // Add event listener with delegation
+    paginationList.addEventListener('click', (e) => {
+        const link = e.target.closest('a[data-page]');
+        if (!link) return;
+        
+        e.preventDefault();
+        const pageNum = parseInt(link.dataset.page);
+        if (typeof window[callback] === 'function') {
+            window[callback](pageNum);
+        }
+    });
 }
 
 /**

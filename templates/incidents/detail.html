@@ -576,7 +576,7 @@ function deleteTimelineEvent(eventId) {
 
 // IOCs
 function loadIOCs() {
-    const iocIds = {{ incident.ioc_ids | tojson | safe }};
+    const iocIds = {{ incident.ioc_ids | tojson }};
     document.getElementById('iocCount').textContent = iocIds.length;
     
     const container = document.getElementById('iocsContainer');
