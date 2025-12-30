@@ -20,7 +20,6 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Advanced Search** - Full-text and pattern-based search capabilities
 -  **IOC Graph** - Visual relationship mapping and search
 -  **API** - Token-based authentication for programmatic usage
--  **Versioning** - Complete IOC version history with restore capability
 -  **Activity Timeline** - Comprehensive audit trail of all actions in app
 -  **Dark Mode** - Eye-friendly dark theme support
 -  **Import/Export** - Support for STIX, MISP, OpenIOC, and IODEF formats
@@ -62,7 +61,6 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 
 #### IOC Management
 
--  **Version Control** - Full history, view changes, restore previous versions
 -  **Bulk Operations** - Select multiple, bulk update/delete/export
 -  **Expiration Automation** - Set validity dates, auto-detect expired, schedule archival
 -  **Enrichment Cache** - API response caching
@@ -346,8 +344,6 @@ flask  run  --debug
 -  `ioc` - IOC indicators
 
 -  `ioc_relations` - IOC relationships
-
--  `ioc_versions` - Version history
 
 -  `cases`, `incidents` - Investigation data
 

@@ -120,8 +120,13 @@
 }
 
 [data-theme="dark"] .alert-info {
-    background-color: rgba(52, 152, 219, 0.1);
+    background-color: rgba(52, 152, 219, 0.15);
     border-color: #3498db;
+    color: #d4edfa;
+}
+
+[data-theme="dark"] .alert-info strong {
+    color: #d4edfa;
 }
 
 [data-theme="dark"] .alert-success {
@@ -137,6 +142,27 @@
 [data-theme="dark"] .alert-danger {
     background-color: rgba(231, 76, 60, 0.1);
     border-color: #e74c3c;
+}
+
+[data-theme="dark"] .table-info {
+    background-color: #2a3f5f !important;
+    color: #000000 !important;
+}
+
+[data-theme="dark"] .table-info * {
+    color: #000000 !important;
+}
+
+[data-theme="dark"] .table-info a {
+    color: #000000 !important;
+}
+
+[data-theme="dark"] .table-info strong,
+[data-theme="dark"] .table-info small,
+[data-theme="dark"] .table-info td,
+[data-theme="dark"] .table-info button,
+[data-theme="dark"] .table-info .badge {
+    color: #000000 !important;
 }
 
 [data-theme="dark"] input::placeholder,
