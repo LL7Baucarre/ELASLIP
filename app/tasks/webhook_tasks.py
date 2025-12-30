@@ -27,7 +27,7 @@ def dispatch_webhook(self, event: str, data: Dict[str, Any]):
         'query': {
             'bool': {
                 'must': [
-                    {'term': {'enabled': True}},
+                    {'term': {'is_enabled': True}},
                     {'term': {'events': event}}
                 ]
             }
@@ -40,17 +40,18 @@ def dispatch_webhook(self, event: str, data: Dict[str, Any]):
         webhook['id'] = hit['_id']
         
         # Send webhook asynchronously
-        send_webhook.delay(webhook['id'], webhook['url'], event, data)
+        send_webhook.delay(webhook['id'], webhook['url'], webhook.get('name', 'Unknown'), event, data)
 
 
 @celery.task(bind=True, max_retries=3, default_retry_delay=5)
-def send_webhook(self, webhook_id: str, url: str, event: str, data: Dict[str, Any]):
+def send_webhook(self, webhook_id: str, url: str, webhook_name: str, event: str, data: Dict[str, Any]):
     """
     Send a webhook request.
     
     Args:
         webhook_id: Webhook ID for logging
         url: Destination URL
+        webhook_name: Name of the webhook
         event: Event type
         data: Event data
     """
@@ -66,6 +67,8 @@ def send_webhook(self, webhook_id: str, url: str, event: str, data: Dict[str, An
     log_entry = {
         'id': secrets.token_hex(16),
         'webhook_id': webhook_id,
+        'webhook_name': webhook_name,
+        'event': event,
         'event_type': event,
         'payload': payload,
         'timestamp': datetime.utcnow().isoformat(),

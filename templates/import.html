@@ -312,7 +312,7 @@ function showImportResult(data) {
         $('#progressStatus').text('Completed');
         
         const stats = data.stats || data;
-        showAlert(`Import completed: ${stats.imported || 0} IOCs imported, ${stats.duplicates || 0} duplicates`, 'success');
+        showAlert(`Import completed: ${stats.duplicates || 0} duplicates`, 'success');
         
         // Add to recent imports
         addRecentImport(stats);

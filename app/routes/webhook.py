@@ -19,7 +19,18 @@ WEBHOOK_EVENTS = [
     'ioc.updated',
     'ioc.deleted',
     'import.completed',
-    'public_submission.created'
+    'public_submission.created',
+    'incident.created',
+    'incident.updated',
+    'case.created',
+    'case.updated',
+    'checklist.created',
+    'checklist.updated',
+    'report.llm_created',
+    'report.llm_ioc',
+    'report.llm_incident',
+    'report.llm_case',
+    'report.llm_checklist'
 ]
 
 
@@ -97,7 +108,8 @@ def create_webhook():
         'name': data['name'],
         'url': url,
         'events': events,
-        'enabled': data.get('enabled', True),
+        'secret': data.get('secret'),
+        'is_enabled': data.get('is_enabled', True),
         'created_at': datetime.utcnow().isoformat(),
         'updated_at': datetime.utcnow().isoformat()
     }
@@ -128,7 +140,7 @@ def get_webhook(webhook_id):
     
     webhook['id'] = webhook_id
     
-    return jsonify(webhook)
+    return jsonify({'webhook': webhook})
 
 
 @webhook_bp.route('/<webhook_id>', methods=['PUT'])
@@ -167,8 +179,12 @@ def update_webhook(webhook_id):
             }), 400
     
     # Update allowed fields
-    allowed_fields = ['name', 'url', 'events', 'enabled']
+    allowed_fields = ['name', 'url', 'events', 'secret']
     update_doc = {'updated_at': datetime.utcnow().isoformat()}
+    
+    # Handle is_enabled field
+    if 'is_enabled' in data:
+        update_doc['is_enabled'] = data['is_enabled']
     
     for field in allowed_fields:
         if field in data:

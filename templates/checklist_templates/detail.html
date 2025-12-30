@@ -108,6 +108,11 @@
                 </div>
                 <div class="card-body">
                     <dl class="row">
+                        <dt class="col-sm-5">Template ID:</dt>
+                        <dd class="col-sm-7">
+                            <code style="font-size: 0.85rem;">{{ template.id }}</code>
+                        </dd>
+                        
                         <dt class="col-sm-5">Created:</dt>
                         <dd class="col-sm-7">{{ template.created_at[:19] if template.created_at else '-' }}</dd>
                         

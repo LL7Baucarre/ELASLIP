@@ -23,7 +23,7 @@ def get_report_config():
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     responses:
       200:
         description: LLM configuration retrieved
@@ -94,7 +94,7 @@ def test_llm_connection():
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: body
         name: body
@@ -149,16 +149,8 @@ def test_llm_connection():
             try:
                 headers = {'Content-Type': 'application/json'}
                 if api_key:
-                    # Encode API key properly for HTTP headers
-                    api_key_str = api_key if isinstance(api_key, str) else str(api_key)
-                    try:
-                        # Try to use the key as-is if it's ASCII
-                        api_key_str.encode('ascii')
-                        headers['Authorization'] = f'Bearer {api_key_str}'
-                    except UnicodeEncodeError:
-                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1
-                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
-                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                    # Use API key in standard Authorization header format
+                    headers['Authorization'] = f'Bearer {api_key}'
                 
                 test_url = f"{llm_url}/v1/models"
                 response = requests.get(test_url, headers=headers, timeout=5)
@@ -248,7 +240,7 @@ def get_available_models():
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: body
         name: body
@@ -296,17 +288,8 @@ def get_available_models():
             try:
                 headers = {'Content-Type': 'application/json'}
                 if api_key:
-                    # Encode API key properly for HTTP headers
-                    # Convert to string if bytes, then encode to UTF-8 bytes, then decode as latin-1
-                    api_key_str = api_key if isinstance(api_key, str) else str(api_key)
-                    try:
-                        # Try to use the key as-is if it's ASCII
-                        api_key_str.encode('ascii')
-                        headers['Authorization'] = f'Bearer {api_key_str}'
-                    except UnicodeEncodeError:
-                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
-                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
-                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                    # OpenAI-compatible endpoints expect Bearer token in Authorization header
+                    headers['Authorization'] = f'Bearer {api_key}'
                 
                 test_url = f"{llm_url}/v1/models"
                 response = requests.get(test_url, headers=headers, timeout=5)
@@ -403,7 +386,7 @@ def update_report_config():
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: body
         name: body
@@ -508,7 +491,7 @@ def generate_ioc_report(ioc_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: ioc_id
@@ -583,7 +566,7 @@ def generate_case_report(case_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: case_id
@@ -663,7 +646,7 @@ def generate_incident_report(incident_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: incident_id
@@ -738,7 +721,7 @@ def generate_checklist_report(checklist_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: checklist_id
@@ -833,7 +816,7 @@ def get_task_status(task_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: task_id
@@ -925,7 +908,7 @@ def get_report_status(task_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: task_id
@@ -975,7 +958,7 @@ def list_reports():
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: query
         name: page
@@ -1057,7 +1040,7 @@ def view_report(task_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: task_id
@@ -1137,7 +1120,7 @@ def delete_report(task_id):
     tags:
       - Reports
     security:
-      - Bearer: []
+      - APIKey: []
     parameters:
       - in: path
         name: task_id

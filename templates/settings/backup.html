@@ -1,0 +1,616 @@
+{% extends "base.html" %}
+
+{% block title %}Backup & Restore - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0">Backup & Restore</h4>
+        <small class="text-muted">Manage database backups and restore operations</small>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Create Backup Section -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-download me-2"></i> Create Backup
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Create a complete backup of all database indices and configurations.</p>
+                
+                <div class="mb-3">
+                    <label class="form-label">Indices to backup:</label>
+                    <div id="indicesList" class="mb-2">
+                        <div class="text-muted small">
+                            <i class="bi bi-hourglass-split"></i> Loading available indices...
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle"></i> All available indices will be selected by default
+                    </small>
+                </div>
+                
+                <button type="button" class="btn btn-primary w-100" onclick="createBackup()" id="createBackupBtn">
+                    <i class="bi bi-download me-2"></i> Create Backup Now
+                </button>
+                
+                <div id="backupStatus" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Restore Section -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-upload me-2"></i> Restore Backup
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Restore data from a previous backup. This will merge with existing data by default.</p>
+                
+                <div class="mb-3">
+                    <label for="backupSelect" class="form-label">Select backup:</label>
+                    <select class="form-select" id="backupSelect">
+                        <option value="">Loading backups...</option>
+                    </select>
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="overwriteData">
+                    <label class="form-check-label" for="overwriteData">
+                        <strong>Overwrite existing data</strong> (dangerous - replaces current data)
+                    </label>
+                </div>
+                
+                <button type="button" class="btn btn-warning w-100" onclick="restoreBackup()" id="restoreBackupBtn">
+                    <i class="bi bi-upload me-2"></i> Restore Selected Backup
+                </button>
+                
+                <div id="restoreStatus" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+        
+        <!-- Upload Backup Section -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h6 class="mb-0">
+                    <i class="bi bi-cloud-upload me-2"></i> Upload Backup File
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small">Upload a previously exported backup file to restore.</p>
+                
+                <div class="mb-3">
+                    <label for="backupFile" class="form-label">Select backup file:</label>
+                    <input type="file" class="form-control" id="backupFile" accept=".tar.gz" />
+                </div>
+                
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="overwriteUpload">
+                    <label class="form-check-label" for="overwriteUpload">
+                        <strong>Overwrite existing data</strong>
+                    </label>
+                </div>
+                
+                <button type="button" class="btn btn-info w-100" onclick="uploadBackup()" id="uploadBackupBtn">
+                    <i class="bi bi-cloud-upload me-2"></i> Upload & Restore
+                </button>
+                
+                <div id="uploadStatus" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Backups List -->
+<div class="card">
+    <div class="card-header bg-white">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="bi bi-archive me-2"></i> Available Backups
+            </h6>
+            <button class="btn btn-sm btn-outline-secondary" onclick="loadBackups()">
+                <i class="bi bi-arrow-clockwise me-1"></i> Refresh
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Backup ID</th>
+                        <th>Created</th>
+                        <th>Size</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="backupsList">
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            Loading backups...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+.backup-status-success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.backup-status-error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.backup-status-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+    padding: 12px;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.spinner-border {
+    width: 1.5rem;
+    height: 1.5rem;
+    vertical-align: middle;
+}
+</style>
+
+<script>
+// Utility function to escape HTML
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Load backups on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableIndices();
+    loadBackups();
+});
+
+function formatDate(dateString) {
+    // Format date string, handling various formats
+    if (!dateString) return 'Unknown';
+    // If it's already a timestamp in ms
+    let date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        // Try parsing as number
+        date = new Date(parseInt(dateString));
+    }
+    if (isNaN(date.getTime())) {
+        return 'Unknown';
+    }
+    return date.toLocaleString();
+}
+
+function loadAvailableIndices() {
+    fetch('/api/backups/available-indices', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.indices) {
+            const container = document.getElementById('indicesList');
+            container.innerHTML = data.indices.map((index, idx) => `
+                <div class="form-check">
+                    <input class="form-check-input backup-checkbox" type="checkbox" id="backup${idx}" value="${escapeHtml(index)}" checked>
+                    <label class="form-check-label" for="backup${idx}">
+                        ${escapeHtml(index)}
+                    </label>
+                </div>
+            `).join('');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading indices:', error);
+        document.getElementById('indicesList').innerHTML = `
+            <div class="text-danger small">Error loading available indices</div>
+        `;
+    });
+}
+
+function loadBackups() {
+    fetch('/api/backups', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const tbody = document.getElementById('backupsList');
+        const select = document.getElementById('backupSelect');
+        
+        if (!data.backups || data.backups.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        No backups available. Create one to get started.
+                    </td>
+                </tr>
+            `;
+            select.innerHTML = '<option value="">No backups available</option>';
+            return;
+        }
+        
+        // Populate table
+        tbody.innerHTML = data.backups.map(backup => `
+            <tr>
+                <td>
+                    <code>${escapeHtml(backup.backup_id)}</code>
+                </td>
+                <td>
+                    <small>${formatDate(backup.created)}</small>
+                </td>
+                <td>
+                    <strong>${backup.size_mb} MB</strong>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-success" onclick="downloadBackup('${escapeHtml(backup.backup_id)}')">
+                        <i class="bi bi-download"></i>
+                    </button>
+                    <button class="btn btn-sm btn-info" onclick="showBackupInfo('${escapeHtml(backup.backup_id)}')">
+                        <i class="bi bi-info-circle"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBackup('${escapeHtml(backup.backup_id)}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+        
+        // Populate select
+        select.innerHTML = data.backups.map(backup => `
+            <option value="${backup.backup_id}">
+                ${backup.backup_id} (${backup.size_mb} MB - ${formatDate(backup.created)})
+            </option>
+        `).join('');
+    })
+    .catch(error => {
+        console.error('Error loading backups:', error);
+        document.getElementById('backupsList').innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-danger">
+                    Error loading backups
+                </td>
+            </tr>
+        `;
+    });
+}
+
+function createBackup() {
+    const btn = document.getElementById('createBackupBtn');
+    const statusDiv = document.getElementById('backupStatus');
+    
+    btn.disabled = true;
+    statusDiv.innerHTML = `
+        <div class="backup-status-info">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Creating backup... This may take a few moments.
+        </div>
+    `;
+    
+    const indices = [];
+    document.querySelectorAll('.backup-checkbox').forEach(checkbox => {
+        if (checkbox.checked) {
+            indices.push(checkbox.value);
+        }
+    });
+    
+    fetch('/api/backups', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ indices: indices })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `
+                <div class="backup-status-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Backup Created!</strong><br>
+                    <small>${data.message}<br>Backup ID: <code>${data.backup_id}</code><br>Size: ${data.size_mb} MB</small>
+                </div>
+            `;
+            loadBackups();
+        } else {
+            statusDiv.innerHTML = `
+                <div class="backup-status-error">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    <strong>Backup Failed</strong><br>
+                    <small>${data.message || data.error}</small>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                <strong>Error</strong><br>
+                <small>${error.message}</small>
+            </div>
+        `;
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
+
+function restoreBackup() {
+    const backupId = document.getElementById('backupSelect').value;
+    const overwrite = document.getElementById('overwriteData').checked;
+    const statusDiv = document.getElementById('restoreStatus');
+    const btn = document.getElementById('restoreBackupBtn');
+    
+    if (!backupId) {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                Please select a backup to restore.
+            </div>
+        `;
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to restore backup "${backupId}"?\n\n${overwrite ? 'WARNING: Existing data will be overwritten!' : 'Existing data will be preserved.'}`)) {
+        return;
+    }
+    
+    btn.disabled = true;
+    statusDiv.innerHTML = `
+        <div class="backup-status-info">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Restoring backup... This may take a few moments.
+        </div>
+    `;
+    
+    fetch('/api/backups/restore', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            backup_id: backupId,
+            overwrite: overwrite
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `
+                <div class="backup-status-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Restore Completed!</strong><br>
+                    <small>${data.message}<br>Indices restored: ${data.indices_restored}<br>Documents restored: ${data.documents_restored}</small>
+                </div>
+            `;
+        } else {
+            statusDiv.innerHTML = `
+                <div class="backup-status-error">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    <strong>Restore Failed</strong><br>
+                    <small>${data.message || data.error}</small>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                <strong>Error</strong><br>
+                <small>${error.message}</small>
+            </div>
+        `;
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
+
+function deleteBackup(backupId) {
+    if (!confirm(`Delete backup "${backupId}"? This cannot be undone.`)) {
+        return;
+    }
+    
+    fetch('/api/backups/' + backupId, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Backup deleted successfully', 'success');
+            loadBackups();
+        } else {
+            showAlert(data.message || data.error || 'Failed to delete backup', 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Error: ' + error.message, 'danger');
+    });
+}
+
+function showBackupInfo(backupId) {
+    fetch('/api/backups/' + backupId + '/info', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showAlert('Error: ' + data.error, 'danger');
+            return;
+        }
+        
+        let indicesInfo = '<strong>Indices:</strong><ul>';
+        for (const [index, count] of Object.entries(data.indices)) {
+            indicesInfo += `<li>${escapeHtml(index)}: ${count} documents</li>`;
+        }
+        indicesInfo += '</ul>';
+        
+        const modal = new bootstrap.Modal(document.createElement('div'));
+        const content = `
+            <div class="modal fade" id="backupInfoModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Backup Information</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Backup ID:</strong> <code>${escapeHtml(data.backup_id)}</code></p>
+                            <p><strong>Created:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+                            <p><strong>Size:</strong> ${data.size_mb} MB</p>
+                            <p><strong>Total Documents:</strong> ${data.total_documents}</p>
+                            ${indicesInfo}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        document.body.appendChild(tempDiv);
+        
+        new bootstrap.Modal(tempDiv.querySelector('.modal')).show();
+    })
+    .catch(error => {
+        showAlert('Error loading backup info: ' + error.message, 'danger');
+    });
+}
+
+function downloadBackup(backupId) {
+    const link = document.createElement('a');
+    link.href = `/api/backups/${backupId}/download`;
+    link.download = `${backupId}.tar.gz`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function uploadBackup() {
+    const fileInput = document.getElementById('backupFile');
+    const file = fileInput.files[0];
+    const overwrite = document.getElementById('overwriteUpload').checked;
+    const statusDiv = document.getElementById('uploadStatus');
+    const btn = document.getElementById('uploadBackupBtn');
+    
+    if (!file) {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                Please select a file to upload.
+            </div>
+        `;
+        return;
+    }
+    
+    if (!file.name.endsWith('.tar.gz')) {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                File must be a .tar.gz backup file.
+            </div>
+        `;
+        return;
+    }
+    
+    btn.disabled = true;
+    statusDiv.innerHTML = `
+        <div class="backup-status-info">
+            <div class="spinner-border spinner-border-sm me-2"></div>
+            Uploading and restoring backup... This may take a few moments.
+        </div>
+    `;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('overwrite', overwrite ? 'true' : 'false');
+    
+    fetch('/api/backups/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            statusDiv.innerHTML = `
+                <div class="backup-status-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Upload & Restore Completed!</strong><br>
+                    <small>${data.message}<br>Backup ID: <code>${data.backup_id}</code></small>
+                </div>
+            `;
+            fileInput.value = '';
+            loadBackups();
+        } else {
+            statusDiv.innerHTML = `
+                <div class="backup-status-error">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    <strong>Upload Failed</strong><br>
+                    <small>${data.message || data.error}</small>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        statusDiv.innerHTML = `
+            <div class="backup-status-error">
+                <i class="bi bi-exclamation-circle me-2"></i>
+                <strong>Error</strong><br>
+                <small>${error.message}</small>
+            </div>
+        `;
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
+</script>
+
+{% endblock %}

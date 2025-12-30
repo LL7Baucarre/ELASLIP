@@ -54,7 +54,48 @@ def create_app(config_name=None):
     jwt.init_app(app)
     
     # Initialize Flasgger for Swagger UI with authentication protection
-    swagger = Flasgger(app)
+    swagger_config = {
+        "headers": [],
+        "specs": [
+            {
+                "endpoint": 'apispec',
+                "route": '/apispec.json',
+                "rule_filter": lambda rule: True,
+                "model_filter": lambda tag: True,
+            }
+        ],
+        "static_url_path": "/flasgger_static",
+        "swagger_ui": True,
+        "specs_route": "/apidocs/"
+    }
+    
+    swagger_template = {
+        "swagger": "2.0",
+        "info": {
+            "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
+            "description": "API for managing Indicators of Compromise with authentication",
+            "version": "1.0.0"
+        },
+        "basePath": "/api",
+        "schemes": ["http", "https"],
+        "securityDefinitions": {
+            "api_key": {
+                "type": "apiKey",
+                "name": "X-API-Key",
+                "in": "header",
+                "description": "API Key for authentication. Generate one in Settings > API Keys"
+            }
+        },
+        "security": [
+            {"api_key": []}
+        ]
+    }
+    
+    swagger = Flasgger(
+        app,
+        config=swagger_config,
+        template=swagger_template
+    )
     
     @app.before_request
     def protect_swagger():

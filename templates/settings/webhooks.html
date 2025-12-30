@@ -8,7 +8,7 @@
         <h4 class="mb-0">Webhooks</h4>
         <small class="text-muted">Configure notifications for IOC events</small>
     </div>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addWebhookModal">
+    <button class="btn btn-primary" id="addWebhookBtn" data-bs-toggle="modal" data-bs-target="#addWebhookModal">
         <i class="bi bi-plus-lg me-1"></i> Add Webhook
     </button>
 </div>
@@ -123,35 +123,125 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Events *</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="eventCreate" value="ioc.created" checked>
-                            <label class="form-check-label" for="eventCreate">
-                                IOC Created
-                            </label>
+                        
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">IOC Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventCreate" value="ioc.created" checked>
+                                <label class="form-check-label" for="eventCreate">
+                                    IOC Created
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventUpdate" value="ioc.updated">
+                                <label class="form-check-label" for="eventUpdate">
+                                    IOC Updated
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventDelete" value="ioc.deleted">
+                                <label class="form-check-label" for="eventDelete">
+                                    IOC Deleted
+                                </label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="eventUpdate" value="ioc.updated">
-                            <label class="form-check-label" for="eventUpdate">
-                                IOC Updated
-                            </label>
+
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">Incident Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventIncidentCreated" value="incident.created">
+                                <label class="form-check-label" for="eventIncidentCreated">
+                                    Incident Created
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventIncidentUpdated" value="incident.updated">
+                                <label class="form-check-label" for="eventIncidentUpdated">
+                                    Incident Updated
+                                </label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="eventDelete" value="ioc.deleted">
-                            <label class="form-check-label" for="eventDelete">
-                                IOC Deleted
-                            </label>
+
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">Case Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventCaseCreated" value="case.created">
+                                <label class="form-check-label" for="eventCaseCreated">
+                                    Case Created
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventCaseUpdated" value="case.updated">
+                                <label class="form-check-label" for="eventCaseUpdated">
+                                    Case Updated
+                                </label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="eventImport" value="import.completed">
-                            <label class="form-check-label" for="eventImport">
-                                Import Completed
-                            </label>
+
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">Checklist Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventChecklistCreated" value="checklist.created">
+                                <label class="form-check-label" for="eventChecklistCreated">
+                                    Checklist Created
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventChecklistUpdated" value="checklist.updated">
+                                <label class="form-check-label" for="eventChecklistUpdated">
+                                    Checklist Updated
+                                </label>
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="eventPublicSubmission" value="public_submission.created">
-                            <label class="form-check-label" for="eventPublicSubmission">
-                                Public Submission Created
-                            </label>
+
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">LLM Report Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventLLMCreated" value="report.llm_created">
+                                <label class="form-check-label" for="eventLLMCreated">
+                                    LLM Report Created
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventLLMIOC" value="report.llm_ioc">
+                                <label class="form-check-label" for="eventLLMIOC">
+                                    LLM Report - IOC
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventLLMIncident" value="report.llm_incident">
+                                <label class="form-check-label" for="eventLLMIncident">
+                                    LLM Report - Incident
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventLLMCase" value="report.llm_case">
+                                <label class="form-check-label" for="eventLLMCase">
+                                    LLM Report - Case
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventLLMChecklist" value="report.llm_checklist">
+                                <label class="form-check-label" for="eventLLMChecklist">
+                                    LLM Report - Checklist
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-2">
+                            <strong class="d-block text-secondary small mb-2">Other Events</strong>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventImport" value="import.completed">
+                                <label class="form-check-label" for="eventImport">
+                                    Import Completed
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="eventPublicSubmission" value="public_submission.created">
+                                <label class="form-check-label" for="eventPublicSubmission">
+                                    Public Submission Created
+                                </label>
+                            </div>
                         </div>
                     </div>
                     
@@ -225,6 +315,11 @@
 $(document).ready(function() {
     loadWebhooks();
     loadDeliveries();
+    
+    // Reset form when "Add Webhook" button is clicked
+    $('#addWebhookBtn').click(function() {
+        resetWebhookForm();
+    });
 });
 
 function loadWebhooks() {
@@ -303,12 +398,6 @@ function resetWebhookForm() {
     $('#webhookModalTitle').text('Add Webhook');
 }
 
-$('#addWebhookModal').on('show.bs.modal', function(e) {
-    if (!$(e.relatedTarget).length || !$(e.relatedTarget).data('edit')) {
-        resetWebhookForm();
-    }
-});
-
 function editWebhook(webhookId) {
     $.ajax({
         url: `/api/webhooks/${webhookId}`,
@@ -329,6 +418,9 @@ function editWebhook(webhookId) {
             
             $('#webhookModalTitle').text('Edit Webhook');
             $('#addWebhookModal').modal('show');
+        },
+        error: function() {
+            showAlert('Failed to load webhook', 'danger');
         }
     });
 }
@@ -361,6 +453,7 @@ $('#webhookForm').submit(function(e) {
     $.ajax({
         url: url,
         method: method,
+        contentType: 'application/json',
         data: JSON.stringify(webhookData),
         success: function() {
             $('#addWebhookModal').modal('hide');
@@ -399,6 +492,7 @@ $('#testWebhookBtn').click(function() {
     $.ajax({
         url: '/api/webhooks/test',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({
             url: url,
             secret: $('#webhookSecret').val() || null

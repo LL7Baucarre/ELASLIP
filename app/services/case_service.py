@@ -265,9 +265,9 @@ class CaseService:
         result = self.es.search('cases', {
             'size': 0,
             'aggs': {
-                'by_status': {'terms': {'field': 'status'}},
-                'by_priority': {'terms': {'field': 'priority'}},
-                'by_type': {'terms': {'field': 'case_type'}}
+                'by_status': {'terms': {'field': 'status.keyword'}},
+                'by_priority': {'terms': {'field': 'priority.keyword'}},
+                'by_type': {'terms': {'field': 'case_type.keyword'}}
             }
         })
         

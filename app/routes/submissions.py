@@ -485,7 +485,7 @@ def api_list_submissions():
     tags:
       - Submissions
     security:
-      - bearerAuth: []
+      - APIKey: []
     parameters:
       - in: query
         name: page
@@ -547,7 +547,7 @@ def api_get_submission(submission_id):
     tags:
       - Submissions
     security:
-      - bearerAuth: []
+      - APIKey: []
     parameters:
       - in: path
         name: submission_id
@@ -667,7 +667,7 @@ def api_create_ioc_from_submission(submission_id):
     tags:
       - Submissions
     security:
-      - bearerAuth: []
+      - APIKey: []
     parameters:
       - in: path
         name: submission_id
@@ -753,7 +753,7 @@ def api_review_submission(submission_id):
     tags:
       - Submissions
     security:
-      - bearerAuth: []
+      - APIKey: []
     parameters:
       - in: path
         name: submission_id
@@ -822,7 +822,7 @@ def api_reject_submission(submission_id):
     tags:
       - Submissions
     security:
-      - bearerAuth: []
+      - APIKey: []
     parameters:
       - in: path
         name: submission_id

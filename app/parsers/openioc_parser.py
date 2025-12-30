@@ -83,9 +83,20 @@ class OpenIOCParser:
             if not item.tag.endswith('IndicatorItem'):
                 continue
             
-            # Get condition and search term
-            context = item.find('.//*[local-name()="Context"]')
-            content_elem = item.find('.//*[local-name()="Content"]')
+            # Get condition and search term using xpath for namespace support
+            context = None
+            content_elem = None
+            
+            # Find Context and Content elements (handle namespaces)
+            for child in item.iter():
+                if child.tag.endswith('Context') and context is None:
+                    context = child
+                elif child.tag.endswith('Content') and content_elem is None:
+                    content_elem = child
+                
+                # Stop if we've found both
+                if context is not None and content_elem is not None:
+                    break
             
             if context is None or content_elem is None:
                 continue

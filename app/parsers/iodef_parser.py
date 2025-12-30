@@ -193,6 +193,10 @@ class IODEFParser:
                 if PatternGenerator.validate_value('url', value):
                     ioc_type = 'url'
             
+            # Always validate detected types
+            if ioc_type and not PatternGenerator.validate_value(ioc_type, value):
+                ioc_type = None
+            
             if ioc_type:
                 indicators.append({
                     'type': ioc_type,
