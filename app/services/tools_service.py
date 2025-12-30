@@ -224,6 +224,7 @@ class ToolsService:
                 cmd,
                 capture_output=True,
                 text=True,
+                shell=False,
                 timeout=600  # 10 minutes timeout
             )
             
@@ -739,6 +740,7 @@ class ToolsService:
                 cmd,
                 capture_output=True,
                 text=True,
+                shell=False,
                 timeout=30
             )
             
