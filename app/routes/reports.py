@@ -524,7 +524,8 @@ def generate_ioc_report(ioc_id):
         import time
         
         # Launch async task (Celery required)
-        task = task_generate_ioc.delay(ioc_id, current_user.username)
+        print(f"[REPORT] Launching IOC report for user_id={current_user.id}, username={current_user.username}")
+        task = task_generate_ioc.delay(ioc_id, current_user.id)
         task_id = task.id
         
         # Wait briefly for completion (up to 5 seconds) instead of returning immediately
@@ -602,7 +603,7 @@ def generate_case_report(case_id):
         print(f"[REPORT] LLM_ENABLED: {os.getenv('LLM_ENABLED', 'false')}")
         
         # Launch async task (Celery required)
-        task = task_generate_case.delay(case_id, current_user.username)
+        task = task_generate_case.delay(case_id, current_user.id)
         task_id = task.id
         
         print(f"[REPORT] Task launched with ID: {task_id}")
@@ -679,7 +680,7 @@ def generate_incident_report(incident_id):
         import time
         
         # Launch async task (Celery required)
-        task = task_generate_incident.delay(incident_id, current_user.username)
+        task = task_generate_incident.delay(incident_id, current_user.id)
         task_id = task.id
         
         # Wait briefly for completion (up to 5 seconds) instead of returning immediately
@@ -754,7 +755,7 @@ def generate_checklist_report(checklist_id):
         import time
         
         # Launch async task (Celery required)
-        task = task_generate_checklist.delay(checklist_id, current_user.username)
+        task = task_generate_checklist.delay(checklist_id, current_user.id)
         task_id = task.id
         
         # Wait briefly for completion (up to 5 seconds) instead of returning immediately

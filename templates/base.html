@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/notifications.css') }}" rel="stylesheet">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -17,6 +18,15 @@
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
         <ul class="nav">
+            <li class="nav-item">
+                <a class="nav-link" href="#" id="notification-nav-link">
+                    <i class="bi bi-bell"></i> <span>Notifications</span>
+                    <span class="badge bg-danger ms-2" id="notification-nav-badge" style="display: none; font-size: 0.65rem;">
+                        <span id="notification-nav-count">0</span>
+                    </span>
+                </a>
+            </li>
+            
             <li class="nav-section-title">MANAGEMENT</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
@@ -149,6 +159,41 @@
     </nav>
     {% endif %}
     
+    <!-- Notifications Sidebar -->
+    <div id="notifications-sidebar" class="notifications-sidebar">
+        <div class="notifications-sidebar-header">
+            <h5 class="mb-0">
+                <i class="bi bi-bell-fill me-2"></i>Notifications
+            </h5>
+            <button class="btn-close notifications-sidebar-close" id="sidebar-close-btn" 
+                    aria-label="Close" title="Close notifications"></button>
+        </div>
+        <div class="notifications-sidebar-content">
+            <div id="notifications-list-sidebar" class="notifications-list">
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-hourglass-split fs-4"></i>
+                    <p class="mt-2">Loading...</p>
+                </div>
+            </div>
+        </div>
+        <div class="notifications-sidebar-footer">
+            <button class="btn btn-sm btn-outline-secondary w-100" id="mark-all-read-sidebar" 
+                    title="Mark all as read">
+                <i class="bi bi-check-all me-2"></i>Mark all as read
+            </button>
+            <a href="/notifications" class="btn btn-sm btn-primary w-100 mt-2">
+                <i class="bi bi-arrow-right me-2"></i>View all
+            </a>
+            <hr class="my-2">
+            <a href="{{ url_for('auth.profile') }}" class="btn btn-sm btn-outline-primary w-100">
+                <i class="bi bi-person me-2"></i>My Profile
+            </a>
+        </div>
+    </div>
+    
+    <!-- Sidebar Overlay -->
+    <div id="notifications-sidebar-overlay" class="notifications-sidebar-overlay"></div>
+    
     <!-- Main Content -->
     <div class="{% if current_user.is_authenticated %}main-content{% else %}container{% endif %}">
         <!-- Flash Messages -->
@@ -234,6 +279,7 @@
         }
     </script>
     <script src="{{ url_for('static', filename='js/pagination.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

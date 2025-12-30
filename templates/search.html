@@ -214,7 +214,6 @@ function performSearch() {
         method: 'GET',
         xhrFields: { withCredentials: true },
         success: function(data) {
-            console.log('API Response:', data);  // DEBUG
             displayResults(data);
         },
         error: function(xhr) {
@@ -227,10 +226,7 @@ function performSearch() {
 function displayResults(data) {
     const results = data.items || [];
     const total = data.total || 0;
-    
-    console.log('Display results - results:', results);  // DEBUG
-    console.log('Display results - total:', total);  // DEBUG
-    
+
     $('#resultCount').text(total);
     
     if (results.length === 0) {

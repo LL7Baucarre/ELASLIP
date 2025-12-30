@@ -859,9 +859,7 @@ function loadGraph() {
         success: function(response) {
             const nodes = response.nodes;
             const edges = response.edges;
-            
-            console.log(`Loaded ${nodes.length} nodes and ${edges.length} edges`);
-            
+                        
             // Store all data for filtering
             allNodes = nodes;
             allEdges = edges;
@@ -894,7 +892,6 @@ function loadGraph() {
             // Show stats in console
             const totalIOCs = nodes.length;
             const totalRelations = edges.length;
-            console.log(`Graph initialized: ${totalIOCs} IOCs with ${totalRelations} relations`);
         },
         error: function(xhr) {
             console.error('Error loading graph data:', xhr);
@@ -1243,7 +1240,6 @@ function showAllIOCs(event) {
     // Fit to screen
     cy.fit(null, 50);
     
-    console.log('Showing all IOCs in graph');
 }
 
 function filterGraphByIds(iocIds) {
@@ -1266,7 +1262,6 @@ function filterGraphByIds(iocIds) {
     // Hide empty graph message since we have results
     document.getElementById('emptyGraphMessage').style.display = 'none';
     
-    console.log(`Filtered to ${matchingIds.size} IOCs`);
 }
 
 function localSearchIOC(searchTerm) {

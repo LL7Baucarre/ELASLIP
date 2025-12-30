@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h1 class="mb-4">Notifications</h1>
+            
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <select id="filter-level" class="form-select">
+                                <option value="">All notification types</option>
+                                <option value="info">Information</option>
+                                <option value="success">Success</option>
+                                <option value="warning">Warning</option>
+                                <option value="error">Error</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <button class="btn btn-sm btn-outline-secondary" id="filter-unread">
+                                <i class="bi bi-funnel"></i> Unread only
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" id="clear-all">
+                                <i class="bi bi-trash"></i> Clear all
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notifications list -->
+            <div id="notifications-list">
+                <div class="text-center py-5">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="text-muted small">Total Notifications</div>
+                        <div class="fs-5 fw-bold"><span id="stat-total">0</span></div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="text-muted small">Unread</div>
+                        <div class="fs-5 fw-bold text-primary"><span id="stat-unread">0</span></div>
+                    </div>
+                    <hr>
+                    <div class="text-muted small mb-2">By type:</div>
+                    <div class="badge-group">
+                        <div class="mb-2">
+                            <span class="badge bg-info">Reports: <span id="stat-reports">0</span></span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-success">Submissions: <span id="stat-submissions">0</span></span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge bg-warning">Expiration: <span id="stat-expiration">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.notification-page-item {
+    padding: 1rem;
+    border-left: 4px solid #ddd;
+    margin-bottom: 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.notification-page-item:hover {
+    background-color: #f8f9fa;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.notification-page-item.unread {
+    background-color: #f0f7ff;
+    border-left-color: #0d6efd;
+}
+
+.notification-page-item.info {
+    border-left-color: #0dcaf0;
+}
+
+.notification-page-item.success {
+    border-left-color: #198754;
+}
+
+.notification-page-item.warning {
+    border-left-color: #ffc107;
+}
+
+.notification-page-item.error {
+    border-left-color: #dc3545;
+}
+
+.notification-page-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.notification-page-message {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.notification-page-time {
+    color: #999;
+    font-size: 0.85rem;
+}
+
+.badge-group span {
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+/* Dark mode support */
+[data-theme="dark"] .notification-page-item {
+    background-color: #22262a;
+    border-left-color: #3d4449;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .notification-page-item:hover {
+    background-color: #2d333b;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .notification-page-item.unread {
+    background-color: #0d2b4d;
+    border-left-color: #0dcaf0;
+}
+
+[data-theme="dark"] .notification-page-title {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .notification-page-message {
+    color: #adb5bd;
+}
+
+[data-theme="dark"] .notification-page-time {
+    color: #6c757d;
+}
+
+[data-theme="dark"] .card {
+    background-color: #22262a;
+    border-color: #3d4449;
+    color: #e9ecef;
+}
+</style>
+
+<script>
+class NotificationPageManager {
+    constructor() {
+        this.allNotifications = [];
+        this.currentFilter = 'all';
+        this.unreadOnly = false;
+        this.init();
+    }
+
+    init() {
+        this.loadAllNotifications();
+        this.attachEventListeners();
+    }
+
+    attachEventListeners() {
+        document.getElementById('filter-level').addEventListener('change', (e) => {
+            this.currentFilter = e.target.value;
+            this.renderNotifications();
+        });
+
+        document.getElementById('filter-unread').addEventListener('click', () => {
+            this.unreadOnly = !this.unreadOnly;
+            const btn = document.getElementById('filter-unread');
+            btn.classList.toggle('active');
+            this.renderNotifications();
+        });
+
+        document.getElementById('clear-all').addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete all notifications?')) {
+                this.clearAll();
+            }
+        });
+    }
+
+    async loadAllNotifications() {
+        try {
+            const response = await fetch('/api/notifications?limit=1000');
+            if (!response.ok) throw new Error('Failed to fetch notifications');
+            
+            const data = await response.json();
+            this.allNotifications = data.notifications || [];
+            
+            this.renderNotifications();
+            this.updateStatistics();
+
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+            document.getElementById('notifications-list').innerHTML = 
+                '<div class="alert alert-danger">Failed to load notifications</div>';
+        }
+    }
+
+    renderNotifications() {
+        let filtered = this.allNotifications;
+
+        // Filter by level
+        if (this.currentFilter) {
+            filtered = filtered.filter(n => n.level === this.currentFilter);
+        }
+
+        // Filter unread only
+        if (this.unreadOnly) {
+            filtered = filtered.filter(n => !n.read);
+        }
+
+        if (filtered.length === 0) {
+            document.getElementById('notifications-list').innerHTML = 
+                '<div class="alert alert-info text-center">No notifications found</div>';
+            return;
+        }
+
+        let html = '';
+        filtered.forEach(notif => {
+            const timeAgo = this.getTimeAgo(notif.created_at);
+            const readClass = notif.read ? '' : 'unread';
+            const actionUrl = notif.action_url ? `data-action-url="${this.escapeHtml(notif.action_url)}"` : '';
+            
+            html += `
+                <div class="card notification-page-item ${readClass} ${notif.level}" 
+                     data-notification-id="${notif.id}" ${actionUrl} onclick="notificationPageManager.handleNotificationClick(this)" style="cursor: pointer;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="notification-page-title">${this.escapeHtml(notif.title)}</div>
+                            <div class="notification-page-message">${this.escapeHtml(notif.message)}</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="notification-page-time">${timeAgo}</div>
+                                <div class="btn-group btn-group-sm">
+                                    ${!notif.read ? `<button class="btn btn-link btn-sm" onclick="event.stopPropagation(); notificationPageManager.markAsRead('${notif.id}')"><i class="bi bi-check"></i> Mark read</button>` : ''}
+                                    <button class="btn btn-link btn-sm text-danger" onclick="event.stopPropagation(); notificationPageManager.delete('${notif.id}')"><i class="bi bi-trash"></i> Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        document.getElementById('notifications-list').innerHTML = html;
+    }
+
+    updateStatistics() {
+        const total = this.allNotifications.length;
+        const unread = this.allNotifications.filter(n => !n.read).length;
+        const reports = this.allNotifications.filter(n => n.related_type === 'report').length;
+        const submissions = this.allNotifications.filter(n => n.related_type === 'submission').length;
+        const expiration = this.allNotifications.filter(n => n.related_type === 'ioc').length;
+
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-unread').textContent = unread;
+        document.getElementById('stat-reports').textContent = reports;
+        document.getElementById('stat-submissions').textContent = submissions;
+        document.getElementById('stat-expiration').textContent = expiration;
+    }
+
+    async markAsRead(notificationId) {
+        try {
+            const response = await fetch(`/api/notifications/${notificationId}/read`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                await this.loadAllNotifications();
+            }
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            alert('Failed to mark as read');
+        }
+    }
+
+    async delete(notificationId) {
+        try {
+            const response = await fetch(`/api/notifications/${notificationId}`, {
+                method: 'DELETE',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                await this.loadAllNotifications();
+            }
+        } catch (error) {
+            console.error('Error deleting notification:', error);
+            alert('Failed to delete');
+        }
+    }
+
+    async clearAll() {
+        try {
+            const notifsCopy = [...this.allNotifications];
+            for (const notif of notifsCopy) {
+                await fetch(`/api/notifications/${notif.id}`, {
+                    method: 'DELETE',
+                    headers: {'Content-Type': 'application/json'},
+                    credentials: 'include'
+                });
+            }
+            await this.loadAllNotifications();
+        } catch (error) {
+            console.error('Error clearing notifications:', error);
+            alert('Failed to clear all');
+        }
+    }
+
+    handleNotificationClick(element) {
+        const actionUrl = element.getAttribute('data-action-url');
+        if (actionUrl) {
+            window.location.href = actionUrl;
+        }
+    }
+
+    getTimeAgo(isoDate) {
+        const date = new Date(isoDate);
+        const now = new Date();
+        const seconds = Math.floor((now - date) / 1000);
+
+        if (seconds < 60) return 'just now';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+        if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+        
+        return date.toLocaleDateString();
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
+let notificationPageManager;
+document.addEventListener('DOMContentLoaded', () => {
+    notificationPageManager = new NotificationPageManager();
+});
+</script>
+{% endblock %}

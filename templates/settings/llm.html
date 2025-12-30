@@ -365,7 +365,6 @@ async function validateApiKey() {
         });
         
         const data = await response.json();
-        console.log('API Key validation response:', data);
         
         if (data.success) {
             lastBrowserTestSuccessful = true;
