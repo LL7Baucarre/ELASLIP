@@ -185,14 +185,18 @@ class NotificationManager {
             readBtn.title = 'Mark as read';
             readBtn.dataset.action = 'toggle-read';
             readBtn.dataset.notificationId = notif.id;
-            readBtn.innerHTML = `<i class="bi ${notif.read ? 'bi-envelope-open' : 'bi-envelope'}"></i>`;
+            const readIcon = document.createElement('i');
+            readIcon.className = `bi ${notif.read ? 'bi-envelope-open' : 'bi-envelope'}`;
+            readBtn.appendChild(readIcon);
             
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'notification-action-btn';
             deleteBtn.title = 'Delete';
             deleteBtn.dataset.action = 'delete';
             deleteBtn.dataset.notificationId = notif.id;
-            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            const deleteIcon = document.createElement('i');
+            deleteIcon.className = 'bi bi-trash';
+            deleteBtn.appendChild(deleteIcon);
             
             actionsDiv.appendChild(readBtn);
             actionsDiv.appendChild(deleteBtn);
