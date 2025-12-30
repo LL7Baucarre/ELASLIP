@@ -178,17 +178,14 @@ let availableRoles = [];
 
 // Load roles on page load
 $(document).ready(function() {
-    console.log('Page ready, loading roles...');
     loadRoles();
 });
 
 function loadRoles() {
-    console.log('Calling /api/rbac/roles endpoint...');
     $.ajax({
         url: "/api/rbac/roles",
         method: 'GET',
         success: function(response) {
-            console.log('Roles loaded successfully:', response);
             availableRoles = response.roles || [];
             populateRoleSelects();
         },
@@ -209,7 +206,6 @@ function loadRoles() {
 }
 
 function populateRoleSelects() {
-    console.log('Populating role selects with', availableRoles.length, 'roles');
     const addRoleSelect = $('#addRole');
     const editRoleSelect = $('#editRole');
     
@@ -233,8 +229,6 @@ function populateRoleSelects() {
         $('<option>').val(role.name).text(optionText).appendTo(addRoleSelect);
         $('<option>').val(role.name).text(optionText).appendTo(editRoleSelect);
     });
-    
-    console.log('Role selects populated');
 }
 
 $('#addUserForm').submit(function(e) {

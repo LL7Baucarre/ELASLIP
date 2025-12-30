@@ -9,6 +9,40 @@ from app.services.report_service import ReportService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.audit_service import AuditService
 from app.services.finops_service import FinOpsService
+from app.services.notification_service import NotificationService
+from app.auth import User
+
+def get_real_user_id(user_id_param: str) -> str:
+    """
+    Reload user from Elasticsearch to get the actual document ID.
+    This ensures we have the correct ID for notifications, even if
+    the parameter is from an old session.
+    
+    Args:
+        user_id_param: User ID or username from task parameter
+        
+    Returns:
+        The correct Elasticsearch document ID for the user
+    """
+    try:
+        # Try to load user by the parameter (could be ID or username)
+        user = User.get_by_id(user_id_param)
+        if user and hasattr(user, 'id'):
+            return user.id
+    except:
+        pass
+    
+    # Fallback: try loading by username
+    try:
+        user = User.get_by_username(user_id_param)
+        if user and hasattr(user, 'id'):
+            return user.id
+    except:
+        pass
+    
+    # Last resort: return the parameter as-is
+    return user_id_param
+
 
 # Redis lock for ensuring only one report generates at a time
 def get_report_lock():
@@ -120,6 +154,18 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         report_entry['report_data'] = report_data
         report_entry['entity_name'] = report_data.get('ioc_value', ioc_id)
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        # Send notification
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        notif_result = notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='ioc',
+            entity_name=report_data.get('ioc_value', ioc_id),
+            task_id=task_id
+        )
+        print(f"[NOTIFICATION] Notification created: {notif_result}")
         
         audit.log(
             action='report_generated',
@@ -248,6 +294,17 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         report_entry['entity_name'] = report_data.get('case_name', case_id)
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
+        # Send notification
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        notif_result = notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='case',
+            entity_name=report_data.get('case_name', case_id),
+            task_id=task_id
+        )
+        print(f"[NOTIFICATION] Notification created: {notif_result}")
         audit.log(
             action='report_generated',
             entity_type='case',
@@ -375,6 +432,17 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         report_entry['entity_name'] = report_data.get('incident_name', incident_id)
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
+        # Send notification
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        notif_result = notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='incident',
+            entity_name=report_data.get('incident_name', incident_id),
+            task_id=task_id
+        )
+        print(f"[NOTIFICATION] Notification created: {notif_result}")
         audit.log(
             action='report_generated',
             entity_type='incident',
@@ -637,6 +705,18 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         print(f"DEBUG: Report saved successfully. Stored at app_config/report_{task_id}", file=sys.stderr)
+        
+        # Send notification
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        notif_result = notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='checklist',
+            entity_name=checklist.get('title', checklist_id),
+            task_id=task_id
+        )
+        print(f"[NOTIFICATION] Notification created: {notif_result}")
         
         audit.log(
             action='report_generated',

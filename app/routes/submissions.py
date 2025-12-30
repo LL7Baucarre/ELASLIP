@@ -8,6 +8,7 @@ from app.decorators import permission_required
 from app.services.submission_service import SubmissionService
 from app.services.ioc_service import IOCService
 from app.services.audit_service import AuditService
+from app.services.notification_service import NotificationService
 from app.models.stix_schema import STIXIndicator
 
 submissions_bp = Blueprint('submissions', __name__, url_prefix='/submissions')
@@ -389,6 +390,27 @@ def public_submit():
             })
         except Exception as e:
             current_app.logger.warning(f"Failed to dispatch webhook for public submission: {str(e)}")
+        
+        # Send notification to admins about new submission
+        try:
+            notification = NotificationService()
+            # Get admin users and notify them
+            from app.services.elasticsearch_service import ElasticsearchService
+            es = ElasticsearchService()
+            
+            # Query for admin users
+            admin_query = {'query': {'term': {'is_admin': True}}, 'size': 100}
+            result = es.search('elaslip_users', admin_query)
+            
+            for hit in result.get('hits', {}).get('hits', []):
+                admin_user = hit['_source']
+                notification.notify_submission_received(
+                    admin_user_id=admin_user.get('id'),
+                    submission_id=submission['id'],
+                    source=submitter_email or submitter_name or 'Anonymous'
+                )
+        except Exception as e:
+            current_app.logger.warning(f"Failed to send notification for submission: {str(e)}")
         
         # Log successful submission
         audit.log(

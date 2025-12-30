@@ -407,31 +407,23 @@ function resetApiForm() {
 }
 
 function editApi(apiId) {
-    console.log('[editApi] Called with apiId:', apiId);
     $.ajax({
         url: `/api/external-apis/${apiId}`,
         method: 'GET',
         success: function(data) {
-            console.log('[editApi] API Response:', data);
             // data is the config object directly
             const api = data;
             
             // Check if elements exist
-            console.log('[editApi] apiName element exists:', $('#apiName').length > 0);
-            console.log('[editApi] apiName value before:', $('#apiName').val());
             
             // Set form values
             $('#apiId').val(api.id);
-            console.log('[editApi] Set apiId to:', api.id);
             
             $('#apiName').val(api.name);
-            console.log('[editApi] Set apiName to:', api.name, ' actual value:', $('#apiName').val());
             
             $('#apiUrl').val(api.url_template || api.url || '');
-            console.log('[editApi] Set apiUrl to:', api.url_template || api.url);
             
             $('#apiMethod').val(api.method || 'GET');
-            console.log('[editApi] Set apiMethod to:', api.method);
             
             $('#apiTimeout').val(api.timeout || 30);
             $('#apiHeaders').val(api.headers ? JSON.stringify(api.headers, null, 2) : '');
@@ -457,18 +449,11 @@ function editApi(apiId) {
             });
             
             $('#apiFormTitle').text('Edit External API');
-            console.log('[editApi] About to show panel');
             
             // Show the form panel
             $('#apiFormPanel').show();
             $('#testResultPanel').hide();
             $('#apiFormPanel').css('flex', '1').css('border-right', 'none');
-            
-            console.log('[editApi] Panel shown, verify form values:', {
-                name: $('#apiName').val(),
-                url: $('#apiUrl').val(),
-                method: $('#apiMethod').val()
-            });
         },
         error: function(xhr) {
             console.error('[editApi] Error loading API:', xhr);

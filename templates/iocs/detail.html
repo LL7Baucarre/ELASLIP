@@ -836,7 +836,6 @@ function performEnrich(apiIds = null) {
         payload.api_ids = apiIds;
     }
     
-    console.log('Enriching IOC with payload:', payload);
     
     $.ajax({
         url: `/api/ioc/${iocId}/enrich`,  // Note: /api/ioc (singular), not /api/iocs
@@ -846,7 +845,6 @@ function performEnrich(apiIds = null) {
         data: JSON.stringify(payload),
         timeout: 120000,  // Increased to 120 seconds to account for slow APIs
         success: function(data) {
-            console.log('Enrichment success:', data);
             
             // New endpoint returns: {value, type, results}
             // results is array of {api_name, api_id, success, from_cache, raw_response, transformed}
@@ -1290,7 +1288,6 @@ function loadRelatedIOCs() {
             }
         },
         error: function() {
-            console.log('Failed to load related IOCs');
         }
     });
 }
@@ -1540,7 +1537,6 @@ $(document).ready(function() {
                 }
             },
             error: function() {
-                console.log('No related IOCs for graph');
             }
         });
     }
