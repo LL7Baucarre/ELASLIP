@@ -19,6 +19,8 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Interactive Dashboard** - Real-time statistics
 -  **Advanced Search** - Full-text and pattern-based search capabilities
 -  **IOC Graph** - Visual relationship mapping and search
+-  **Two-Factor Authentication (2FA)** - Secure login with TOTP and backup codes
+-  **Public Submission Portal** - Anonymous IOC reporting and public search
 -  **API** - Token-based authentication for programmatic usage
 -  **Activity Timeline** - Comprehensive audit trail of all actions in app
 -  **Dark Mode** - Eye-friendly dark theme support
@@ -118,6 +120,21 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Team Collaboration** - Global comments with timestamps
 
 -  **AI Analysis** - Generate analysis reports of completed checklists
+
+#### Security & Authentication
+
+-  **Two-Factor Authentication (2FA)** - TOTP support (Google Authenticator, Authy, etc.)
+-  **Backup Codes** - Secure recovery codes for account access
+-  **RBAC** - Role-Based Access Control with granular permissions
+-  **Audit Logging** - Detailed tracking of all user and system actions
+-  **API Key Management** - Secure programmatic access with scoped keys
+
+#### Public Portal
+
+-  **Anonymous Submissions** - Allow external users to report IOCs
+-  **Public Search** - Limited search interface for public verification
+-  **Submission Review** - Admin workflow to validate and import public reports
+-  **Configurable Access** - Enable/disable public features via environment variables
 
 ## Supported IOC Types
 
@@ -248,49 +265,18 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 | `DEMO_DATA_ENABLED` | `false` | Populate demo data on first run
 | `DEBUG` | `false` | Flask debug flag
 | `LLM_ENABLED` | `false` | Enable AI-based report generation
+| `LLM_PROVIDER` | `auto` | LLM provider type (`auto`, `ollama`, `openai`)
 | `LLM_URL` | `http://ollama:11434` | LLM provider URL (Ollama / OpenAI-compatible)
 | `LLM_MODEL` | `mistral` | Default LLM model
 | `LLM_API_KEY` | `` | API key for OpenAI-compatible providers (optional)
 | `LLM_GENERATION_LANGUAGE` | `fr` | Default language for generated reports
+| `PUBLIC_SEARCH_ENABLED` | `true` | Enable public search portal
+| `PUBLIC_SUBMISSIONS_SUBMIT_ENABLED` | `true` | Enable public IOC submission form
+| `PUBLIC_SUBMISSIONS_MAX_RESULTS` | `10` | Max results for public search
+| `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow submissions without account login
 
 See `.env.example` for the canonical defaults and examples.
 
-  
-
-## Usage
-
-  
-
-### Generate Reports
-
-1. Go to IOC/Case/Incident/Checklist detail
-
-2. Click **"Generate Report"**
-
-3. Wait for processing
-
-4. View/export markdown
-
-  
-
-### FinOps (Token Tracking)
-
-1.  **Activity** page > **FinOps** tab
-
-2. View timeline, breakdown, statistics
-
-  
-
-### Checklists
-
-1.  **Checklists** > **New**
-
-2. Select template or create
-
-3. Track items & add comments
-
-4. Generate AI analysis
-  
 
 See `http://localhost:5000/apidocs` for full API documentation.
 
@@ -340,71 +326,34 @@ flask  run  --debug
 ## Elasticsearch Indices
 
   
+## Elasticsearch Indices
 
--  `ioc` - IOC indicators
+The application uses the following Elasticsearch indices for data storage:
 
--  `ioc_relations` - IOC relationships
+- `elaslip_ioc` - IOC indicators
+- `elaslip_users` - User data
+- `elaslip_api_keys` - API keys
+- `elaslip_api_configs` - API configurations
+- `elaslip_webhooks` - Webhooks
+- `elaslip_webhook_logs` - Webhook logs
+- `elaslip_enrichment_cache` - Enrichment cache
+- `elaslip_import_jobs` - Import jobs
+- `elaslip_scan_results` - Scan results
+- `elaslip_ioc_relations` - IOC relationships
+- `elaslip_audit_logs` - Audit logs
+- `elaslip_ioc_versions` - IOC versions
+- `elaslip_roles` - Roles
+- `elaslip_cases` - Cases
+- `elaslip_incidents` - Incidents
+- `elaslip_timeline_events` - Timeline events
+- `elaslip_comments` - Comments
+- `elaslip_snippets` - Snippets
+- `elaslip_checklists` - Checklists
+- `elaslip_checklist_templates` - Checklist templates
+- `elaslip_submissions` - Submissions
+- `elaslip_app_config` - Application configuration
+- `elaslip_finops_token_usage` - FinOps token usage
 
--  `cases`, `incidents` - Investigation data
-
--  `timeline_events` - Timeline events
-
--  `comments` - Discussion comments
-
--  `snippets` - Report snippets
-
--  `checklists`, `checklist_templates` - Checklist data
-
--  `ioc_manager_finops_token_usage` - Token tracking
-
--  `app_config` - Application settings
-
--  `audit_logs` - Activity history
-
--  `users`, `api_keys` - Authentication
-
-  
-
-## Troubleshooting
-
-  
-
-**Elasticsearch Connection**
-
-```bash
-
-docker-compose  logs  elasticsearch
-
-curl  -u  elastic:elastic123  http://localhost:9200
-
-
-```
-
-  
-
-**LLM Issues**
-
-- Ensure Ollama running: `ollama serve`
-
-- Check URL in Settings
-
-- Verify model: `ollama list`
-
-  
-
-**Report Generation**
-
-- Check FinOps tab errors
-
-- Ensure LLM can reach app
-
-- Verify resources available
-
-  
-
-**More Help**: Visit API docs at `http://localhost:5000/apidocs` or enable `DEBUG=true`
-
-  
 
 ## License
 
