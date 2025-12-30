@@ -88,7 +88,7 @@ class IOCService(BaseListService):
                 continue
             
             # Skip invalid root-level custom fields (not STIX-compliant)
-            if key in ['risk_score', 'current_version', 'threat_level', 'tlp', 
+            if key in ['risk_score', 'threat_level', 'tlp', 
                       'campaigns', 'status', 'asn', 'country', 'ioc_type', 'ioc_value',
                       'pattern_hash', 'sources']:
                 # These go to x_metadata, not root
@@ -275,15 +275,11 @@ class IOCService(BaseListService):
             campaigns=campaigns,
             risk_score=self.calculate_risk_score(threat_level, confidence, tlp),
             status='active',
-            current_version=1,
             user_id=user_id,
             username=username
         )
         
         self.es.index(self.index, indicator.id, ioc_doc)
-        
-        # Create initial version snapshot (with metadata)
-        self._create_version_snapshot(indicator.id, ioc_doc, None, 'system')
         
         # Log to audit trail
         try:
@@ -374,8 +370,7 @@ class IOCService(BaseListService):
             ioc_type=ioc_type,
             ioc_value=ioc_value,
             pattern_hash=pattern_hash,
-            status='active',
-            current_version=1
+            status='active'
         )
         
         self.es.index(self.index, indicator.id, ioc_doc)
@@ -455,16 +450,7 @@ class IOCService(BaseListService):
             update_doc['x_metadata'] = existing.get('x_metadata', {})
         update_doc['x_metadata']['risk_score'] = risk_score
         
-        # Increment version
-        current_version = existing.get('current_version', 1)
-        new_version = current_version + 1
-        update_doc['current_version'] = new_version
-        
-        # Create version snapshot with the NEW version number
-        snapshot_for_version = existing.copy()
-        snapshot_for_version['current_version'] = new_version
-        self._create_version_snapshot(ioc_id, snapshot_for_version, updates, user_id, username)
-        
+        # Apply the update to the IOC document
         self.es.update(self.index, ioc_id, {'doc': update_doc})
         
         updated = self.get(ioc_id)
@@ -764,86 +750,6 @@ class IOCService(BaseListService):
         except Exception:
             pass
     
-    def _create_version_snapshot(self, ioc_id: str, snapshot: Dict, changes: Dict = None, 
-                                  user_id: str = None, username: str = None):
-        """Create a version snapshot for an IOC."""
-        import secrets
-        
-        version_id = secrets.token_hex(16)
-        version_number = snapshot.get('current_version', 1)
-        
-        version_doc = {
-            'id': version_id,
-            'ioc_id': ioc_id,
-            'version_number': version_number,
-            'snapshot': snapshot,
-            'changes': changes,
-            'modified_by': username or user_id or 'system',
-            'modified_by_username': username or 'system',
-            'modified_at': datetime.utcnow().isoformat() + 'Z',
-            'created_at': datetime.utcnow().isoformat() + 'Z'
-        }
-        
-        self.es.index('ioc_versions', version_id, version_doc)
-    
-    def get_versions(self, ioc_id: str, page: int = 1, per_page: int = 20) -> Dict:
-        """Get version history for an IOC."""
-        from_idx = (page - 1) * per_page
-        
-        result = self.es.search('ioc_versions', {
-            'query': {'term': {'ioc_id': ioc_id}},
-            'sort': [{'version_number': {'order': 'desc'}}],
-            'from': from_idx,
-            'size': per_page
-        })
-        
-        return self.build_paginated_response(result, page, per_page)
-    
-    def restore_version(self, ioc_id: str, version_number: int, user_id: str = None, username: str = None) -> Optional[Dict]:
-        """Restore an IOC to a previous version."""
-        # Find the version
-        result = self.es.search('ioc_versions', {
-            'query': {
-                'bool': {
-                    'must': [
-                        {'term': {'ioc_id': ioc_id}},
-                        {'term': {'version_number': version_number}}
-                    ]
-                }
-            },
-            'size': 1
-        })
-        
-        if result['hits']['total']['value'] == 0:
-            return None
-        
-        version = result['hits']['hits'][0]['_source']
-        snapshot = version.get('snapshot', {})
-        
-        # Get current IOC to create snapshot
-        current = self.get(ioc_id)
-        if not current:
-            return None
-        
-        # Create snapshot before restore
-        self._create_version_snapshot(ioc_id, current, {'action': 'restore', 'from_version': version_number}, user_id, username)
-        
-        # Prepare update with snapshot data
-        restore_fields = ['labels', 'name', 'description', 'threat_level', 'confidence', 'tlp', 'campaigns', 'valid_from', 'valid_until']
-        update_doc = {k: snapshot.get(k) for k in restore_fields if k in snapshot}
-        update_doc['modified'] = datetime.utcnow().isoformat()
-        update_doc['current_version'] = current.get('current_version', 1) + 1
-        
-        # Recalculate risk score
-        update_doc['risk_score'] = self.calculate_risk_score(
-            snapshot.get('threat_level'),
-            snapshot.get('confidence'),
-            snapshot.get('tlp')
-        )
-        
-        self.es.update(self.index, ioc_id, {'doc': update_doc})
-        
-        return self.get(ioc_id)
     
     # Bulk Operations
     def bulk_update(self, ioc_ids: List[str], updates: Dict, user_id: str = None, username: str = None) -> Dict:
