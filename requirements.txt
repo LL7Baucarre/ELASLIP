@@ -18,7 +18,10 @@ stix2==3.0.1
 # Security
 bcrypt==4.1.2
 PyJWT==2.8.0
-cryptography==44.0.1  
+cryptography==44.0.1
+pyotp==2.9.0
+qrcode==7.4.2
+Pillow==10.1.0
 
 # HTTP requests
 requests==2.32.4

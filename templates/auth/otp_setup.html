@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block title %}Setup Two-Factor Authentication{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white p-4">
+                    <h4 class="mb-0">
+                        <i class="fas fa-lock"></i> Setup Two-Factor Authentication (OTP)
+                    </h4>
+                </div>
+                <div class="card-body p-5">
+                    
+                    <!-- Stepper -->
+                    <div class="row mb-4">
+                        <div class="col-4 text-center">
+                            <div class="step-circle active" id="step1-indicator">
+                                <span>1</span>
+                            </div>
+                            <small>Scan QR Code</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="step-circle" id="step2-indicator">
+                                <span>2</span>
+                            </div>
+                            <small>Save Backup Codes</small>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="step-circle" id="step3-indicator">
+                                <span>3</span>
+                            </div>
+                            <small>Verify</small>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Scan QR Code -->
+                    <div id="step1" class="step-content">
+                        <h5 class="mb-3">
+                            <i class="fas fa-qrcode"></i> Step 1: Scan QR Code
+                        </h5>
+                        <p class="text-muted">
+                            Scan this QR code with an authenticator app such as 
+                            <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong>, 
+                            <strong>Authy</strong>, or <strong>FreeOTP</strong>.
+                        </p>
+
+                        <div class="text-center mb-4" id="qr-container">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading QR code...</span>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <h6 class="mb-2">Or enter this key manually:</h6>
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                class="form-control font-monospace bg-light"
+                                id="secret-key" 
+                                readonly
+                                value="Loading..."
+                            >
+                            <button 
+                                class="btn btn-outline-secondary" 
+                                type="button"
+                                id="copy-secret-btn"
+                                title="Copy to clipboard"
+                            >
+                                <i class="fas fa-copy"></i> Copy
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="fas fa-info-circle"></i>
+                            Keep this key in a safe place. You'll need it to restore access if you lose your phone.
+                        </small>
+
+                        <button type="button" class="btn btn-primary mt-4 w-100" id="next-step1">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+
+                    <!-- Step 2: Save Backup Codes -->
+                    <div id="step2" class="step-content" style="display: none;">
+                        <h5 class="mb-3">
+                            <i class="fas fa-shield-alt"></i> Step 2: Save Backup Codes
+                        </h5>
+                        <p class="text-muted">
+                            Save these backup codes in a safe place. Each code can be used once to sign in 
+                            if you don't have access to your authenticator app.
+                        </p>
+
+                        <div class="alert alert-warning mb-4">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Important:</strong> Store these codes securely. You'll need them if you lose your phone.
+                        </div>
+
+                        <div class="backup-codes-container mb-4 p-3 bg-light rounded" id="backup-codes-list">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading backup codes...</span>
+                            </div>
+                        </div>
+
+                        <div class="row g-2 mb-4">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary w-100" id="copy-codes-btn">
+                                    <i class="fas fa-copy"></i> Copy All
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-primary w-100" id="download-codes-btn">
+                                    <i class="fas fa-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="backup-codes-data">
+
+                        <div class="form-check mb-4">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                id="confirm-backup-codes"
+                                required
+                            >
+                            <label class="form-check-label" for="confirm-backup-codes">
+                                I have saved my backup codes in a safe place
+                            </label>
+                        </div>
+
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button type="button" class="btn btn-outline-secondary w-100" id="back-step2">
+                                    <i class="fas fa-arrow-left"></i> Back
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button type="button" class="btn btn-primary w-100" id="next-step2">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Verify -->
+                    <div id="step3" class="step-content" style="display: none;">
+                        <h5 class="mb-3">
+                            <i class="fas fa-check-circle"></i> Step 3: Verify
+                        </h5>
+                        <p class="text-muted">
+                            Enter a 6-digit code from your authenticator app to complete the setup.
+                        </p>
+
+                        <form id="verify-otp-form">
+                            <div class="mb-3">
+                                <label for="verify-code" class="form-label">
+                                    <strong>6-Digit Code</strong>
+                                </label>
+                                <input 
+                                    type="text" 
+                                    class="form-control form-control-lg text-center"
+                                    id="verify-code" 
+                                    name="verify_code"
+                                    placeholder="000000"
+                                    maxlength="6"
+                                    inputmode="numeric"
+                                    pattern="[0-9]{6}"
+                                    required
+                                    autofocus
+                                >
+                            </div>
+
+                            <div id="verify-error" class="alert alert-danger" style="display: none;">
+                                <i class="fas fa-exclamation-circle"></i> <span id="error-message"></span>
+                            </div>
+
+                            <div id="verify-success" class="alert alert-success" style="display: none;">
+                                <i class="fas fa-check-circle"></i> OTP verified successfully!
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <button type="button" class="btn btn-outline-secondary w-100" id="back-step3">
+                                        <i class="fas fa-arrow-left"></i> Back
+                                    </button>
+                                </div>
+                                <div class="col-6">
+                                    <button type="submit" class="btn btn-success w-100" id="submit-verify">
+                                        <i class="fas fa-shield-alt"></i> Enable OTP
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let setupData = {
+    secret: null,
+    backupCodes: []
+};
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadSetupData();
+    setupEventListeners();
+});
+
+function loadSetupData() {
+    fetch('/auth/otp/setup', {
+        method: 'GET',
+        headers: {
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        setupData.secret = data.secret;
+        setupData.backupCodes = data.backup_codes;
+        
+        // Display QR code
+        document.getElementById('qr-container').innerHTML = 
+            `<img src="${data.qr_code}" alt="QR Code" class="img-fluid" style="max-width: 300px;">`;
+        
+        // Display secret key
+        document.getElementById('secret-key').value = data.secret;
+        
+        // Display backup codes
+        displayBackupCodes();
+    })
+    .catch(error => {
+        console.error('Error loading setup data:', error);
+        document.getElementById('qr-container').innerHTML = 
+            '<div class="alert alert-danger">Error loading QR code</div>';
+    });
+}
+
+function displayBackupCodes() {
+    const container = document.getElementById('backup-codes-list');
+    const html = setupData.backupCodes.map((code, i) => 
+        `<div class="backup-code">${i + 1}. <code>${code}</code></div>`
+    ).join('');
+    container.innerHTML = html;
+    document.getElementById('backup-codes-data').value = setupData.backupCodes.join('\n');
+}
+
+function setupEventListeners() {
+    // Step 1
+    document.getElementById('copy-secret-btn').addEventListener('click', function() {
+        const secret = document.getElementById('secret-key').value;
+        navigator.clipboard.writeText(secret).then(() => {
+            this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-copy"></i> Copy';
+            }, 2000);
+        });
+    });
+
+    document.getElementById('next-step1').addEventListener('click', function() {
+        showStep(2);
+    });
+
+    // Step 2
+    document.getElementById('copy-codes-btn').addEventListener('click', function() {
+        const codes = document.getElementById('backup-codes-data').value;
+        navigator.clipboard.writeText(codes).then(() => {
+            this.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-copy"></i> Copy All';
+            }, 2000);
+        });
+    });
+
+    document.getElementById('download-codes-btn').addEventListener('click', function() {
+        const codes = document.getElementById('backup-codes-data').value;
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(codes));
+        element.setAttribute('download', 'backup-codes.txt');
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    });
+
+    document.getElementById('back-step2').addEventListener('click', function() {
+        showStep(1);
+    });
+
+    document.getElementById('next-step2').addEventListener('click', function() {
+        if (!document.getElementById('confirm-backup-codes').checked) {
+            alert('Please confirm you have saved your backup codes');
+            return;
+        }
+        showStep(3);
+    });
+
+    // Step 3
+    document.getElementById('back-step3').addEventListener('click', function() {
+        showStep(2);
+    });
+
+    document.getElementById('verify-otp-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        verifyOTP();
+    });
+
+    // Only allow numeric input
+    document.getElementById('verify-code').addEventListener('keypress', function(e) {
+        if (!/\d/.test(e.key)) {
+            e.preventDefault();
+        }
+    });
+}
+
+function showStep(stepNumber) {
+    // Hide all steps
+    document.querySelectorAll('.step-content').forEach(el => {
+        el.style.display = 'none';
+    });
+
+    // Show selected step
+    document.getElementById('step' + stepNumber).style.display = 'block';
+
+    // Update indicators
+    document.querySelectorAll('.step-circle').forEach((el, i) => {
+        el.classList.toggle('active', i < stepNumber);
+    });
+
+    // Scroll to top
+    window.scrollTo(0, 0);
+}
+
+function verifyOTP() {
+    const code = document.getElementById('verify-code').value;
+    const btn = document.getElementById('submit-verify');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Verifying...';
+
+    fetch('/auth/otp/setup', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            code: code,
+            secret: setupData.secret,
+            backup_codes: setupData.backupCodes
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.message || data.otp_status) {
+            document.getElementById('verify-error').style.display = 'none';
+            document.getElementById('verify-success').style.display = 'block';
+            setTimeout(() => {
+                window.location.href = '{{ url_for("auth.profile") }}';
+            }, 2000);
+        } else {
+            throw new Error(data.error || 'Verification failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        document.getElementById('error-message').textContent = error.message || 'Invalid code. Please try again.';
+        document.getElementById('verify-error').style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-shield-alt"></i> Enable OTP';
+    });
+}
+</script>
+
+<style>
+.step-circle {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #e9ecef;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-weight: bold;
+    font-size: 18px;
+    transition: all 0.3s ease;
+}
+
+.step-circle.active {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    transform: scale(1.1);
+}
+
+.backup-code {
+    padding: 8px;
+    margin-bottom: 8px;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    font-family: monospace;
+}
+
+.backup-code code {
+    color: #d63384;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.form-control-lg {
+    font-size: 1.5rem;
+    letter-spacing: 0.5rem;
+    font-weight: bold;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    font-weight: 600;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #20c997 0%, #28a745 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+}
+</style>
+{% endblock %}
