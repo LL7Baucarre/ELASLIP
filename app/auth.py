@@ -193,6 +193,36 @@ class User(UserMixin):
 class APIKey:
     """API Key model."""
     
+    # Available scopes for API keys
+    AVAILABLE_SCOPES = {
+        'ioc': 'Read/Write IOCs',
+        'ioc.read': 'Read IOCs only',
+        'ioc.write': 'Write/Create IOCs',
+        'cases': 'Read/Write Cases',
+        'cases.read': 'Read Cases only',
+        'cases.write': 'Write/Create Cases',
+        'incidents': 'Read/Write Incidents',
+        'incidents.read': 'Read Incidents only',
+        'incidents.write': 'Write/Create Incidents',
+        'checklists': 'Read/Write Checklists',
+        'checklists.read': 'Read Checklists only',
+        'checklists.write': 'Write/Create Checklists',
+        'checklist_templates': 'Read/Write Checklist Templates',
+        'checklist_templates.read': 'Read Templates only',
+        'checklist_templates.write': 'Write/Create Templates',
+        'tools': 'Read/Write Tools',
+        'tools.read': 'Read Tools only',
+        'tools.write': 'Execute/Use Tools',
+        'finops': 'Read/Write FinOps',
+        'finops.read': 'Read FinOps only',
+        'finops.write': 'Write/Create FinOps',
+        'search': 'Search/Query',
+        'export': 'Export Data',
+        'webhooks': 'Manage Webhooks',
+        'reports': 'Generate Reports',
+        'admin': 'Full Admin Access'
+    }
+    
     def __init__(self, key_data):
         self.id = key_data.get('id')
         self.user_id = key_data.get('user_id')
@@ -201,6 +231,7 @@ class APIKey:
         self.key_prefix = key_data.get('key_prefix')
         self.created_at = key_data.get('created_at')
         self.last_used = key_data.get('last_used')
+        self.scopes = key_data.get('scopes', [])  # List of allowed scopes
     
     @staticmethod
     def generate_key():
@@ -215,9 +246,16 @@ class APIKey:
         return hashlib.sha256(key.encode()).hexdigest()
     
     @classmethod
-    def create(cls, user_id, label):
+    def create(cls, user_id, label, scopes=None):
         """Create a new API key."""
         es = ElasticsearchService()
+        
+        # Default scopes if none provided
+        if scopes is None:
+            scopes = ['ioc', 'cases', 'incidents', 'checklists', 'search']
+        
+        # Filter scopes to only valid ones
+        scopes = [s for s in scopes if s in cls.AVAILABLE_SCOPES]
         
         key = cls.generate_key()
         key_id = secrets.token_hex(8)
@@ -230,7 +268,8 @@ class APIKey:
             'key_hash': cls.hash_key(key),
             'key_prefix': key[:len(prefix) + 8],  # Store prefix for display
             'created_at': datetime.utcnow().isoformat(),
-            'last_used': None
+            'last_used': None,
+            'scopes': scopes
         }
         
         es.index('api_keys', key_id, key_data)
@@ -293,14 +332,23 @@ class APIKey:
             'doc': {'last_used': datetime.utcnow().isoformat()}
         })
     
+    def has_scope(self, required_scope):
+        """Check if API key has required scope."""
+        # Admin scope grants all access
+        if 'admin' in self.scopes:
+            return True
+        # Check if required scope is in allowed scopes
+        return required_scope in self.scopes
+    
     def to_dict(self):
-        """Convert to dictionary (without hash)."""
+        """Convert to dictionary."""
         return {
             'id': self.id,
             'label': self.label,
             'key_prefix': self.key_prefix,
             'created_at': self.created_at,
-            'last_used': self.last_used
+            'last_used': self.last_used,
+            'scopes': self.scopes
         }
 
 
@@ -308,10 +356,11 @@ def api_key_required(f):
     """Decorator to require API key authentication."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # Get API key from X-API-Key header
         api_key = request.headers.get(current_app.config.get('API_KEY_HEADER', 'X-API-Key'))
         
         if not api_key:
-            return jsonify({'error': 'API key required'}), 401
+            return jsonify({'error': 'API key required in X-API-Key header'}), 401
         
         key_obj = APIKey.get_by_key(api_key)
         if not key_obj:
@@ -337,7 +386,7 @@ def login_or_api_key_required(f):
     """Decorator to require either session login or API key."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        # Check for API key first
+        # Check for API key in X-API-Key header
         api_key = request.headers.get(current_app.config.get('API_KEY_HEADER', 'X-API-Key'))
         
         if api_key:

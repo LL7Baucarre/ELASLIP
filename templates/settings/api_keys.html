@@ -71,9 +71,9 @@
                         <tr>
                             <th>Name</th>
                             <th>Key Prefix</th>
+                            <th>Scopes</th>
                             <th>Created</th>
                             <th>Last Used</th>
-                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -102,7 +102,7 @@
 
 <!-- Create Key Modal -->
 <div class="modal fade" id="createKeyModal" tabindex="-1">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Create API Key</h5>
@@ -114,6 +114,158 @@
                         <label for="keyName" class="form-label">Key Name</label>
                         <input type="text" class="form-control" id="keyName" required
                                placeholder="e.g., Production API, CI/CD Pipeline">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Permissions (Scopes)</label>
+                        <p class="text-muted small">Select which operations this API key can perform:</p>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_ioc" value="ioc" checked>
+                                    <label class="form-check-label" for="scope_ioc">
+                                        <strong>IOCs</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_ioc_read" value="ioc.read">
+                                    <label class="form-check-label" for="scope_ioc_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_ioc_write" value="ioc.write">
+                                    <label class="form-check-label" for="scope_ioc_write">Write Only</label>
+                                </div>
+                                
+                                <hr class="my-2">
+                                
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_cases" value="cases" checked>
+                                    <label class="form-check-label" for="scope_cases">
+                                        <strong>Cases</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_cases_read" value="cases.read">
+                                    <label class="form-check-label" for="scope_cases_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_cases_write" value="cases.write">
+                                    <label class="form-check-label" for="scope_cases_write">Write Only</label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_incidents" value="incidents" checked>
+                                    <label class="form-check-label" for="scope_incidents">
+                                        <strong>Incidents</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_incidents_read" value="incidents.read">
+                                    <label class="form-check-label" for="scope_incidents_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_incidents_write" value="incidents.write">
+                                    <label class="form-check-label" for="scope_incidents_write">Write Only</label>
+                                </div>
+                                
+                                <hr class="my-2">
+                                
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_checklists" value="checklists" checked>
+                                    <label class="form-check-label" for="scope_checklists">
+                                        <strong>Checklists</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_checklists_read" value="checklists.read">
+                                    <label class="form-check-label" for="scope_checklists_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_checklists_write" value="checklists.write">
+                                    <label class="form-check-label" for="scope_checklists_write">Write Only</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <div class="form-check">
+                                <input class="form-check-input scope-checkbox" type="checkbox" id="scope_search" value="search" checked>
+                                <label class="form-check-label" for="scope_search">Search/Query</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input scope-checkbox" type="checkbox" id="scope_export" value="export">
+                                <label class="form-check-label" for="scope_export">Export Data</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input scope-checkbox" type="checkbox" id="scope_webhooks" value="webhooks">
+                                <label class="form-check-label" for="scope_webhooks">Manage Webhooks</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input scope-checkbox" type="checkbox" id="scope_reports" value="reports">
+                                <label class="form-check-label" for="scope_reports">Generate Reports</label>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <hr class="my-2">
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_templates" value="checklist_templates">
+                                    <label class="form-check-label" for="scope_templates">
+                                        <strong>Templates</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_templates_read" value="checklist_templates.read">
+                                    <label class="form-check-label" for="scope_templates_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_templates_write" value="checklist_templates.write">
+                                    <label class="form-check-label" for="scope_templates_write">Write Only</label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <hr class="my-2">
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_tools" value="tools">
+                                    <label class="form-check-label" for="scope_tools">
+                                        <strong>Tools</strong> - Read/Execute
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_tools_read" value="tools.read">
+                                    <label class="form-check-label" for="scope_tools_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_tools_write" value="tools.write">
+                                    <label class="form-check-label" for="scope_tools_write">Execute</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <hr class="my-2">
+                                <div class="form-check">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_finops" value="finops">
+                                    <label class="form-check-label" for="scope_finops">
+                                        <strong>FinOps</strong> - Read/Write
+                                    </label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_finops_read" value="finops.read">
+                                    <label class="form-check-label" for="scope_finops_read">Read Only</label>
+                                </div>
+                                <div class="form-check ms-3">
+                                    <input class="form-check-input scope-checkbox" type="checkbox" id="scope_finops_write" value="finops.write">
+                                    <label class="form-check-label" for="scope_finops_write">Write Only</label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -175,7 +327,7 @@ function loadApiKeys() {
         },
         error: function(xhr) {
             console.error('Failed to load API keys:', xhr);
-            $('#apiKeysTable').html('<tr><td colspan="6" class="text-center text-danger">Failed to load API keys</td></tr>');
+            $('#apiKeysTable').html('<tr><td colspan="7" class="text-center text-danger">Failed to load API keys</td></tr>');
         }
     });
 }
@@ -187,7 +339,7 @@ function displayApiKeys(keys) {
     if (keys.length === 0) {
         tbody.html(`
             <tr>
-                <td colspan="6" class="text-center py-4 text-muted">
+                <td colspan="7" class="text-center py-4 text-muted">
                     <i class="bi bi-key d-block mb-2" style="font-size: 2rem;"></i>
                     No API keys created yet
                 </td>
@@ -199,19 +351,19 @@ function displayApiKeys(keys) {
     keys.forEach(key => {
         const created = key.created_at ? key.created_at.substring(0, 10) : 'N/A';
         const lastUsed = key.last_used ? key.last_used.substring(0, 10) : 'Never';
-        const statusClass = key.is_active ? 'success' : 'danger';
-        const statusText = key.is_active ? 'Active' : 'Inactive';
+        const scopes = key.scopes || [];
+        const scopesDisplay = scopes.length > 0 ? scopes.map(s => `<span class="badge bg-info">${s}</span>`).join('') : '<span class="badge bg-secondary">No scopes</span>';
         
         tbody.append(`
             <tr>
-                <td><strong>${escapeHtml(key.name)}</strong></td>
+                <td><strong>${escapeHtml(key.label)}</strong></td>
                 <td><code>${key.key_prefix || 'ioc_'}...</code></td>
+                <td>${scopesDisplay}</td>
                 <td><small>${created}</small></td>
                 <td><small>${lastUsed}</small></td>
-                <td><span class="badge bg-${statusClass}">${statusText}</span></td>
                 <td>
                     <button class="btn btn-sm btn-outline-danger" onclick="revokeKey('${key.id}')">
-                        <i class="bi bi-trash"></i>
+                        <i class="bi bi-trash"></i> Revoke
                     </button>
                 </td>
             </tr>
@@ -222,16 +374,31 @@ function displayApiKeys(keys) {
 $('#createKeyForm').submit(function(e) {
     e.preventDefault();
     
+    // Get selected scopes from checkboxes
+    const scopes = [];
+    $('.scope-checkbox:checked').each(function() {
+        scopes.push($(this).val());
+    });
+    
+    if (scopes.length === 0) {
+        showAlert('Please select at least one permission scope', 'warning');
+        return;
+    }
+    
     $.ajax({
         url: '/api/api-keys',
         method: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({
-            name: $('#keyName').val()
+            label: $('#keyName').val(),
+            scopes: scopes
         }),
         success: function(data) {
             $('#createKeyModal').modal('hide');
             $('#keyName').val('');
+            // Reset checkboxes to defaults
+            $('.scope-checkbox').prop('checked', false);
+            $('[value="ioc"], [value="cases"], [value="incidents"], [value="checklists"], [value="search"]').prop('checked', true);
             
             // Show the generated key
             $('#generatedKey').val(data.api_key);

@@ -26,8 +26,8 @@ def create_ioc():
     summary: Create a new Indicator of Compromise
     parameters:
       - in: header
-        name: Authorization
-        description: Bearer token or API key
+        name: X-API-Key
+        description: API key
         required: false
         schema:
           type: string

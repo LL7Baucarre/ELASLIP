@@ -116,6 +116,15 @@
             <form id="editUserForm" method="POST">
                 <div class="modal-body">
                     <div class="mb-3">
+                        <label for="editUsername" class="form-label">Username</label>
+                        <input type="text" class="form-control" id="editUsername" name="username" disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserId" class="form-label">User ID</label>
+                        <input type="text" class="form-control" id="editUserId" name="user_id" disabled style="font-family: monospace; font-size: 0.9rem;">
+                        <small class="text-muted d-block mt-1"><i class="bi bi-info-circle me-1"></i>Copy this ID for API usage or database queries</small>
+                    </div>
+                    <div class="mb-3">
                         <label for="editEmail" class="form-label">Email</label>
                         <input type="email" class="form-control" id="editEmail" name="email" required>
                     </div>
@@ -303,6 +312,8 @@ $('#deleteUserForm').submit(function(e) {
 
 function editUser(userId, username, email, role) {
     document.getElementById('editUserForm').action = "{{ url_for('main.edit_user', user_id='USERID') }}".replace('USERID', userId);
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editUserId').value = userId;
     document.getElementById('editEmail').value = email;
     document.getElementById('editRole').value = role;
     document.getElementById('editPassword').value = '';

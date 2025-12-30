@@ -62,16 +62,8 @@ class ReportService:
                 # Try OpenAI-compatible endpoint
                 headers = {}
                 if self.llm_api_key:
-                    # Encode API key properly for HTTP headers
-                    api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
-                    try:
-                        # Try to use the key as-is if it's ASCII
-                        api_key_str.encode('ascii')
-                        headers['Authorization'] = f'Bearer {api_key_str}'
-                    except UnicodeEncodeError:
-                        # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
-                        api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
-                        headers['Authorization'] = f'Bearer {api_key_latin1}'
+                    # Use API key in Authorization header
+                    headers['Authorization'] = f'Bearer {self.llm_api_key}'
                 response = requests.get(f"{self.llm_url}/v1/models", headers=headers, timeout=2)
             else:
                 # Try Ollama endpoint
@@ -94,16 +86,8 @@ class ReportService:
         try:
             headers = {}
             if self.llm_api_key:
-                # Encode API key properly for HTTP headers
-                api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
-                try:
-                    # Try to use the key as-is if it's ASCII
-                    api_key_str.encode('ascii')
-                    headers['Authorization'] = f'Bearer {api_key_str}'
-                except UnicodeEncodeError:
-                    # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
-                    api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
-                    headers['Authorization'] = f'Bearer {api_key_latin1}'
+                # Use API key in Authorization header
+                headers['Authorization'] = f'Bearer {self.llm_api_key}'
             response = requests.get(f"{self.llm_url}/v1/models", headers=headers, timeout=3)
             if response.status_code == 200:
                 print(f"[LLM DETECT] Detected OpenAI-compatible provider at {self.llm_url}")
@@ -184,6 +168,7 @@ class ReportService:
         """Call Ollama API endpoint."""
         headers = {'Content-Type': 'application/json'}
         if self.llm_api_key:
+            # Use API key in Authorization header (Ollama supports Bearer tokens)
             headers['Authorization'] = f'Bearer {self.llm_api_key}'
         
         payload = {
@@ -216,16 +201,8 @@ class ReportService:
         """Call OpenAI-compatible API endpoint."""
         headers = {'Content-Type': 'application/json'}
         if self.llm_api_key:
-            # Encode API key properly for HTTP headers
-            api_key_str = self.llm_api_key if isinstance(self.llm_api_key, str) else str(self.llm_api_key)
-            try:
-                # Try to use the key as-is if it's ASCII
-                api_key_str.encode('ascii')
-                headers['Authorization'] = f'Bearer {api_key_str}'
-            except UnicodeEncodeError:
-                # If not ASCII, encode as UTF-8 bytes then decode as latin-1 for HTTP headers
-                api_key_latin1 = api_key_str.encode('utf-8').decode('latin-1')
-                headers['Authorization'] = f'Bearer {api_key_latin1}'
+            # Use API key in Authorization header
+            headers['Authorization'] = f'Bearer {self.llm_api_key}'
         
         # OpenAI-compatible payload
         payload = {

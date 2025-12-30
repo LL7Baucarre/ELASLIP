@@ -126,12 +126,13 @@
 
 .role-item:hover {
     border-color: #0d6efd;
-    background-color: #f8f9fa;
+    background-color: rgba(13, 110, 253, 0.15);
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.4);
 }
 
 .role-item.active {
     border-color: #0d6efd;
-    background-color: #e7f1ff;
+    background-color: rgba(13, 110, 253, 0.1);
     border-left: 4px solid #0d6efd;
 }
 
@@ -157,8 +158,8 @@
 }
 
 .role-system {
-    background-color: #e7e7e7;
-    color: #555;
+    background-color: #6c757d;
+    color: #fff;
 }
 
 .role-description {
@@ -205,7 +206,7 @@
 
 .category-name {
     font-weight: 600;
-    color: #333;
+    color: #0d6efd;
     font-size: 0.85rem;
     text-transform: uppercase;
     margin-bottom: 0.5rem;
@@ -216,15 +217,17 @@
 .permission-badge {
     display: inline-block;
     padding: 0.25rem 0.5rem;
-    background-color: #f0f0f0;
+    background-color: #0d6efd;
+    color: #fff;
     border-radius: 0.25rem;
     font-size: 0.75rem;
     margin: 0.25rem;
+    font-weight: 600;
 }
 
 .permission-badge.active {
-    background-color: #0d6efd;
-    color: white;
+    background-color: #0dcaf0;
+    color: #000;
 }
 </style>
 
@@ -242,7 +245,7 @@ document.addEventListener('DOMContentLoaded', function() {
 function loadRoles() {
     fetch('/api/rbac/roles', {
         headers: {
-            'Authorization': 'Bearer ' + localStorage.getItem('api_key') || '',
+            'X-API-Key': localStorage.getItem('api_key') || '',
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
