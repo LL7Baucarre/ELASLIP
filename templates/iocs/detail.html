@@ -1517,7 +1517,7 @@ $(document).ready(function() {
         };
         
         // Collect all enrichment_* fields
-        const allFields = {{ ioc|tojson|safe }};
+        const allFields = {{ ioc|tojson }};
         for (const [key, value] of Object.entries(allFields)) {
             if (key.startsWith('enrichment_')) {
                 const fieldName = key.replace('enrichment_', '');

@@ -130,47 +130,92 @@ class NotificationManager {
 
         const notifications = data.notifications || [];
 
+        // Clear the container
+        listContainer.innerHTML = '';
+
         if (notifications.length === 0) {
-            listContainer.innerHTML = `
-                <div class="notifications-empty">
-                    <i class="bi bi-bell-slash"></i>
-                    <p>No notifications</p>
-                </div>
-            `;
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'notifications-empty';
+            emptyDiv.innerHTML = '<i class="bi bi-bell-slash"></i><p>No notifications</p>';
+            listContainer.appendChild(emptyDiv);
             return;
         }
 
-        // Build notifications HTML
-        let html = '';
+        // Build notifications using DOM APIs
         notifications.forEach(notif => {
             const icon = this.getNotificationIcon(notif.level);
             const time = this.formatTime(notif.created_at);
             const readClass = notif.read ? 'notification-read' : 'notification-unread';
             const levelClass = `notification-${notif.level}`;
             
-            html += `
-                <div class="notification-item ${readClass} ${levelClass}" data-id="${notif.id}">
-                    <div class="notification-icon">
-                        ${icon}
-                    </div>
-                    <div class="notification-content">
-                        <div class="notification-title">${this.escapeHtml(notif.title)}</div>
-                        <div class="notification-message">${this.escapeHtml(notif.message)}</div>
-                        <div class="notification-time">${time}</div>
-                    </div>
-                    <div class="notification-actions">
-                        <button class="notification-action-btn" title="Mark as read" onclick="notificationManager.toggleRead('${notif.id}', ${notif.read})">
-                            <i class="bi ${notif.read ? 'bi-envelope-open' : 'bi-envelope'}"></i>
-                        </button>
-                        <button class="notification-action-btn" title="Delete" onclick="notificationManager.deleteNotification('${notif.id}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            const item = document.createElement('div');
+            item.className = `notification-item ${readClass} ${levelClass}`;
+            item.dataset.id = notif.id;
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'notification-icon';
+            iconDiv.innerHTML = icon;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'notification-content';
+            
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'notification-title';
+            titleDiv.textContent = notif.title;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'notification-message';
+            messageDiv.textContent = notif.message;
+            
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'notification-time';
+            timeDiv.textContent = time;
+            
+            contentDiv.appendChild(titleDiv);
+            contentDiv.appendChild(messageDiv);
+            contentDiv.appendChild(timeDiv);
+            
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'notification-actions';
+            
+            const readBtn = document.createElement('button');
+            readBtn.className = 'notification-action-btn';
+            readBtn.title = 'Mark as read';
+            readBtn.dataset.action = 'toggle-read';
+            readBtn.dataset.notificationId = notif.id;
+            readBtn.innerHTML = `<i class="bi ${notif.read ? 'bi-envelope-open' : 'bi-envelope'}"></i>`;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'notification-action-btn';
+            deleteBtn.title = 'Delete';
+            deleteBtn.dataset.action = 'delete';
+            deleteBtn.dataset.notificationId = notif.id;
+            deleteBtn.innerHTML = '<i class="bi bi-trash"></i>';
+            
+            actionsDiv.appendChild(readBtn);
+            actionsDiv.appendChild(deleteBtn);
+            
+            item.appendChild(iconDiv);
+            item.appendChild(contentDiv);
+            item.appendChild(actionsDiv);
+            
+            listContainer.appendChild(item);
         });
-
-        listContainer.innerHTML = html;
+        
+        // Add event listeners using delegation
+        listContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            
+            const notificationId = btn.dataset.notificationId;
+            if (btn.dataset.action === 'toggle-read') {
+                const readBtn = btn.closest('.notification-item').querySelector('[data-action="toggle-read"]');
+                const isRead = readBtn.innerHTML.includes('envelope-open');
+                this.toggleRead(notificationId, isRead);
+            } else if (btn.dataset.action === 'delete') {
+                this.deleteNotification(notificationId);
+            }
+        });
     }
 
     getNotificationIcon(level) {

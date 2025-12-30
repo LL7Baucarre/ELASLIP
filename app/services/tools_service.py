@@ -5,10 +5,68 @@ import re
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Dict, List, Optional
+import ipaddress
 
 
 class ToolsService:
     """Service for network reconnaissance tools."""
+    
+    @staticmethod
+    def _validate_target(target: str) -> bool:
+        """
+        Validate target is a valid IP or hostname.
+        
+        Args:
+            target: Target to validate
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        if not target or not isinstance(target, str):
+            return False
+        
+        # Try to parse as IP address
+        try:
+            ipaddress.ip_address(target)
+            return True
+        except ValueError:
+            pass
+        
+        # Try to validate as hostname
+        if len(target) > 255:
+            return False
+        
+        # Allow alphanumeric, hyphens, dots, and underscores in hostname
+        if re.match(r'^([a-zA-Z0-9]([a-zA-Z0-9\-_.]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-_]*[a-zA-Z0-9])?$', target):
+            return True
+        
+        return False
+    
+    @staticmethod
+    def _validate_ports(ports: str) -> bool:
+        """
+        Validate port specification.
+        
+        Args:
+            ports: Port specification (e.g., "22,80,443" or "1-1000")
+            
+        Returns:
+            True if valid, False otherwise
+        """
+        if not ports or not isinstance(ports, str):
+            return False
+        
+        # Allow only digits, commas, and hyphens
+        if not re.match(r'^[0-9,\-]+$', ports):
+            return False
+        
+        # Validate each port number
+        parts = re.split(r'[,\-]', ports)
+        for part in parts:
+            if part and (not part.isdigit() or int(part) < 1 or int(part) > 65535):
+                return False
+        
+        return True
     
     @staticmethod
     def whois_lookup(target: str) -> Dict:
@@ -96,7 +154,6 @@ class ToolsService:
         return parsed
     
     @staticmethod
-    @staticmethod
     def nmap_scan(target: str, scan_type: str = 'quick', ports: str = None, 
                   custom_args: str = None) -> Dict:
         """
@@ -111,6 +168,22 @@ class ToolsService:
         Returns:
             Dict with scan results
         """
+        # Validate target
+        if not ToolsService._validate_target(target):
+            return {
+                'success': False,
+                'target': target,
+                'error': 'Invalid target format'
+            }
+        
+        # Validate ports if provided
+        if ports and not ToolsService._validate_ports(ports):
+            return {
+                'success': False,
+                'target': target,
+                'error': 'Invalid port specification'
+            }
+        
         scan_options = {
             'quick': ['-T4', '-F', '--open'],
             'full': ['-T4', '-p-', '--open'],
@@ -637,6 +710,22 @@ class ToolsService:
         Returns:
             Dict with ping statistics
         """
+        # Validate target
+        if not ToolsService._validate_target(target):
+            return {
+                'success': False,
+                'target': target,
+                'error': 'Invalid target format'
+            }
+        
+        # Validate count
+        if not isinstance(count, int) or count < 1 or count > 100:
+            return {
+                'success': False,
+                'target': target,
+                'error': 'Invalid packet count'
+            }
+        
         try:
             # Use -c for Linux/Mac, -n for Windows
             import platform

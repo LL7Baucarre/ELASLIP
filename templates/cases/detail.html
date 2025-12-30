@@ -421,7 +421,7 @@ function getEventIcon(type) {
 
 // Load IOCs
 function loadIOCs() {
-    const iocIds = {{ case.ioc_ids | tojson | safe }};
+    const iocIds = {{ case.ioc_ids | tojson }};
     const container = document.getElementById('iocsContainer');
     
     if (!iocIds || iocIds.length === 0) {
