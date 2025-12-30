@@ -172,6 +172,7 @@ def create_app(config_name=None):
     from app.routes.rbac import rbac_bp
     from app.routes.finops import finops_bp
     from app.routes.submissions import submissions_bp, public_bp
+    from app.routes.notifications import bp as notifications_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -192,6 +193,7 @@ def create_app(config_name=None):
     app.register_blueprint(finops_bp)
     app.register_blueprint(submissions_bp)
     app.register_blueprint(public_bp)
+    app.register_blueprint(notifications_bp)
 
     
     # Health check endpoint

@@ -641,7 +641,6 @@ $('#linkedIocSearch').on('input', function() {
         return;
     }
     
-    console.log('Searching for:', query);
     
     // Search for IOCs via GET /api/search
     $.ajax({
@@ -652,7 +651,6 @@ $('#linkedIocSearch').on('input', function() {
             per_page: 10
         },
         success: function(response) {
-            console.log('Search response:', response);
             // Handle both 'items' (from /api/search) and 'results' formats
             const iocs = response.items || response.results || response.iocs || [];
             let html = '';

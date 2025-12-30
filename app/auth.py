@@ -106,7 +106,9 @@ class User(UserMixin):
         try:
             result = es.get('users', user_id)
             if result:
-                return cls(result['_source'])
+                user_data = result['_source']
+                user_data['id'] = result['_id']
+                return cls(user_data)
         except:
             pass
         return None

@@ -64,9 +64,7 @@ async function checkTaskStatus() {
     try {
         const response = await fetch(`/api/reports/task-status/${taskId}`);
         const data = await response.json();
-        
-        console.log('Task status response:', data);
-        
+                
         if (response.ok) {
             const status = data.status;
             

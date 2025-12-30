@@ -1,10 +1,12 @@
 """Expiration tasks for IOC lifecycle management."""
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from celery import shared_task
 
 from app.services.ioc_service import IOCService
 from app.services.audit_service import AuditService
+from app.services.elasticsearch_service import ElasticsearchService
+from app.services.notification_service import NotificationService
 
 
 @shared_task(name='tasks.check_expired_iocs')
@@ -41,11 +43,38 @@ def check_expiring_soon(days: int = 7):
     This task should be scheduled to run daily.
     """
     service = IOCService()
+    es = ElasticsearchService()
+    notification = NotificationService()
+    audit = AuditService()
     
     expiring = service.get_expiring_soon(days=days)
     
-    # Trigger webhooks for each expiring IOC
+    notified_count = 0
+    
+    # Trigger webhooks and notifications for each expiring IOC
     for ioc in expiring:
+        ioc_id = ioc.get('id')
+        ioc_value = ioc.get('value', ioc_id)
+        created_by = ioc.get('created_by', 'system')
+        
+        # Send notification to IOC creator
+        try:
+            notification.notify_ioc_expiring(
+                user_id=created_by,
+                ioc_value=ioc_value
+            )
+            notified_count += 1
+        except Exception as e:
+            audit.log(
+                action='ioc_expiring_notification_failed',
+                entity_type='ioc',
+                entity_id=ioc_id,
+                username='system',
+                entity_name=f'IOC Expiring Notification: {ioc_value}',
+                changes={'error': str(e)}
+            )
+        
+        # Trigger webhooks
         service._trigger_webhook('ioc.expiring_soon', {
             'ioc': ioc,
             'days_until_expiration': days,
@@ -54,6 +83,7 @@ def check_expiring_soon(days: int = 7):
     
     return {
         'expiring_count': len(expiring),
+        'notified_count': notified_count,
         'days': days
     }
 
