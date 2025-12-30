@@ -12,63 +12,67 @@ from app.config import Config
 import os
 
 
-# Default prompt templates
-DEFAULT_PROMPT_IOC = """Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+# Default prompt templates - Optimized for LLM generation
+DEFAULT_PROMPT_IOC = """You are a senior threat intelligence analyst. Analyze the following Indicator of Compromise (IOC) and generate a professional threat assessment report.
 
-## IOC Details
-- **Type**: {type}
-- **IOC Value**: {value}
-- **IOC Categories**: {indicator_types}
-- **Name**: {name}
+## INPUT DATA
 
-## Threat Assessment
-- **Threat Level**: {threat_level}
-- **Risk Score**: {risk_score}
-- **Confidence**: {confidence}
-- **TLP (Traffic Light Protocol)**: {tlp}
+**IOC Type:** {type}
+**IOC Value:** {value}
+**Threat Level:** {severity}
+**Description:** {description}
 
-## Classification
-- **Labels**: {labels}
-- **Associated Campaigns**: {campaigns}
+**Related Indicators:**
+{relations}
 
-## Description
-{description}
+## YOUR TASK
 
-## Additional Context
-- **Created**: {created}
-- **Modified**: {modified}
-- **Status**: {status}
-- **External References**: {external_references}
+Generate a comprehensive threat assessment in Markdown format with the following sections:
 
-{relations_section}
+### 1. Executive Summary
+Write 2-3 sentences summarizing what this IOC represents and its threat significance.
 
-Please provide in **Markdown format**:
-1. What this indicator represents and its role in potential attacks
-2. Potential threats it indicates based on its type and severity
-3. Analysis of how related indicators amplify or contextualize this threat (CRITICAL: mention each related indicator and how it connects)
-4. Recommended mitigation and detection steps
-5. Summary of the threat landscape based on the indicator network"""
+### 2. Threat Analysis
+- What type of threat does this indicator represent?
+- What attack techniques or malware families is it associated with?
+- What is the potential impact if this IOC is detected in an environment?
 
-DEFAULT_PROMPT_CASE = """# Security Case Investigation Report
+### 3. Related Indicators Analysis
+For each related indicator provided:
+- Explain the connection between indicators
+- Describe how they work together in an attack chain
+- Assess the combined threat level
 
-Generate a comprehensive, detailed investigation report for this security case. Use ALL the provided data to create an in-depth analysis with specific references to the incidents, IOCs, timeline events, and analyst observations.
+### 4. Detection & Response
+- How to detect this IOC in your environment
+- Immediate actions to take if detected
+- Tools and techniques for investigation
 
-## Case Information
+### 5. Mitigation Recommendations
+- Short-term containment actions
+- Long-term remediation steps
+- Prevention measures
+
+## OUTPUT FORMAT
+- Use Markdown formatting with headers, bullet points, and bold text
+- Be specific and actionable
+- Reference the actual IOC values provided
+- Do NOT wrap the response in code blocks"""
+
+DEFAULT_PROMPT_CASE = """You are a senior security incident response analyst. Generate a comprehensive investigation report for the following security case.
+
+## CASE INFORMATION
 
 **Case Name:** {name}
 **Status:** {status}
 **Priority:** {priority}
-**Severity Level:** {severity}
+**Severity:** {severity}
 **Assigned To:** {assigned_to}
+**Description:** {description}
 
-## Case Description
-
-{description}
-
-## Context and Scope
-
-- **Number of Associated Incidents:** {incidents_count}
-- **Number of Indicators:** {iocs_count}
+**Associated Data:**
+- Incidents: {incidents_count}
+- Indicators of Compromise: {iocs_count}
 
 {timeline_details}
 
@@ -78,107 +82,171 @@ Generate a comprehensive, detailed investigation report for this security case. 
 
 {comments_details}
 
-## Report Requirements
+## YOUR TASK
 
-Generate a professional security investigation report with the following sections. Format your response using plain markdown WITHOUT wrapping it in code blocks (no triple backticks).
+Generate a professional security investigation report with the following sections:
 
 ### 1. Executive Summary
-Provide a brief overview of the case, its significance, and key findings. Reference specific incidents and IOCs.
+Provide a 3-4 sentence overview of the case, key findings, and current status.
 
-### 2. Incident Timeline
-Reconstruct the sequence of events chronologically. Reference the timeline events provided above.
+### 2. Timeline of Events
+Reconstruct the attack timeline chronologically using the provided events. Include:
+- Initial detection
+- Key milestones
+- Current state
 
 ### 3. Threat Assessment
-Based on the incidents and IOCs, assess the threat landscape. Include the nature and scope of the threat, actor(s) involved, attack methodology, and specific threats posed.
+- Nature and scope of the threat
+- Attack methodology identified
+- Threat actor assessment (if identifiable)
 
-### 4. Compromised Assets and Impact
-Detail what was impacted, which systems/assets were affected, extent of compromise, and business impact assessment.
+### 4. Technical Analysis
+For each IOC:
+- Its role in the attack
+- How it relates to the incidents
+- Threat significance
 
-### 5. Technical Indicators Analysis
-Analyze each IOC provided and explain what each represents, its role in the overall attack, and threat significance.
+### 5. Impact Assessment
+- Affected systems and assets
+- Business impact
+- Data exposure risk
 
 ### 6. Investigation Findings
-Synthesize the analyst observations and comments with key discoveries from the investigation.
+Synthesize analyst observations and key discoveries.
 
-### 7. Recommendations and Actions
-Provide immediate containment actions needed, long-term remediation steps, detection rules, and team responsibilities.
+### 7. Recommendations
+- Immediate containment actions
+- Remediation steps
+- Detection improvements
+- Lessons learned
 
-### 8. Risk Assessment
-Current risk level, residual risks, and timeline for remediation.
+### 8. Risk Rating
+Provide overall risk assessment (Critical/High/Medium/Low) with justification.
 
-**IMPORTANT:** This report must be specific, detailed, and reference actual data from the case, incidents, IOCs, timeline, and analyst comments provided."""
+## OUTPUT FORMAT
+- Use Markdown formatting
+- Be specific and reference actual data from the case
+- Provide actionable recommendations
+- Do NOT wrap response in code blocks"""
 
-DEFAULT_PROMPT_INCIDENT = """Analyze this security incident and generate a comprehensive threat report:
+DEFAULT_PROMPT_INCIDENT = """You are a security incident response specialist. Analyze the following security incident and generate a detailed incident report.
 
-## Incident Details
-- **Incident Name**: {name}
-- **Type**: {type}
-- **Severity**: {severity}
-- **Status**: {status}
+## INCIDENT DATA
 
-## Incident Description
-{description}
+**Incident Name:** {name}
+**Type:** {type}
+**Severity:** {severity}
+**Status:** {status}
+**Description:** {description}
 
-## Timeline of Events
+**Timeline:**
 {timeline}
 
-## Analyst Comments and Observations
+**Analyst Comments:**
 {comments}
 
-## MITRE ATT&CK Mapping
+**MITRE ATT&CK:**
 {tactics}
 
-## Incident Metadata
-- **Created**: {created_at}
-- **Detected**: {detected_at}
-- **Resolved**: {resolved_at}
-
-## Associated Indicators ({iocs_count}):
+**Associated IOCs ({iocs_count}):**
 {iocs}
 
-Please provide in **Markdown format**:
-1. Incident Summary (include key timeline events)
-2. Attack Vector Analysis (include MITRE tactics/techniques)
-3. Affected Systems and Assets
-4. Indicators and their role in the incident
-5. Key Analyst Observations (synthesize comments from the analyst comments section above)
-6. Immediate Actions Required
-7. Long-term Recommendations and Lessons Learned"""
+## YOUR TASK
 
-DEFAULT_PROMPT_CHECKLIST = """# Work Report - {name}
+Generate a comprehensive incident report with the following sections:
 
-## Overview
+### 1. Incident Summary
+Summarize the incident in 3-4 sentences: what happened, when, and current status.
 
-This report documents the work performed for the following security task checklist:
+### 2. Attack Vector Analysis
+- Initial access method
+- Attack progression
+- MITRE ATT&CK techniques used
+- Attacker objectives
 
-**Checklist**: {name}
-**Description**: {description}
-**Created By**: {created_by}
-**Assigned To**: {assigned_to}
-**Tags**: {tags}
-**Related Campaigns**: {campaigns}
-**Related Cases**: {related_cases}
-**Related Incidents**: {related_incidents}
+### 3. Affected Assets
+- Systems compromised
+- Data at risk
+- Scope of impact
 
-## Work Performed
+### 4. Indicators of Compromise
+For each IOC:
+- What it indicates
+- Its role in the attack
+- Detection priority
 
-The following work items have been successfully executed:
+### 5. Response Actions
+- Actions already taken
+- Recommended next steps
+- Escalation requirements
 
+### 6. Root Cause Analysis
+What allowed this incident to occur and what can prevent recurrence.
+
+### 7. Lessons Learned
+Key takeaways and security improvements needed.
+
+## OUTPUT FORMAT
+- Use Markdown with headers and bullet points
+- Be specific and actionable
+- Reference actual incident data
+- Do NOT wrap response in code blocks"""
+
+DEFAULT_PROMPT_CHECKLIST = """You are a security operations analyst. Generate a work completion report based on the following security checklist.
+
+## CHECKLIST INFORMATION
+
+**Title:** {name}
+**Description:** {description}
+**Created By:** {created_by}
+**Assigned To:** {assigned_to}
+**Tags:** {tags}
+**Related Campaigns:** {campaigns}
+**Related Cases:** {related_cases}
+**Related Incidents:** {related_incidents}
+
+**Completed Work Items:**
 {items}
 
-## Team Observations and Comments
-
+**Team Comments:**
 {global_comments}
 
-Please provide a detailed analysis in plain formatted text (NOT wrapped in code blocks). Include:
+## YOUR TASK
 
-1. A detailed summary of all completed work items
-2. The impact and importance of each completed action
-3. How these completed items address the associated security concerns or campaigns
-4. Key findings and discoveries from the completed work
-5. Recommendations for follow-up or related security measures
+Generate a professional work completion report with the following sections:
 
-IMPORTANT: Output plain text formatted with markdown - use headings, bullet points, bold text - but do NOT wrap the entire response in triple backticks or code blocks."""
+### 1. Executive Summary
+Summarize what was accomplished, by whom, and the overall outcome.
+
+### 2. Work Completed
+For each completed item:
+- What was done
+- Why it was important
+- Key outcomes or findings
+
+### 3. Security Impact
+- How this work improves security posture
+- Risks mitigated
+- Compliance improvements (if applicable)
+
+### 4. Key Findings
+Notable discoveries or issues identified during the work.
+
+### 5. Recommendations
+- Follow-up actions needed
+- Additional security measures to consider
+- Process improvements
+
+### 6. Metrics
+- Items completed vs total
+- Time to completion
+- Resources used
+
+## OUTPUT FORMAT
+- Use Markdown formatting
+- Be clear and professional
+- Reference actual work items and comments
+- Do NOT wrap response in code blocks"""
 
 
 class ReportService:
