@@ -849,6 +849,227 @@ def generate_checklist_report(checklist_id):
         return jsonify({'error': str(e)}), 500
 
 
+# =====================================================
+# REGENERATION ENDPOINTS
+# =====================================================
+
+@bp.route('/api/reports/iocs/<ioc_id>/regenerate', methods=['POST'])
+@login_required
+@permission_required('report.generate_llm')
+def regenerate_ioc_report(ioc_id):
+    """
+    Regenerate IOC report with correction instructions
+    ---
+    tags:
+      - Reports
+    parameters:
+      - in: path
+        name: ioc_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            correction_prompt:
+              type: string
+              description: User's correction/refinement instructions
+            previous_report:
+              type: string
+              description: Previous report content for context
+    responses:
+      200:
+        description: Report regeneration started
+      400:
+        description: LLM reporting not enabled or missing correction prompt
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    data = request.get_json() or {}
+    correction_prompt = data.get('correction_prompt', '').strip()
+    previous_report = data.get('previous_report', '')
+    
+    if not correction_prompt:
+        return jsonify({'error': 'Correction prompt is required'}), 400
+    
+    try:
+        from app.tasks.report_tasks import regenerate_ioc_report as task_regenerate_ioc
+        import time
+        
+        task = task_regenerate_ioc.delay(ioc_id, current_user.id, correction_prompt, previous_report)
+        task_id = task.id
+        
+        # Wait briefly for completion
+        for attempt in range(50):
+            try:
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report regeneration completed'
+                        })
+            except Exception:
+                pass
+            time.sleep(0.1)
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report regeneration started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/reports/cases/<case_id>/regenerate', methods=['POST'])
+@login_required
+@permission_required('report.generate_llm')
+def regenerate_case_report(case_id):
+    """
+    Regenerate case report with correction instructions
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    data = request.get_json() or {}
+    correction_prompt = data.get('correction_prompt', '').strip()
+    previous_report = data.get('previous_report', '')
+    
+    if not correction_prompt:
+        return jsonify({'error': 'Correction prompt is required'}), 400
+    
+    try:
+        from app.tasks.report_tasks import regenerate_case_report as task_regenerate_case
+        import time
+        
+        task = task_regenerate_case.delay(case_id, current_user.id, correction_prompt, previous_report)
+        task_id = task.id
+        
+        for attempt in range(50):
+            try:
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report regeneration completed'
+                        })
+            except Exception:
+                pass
+            time.sleep(0.1)
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report regeneration started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/reports/incidents/<incident_id>/regenerate', methods=['POST'])
+@login_required
+@permission_required('report.generate_llm')
+def regenerate_incident_report(incident_id):
+    """
+    Regenerate incident report with correction instructions
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    data = request.get_json() or {}
+    correction_prompt = data.get('correction_prompt', '').strip()
+    previous_report = data.get('previous_report', '')
+    
+    if not correction_prompt:
+        return jsonify({'error': 'Correction prompt is required'}), 400
+    
+    try:
+        from app.tasks.report_tasks import regenerate_incident_report as task_regenerate_incident
+        import time
+        
+        task = task_regenerate_incident.delay(incident_id, current_user.id, correction_prompt, previous_report)
+        task_id = task.id
+        
+        for attempt in range(50):
+            try:
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report regeneration completed'
+                        })
+            except Exception:
+                pass
+            time.sleep(0.1)
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report regeneration started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/reports/checklists/<checklist_id>/regenerate', methods=['POST'])
+@login_required
+@permission_required('checklist.generate_llm')
+def regenerate_checklist_report(checklist_id):
+    """
+    Regenerate checklist report with correction instructions
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    data = request.get_json() or {}
+    correction_prompt = data.get('correction_prompt', '').strip()
+    previous_report = data.get('previous_report', '')
+    
+    if not correction_prompt:
+        return jsonify({'error': 'Correction prompt is required'}), 400
+    
+    try:
+        from app.tasks.report_tasks import regenerate_checklist_report as task_regenerate_checklist
+        import time
+        
+        task = task_regenerate_checklist.delay(checklist_id, current_user.id, correction_prompt, previous_report)
+        task_id = task.id
+        
+        for attempt in range(50):
+            try:
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report regeneration completed'
+                        })
+            except Exception:
+                pass
+            time.sleep(0.1)
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report regeneration started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/reports/loading')
 @login_required
 def report_loading_page():
@@ -1164,6 +1385,7 @@ def view_report(task_id):
         report_data['type'] = config.get('type')
         report_data['status'] = config.get('status')
         report_data['created_at'] = config.get('created_at')
+        report_data['entity_id'] = config.get('entity_id')
         
         return jsonify(report_data)
     except Exception as e:

@@ -23,7 +23,8 @@ def public_submission_page():
     if not current_app.config.get('PUBLIC_SEARCH_ENABLED', True):
         return render_template('error.html', error='Public search is disabled'), 403
     
-    return render_template('public_submission.html')
+    allow_anonymous = current_app.config.get('PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS', True)
+    return render_template('public_submission.html', allow_anonymous=allow_anonymous)
 
 
 @public_bp.route('/api/search', methods=['POST', 'GET'])
