@@ -109,6 +109,12 @@
     color: var(--text-color);
 }
 
+[data-theme="dark"] #descriptionContent,
+[data-theme="dark"] .card-body > p,
+[data-theme="dark"] .card-body > div:not(.text-muted):not(.alert) {
+    color: var(--text-color);
+}
+
 [data-theme="dark"] .alert {
     color: var(--text-color);
 }

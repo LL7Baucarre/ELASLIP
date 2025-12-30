@@ -1,6 +1,6 @@
 """Checklist Routes."""
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from flask_login import login_required, current_user
 
 from app.decorators import permission_required
@@ -74,6 +74,21 @@ def api_create():
         assigned_to_name=data.get('assigned_to_name', '')
     )
     
+    # Dispatch webhook for checklist creation
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        from datetime import datetime
+        dispatch_webhook.delay('checklist.created', {
+            'checklist_id': checklist['id'],
+            'title': checklist.get('title'),
+            'description': checklist.get('description'),
+            'created_by': current_user.username,
+            'created_at': checklist.get('created_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch checklist creation webhook: {str(e)}")
+    
     return jsonify(checklist), 201
 
 
@@ -107,6 +122,22 @@ def api_update(checklist_id):
     checklist = checklist_service.update_checklist(checklist_id, updates)
     if not checklist:
         return jsonify({'error': 'Checklist not found'}), 404
+    
+    # Dispatch webhook for checklist update
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        from datetime import datetime
+        dispatch_webhook.delay('checklist.updated', {
+            'checklist_id': checklist['id'],
+            'title': checklist.get('title'),
+            'description': checklist.get('description'),
+            'status': checklist.get('status'),
+            'updated_by': current_user.username,
+            'updated_at': checklist.get('updated_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch checklist update webhook: {str(e)}")
     
     return jsonify(checklist)
 

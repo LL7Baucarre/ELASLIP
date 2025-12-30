@@ -130,6 +130,30 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
             changes={'task_id': task_id}
         )
         
+        # Dispatch webhooks for report generation
+        try:
+            from app.tasks.webhook_tasks import dispatch_webhook
+            dispatch_webhook.delay('report.llm_created', {
+                'report_id': task_id,
+                'report_type': 'ioc',
+                'entity_id': ioc_id,
+                'entity_value': report_data.get('ioc_value'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            dispatch_webhook.delay('report.llm_ioc', {
+                'report_id': task_id,
+                'entity_id': ioc_id,
+                'entity_value': report_data.get('ioc_value'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            es_logger = __import__('logging').getLogger('app')
+            es_logger.warning(f"Failed to dispatch IOC report webhook: {str(e)}")
+        
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
         report_entry['status'] = 'failed'
@@ -233,6 +257,30 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
             changes={'task_id': task_id}
         )
         
+        # Dispatch webhooks for report generation
+        try:
+            from app.tasks.webhook_tasks import dispatch_webhook
+            dispatch_webhook.delay('report.llm_created', {
+                'report_id': task_id,
+                'report_type': 'case',
+                'entity_id': case_id,
+                'entity_name': report_data.get('case_name'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            dispatch_webhook.delay('report.llm_case', {
+                'report_id': task_id,
+                'entity_id': case_id,
+                'entity_name': report_data.get('case_name'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            es_logger = __import__('logging').getLogger('app')
+            es_logger.warning(f"Failed to dispatch Case report webhook: {str(e)}")
+        
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
         report_entry['status'] = 'failed'
@@ -335,6 +383,30 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
             entity_name=f'Incident Report {incident_id}',
             changes={'task_id': task_id}
         )
+        
+        # Dispatch webhooks for report generation
+        try:
+            from app.tasks.webhook_tasks import dispatch_webhook
+            dispatch_webhook.delay('report.llm_created', {
+                'report_id': task_id,
+                'report_type': 'incident',
+                'entity_id': incident_id,
+                'entity_name': report_data.get('incident_name'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            dispatch_webhook.delay('report.llm_incident', {
+                'report_id': task_id,
+                'entity_id': incident_id,
+                'entity_name': report_data.get('incident_name'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            es_logger = __import__('logging').getLogger('app')
+            es_logger.warning(f"Failed to dispatch Incident report webhook: {str(e)}")
         
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
@@ -574,6 +646,30 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             entity_name=f'Checklist Report {checklist_id}',
             changes={'task_id': task_id}
         )
+        
+        # Dispatch webhooks for report generation
+        try:
+            from app.tasks.webhook_tasks import dispatch_webhook
+            dispatch_webhook.delay('report.llm_created', {
+                'report_id': task_id,
+                'report_type': 'checklist',
+                'entity_id': checklist_id,
+                'entity_name': checklist.get('title'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+            dispatch_webhook.delay('report.llm_checklist', {
+                'report_id': task_id,
+                'entity_id': checklist_id,
+                'entity_name': checklist.get('title'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            es_logger = __import__('logging').getLogger('app')
+            es_logger.warning(f"Failed to dispatch Checklist report webhook: {str(e)}")
         
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:

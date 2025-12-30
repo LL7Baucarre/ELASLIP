@@ -1,7 +1,7 @@
 """API routes for Cases, Incidents, Timeline, Comments, and Snippets."""
 
 from datetime import datetime
-from flask import Blueprint, jsonify, request, abort
+from flask import Blueprint, jsonify, request, abort, current_app
 from flask_login import login_required, current_user
 from app.auth import permission_required
 from app.services.case_service import CaseService, IncidentService, TimelineService
@@ -95,9 +95,30 @@ def get_case(case_id):
     ---
     tags:
       - Cases
+    parameters:
+      - in: path
+        name: case_id
+        type: string
+        required: true
+        description: Case ID
     responses:
       200:
         description: Case details
+        schema:
+          type: object
+          properties:
+            id:
+              type: string
+            title:
+              type: string
+            description:
+              type: string
+            status:
+              type: string
+            created_at:
+              type: string
+            created_by:
+              type: string
       404:
         description: Case not found
     """
@@ -131,6 +152,22 @@ def create_case():
         entity_name=case.get('title', 'Unknown')
     )
     
+    # Dispatch webhook for case creation
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        dispatch_webhook.delay('case.created', {
+            'case_id': case['id'],
+            'title': case.get('title'),
+            'description': case.get('description'),
+            'status': case.get('status'),
+            'severity': case.get('severity'),
+            'created_by': current_user.username,
+            'created_at': case.get('created_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch case creation webhook: {str(e)}")
+    
     return jsonify(case), 201
 
 
@@ -156,6 +193,22 @@ def update_case(case_id):
         username=current_user.username,
         changes=data
     )
+    
+    # Dispatch webhook for case update
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        dispatch_webhook.delay('case.updated', {
+            'case_id': case['id'],
+            'title': case.get('title'),
+            'description': case.get('description'),
+            'status': case.get('status'),
+            'severity': case.get('severity'),
+            'updated_by': current_user.username,
+            'updated_at': case.get('updated_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch case update webhook: {str(e)}")
     
     return jsonify(case)
 
@@ -437,6 +490,22 @@ def create_incident():
         entity_name=incident.get('title', 'Unknown')
     )
     
+    # Dispatch webhook for incident creation
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        dispatch_webhook.delay('incident.created', {
+            'incident_id': incident['id'],
+            'title': incident.get('title'),
+            'description': incident.get('description'),
+            'status': incident.get('status'),
+            'severity': incident.get('severity'),
+            'created_by': current_user.username,
+            'created_at': incident.get('created_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch incident creation webhook: {str(e)}")
+    
     return jsonify(incident), 201
 
 
@@ -492,6 +561,22 @@ def update_incident(incident_id):
         username=current_user.username,
         changes=data
     )
+    
+    # Dispatch webhook for incident update
+    try:
+        from app.tasks.webhook_tasks import dispatch_webhook
+        dispatch_webhook.delay('incident.updated', {
+            'incident_id': incident['id'],
+            'title': incident.get('title'),
+            'description': incident.get('description'),
+            'status': incident.get('status'),
+            'severity': incident.get('severity'),
+            'updated_by': current_user.username,
+            'updated_at': incident.get('updated_at'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    except Exception as e:
+        current_app.logger.warning(f"Failed to dispatch incident update webhook: {str(e)}")
     
     return jsonify(incident)
 

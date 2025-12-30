@@ -20,7 +20,7 @@
             <div class="card-body">
                 <p>The IOC Manager API provides endpoints for managing Indicators of Compromise (IOCs), searching, and linking related indicators.</p>
                 <p><strong>Base URL:</strong> <code>http://{{ request.host }}/api</code></p>
-                <p><strong>Authentication:</strong> Use Bearer token or API key in the Authorization header</p>
+                <p><strong>Authentication:</strong> Use API key in the X-API-Key header</p>
             </div>
         </div>
 
@@ -30,13 +30,9 @@
                 <h5>Authentication</h5>
             </div>
             <div class="card-body">
-                <p>All API endpoints require authentication using either:</p>
-                <div class="mb-3">
-                    <strong>1. JWT Bearer Token</strong>
-                    <pre><code>Authorization: Bearer &lt;your_jwt_token&gt;</code></pre>
-                </div>
+                <p>All API endpoints require authentication using:</p>
                 <div>
-                    <strong>2. API Key</strong>
+                    <strong>API Key</strong>
                     <pre><code>X-API-Key: &lt;your_api_key&gt;</code></pre>
                 </div>
             </div>

@@ -182,7 +182,8 @@ class EnrichmentService:
             auth_token = self.encryption.decrypt_if_needed(auth_token)
         
         if auth_type == 'bearer' and auth_token:
-            headers['Authorization'] = f'Bearer {auth_token}'
+            # Bearer type now uses X-API-Key header instead
+            headers['X-API-Key'] = auth_token
         elif auth_type == 'header' and auth_token:
             # Token is already in headers or use default header
             if 'X-API-Key' not in headers and 'x-apikey' not in headers:

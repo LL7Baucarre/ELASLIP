@@ -15,10 +15,11 @@ def list_keys():
     
     if request.is_json or request.headers.get('Accept') == 'application/json':
         return jsonify({
-            'api_keys': [key.to_dict() for key in keys]
+            'api_keys': [key.to_dict() for key in keys],
+            'available_scopes': APIKey.AVAILABLE_SCOPES
         })
     
-    return render_template('settings/api_keys.html', keys=keys)
+    return render_template('settings/api_keys.html', keys=keys, available_scopes=APIKey.AVAILABLE_SCOPES)
 
 
 @api_keys_bp.route('', methods=['POST'])
@@ -29,13 +30,19 @@ def create_key():
     if request.is_json:
         data = request.get_json()
         label = data.get('label', 'Unnamed Key')
+        scopes = data.get('scopes', [])
     else:
         label = request.form.get('label', 'Unnamed Key')
+        # Get scopes from checkboxes
+        scopes = request.form.getlist('scopes')
     
     if not label:
         label = 'Unnamed Key'
     
-    key, key_obj = APIKey.create(current_user.id, label)
+    if not scopes:
+        scopes = ['ioc', 'cases', 'incidents', 'checklists', 'search']
+    
+    key, key_obj = APIKey.create(current_user.id, label, scopes=scopes)
     
     response_data = {
         'message': 'API key created successfully',
