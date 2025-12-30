@@ -144,17 +144,20 @@
         
         <div class="user-section">
             <div class="user-info">
-                <div class="user-name">
-                    <i class="bi bi-person-circle me-2"></i>
-                    <span>{{ current_user.username }}</span>
-                </div>
+                <a href="{{ url_for('auth.profile') }}" class="user-info-link" title="View your profile">
+                    <div class="user-name">
+                        <i class="bi bi-person-circle me-2"></i>
+                        <span>{{ current_user.username }}</span>
+                    </div>
+                </a>
                 <div class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
                     <i class="bi bi-moon-fill" id="themeIcon"></i>
                 </div>
             </div>
-            <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 8px 0; margin-left: 0;">
+            <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 10px 20px; margin: 10px -20px 0 -20px; width: calc(100% + 40px);">
                 <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
             </a>
+        </div>
         </div>
     </nav>
     {% endif %}

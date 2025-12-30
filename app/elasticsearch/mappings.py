@@ -145,10 +145,21 @@ USERS_MAPPING = {
             },
             "password_hash": {"type": "keyword", "index": False},
             "is_admin": {"type": "boolean"},
+            "role": {"type": "keyword"},
             "role_id": {"type": "keyword"},
             "custom_permissions": {"type": "keyword"},
             "created_at": {"type": "date"},
-            "last_login": {"type": "date"}
+            "last_login": {"type": "date"},
+            "otp": {
+                "type": "object",
+                "properties": {
+                    "enabled": {"type": "boolean"},
+                    "secret": {"type": "keyword", "index": False},
+                    "backup_codes": {"type": "keyword", "index": False},
+                    "verified_at": {"type": "date"},
+                    "created_at": {"type": "date"}
+                }
+            }
         }
     }
 }

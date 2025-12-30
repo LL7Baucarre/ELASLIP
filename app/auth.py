@@ -23,6 +23,14 @@ class User(UserMixin):
         self.is_admin = user_data.get('is_admin', False)
         self.role = user_data.get('role', 'admin' if self.is_admin else 'viewer')
         self._permissions = None
+        
+        # OTP fields
+        otp_data = user_data.get('otp', {})
+        self.otp_enabled = otp_data.get('enabled', False)
+        self.otp_secret = otp_data.get('secret')
+        self.otp_backup_codes = otp_data.get('backup_codes', [])
+        self.otp_verified_at = otp_data.get('verified_at')
+        self.otp_created_at = otp_data.get('created_at')
     
     @property
     def permissions(self):
@@ -93,7 +101,11 @@ class User(UserMixin):
             'is_admin': is_admin,
             'role': role,
             'created_at': datetime.utcnow().isoformat(),
-            'last_login': None
+            'last_login': None,
+            'otp': {
+                'enabled': False,
+                'backup_codes': []
+            }
         }
         
         es.index('users', user_id, user_data)
@@ -188,7 +200,13 @@ class User(UserMixin):
             'role': self.role,
             'permissions': self.permissions,
             'created_at': self.created_at,
-            'last_login': self.last_login
+            'last_login': self.last_login,
+            'otp': {
+                'enabled': self.otp_enabled,
+                'verified_at': self.otp_verified_at,
+                'created_at': self.otp_created_at,
+                'backup_codes_count': len(self.otp_backup_codes) if self.otp_backup_codes else 0
+            }
         }
 
 

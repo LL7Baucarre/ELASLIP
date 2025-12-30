@@ -3,7 +3,13 @@
 from flask import Blueprint, jsonify, request, abort, render_template
 from flask_login import login_required, current_user
 from app.auth import permission_required
-from app.services.report_service import ReportService
+from app.services.report_service import (
+    ReportService, 
+    DEFAULT_PROMPT_IOC, 
+    DEFAULT_PROMPT_CASE, 
+    DEFAULT_PROMPT_INCIDENT, 
+    DEFAULT_PROMPT_CHECKLIST
+)
 from app.services.elasticsearch_service import ElasticsearchService
 from app.config import Config
 from datetime import datetime
@@ -58,30 +64,72 @@ def get_report_config():
     if not current_user.is_admin:
         return jsonify({'error': 'Admin access required'}), 403
     
-    # Try to get from Elasticsearch first
-    try:
-        response = es_service.get('elaslip_app_config', 'llm_config')
-        if response and response.get('found'):
-            config = response.get('_source', {})
-            # Add configured status
-            config['configured'] = report_service.is_configured()
-            return jsonify(config)
-    except Exception:
-        pass
-    
-    # Fall back to environment variables
-    return jsonify({
+    # Get environment variable defaults
+    env_config = {
         'enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true',
         'provider': os.getenv('LLM_PROVIDER', 'auto'),
-        'url': os.getenv('LLM_URL', 'https://ollama:11434'),
+        'url': os.getenv('LLM_URL', 'http://ollama:11434'),
         'model': os.getenv('LLM_MODEL', 'mistral'),
         'api_key': os.getenv('LLM_API_KEY', ''),
         'generation_language': os.getenv('LLM_GENERATION_LANGUAGE', 'en'),
         'custom_prompt_ioc': '',
         'custom_prompt_case': '',
         'custom_prompt_incident': '',
-        'custom_prompt_checklist': '',
-        'configured': report_service.is_configured()
+        'custom_prompt_checklist': ''
+    }
+    
+    # Try to get from Elasticsearch first, but merge with env config
+    try:
+        response = es_service.get('elaslip_app_config', 'llm_config')
+        if response and response.get('found'):
+            es_config = response.get('_source', {})
+            # Merge: ES config overrides env, but preserve env values if not set in ES
+            config = {**env_config, **es_config}
+            config['configured'] = report_service.is_configured()
+            return jsonify(config)
+    except Exception:
+        pass
+    
+    # Fall back to environment variables
+    env_config['configured'] = report_service.is_configured()
+    return jsonify(env_config)
+
+
+@bp.route('/api/reports/default-prompts', methods=['GET'])
+@login_required
+def get_default_prompts():
+    """
+    Get default LLM prompt templates (Admin only)
+    ---
+    tags:
+      - Reports
+    security:
+      - APIKey: []
+    responses:
+      200:
+        description: Default prompt templates retrieved
+        schema:
+          type: object
+          properties:
+            default_prompt_ioc:
+              type: string
+            default_prompt_case:
+              type: string
+            default_prompt_incident:
+              type: string
+            default_prompt_checklist:
+              type: string
+      403:
+        description: Admin access required
+    """
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    return jsonify({
+        'default_prompt_ioc': DEFAULT_PROMPT_IOC,
+        'default_prompt_case': DEFAULT_PROMPT_CASE,
+        'default_prompt_incident': DEFAULT_PROMPT_INCIDENT,
+        'default_prompt_checklist': DEFAULT_PROMPT_CHECKLIST
     })
 
 
@@ -449,13 +497,14 @@ def update_report_config():
     
     data = request.get_json()
     
+    # Get values from request, falling back to environment variables
     config = {
-        'enabled': data.get('enabled', False),
-        'provider': data.get('provider', 'auto'),
-        'url': data.get('url', 'https://ollama:11434'),
-        'model': data.get('model', 'mistral'),
-        'api_key': data.get('api_key', ''),
-        'generation_language': data.get('generation_language', 'en'),
+        'enabled': data.get('enabled', os.getenv('LLM_ENABLED', 'false').lower() == 'true'),
+        'provider': data.get('provider', os.getenv('LLM_PROVIDER', 'auto')),
+        'url': data.get('url', os.getenv('LLM_URL', 'http://ollama:11434')),
+        'model': data.get('model', os.getenv('LLM_MODEL', 'mistral')),
+        'api_key': data.get('api_key', os.getenv('LLM_API_KEY', '')),
+        'generation_language': data.get('generation_language', os.getenv('LLM_GENERATION_LANGUAGE', 'en')),
         'custom_prompt_ioc': data.get('custom_prompt_ioc', ''),
         'custom_prompt_case': data.get('custom_prompt_case', ''),
         'custom_prompt_incident': data.get('custom_prompt_incident', ''),
