@@ -146,25 +146,25 @@ function renderIncidents(incidents) {
         <div class="col-md-6 col-lg-4 mb-4">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="badge bg-${getSeverityColor(inc.severity)}">${inc.severity}</span>
-                    <span class="badge bg-${getStatusColor(inc.status)}">${inc.status}</span>
+                    <span class="badge bg-${getSeverityColor(inc.severity)}">${escapeHtml(inc.severity)}</span>
+                    <span class="badge bg-${getStatusColor(inc.status)}">${escapeHtml(inc.status)}</span>
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">
-                        <a href="/incidents/${inc.id}" class="text-decoration-none">${escapeHtml(inc.title)}</a>
+                        <a href="/incidents/${escapeHtml(inc.id)}" class="text-decoration-none">${escapeHtml(inc.title)}</a>
                     </h5>
                     <p class="card-text text-muted small">
                         ${escapeHtml((inc.description || '').substring(0, 150))}${(inc.description || '').length > 150 ? '...' : ''}
                     </p>
                     <div class="d-flex flex-wrap gap-1 mb-2">
-                        <span class="badge bg-secondary">${inc.category || 'uncategorized'}</span>
-                        ${(inc.mitre_tactics || []).slice(0, 2).map(t => `<span class="badge bg-dark">${t}</span>`).join('')}
+                        <span class="badge bg-secondary">${escapeHtml(inc.category || 'uncategorized')}</span>
+                        ${(inc.mitre_tactics || []).slice(0, 2).map(t => `<span class="badge bg-dark">${escapeHtml(t)}</span>`).join('')}
                     </div>
                 </div>
                 <div class="card-footer bg-transparent">
                     <div class="d-flex justify-content-between align-items-center">
                         <small class="text-muted">
-                            <i class="bi bi-shield-exclamation me-1"></i>${(inc.ioc_ids || []).length} IOCs
+                            <i class="bi bi-shield-exclamation me-1"></i>${escapeHtml((inc.ioc_ids || []).length)} IOCs
                         </small>
                         <small class="text-muted">${formatDate(inc.created_at)}</small>
                     </div>
