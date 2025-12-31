@@ -134,7 +134,8 @@ def create_app(config_name=None):
             'SITE_NAME': app.config.get('SITE_NAME', 'IOC Manager'),
             'SITE_TITLE': app.config.get('SITE_TITLE', 'IOC Manager'),
             'has_permission': has_permission,
-            'has_any_permission': has_any_permission
+            'has_any_permission': has_any_permission,
+            'llm_enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true'
         }
     
     # Initialize Redis
