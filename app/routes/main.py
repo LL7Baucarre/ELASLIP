@@ -390,11 +390,11 @@ def get_graph_data():
         nodes.append({
             'data': {
                 'id': node_id,
-                'label': ioc.get('ioc_value', ioc.get('value', 'Unknown')),
-                'type': ioc.get('ioc_type', ''),
-                'threat_level': threat_level,
-                'confidence': ioc.get('confidence', ''),
-                'tlp': ioc.get('tlp', '')
+                'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
+                'type': str(ioc.get('ioc_type', 'unknown')),
+                'threat_level': str(threat_level),
+                'confidence': str(ioc.get('confidence', '')),
+                'tlp': str(ioc.get('tlp', ''))
             },
             'classes': classes
         })
@@ -511,11 +511,11 @@ def get_ioc_graph_data(ioc_id):
         nodes.append({
             'data': {
                 'id': main_ioc['id'],
-                'label': main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown')),
-                'type': main_ioc.get('ioc_type', ''),
-                'threat_level': main_ioc.get('threat_level', 'unknown'),
-                'confidence': main_ioc.get('confidence', ''),
-                'tlp': main_ioc.get('tlp', '')
+                'label': str(main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown'))),
+                'type': str(main_ioc.get('ioc_type', 'unknown')),
+                'threat_level': str(main_ioc.get('threat_level', 'unknown')),
+                'confidence': str(main_ioc.get('confidence', '')),
+                'tlp': str(main_ioc.get('tlp', ''))
             },
             'classes': f"ioc-{main_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
         })
@@ -573,11 +573,11 @@ def get_ioc_graph_data(ioc_id):
                     nodes.append({
                         'data': {
                             'id': related_ioc['id'],
-                            'label': related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown')),
-                            'type': related_ioc.get('ioc_type', ''),
-                            'threat_level': related_ioc.get('threat_level', 'unknown'),
-                            'confidence': related_ioc.get('confidence', ''),
-                            'tlp': related_ioc.get('tlp', '')
+                            'label': str(related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown'))),
+                            'type': str(related_ioc.get('ioc_type', 'unknown')),
+                            'threat_level': str(related_ioc.get('threat_level', 'unknown')),
+                            'confidence': str(related_ioc.get('confidence', '')),
+                            'tlp': str(related_ioc.get('tlp', ''))
                         },
                         'classes': f"ioc-{related_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
                     })
