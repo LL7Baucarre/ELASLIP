@@ -114,6 +114,25 @@
                         </small>
                     </div>
                     
+                    <!-- Image Gallery -->
+                    <div id="imageGallery" style="display: none;" class="mb-3">
+                        <div class="row g-2" id="imagesGrid"></div>
+                    </div>
+                    
+                    <!-- Image Upload Widget -->
+                    <div class="mb-3">
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="imageInput" accept="image/*" multiple>
+                            <button class="btn btn-outline-secondary" type="button" id="uploadImageBtn">
+                                <i class="bi bi-image me-1"></i> Add Images
+                            </button>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            <i class="bi bi-info-circle me-1"></i>
+                            PNG, JPG, GIF, WebP, BMP up to 10MB each
+                        </small>
+                    </div>
+                    
                     <form id="commentForm">
                         <div class="mb-2">
                             <textarea class="form-control" id="newComment" rows="3" placeholder="Add a comment..."></textarea>
