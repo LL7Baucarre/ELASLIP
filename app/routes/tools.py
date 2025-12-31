@@ -452,6 +452,210 @@ def reverse_dns():
     result['scan_id'] = scan_id
     return jsonify(result)
 
+def _clean_email_address(email_str, all_emails=False):
+    """
+    Clean email address from headers (handle format: "Name <email@domain.com>" or variations).
+    
+    Args:
+        email_str: Raw email address string from header
+        all_emails: If True, return all emails as list; if False, return only first as string
+    
+    Returns:
+        str or list: Cleaned email address(es)
+    """
+    import re
+    
+    if not email_str:
+        return [] if all_emails else 'N/A'
+    
+    # Split by comma to get individual emails
+    email_list = []
+    for email_item in email_str.split(','):
+        email_item = email_item.strip()
+        
+        # Handle "Name <email@domain.com>" format
+        match = re.search(r'<(.+?)>', email_item)
+        if match:
+            email_list.append(match.group(1).strip())
+        else:
+            # If no angle brackets, use as-is
+            email_list.append(email_item)
+    
+    if all_emails:
+        return email_list if email_list else []
+    else:
+        return email_list[0] if email_list else 'N/A'
+
+
+def _parse_email_headers(headers_text):
+    """
+    Parse email headers and extract key information.
+    
+    Args:
+        headers_text: Raw email headers as string
+    
+    Returns:
+        dict: Parsed header information with analysis
+    """
+    import re
+    from email.parser import Parser
+    from io import StringIO
+    
+    try:
+        # Parse headers using email library
+        parser = Parser()
+        message = parser.parsestr(headers_text)
+        
+        # Extract key headers with cleaning
+        extracted = {
+            'from': _clean_email_address(message.get('From', 'N/A')),
+            'to': _clean_email_address(message.get('To', 'N/A'), all_emails=True),
+            'cc': _clean_email_address(message.get('Cc', 'N/A'), all_emails=True),
+            'subject': message.get('Subject', 'N/A'),
+            'date': message.get('Date', 'N/A'),
+            'message_id': message.get('Message-ID', 'N/A'),
+            'content_type': message.get('Content-Type', 'N/A'),
+            'all_headers': dict(message)
+        }
+        
+        # Parse hop information from Received headers
+        hops = []
+        received_headers = message.get_all('Received') or []
+        
+        for i, received in enumerate(reversed(received_headers)):
+            hop = {
+                'number': i + 1,
+                'raw': received.strip(),
+                'from': _extract_received_field(received, 'from'),
+                'by': _extract_received_field(received, 'by'),
+                'with': _extract_received_field(received, 'with'),
+                'date': _extract_received_field(received, ';'),
+            }
+            hops.append(hop)
+        
+        # Extract source IP (from first hop)
+        source_ip = None
+        if hops:
+            hop_data = hops[0]['raw']
+            ip_match = re.search(r'\[(\d+\.\d+\.\d+\.\d+)\]', hop_data)
+            if ip_match:
+                source_ip = ip_match.group(1)
+        
+        extracted['hops'] = hops
+        extracted['source_ip'] = source_ip
+        extracted['hop_count'] = len(hops)
+        
+        return {
+            'success': True,
+            'parsed': extracted,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+
+def _extract_received_field(received_header, field_name):
+    """
+    Extract specific field from Received header.
+    
+    Args:
+        received_header: Full Received header string
+        field_name: Field to extract (from, by, with, ;)
+    
+    Returns:
+        str: Extracted field value or None
+    """
+    import re
+    
+    field_map = {
+        'from': r'from\s+([^\s]+)',
+        'by': r'by\s+([^\s]+)',
+        'with': r'with\s+([^\s]+)',
+        ';': r';\s*(.+?)(?:$|(?=\n))'
+    }
+    
+    pattern = field_map.get(field_name)
+    if not pattern:
+        return None
+    
+    match = re.search(pattern, received_header, re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+@tools_bp.route('/email-headers', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def email_header_analyzer():
+    """
+    Analyze email headers and extract key information.
+    ---
+    tags:
+      - Tools
+    summary: Email Header Analysis
+    requestBody:
+      description: Email headers to analyze
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - headers
+            properties:
+              headers:
+                type: string
+                description: Raw email headers
+    responses:
+      200:
+        description: Email header analysis result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            parsed:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+                subject:
+                  type: string
+                hops:
+                  type: array
+                  items:
+                    type: object
+                source_ip:
+                  type: string
+      400:
+        description: Invalid input
+    """
+    data = request.get_json()
+    headers = data.get('headers', '').strip()
+    
+    if not headers:
+        return jsonify({'error': 'Email headers are required'}), 400
+    
+    # Limit header size to 100KB
+    if len(headers) > 102400:
+        return jsonify({'error': 'Headers too large (max 100KB)'}), 400
+    
+    result = _parse_email_headers(headers)
+    
+    if result['success']:
+        scan_id = _save_scan_result('email-headers', 'Email Analysis', result, {
+            'source_ip': result['parsed'].get('source_ip'),
+            'hop_count': result['parsed'].get('hop_count')
+        })
+        result['scan_id'] = scan_id
+    
+    return jsonify(result)
+
 
 @tools_bp.route('/batch', methods=['POST'])
 @login_or_api_key_required
