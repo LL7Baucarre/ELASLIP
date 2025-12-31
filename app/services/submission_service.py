@@ -55,6 +55,11 @@ class SubmissionService(BaseListService):
         submission_id = f"submission--{uuid.uuid4()}"
         now = datetime.utcnow().isoformat() + 'Z'
         
+        # Check if this IOC has been previously rejected
+        rejected_submissions = self._find_rejected_submissions_for_value(ioc_type, ioc_value)
+        if rejected_submissions:
+            raise ValueError(f"This IOC ({ioc_type}: {ioc_value}) has already been reviewed and rejected. Please contact an administrator if you believe this is an error.")
+        
         # Check if this is a duplicate submission
         existing_submissions = self._find_duplicate_submissions_for_value(ioc_type, ioc_value)
         is_duplicate = len(existing_submissions) > 0
@@ -110,20 +115,24 @@ class SubmissionService(BaseListService):
             return [hit['_id'] for hit in result.get('hits', {}).get('hits', [])]
         except Exception:
             return []
-        """Find IOCs that match the submission."""
+    
+    def _find_rejected_submissions_for_value(self, ioc_type: str, ioc_value: str) -> List[str]:
+        """Find existing rejected submissions for the same IOC type and value."""
         try:
             query = {
                 'query': {
                     'bool': {
                         'must': [
-                            {'term': {'x_metadata.ioc_type': ioc_type}},
-                            {'term': {'x_metadata.ioc_value.keyword': ioc_value}}
+                            {'term': {'ioc_type': ioc_type}},
+                            {'term': {'ioc_value.keyword': ioc_value}},
+                            {'term': {'status': 'rejected'}}
                         ]
                     }
                 },
-                'size': 100
+                'size': 1,
+                'sort': [{'created_at': {'order': 'desc'}}]
             }
-            result = self.es.search('elaslip_ioc', query)
+            result = self.es.search(self.index, query)
             return [hit['_id'] for hit in result.get('hits', {}).get('hits', [])]
         except Exception:
             return []
