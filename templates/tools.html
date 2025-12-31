@@ -142,6 +142,13 @@
                             <small class="text-muted">Header analysis</small>
                         </div>
                     </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="geoip">
+                            <i class="bi bi-globe tool-icon text-primary"></i>
+                            <h6 class="mb-0">GeoIP</h6>
+                            <small class="text-muted">IP geolocation</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -578,6 +585,103 @@
                 </div>
             </div>
         </div>
+
+        <!-- GeoIP Lookup Panel -->
+        <div id="geoipPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-globe me-2"></i>GeoIP Lookup</h6>
+                </div>
+                <div class="card-body">
+                    <form id="geoipForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">IP Address</label>
+                                <input type="text" class="form-control" id="geoipTarget" 
+                                       placeholder="e.g., 8.8.8.8 or 2001:4860:4860::8888" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" type="submit" id="geoipBtn">
+                                    <i class="bi bi-play-fill"></i> Lookup
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Bulk Lookup</label>
+                            <textarea class="form-control" id="geoipBulkInput" rows="4" 
+                                      placeholder="One IP per line..." style="font-family: monospace;"></textarea>
+                            <button class="btn btn-info btn-sm mt-2" id="geoipBulkBtn">
+                                <i class="bi bi-play-fill"></i> Bulk Lookup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" id="geoipResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>GeoIP Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleRawGeoip">
+                            <i class="bi bi-code"></i> Raw
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="geoipParsed">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">IP Address</small>
+                                <div id="geoip-ip" class="fw-bold"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Country</small>
+                                <div id="geoip-country"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">City</small>
+                                <div id="geoip-city"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Timezone</small>
+                                <div id="geoip-timezone"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">ISP / Organization</small>
+                                <div id="geoip-isp"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">ASN</small>
+                                <div id="geoip-asn"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Latitude</small>
+                                <div id="geoip-lat"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Longitude</small>
+                                <div id="geoip-lon"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Hosting</small>
+                                <div id="geoip-hosting"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Proxy</small>
+                                <div id="geoip-proxy"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="geoipRaw" class="result-panel p-3" style="display: none;">
+                        <pre id="geoipRawPre"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -839,6 +943,19 @@ $(document).ready(function() {
             $('#iocTags').val('email-headers,recipient');
             new bootstrap.Modal('#createIocModal').show();
         }
+    });
+    
+    // GeoIP Lookup
+    $('#geoipForm').submit(function(e) {
+        e.preventDefault();
+        runGeoipLookup();
+    });
+    
+    $('#geoipBtn').click(runGeoipLookup);
+    $('#geoipBulkBtn').click(runGeoipBulkLookup);
+    $('#toggleRawGeoip').click(function() {
+        $('#geoipParsed').toggle();
+        $('#geoipRaw').toggle();
     });
     
     // Refresh history
@@ -1784,6 +1901,153 @@ function loadScanDetails(scanId) {
             showAlert('Failed to load scan details', 'danger');
         }
     });
+}
+
+function runGeoipLookup() {
+    const target = $('#geoipTarget').val().trim();
+    if (!target) {
+        showAlert('Please enter an IP address', 'warning');
+        return;
+    }
+    
+    const $btn = $('#geoipBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/geoip',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ target: target }),
+        success: function(response) {
+            currentScanResult = response;
+            displayGeoipResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'GeoIP lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Lookup');
+        }
+    });
+}
+
+function runGeoipBulkLookup() {
+    const input = $('#geoipBulkInput').val().trim();
+    if (!input) {
+        showAlert('Please enter at least one IP address', 'warning');
+        return;
+    }
+    
+    const ips = input.split('\n')
+        .map(ip => ip.trim())
+        .filter(ip => ip.length > 0);
+    
+    if (ips.length === 0) {
+        showAlert('Please enter at least one IP address', 'warning');
+        return;
+    }
+    
+    if (ips.length > 100) {
+        showAlert('Maximum 100 IPs allowed per bulk lookup', 'warning');
+        return;
+    }
+    
+    const $btn = $('#geoipBulkBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/geoip/bulk',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ targets: ips }),
+        success: function(response) {
+            displayGeoipBulkResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Bulk GeoIP lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Bulk Lookup');
+        }
+    });
+}
+
+function displayGeoipResult(data) {
+    $('#geoipResultCard').show();
+    
+    // Raw output
+    $('#geoipRawPre').text(JSON.stringify(data, null, 2));
+    
+    // Parsed output - populate individual fields
+    const result = data.result || data;
+    
+    $('#geoip-ip').text(result.query || result.ip || '-');
+    $('#geoip-country').text((result.country || '-') + (result.countryCode ? ` (${result.countryCode})` : ''));
+    $('#geoip-city').text(result.city || result.regionName || '-');
+    $('#geoip-timezone').text(result.timezone || '-');
+    $('#geoip-isp').text(result.isp || result.org || '-');
+    $('#geoip-asn').text(result.as || result.asn || '-');
+    $('#geoip-lat').text(result.lat || '-');
+    $('#geoip-lon').text(result.lon || '-');
+    $('#geoip-hosting').text(result.hosting ? 'Yes' : 'No');
+    $('#geoip-proxy').text(result.proxy ? 'Yes' : 'No');
+    
+    $('#geoipParsed').show();
+    $('#geoipRaw').hide();
+}
+
+function displayGeoipBulkResult(response) {
+    $('#geoipResultCard').show();
+    
+    // Raw output
+    $('#geoipRawPre').text(JSON.stringify(response, null, 2));
+    
+    // Parsed output - show as table
+    const results = response.results || [];
+    let html = '';
+    
+    if (results.length === 0) {
+        html = '<div class="alert alert-warning">No results returned</div>';
+    } else {
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>IP</th><th>Country</th><th>City</th><th>ISP</th><th>Coordinates</th></tr></thead><tbody>';
+        
+        for (const result of results) {
+            if (result.status === 'success') {
+                const data = result.data;
+                html += `<tr>
+                    <td><code>${data.query || data.ip}</code></td>
+                    <td>${data.country || '-'}</td>
+                    <td>${data.city || data.regionName || '-'}</td>
+                    <td>${data.isp || data.org || '-'}</td>
+                    <td>${data.lat ? data.lat.toFixed(3) : '-'}, ${data.lon ? data.lon.toFixed(3) : '-'}</td>
+                </tr>`;
+            } else {
+                html += `<tr class="text-danger">
+                    <td><code>${result.target}</code></td>
+                    <td colspan="4">${result.error || 'Error'}</td>
+                </tr>`;
+            }
+        }
+        
+        html += '</tbody></table></div>';
+        
+        // Add summary
+        const succeeded = results.filter(r => r.status === 'success').length;
+        const failed = results.filter(r => r.status !== 'success').length;
+        html += `<div class="mt-2 text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            ${succeeded} succeeded, ${failed} failed out of ${results.length} total
+        </div>`;
+    }
+    
+    $('#geoipParsed').html(html);
+    $('#geoipParsed').show();
+    $('#geoipRaw').hide();
 }
 </script>
 {% endblock %}

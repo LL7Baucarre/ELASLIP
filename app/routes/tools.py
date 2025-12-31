@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 
 from app.auth import login_or_api_key_required
 from app.decorators import permission_required
@@ -1174,3 +1174,137 @@ def get_task_status(task_id):
         'result': result.result if result.successful() else None,
         'error': str(result.info) if result.failed() else None
     })
+
+
+@tools_bp.route('/geoip', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def geoip_lookup():
+    """
+    Perform GeoIP lookup on an IP address.
+    
+    ---
+    tags:
+      - Tools
+    summary: GeoIP Lookup
+    requestBody:
+      description: IP address for GeoIP lookup
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ip
+            properties:
+              ip:
+                type: string
+                description: IPv4 or IPv6 address to look up
+    responses:
+      200:
+        description: GeoIP lookup result
+        schema:
+          type: object
+          properties:
+            ip:
+              type: string
+            continent:
+              type: string
+            country:
+              type: string
+            country_code:
+              type: string
+            city:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            timezone:
+              type: string
+            isp:
+              type: string
+            organization:
+              type: string
+            asn:
+              type: string
+      400:
+        description: Invalid IP address
+    """
+    data = request.get_json()
+    ip_address = data.get('target', '').strip()
+    
+    if not ip_address:
+        return jsonify({'error': 'IP address is required'}), 400
+    
+    try:
+        from app.services.geoip_service import GeoIPService
+        service = GeoIPService()
+        result = service.lookup(ip_address)
+        
+        # Save scan result
+        scan_id = _save_scan_result('geoip', ip_address, result)
+        result['scan_id'] = scan_id
+        
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception(f"GeoIP lookup error: {str(e)}")
+        return jsonify({'error': 'GeoIP lookup failed'}), 500
+
+
+@tools_bp.route('/geoip/bulk', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def geoip_bulk_lookup():
+    """
+    Perform bulk GeoIP lookups.
+    
+    ---
+    tags:
+      - Tools
+    summary: Bulk GeoIP Lookup
+    requestBody:
+      description: List of IP addresses
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ips
+            properties:
+              ips:
+                type: array
+                items:
+                  type: string
+                description: List of IPv4 or IPv6 addresses
+    responses:
+      200:
+        description: Bulk GeoIP lookup results
+    """
+    data = request.get_json()
+    ips = data.get('targets', [])
+    
+    if not ips or not isinstance(ips, list):
+        return jsonify({'error': 'List of IPs is required'}), 400
+    
+    if len(ips) > 100:
+        return jsonify({'error': 'Maximum 100 IPs per request'}), 400
+    
+    try:
+        from app.services.geoip_service import GeoIPService
+        service = GeoIPService()
+        results = service.bulk_lookup(ips)
+        
+        # Save scan result
+        scan_id = _save_scan_result('geoip_bulk', f"{len(ips)} IPs", results, {
+            'ip_count': len(ips)
+        })
+        results['scan_id'] = scan_id
+        
+        return jsonify(results), 200
+    except Exception as e:
+        current_app.logger.exception(f"Bulk GeoIP lookup error: {str(e)}")
+        return jsonify({'error': 'Bulk GeoIP lookup failed'}), 500
