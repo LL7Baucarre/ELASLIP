@@ -1369,7 +1369,13 @@ def incidents_list():
 @login_required
 def incidents_new():
     """Create new incident page."""
-    return render_template('incidents/new.html')
+    from app.services.checklist_template_service import ChecklistTemplateService
+    template_service = ChecklistTemplateService()
+    
+    # Load available checklist templates for incident response
+    checklists = template_service.list_templates(page=1, per_page=100, include_public=True)
+    
+    return render_template('incidents/new.html', checklist_templates=checklists.get('items', []))
 
 
 @main_bp.route('/incidents/<incident_id>')
@@ -1377,14 +1383,32 @@ def incidents_new():
 def incidents_detail(incident_id):
     """Incident detail page with report editor."""
     from app.services.case_service import IncidentService
-    service = IncidentService()
-    incident = service.get_incident(incident_id)
+    from app.services.checklist_service import ChecklistService
+    from app.services.checklist_template_service import ChecklistTemplateService
+    
+    incident_service = IncidentService()
+    incident = incident_service.get_incident(incident_id)
     
     if not incident:
         flash('Incident not found', 'error')
         return redirect(url_for('main.incidents_list'))
     
-    return render_template('incidents/detail.html', incident=incident)
+    # Load available checklist templates for creating new checklists
+    template_service = ChecklistTemplateService()
+    checklist_templates = template_service.list_templates(page=1, per_page=100, include_public=True)
+    
+    # Load linked checklists
+    checklist_service = ChecklistService()
+    linked_checklists = []
+    if incident.get('checklist_ids'):
+        for checklist_id in incident.get('checklist_ids', []):
+            checklist = checklist_service.get_checklist(checklist_id)
+            if checklist:
+                linked_checklists.append(checklist)
+    
+    return render_template('incidents/detail.html', incident=incident, 
+                         checklist_templates=checklist_templates.get('items', []),
+                         linked_checklists=linked_checklists)
 
 
 @main_bp.route('/snippets')

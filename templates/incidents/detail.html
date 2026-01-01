@@ -26,6 +26,13 @@
 .report-section h5:hover {
     color: var(--secondary-color);
 }
+.checklist-card {
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+.checklist-card:hover {
+    background-color: #f0f8ff !important;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
+}
 .timeline-item {
     position: relative;
     padding-left: 30px;
@@ -220,6 +227,45 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- Linked Checklist -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-checklist me-2"></i>Response Checklists</h6>
+                            {% if has_permission('incident.edit') %}
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addChecklistModal">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            {% if linked_checklists %}
+                                {% for checklist in linked_checklists %}
+                                <div class="mb-3 p-3 border rounded checklist-card" id="checklist-{{ checklist.id }}" 
+                                     onclick="window.location.href='/checklists/{{ checklist.id }}'" style="cursor: pointer; transition: background-color 0.2s;">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div style="flex-grow: 1;">
+                                            <h6 class="mb-1"><strong>{{ checklist.title }}</strong></h6>
+                                            <p class="text-muted small mb-2">{{ checklist.description }}</p>
+                                            <small class="text-muted">
+                                                {% set completed = checklist.get('items', [])|selectattr('completed', 'equalto', True)|list|length %}
+                                                {{ completed }}/{{ checklist.get('items', [])|length }} items completed
+                                                <span class="badge bg-secondary">{{ checklist.status }}</span>
+                                            </small>
+                                        </div>
+                                        {% if has_permission('incident.edit') %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="event.stopPropagation(); removeChecklist('{{ checklist.id }}')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted mb-0"><small>No checklists linked to this incident</small></p>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -363,6 +409,39 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" onclick="addTimelineEvent()">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Checklist Modal -->
+<div class="modal fade" id="addChecklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Response Checklist</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Select Checklist Template</label>
+                    <select class="form-select" id="addChecklistSelect">
+                        <option value="">-- Select a template --</option>
+                        {% for checklist in checklist_templates %}
+                        <option value="{{ checklist.id }}">{{ checklist.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Select a template to create a new checklist for this incident</small>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Custom Title <span class="text-muted">(optional)</span></label>
+                    <input type="text" class="form-control" id="checklistCustomTitle" placeholder="Leave empty to use template name">
+                    <small class="text-muted">Enter a custom title for this checklist instance</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addChecklistToIncident()">Add Checklist</button>
             </div>
         </div>
     </div>
@@ -586,6 +665,55 @@ function addTimelineEvent() {
             loadTimeline();
         }
     });
+}
+
+function addChecklistToIncident() {
+    const templateId = document.getElementById('addChecklistSelect').value;
+    const customTitle = document.getElementById('checklistCustomTitle').value.trim();
+    
+    if (!templateId) {
+        alert('Please select a template');
+        return;
+    }
+    
+    const payload = { template_id: templateId };
+    if (customTitle) {
+        payload.title = customTitle;
+    }
+    
+    fetch(`/api/incidents/${incidentId}/checklists`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(r => {
+        if (r.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('addChecklistModal')).hide();
+            location.reload();
+        } else {
+            throw new Error('Failed to add checklist');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
+}
+
+function removeChecklist(checklistId) {
+    if (!confirm('Are you sure you want to remove this checklist?')) {
+        return;
+    }
+    
+    fetch(`/api/incidents/${incidentId}/checklists/${checklistId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => {
+        if (r.ok) {
+            document.getElementById(`checklist-${checklistId}`).remove();
+        } else {
+            throw new Error('Failed to remove checklist');
+        }
+    })
+    .catch(err => alert('Error: ' + err.message));
 }
 
 function editTimelineEvent(eventId) {

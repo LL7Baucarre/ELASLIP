@@ -625,6 +625,144 @@ def delete_incident(incident_id):
     return jsonify({'success': True})
 
 
+@bp.route('/api/incidents/<incident_id>/checklists', methods=['POST'])
+@login_required
+@permission_required('incident.edit')
+def add_checklist_to_incident(incident_id):
+    """
+    Add a checklist to an incident (created from template).
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+      - name: body
+        in: body
+        required: true
+        schema:
+          properties:
+            template_id:
+              type: string
+              description: ID of checklist template to create from
+            title:
+              type: string
+              description: Custom title for the checklist (optional, defaults to template name)
+    responses:
+      200:
+        description: Checklist added successfully
+      404:
+        description: Incident or template not found
+    """
+    from app.services.checklist_service import ChecklistService
+    from app.services.checklist_template_service import ChecklistTemplateService
+    
+    incident = incident_service.get_incident(incident_id)
+    if not incident:
+        abort(404, 'Incident not found')
+    
+    data = request.get_json()
+    template_id = data.get('template_id')
+    
+    if not template_id:
+        abort(400, 'template_id is required')
+    
+    # Get the template
+    template_service = ChecklistTemplateService()
+    template = template_service.get_template(template_id)
+    if not template:
+        abort(404, 'Template not found')
+    
+    # Create a new checklist from the template
+    checklist_service = ChecklistService()
+    checklist = checklist_service.create_checklist(
+        title=data.get('title') or template['name'],  # Use custom title or template name
+        description=template.get('description', ''),
+        created_by=current_user.username,
+        created_by_id=current_user.id,
+        items=template.get('items', []),
+        tags=template.get('tags', []),
+        campaigns=template.get('campaigns', []),
+        related_incidents=[incident_id]
+    )
+    
+    # Add checklist to incident
+    checklist_ids = incident.get('checklist_ids', [])
+    if checklist['id'] not in checklist_ids:
+        checklist_ids.append(checklist['id'])
+        incident_service.update_incident(
+            incident_id,
+            {'checklist_ids': checklist_ids},
+            user_id=current_user.id,
+            username=current_user.username
+        )
+    
+    audit_service.log(
+        action='create',
+        entity_type='checklist',
+        entity_id=checklist['id'],
+        entity_name=checklist['title'],
+        user_id=current_user.id,
+        username=current_user.username,
+        changes={'incident_id': incident_id, 'template_id': template_id}
+    )
+    
+    return jsonify(checklist)
+
+
+@bp.route('/api/incidents/<incident_id>/checklists/<checklist_id>', methods=['DELETE'])
+@login_required
+@permission_required('incident.edit')
+def remove_checklist_from_incident(incident_id, checklist_id):
+    """
+    Remove a checklist from an incident.
+    ---
+    tags:
+      - Incidents
+    parameters:
+      - name: incident_id
+        in: path
+        type: string
+        required: true
+      - name: checklist_id
+        in: path
+        type: string
+        required: true
+    responses:
+      200:
+        description: Checklist removed successfully
+      404:
+        description: Incident not found
+    """
+    incident = incident_service.get_incident(incident_id)
+    if not incident:
+        abort(404, 'Incident not found')
+    
+    # Remove checklist ID from incident
+    checklist_ids = incident.get('checklist_ids', [])
+    if checklist_id in checklist_ids:
+        checklist_ids.remove(checklist_id)
+        incident_service.update_incident(
+            incident_id,
+            {'checklist_ids': checklist_ids},
+            user_id=current_user.id,
+            username=current_user.username
+        )
+    
+    audit_service.log(
+        action='update',
+        entity_type='incident',
+        entity_id=incident_id,
+        user_id=current_user.id,
+        username=current_user.username,
+        changes={'removed_checklist_id': checklist_id}
+    )
+    
+    return jsonify({'success': True})
+
+
 @bp.route('/api/incidents/<incident_id>/iocs', methods=['POST'])
 @login_required
 @permission_required('incident.edit')
