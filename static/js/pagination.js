@@ -204,7 +204,8 @@ function getPriorityBadge(priority) {
  * @returns {string} Escaped text
  */
 function escapeHtml(text) {
-    if (!text) return '';
+    if (text === null || text === undefined) return '';
+    if (typeof text !== 'string') return String(text);
     const map = {
         '&': '&amp;',
         '<': '&lt;',

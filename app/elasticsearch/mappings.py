@@ -480,6 +480,32 @@ INCIDENTS_MAPPING = {
 }
 
 
+# Notifications Index Mapping
+NOTIFICATIONS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "type": {"type": "keyword"},  # REPORT_COMPLETED, SUBMISSION_PROCESSED, etc.
+            "title": {"type": "text"},
+            "message": {"type": "text"},
+            "level": {"type": "keyword"},  # info, success, warning, error
+            "related_type": {"type": "keyword"},  # report, submission, ioc, case, incident
+            "related_id": {"type": "keyword"},
+            "action_url": {"type": "keyword"},
+            "data": {"type": "object", "enabled": False},  # Additional data, not indexed
+            "read": {"type": "boolean"},
+            "created_at": {"type": "date"},
+            "read_at": {"type": "date"}
+        }
+    }
+}
+
+
 # Timeline Events Index Mapping
 TIMELINE_EVENTS_MAPPING = {
     "settings": {
@@ -699,6 +725,30 @@ FINOPS_TOKEN_USAGE_MAPPING = {
 }
 
 
+# Images Index Mapping - Image uploads for comments, timeline events, etc.
+IMAGES_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "filename": {"type": "keyword"},
+            "stored_filename": {"type": "keyword"},
+            "file_hash": {"type": "keyword"},
+            "file_size": {"type": "integer"},
+            "mime_type": {"type": "keyword"},
+            "entity_type": {"type": "keyword"},
+            "entity_id": {"type": "keyword"},
+            "uploaded_by_id": {"type": "keyword"},
+            "uploaded_at": {"type": "date"},
+            "url": {"type": "keyword"}
+        }
+    }
+}
+
+
 # All indices with their mappings
 INDICES = {
     "elaslip_ioc": IOC_MAPPING,
@@ -716,6 +766,7 @@ INDICES = {
     "elaslip_roles": ROLES_MAPPING,
     "elaslip_cases": CASES_MAPPING,
     "elaslip_incidents": INCIDENTS_MAPPING,
+    "elaslip_notifications": NOTIFICATIONS_MAPPING,
     "elaslip_timeline_events": TIMELINE_EVENTS_MAPPING,
     "elaslip_comments": COMMENTS_MAPPING,
     "elaslip_snippets": SNIPPETS_MAPPING,
@@ -723,5 +774,6 @@ INDICES = {
     "elaslip_checklist_templates": CHECKLIST_TEMPLATES_MAPPING,
     "elaslip_submissions": SUBMISSIONS_MAPPING,
     "elaslip_app_config": APP_CONFIG_MAPPING,
-    "elaslip_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING
+    "elaslip_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING,
+    "elaslip_images": IMAGES_MAPPING
 }
