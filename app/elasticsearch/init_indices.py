@@ -5,6 +5,8 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
 
 from app.elasticsearch.mappings import INDICES
+import logging
+logger = logging.getLogger(__name__)
 
 
 def get_elasticsearch_client():
@@ -26,20 +28,20 @@ def init_elasticsearch():
     
     # Wait for Elasticsearch to be ready
     if not es.ping():
-        print("Warning: Elasticsearch is not available")
+        logger.warning("Elasticsearch is not available")
         return False
     
-    print("Initializing Elasticsearch indices...")
+    logger.info("Initializing Elasticsearch indices...")
     
     for index_name, mapping in INDICES.items():
         try:
             if not es.indices.exists(index=index_name):
                 es.indices.create(index=index_name, body=mapping)
-                print(f"  Created index: {index_name}")
+                logger.info("Created index: %s", index_name)
             else:
-                print(f"  Index already exists: {index_name}")
+                logger.info("Index already exists: %s", index_name)
         except RequestError as e:
-            print(f"  Error creating index {index_name}: {e}")
+            logger.exception("Error creating index %s: %s", index_name, e)
     
     # Create default admin user if it doesn't exist
     create_default_admin(es)
@@ -47,7 +49,7 @@ def init_elasticsearch():
     # Create default roles if they don't exist
     create_default_roles(es)
     
-    print("Elasticsearch initialization complete")
+    logger.info("Elasticsearch initialization complete")
     return True
 
 
@@ -58,9 +60,9 @@ def create_default_roles(es):
     try:
         rbac = RBACService()
         rbac.init_default_roles()
-        print("  Default roles initialized")
+        logger.info("Default roles initialized")
     except Exception as e:
-        print(f"  Warning: Could not initialize default roles: {e}")
+        logger.exception("Could not initialize default roles: %s", e)
 
 
 def create_default_admin(es):
@@ -103,6 +105,6 @@ def create_default_admin(es):
         }
         
         es.index(index='elaslip_users', id=user_id, document=user_data)
-        print(f"  Created default admin user: {admin_username}")
+        logger.info("Created default admin user: %s", admin_username)
     else:
-        print(f"  Admin user already exists: {admin_username}")
+        logger.info("Admin user already exists: %s", admin_username)

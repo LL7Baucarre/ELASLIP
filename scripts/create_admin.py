@@ -11,6 +11,12 @@ import getpass
 from datetime import datetime
 from elasticsearch import Elasticsearch
 import bcrypt
+import logging
+from app.logging_config import init_logging
+
+# Initialize logging
+init_logging()
+logger = logging.getLogger(__name__)
 
 
 def create_admin_user(es, username, password, email=None):
@@ -27,7 +33,7 @@ def create_admin_user(es, username, password, email=None):
     )
     
     if result["hits"]["total"]["value"] > 0:
-        print(f"✗ User '{username}' already exists")
+        logger.error("User '%s' already exists", username)
         return False
     
     # Hash password
@@ -48,7 +54,7 @@ def create_admin_user(es, username, password, email=None):
     es.index(index="users", id=user_id, body=user)
     es.indices.refresh(index="users")
     
-    print(f"✓ Created user: {username}")
+    logger.info("Created user: %s", username)
     return True
 
 
@@ -58,9 +64,9 @@ def main():
     es_user = os.environ.get("ELASTICSEARCH_USER", "elastic")
     es_password = os.environ.get("ELASTICSEARCH_PASSWORD", "elastic123")
     
-    print(f"\nIOC Manager - Create Admin User")
-    print(f"=" * 50)
-    print(f"Elasticsearch URL: {es_url}\n")
+    logger.info("\nIOC Manager - Create Admin User")
+    logger.info("%s", "=" * 50)
+    logger.info("Elasticsearch URL: %s\n", es_url)
     
     # Construct URL with credentials if not already included
     if es_user and es_password and 'http://' in es_url and '@' not in es_url:
@@ -71,40 +77,39 @@ def main():
     
     # Check connection
     if not es.ping():
-        print("✗ Cannot connect to Elasticsearch")
-        print("  Make sure Elasticsearch is running")
+        logger.error("Cannot connect to Elasticsearch")
+        logger.error("Make sure Elasticsearch is running")
         sys.exit(1)
     
     # Check if users index exists
     if not es.indices.exists(index="users"):
-        print("✗ Users index does not exist")
-        print("  Run init_elasticsearch.py first")
+        logger.error("Users index does not exist")
+        logger.error("Run init_elasticsearch.py first")
         sys.exit(1)
     
     # Get user input
     username = input("Username: ").strip()
     if not username:
-        print("✗ Username is required")
+        logger.error("Username is required")
         sys.exit(1)
     
     email = input("Email (optional): ").strip() or None
     
     password = getpass.getpass("Password: ")
     if len(password) < 8:
-        print("✗ Password must be at least 8 characters")
+        logger.error("Password must be at least 8 characters")
         sys.exit(1)
     
     password_confirm = getpass.getpass("Confirm password: ")
     if password != password_confirm:
-        print("✗ Passwords do not match")
+        logger.error("Passwords do not match")
         sys.exit(1)
     
     # Create user
-    print()
     if create_admin_user(es, username, password, email):
-        print(f"\n{'=' * 50}")
-        print("✓ Admin user created successfully!")
-        print(f"\nYou can now login at: http://localhost:5000/auth/login")
+        logger.info("%s", "=" * 50)
+        logger.info("Admin user created successfully!")
+        logger.info("You can now login at: http://localhost:5000/auth/login")
     else:
         sys.exit(1)
 

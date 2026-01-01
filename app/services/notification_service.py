@@ -4,6 +4,8 @@ from datetime import datetime
 import uuid
 from app.services.elasticsearch_service import ElasticsearchService
 from flask_login import current_user
+import logging
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -77,7 +79,7 @@ class NotificationService:
             self.es.index(self.index, notification_id, notification)
             return notification
         except Exception as e:
-            print(f"Error creating notification: {e}")
+            logger.exception("Error creating notification: %s", e)
             return None
     
     def get_user_notifications(self, user_id, limit=50, unread_only=False):
@@ -118,7 +120,7 @@ class NotificationService:
             
             return notifications
         except Exception as e:
-            print(f"Error fetching notifications: {e}")
+            logger.exception("Error fetching notifications: %s", e)
             return []
     
     def get_unread_count(self, user_id):
@@ -139,7 +141,7 @@ class NotificationService:
             result = self.es.search(self.index, query)
             return result.get('hits', {}).get('total', {}).get('value', 0)
         except Exception as e:
-            print(f"Error counting unread notifications: {e}")
+            logger.exception("Error counting unread notifications: %s", e)
             return 0
     
     def mark_as_read(self, notification_id, user_id):
@@ -161,7 +163,7 @@ class NotificationService:
             self.es.index(self.index, notification_id, notification)
             return True
         except Exception as e:
-            print(f"Error marking notification as read: {e}")
+            logger.exception("Error marking notification as read: %s", e)
             return False
     
     def mark_all_as_read(self, user_id):
@@ -177,7 +179,7 @@ class NotificationService:
             
             return success_count
         except Exception as e:
-            print(f"Error marking all notifications as read: {e}")
+            logger.exception("Error marking all notifications as read: %s", e)
             return 0
     
     def delete_notification(self, notification_id, user_id):
@@ -195,7 +197,7 @@ class NotificationService:
             self.es.delete(self.index, notification_id)
             return True
         except Exception as e:
-            print(f"Error deleting notification: {e}")
+            logger.exception("Error deleting notification: %s", e)
             return False
     
     def notify_report_completed(self, user_id, report_type, entity_name, task_id):

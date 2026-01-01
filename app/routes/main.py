@@ -13,6 +13,8 @@ from app.services.backup_service import BackupService
 from app.auth import User
 from app.decorators import permission_required
 from app.utils.request_helpers import transform_ioc_to_stix_compliant
+import logging
+logger = logging.getLogger(__name__)
 
 main_bp = Blueprint('main', __name__)
 
@@ -192,16 +194,12 @@ def dashboard():
     # Get recent IOCs
     try:
         recent = ioc_service.list(page=1, per_page=5)
-        import sys
-        print(f"DEBUG: recent dict keys: {recent.keys()}", file=sys.stderr)
-        print(f"DEBUG: recent total: {recent.get('total')}", file=sys.stderr)
-        print(f"DEBUG: recent items count: {len(recent.get('items', []))}", file=sys.stderr)
+        logger.debug("recent dict keys: %s", recent.keys())
+        logger.debug("recent total: %s", recent.get('total'))
+        logger.debug("recent items count: %d", len(recent.get('items', [])))
         template_iocs = [make_ioc_template_friendly(ioc) for ioc in recent.get('items', [])]
     except Exception as e:
-        import sys
-        print(f"Error fetching recent IOCs: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc(file=sys.stderr)
+        logger.exception("Error fetching recent IOCs: %s", e)
         template_iocs = []
     
     # Get recent cases

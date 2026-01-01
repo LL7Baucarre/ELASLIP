@@ -9,6 +9,8 @@ from app.services.comment_service import CommentService, SnippetService
 from app.services.audit_service import AuditService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.utils.request_helpers import get_pagination_params, build_filters_dict
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('cases', __name__)
 
@@ -1196,9 +1198,7 @@ def api_generate_case_report(case_id):
             'message': 'Report generation started'
         })
     except Exception as e:
-        import traceback
-        print(f"Error launching case report task: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error launching case report task: %s", e)
         return jsonify({'error': str(e)}), 500
 
 
@@ -1245,7 +1245,5 @@ def api_generate_incident_report(incident_id):
             'message': 'Report generation started'
         })
     except Exception as e:
-        import traceback
-        print(f"Error launching incident report task: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error launching incident report task: %s", e)
         return jsonify({'error': str(e)}), 500

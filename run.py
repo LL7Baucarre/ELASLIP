@@ -7,6 +7,17 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionError, NotFoundError
 from app import create_app
 
+# Ensure logs directory exists and set LOG_FILE so central logging uses it
+log_dir = os.path.join(os.path.dirname(__file__), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+os.environ.setdefault('LOG_FILE', os.path.join(log_dir, 'app.log'))
+os.environ.setdefault('LOG_LEVEL', os.getenv('LOG_LEVEL', 'DEBUG' if os.getenv('FLASK_ENV','development')=='development' else 'INFO'))
+
+# Initialize basic logging configuration (uses env vars if needed)
+from app.logging_config import init_logging
+init_logging()
+logger = logging.getLogger(__name__)
+
 # Wait for Elasticsearch to be ready before creating app
 def wait_for_elasticsearch(max_retries=30, retry_delay=2):
     """Wait for Elasticsearch to be fully ready"""
@@ -19,7 +30,7 @@ def wait_for_elasticsearch(max_retries=30, retry_delay=2):
     retry_count = 0
     while retry_count < max_retries:
         try:
-            # Create temp ES client
+            # Create temporary ES client
             es_temp = Elasticsearch([es_url])
             
             # Try to get cluster health
@@ -27,74 +38,30 @@ def wait_for_elasticsearch(max_retries=30, retry_delay=2):
             
             # Check if cluster is at least yellow (ready to accept requests)
             if health.get('status') in ['yellow', 'green']:
-                print(f"✓ Elasticsearch is ready (status: {health.get('status')})")
+                logger.info("Elasticsearch is ready (status: %s)", health.get('status'))
                 es_temp.close()
                 return True
             else:
-                print(f"⏳ Elasticsearch cluster status: {health.get('status')}, waiting...")
+                logger.info("Elasticsearch cluster status: %s, waiting...", health.get('status'))
                 
         except (ConnectionError, Exception) as e:
             retry_count += 1
             if retry_count < max_retries:
-                print(f"⏳ Waiting for Elasticsearch ({retry_count}/{max_retries})... Error: {str(e)[:100]}")
+                logger.warning("Waiting for Elasticsearch (%d/%d)... Error: %s", retry_count, max_retries, str(e)[:100])
                 time.sleep(retry_delay)
             else:
-                print(f"✗ Failed to connect to Elasticsearch after {max_retries} retries")
+                logger.error("Failed to connect to Elasticsearch after %d retries", max_retries)
                 return False
     
     return False
 
 # Ensure Elasticsearch is ready before starting app
 if not wait_for_elasticsearch():
-    print("ERROR: Elasticsearch did not become ready in time")
+    logger.error("Elasticsearch did not become ready in time")
     sys.exit(1)
 
 app = create_app()
 
-# Configure logging
-log_dir = os.path.join(os.path.dirname(__file__), 'logs')
-os.makedirs(log_dir, exist_ok=True)
-
-# Set up file handler for all logs
-file_handler = logging.handlers.RotatingFileHandler(
-    os.path.join(log_dir, 'app.log'),
-    maxBytes=10485760,  # 10MB
-    backupCount=10
-)
-file_handler.setLevel(logging.DEBUG)
-
-# Set up console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-# Create formatter
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add handlers to root logger
-root_logger = logging.getLogger()
-root_logger.setLevel(logging.DEBUG)
-root_logger.addHandler(file_handler)
-root_logger.addHandler(console_handler)
-
-# Configure app-specific loggers
-app_module_logger = logging.getLogger('app')
-app_module_logger.setLevel(logging.DEBUG)
-app_module_logger.addHandler(file_handler)
-app_module_logger.addHandler(console_handler)
-
-enrichment_logger = logging.getLogger('app.services.enrichment_service')
-enrichment_logger.setLevel(logging.DEBUG)
-enrichment_logger.addHandler(file_handler)
-enrichment_logger.addHandler(console_handler)
-
-template_logger = logging.getLogger('app.models.api_template')
-template_logger.setLevel(logging.DEBUG)
-template_logger.addHandler(file_handler)
-template_logger.addHandler(console_handler)
-
 if __name__ == '__main__':
+    logger.info("Starting Flask app on 0.0.0.0:5000")
     app.run(host='0.0.0.0', port=5000, debug=True)

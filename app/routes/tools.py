@@ -9,6 +9,8 @@ from app.decorators import permission_required
 from app.services.tools_service import ToolsService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.utils.request_helpers import get_pagination_params, build_filters_dict
+import logging
+logger = logging.getLogger(__name__)
 
 tools_bp = Blueprint('tools', __name__)
 
@@ -174,8 +176,7 @@ def ping():
     result = tools.ping(target, count)
     
     # Debug log
-    import sys
-    print(f"ROUTE PING: result keys = {result.keys()}, has raw_output = {'raw_output' in result}", file=sys.stderr)
+    logger.debug("ROUTE PING: result keys = %s, has raw_output = %s", result.keys(), 'raw_output' in result)
     
     # Save result to Elasticsearch
     result['scan_id'] = _save_scan_result('ping', target, result)

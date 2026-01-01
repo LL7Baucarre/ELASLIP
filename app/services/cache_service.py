@@ -6,6 +6,8 @@ from typing import Any, Optional
 from datetime import timedelta
 
 import redis
+import logging
+logger = logging.getLogger(__name__)
 
 
 class CacheService:
@@ -35,7 +37,7 @@ class CacheService:
             # Test connection
             self._redis.ping()
         except Exception as e:
-            print(f"Warning: Redis connection failed: {e}")
+            logger.exception("Redis connection failed: %s", e)
             self._redis = None
     
     def _generate_key(self, prefix: str, *args, **kwargs) -> str:

@@ -1211,8 +1211,6 @@ def api_generate_ioc_report(ioc_id):
             'message': 'Report generation started'
         })
     except Exception as e:
-        import traceback
-        print(f"Error launching IOC report task: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error launching IOC report task: %s", e)
         return jsonify({'error': str(e)}), 500
 
