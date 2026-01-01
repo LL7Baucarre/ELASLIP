@@ -284,11 +284,12 @@
         background: white;
         padding: 15px;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        z-index: 10;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
         max-width: 300px;
         max-height: 400px;
         overflow-y: auto;
+        border: 2px solid #007bff;
     }
     
     [data-theme="dark"] .info-panel {
@@ -325,6 +326,21 @@
     
     [data-theme="dark"] .info-item strong {
         color: #adb5bd;
+    }
+
+    /* Fix checkboxes to be square, not stretched */
+    .form-check-input {
+        width: 1rem !important;
+        height: 1rem !important;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .form-check {
+        padding-left: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
     }
 
     .badge-small {
@@ -574,6 +590,18 @@
     </div>
 
     <div class="control-group">
+        <label for="recursionDepth">Recursion Depth:</label>
+        <select id="recursionDepth" onchange="updateRecursionDepth()">
+            <option value="1">Level 1 (Direct only)</option>
+            <option value="2" selected>Level 2</option>
+            <option value="3">Level 3</option>
+            <option value="4">Level 4</option>
+            <option value="5">Level 5</option>
+        </select>
+        <small class="text-muted d-block" style="font-size: 0.75rem;">Depth of relation traversal (more levels = more nodes)</small>
+    </div>
+
+    <div class="control-group">
         <div class="form-check">
             <input class="form-check-input" type="checkbox" id="showLabels" checked onchange="toggleEdgeLabels()">
             <label class="form-check-label" for="showLabels">
@@ -702,6 +730,7 @@ let allNodes = [];
 let allEdges = [];
 let filteredByRelations = false;
 let searchTimeout = null;
+let currentRecursionDepth = 2;
 
 function initGraph(nodes, edges) {
     if (cy) {
@@ -730,7 +759,9 @@ function initGraph(nodes, edges) {
                     'text-outline-color': '#333',
                     'text-valign': 'center',
                     'text-halign': 'center',
-                    'padding': 3
+                    'padding': 3,
+                    'cursor': 'pointer',
+                    'events': 'yes'
                 }
             },
             {
@@ -828,15 +859,31 @@ function initGraph(nodes, edges) {
         },
         wheelSensitivity: 0.1,
         minZoom: 0.1,
-        maxZoom: 3
+        maxZoom: 3,
+        userPanningEnabled: true,
+        userZoomingEnabled: true,
+        boxSelectionEnabled: false,
+        selectionType: 'single',
+        autoungrabify: false,
+        autolock: false,
+        motionBlur: false,
+        pixelRatio: 'auto'
     });
 
-    // Event handlers
+    // Event handlers for nodes
     cy.on('tap', 'node', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
         const node = e.target;
         showNodeInfo(node);
     });
 
+    // Prevent node selection by default
+    cy.on('select', 'node', function(e) {
+        // Don't do anything special on select
+    });
+
+    // Event handler for background click
     cy.on('tap', function(e) {
         if (e.target === cy) {
             document.getElementById('infoPanel').style.display = 'none';
@@ -845,6 +892,8 @@ function initGraph(nodes, edges) {
 
     // Double-click to navigate to IOC
     cy.on('dblclick', 'node', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
         const nodeId = e.target.id();
         window.location.href = `/iocs/${nodeId}`;
     });
@@ -930,6 +979,139 @@ function clearSelection() {
     }
 }
 
+function updateRecursionDepth() {
+    const depthSelect = document.getElementById('recursionDepth');
+    currentRecursionDepth = parseInt(depthSelect.value);
+    
+    // If there's a current search, refresh it with new depth
+    const searchTerm = document.getElementById('searchIOC').value.trim().toLowerCase();
+    if (searchTerm && searchTerm.length > 0) {
+        // Get all matching nodes from visible nodes
+        const matchingNodes = cy.nodes(':visible').filter(n => {
+            const value = (n.data('label') || '').toLowerCase();
+            const id = (n.id() || '').toLowerCase();
+            return value.includes(searchTerm) || id.includes(searchTerm);
+        });
+        
+        if (matchingNodes.length > 0) {
+            // If only one matching node, perform depth search
+            if (matchingNodes.length === 1) {
+                performDepthSearch(matchingNodes[0].id());
+            } else {
+                // Multiple matches, show all of them
+                filterGraphByIds(matchingNodes.map(n => n.id()));
+            }
+        }
+    } else {
+        // No active search, just reload and fit the graph
+        loadGraph();
+    }
+}
+
+function performDepthSearch(iocId) {
+    // Use the search/by-relation API to get nodes up to the specified depth
+    $.ajax({
+        url: '/search/by-relation',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+            start_ioc_id: iocId,
+            depth: currentRecursionDepth
+        }),
+        success: function(response) {
+            if (!cy) return;
+            
+            // Hide all nodes and edges first
+            cy.nodes().hide();
+            cy.edges().hide();
+            
+            // Collect all IOC IDs from the depth search result
+            const resultIocIds = new Set(response.iocs.map(ioc => ioc.id));
+            resultIocIds.add(iocId); // Add the starting IOC
+            
+            // Show nodes that are in the result set
+            const visibleNodes = cy.nodes().filter(n => resultIocIds.has(n.id()));
+            visibleNodes.show();
+            
+            // Show edges between visible nodes
+            const visibleEdges = cy.edges().filter(edge => {
+                const source = edge.source().id();
+                const target = edge.target().id();
+                return resultIocIds.has(source) && resultIocIds.has(target);
+            });
+            visibleEdges.show();
+            
+            // Fit to visible elements with animation
+            if (cy.elements(':visible').length > 0) {
+                cy.animate({
+                    fit: { eles: cy.elements(':visible'), padding: 50 },
+                    duration: 500
+                });
+            }
+            
+            document.getElementById('emptyGraphMessage').style.display = 'none';
+        },
+        error: function(xhr) {
+            // Fall back to showing neighbors
+            if (cy) {
+                const node = cy.$id(iocId);
+                if (node && node.length > 0) {
+                    showNodeAndNeighbors(node);
+                }
+            }
+        }
+    });
+}
+
+function showNodeAndNeighbors(startNode) {
+    if (!cy) return;
+    
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    startNode.show();
+    
+    // Show neighbors based on recursion depth
+    let currentLevel = [startNode];
+    
+    for (let depth = 1; depth <= currentRecursionDepth; depth++) {
+        let nextLevel = [];
+        
+        currentLevel.forEach(node => {
+            // Get neighbors of current node
+            const neighbors = node.neighborhood().nodes();
+            neighbors.forEach(neighbor => {
+                if (!neighbor.visible()) {
+                    neighbor.show();
+                    nextLevel.push(neighbor);
+                }
+            });
+        });
+        
+        currentLevel = nextLevel;
+        if (currentLevel.length === 0) break; // No more nodes at this level
+    }
+    
+    // Show all connecting edges between visible nodes
+    const visibleNodes = cy.nodes(':visible');
+    const connectingEdges = cy.edges().filter(edge => {
+        const source = edge.source().id();
+        const target = edge.target().id();
+        return visibleNodes.contains(edge.source()) && visibleNodes.contains(edge.target());
+    });
+    connectingEdges.show();
+    
+    // Fit to visible elements with animation
+    if (cy.elements(':visible').length > 0) {
+        cy.animate({
+            fit: { eles: cy.elements(':visible'), padding: 50 },
+            duration: 500
+        });
+    }
+    
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+}
+
 function toggleLegend() {
     const legendPanel = document.getElementById('legendPanel');
     const toggleText = document.getElementById('legendToggleText');
@@ -1008,52 +1190,59 @@ function showNodeInfo(node) {
     const infoPanel = document.getElementById('infoPanel');
     const nodeInfo = document.getElementById('nodeInfo');
     
+    // Safe value extraction with defaults
+    const label = data.label || data.id || 'Unknown';
+    const type = data.type || 'unknown';
+    const threatLevel = data.threat_level || 'unknown';
+    const confidence = data.confidence || '';
+    const tlp = data.tlp || '';
+    
     let html = `
         <div class="info-item">
             <strong>Value:</strong>
-            <code>${escapeHtml(data.label)}</code>
+            <code>${escapeHtml(label)}</code>
         </div>
         <div class="info-item">
             <strong>Type:</strong>
-            <span class="badge badge-primary">${escapeHtml(data.type)}</span>
+            <span class="badge badge-primary">${escapeHtml(type)}</span>
         </div>
     `;
 
-    if (data.threat_level && data.threat_level !== 'unknown') {
+    if (threatLevel && threatLevel !== 'unknown') {
         const threatColor = {
             'critical': 'danger',
             'high': 'warning',
             'medium': 'info',
             'low': 'secondary'
-        }[data.threat_level] || 'secondary';
+        }[threatLevel] || 'secondary';
         html += `
             <div class="info-item">
                 <strong>Threat:</strong>
-                <span class="badge bg-${threatColor}">${escapeHtml(data.threat_level.toUpperCase())}</span>
+                <span class="badge bg-${threatColor}">${escapeHtml(threatLevel.toUpperCase())}</span>
             </div>
         `;
     }
 
-    if (data.confidence) {
+    if (confidence) {
         html += `
             <div class="info-item">
                 <strong>Confidence:</strong>
-                <span class="badge badge-success">${escapeHtml(data.confidence)}</span>
+                <span class="badge badge-success">${escapeHtml(confidence)}</span>
             </div>
         `;
     }
 
-    if (data.tlp) {
+    if (tlp) {
         const tlpColor = {
             'white': 'light',
             'green': 'success',
             'amber': 'warning',
             'red': 'danger'
-        }[data.tlp] || 'secondary';
+        }[tlp] || 'secondary';
         html += `
             <div class="info-item">
                 <strong>TLP:</strong>
-                <span class="badge bg-${tlpColor}">${escapeHtml(data.tlp.toUpperCase())}</span>
+                <span class="badge bg-${tlpColor}">${escapeHtml(tlp.toUpperCase())}</span>
             </div>
         `;
     }
@@ -1067,9 +1256,10 @@ function showNodeInfo(node) {
                 <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
         `;
         edges.forEach(edge => {
-            const relationLabel = edge.data('label');
+            const relationLabel = edge.data('label') || 'related';
             const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
-            html += `<li>${escapeHtml(relationLabel)}: ${escapeHtml(otherNode.data('label'))}</li>`;
+            const otherLabel = otherNode.data('label') || otherNode.id();
+            html += `<li>${escapeHtml(relationLabel)}: ${escapeHtml(otherLabel)}</li>`;
         });
         html += `</ul></div>`;
     }
@@ -1084,6 +1274,7 @@ function showNodeInfo(node) {
     
     nodeInfo.innerHTML = html;
     infoPanel.style.display = 'block';
+    infoPanel.style.visibility = 'visible';
 }
 
 function getColorForType(type) {
@@ -1209,8 +1400,8 @@ function selectFromSearch(iocId, iocValue, event) {
     // Hide dropdown
     document.getElementById('searchResultsDropdown').style.display = 'none';
     
-    // Filter graph to show this IOC and its neighbors
-    filterGraphByIds([iocId]);
+    // Filter graph using depth search
+    performDepthSearch(iocId);
 }
 
 function showAllIOCs(event) {
