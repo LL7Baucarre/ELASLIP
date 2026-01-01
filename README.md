@@ -98,6 +98,20 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Audit Logging** - Detailed tracking of all user and system actions
 -  **API Key Management** - Secure programmatic access with scoped keys
 
+#### Image Management
+
+-  **Image Upload** - Upload and attach images to IOCs, Cases, Incidents, and Checklists
+-  **Image Viewer Modal** - Full-screen image preview with download capability
+-  **Image Rename** - Rename uploaded images for better organization
+-  **Image Gallery** - View all images associated with an entity
+-  **File Size Limit** - 10MB per image with type validation (PNG, JPG, GIF, WebP, BMP)
+
+#### Enrichment Tools
+
+-  **GeoIP Tool** - Resolve IP addresses to geographic locations and organization information
+-  **IP API Integration** - Automatic geographic and ASN lookup for IP indicators
+-  **Location Mapping** - Visual and data-based IP geolocation
+
 #### Public Portal
 
 -  **Anonymous Submissions** - Allow external users to report IOCs
@@ -195,7 +209,83 @@ This generates realistic test data useful for exploring features and understandi
 
 Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{name}`, `{status}`, etc.
 
+### Enrichment Tools
+
+#### GeoIP Tool
+- **Single Lookup** - Resolve an IP address to geolocation, organization, and ASN data
+- **Bulk Lookup** - Lookup up to 100 IP addresses at once (one per line)
+- **Source Extraction** - Automatically extract source IP from email headers and perform GeoIP lookup
+- **IOC Integration** - Create IOCs directly from results with pre-populated location data
+- **Result Caching** - Responses cached to minimize API calls (default: 1 hour TTL)
+
+**Access**: Tools menu → GeoIP Lookup
+
+**Features**:
+- Displays: Country, City, Timezone, ISP/Organization, ASN, Latitude, Longitude, Mobile/Proxy/Hosting flags
+- Bulk operations return summary with successful/failed counts
+- Results saved to scan history for reference
+
+#### Email Header Analyzer Tool
+- **Header Parsing** - Extract key information from email headers (From, To, Subject, Date)
+- **Hop Analysis** - Display complete email route showing all relay servers
+- **Source IP Extraction** - Automatically identify sending server IP from Received headers
+- **GeoIP Integration** - Perform GeoIP lookup on extracted source IP
+- **IOC Creation** - Create IOCs from extracted recipient addresses or source IP
+- **Recipient Analysis** - Extract domain from email recipients for domain-based investigation
+
+**Access**: Tools menu → Email Headers
+
+**Features**:
+- Visual hop diagram showing email route with server information
+- One-click GeoIP lookup for source IP
+- Extract and create IOCs from recipients or source IP
+- Supports large headers (up to 100KB)
+- Email tags automatically applied to created IOCs
+
+### IP API Integration (GeoIP Enrichment)
+
+The application integrates with **[IP-API.com](https://ip-api.com)** for geographic and ASN information enrichment on IP addresses.
+
+#### Features
+
+- **Automatic GeoIP Lookup** - Resolve IP addresses to location, organization, and ASN
+- **GeoIP Tool** - Manual single and bulk lookup tool available in Tools menu
+- **Email Header Integration** - Extract source IPs from email headers and geolocate them
+- **IP Enrichment** - Automatic enrichment when creating or importing IOCs
+- **Caching** - Responses cached to minimize API calls (default: 1 hour TTL)
+
+#### Terms of Service & Limitations
+
+⚠️ **Important**: By using this feature, you agree to IP-API.com's Terms of Service:
+
+- **Free Plan**: 45 requests per minute, ~1,440 per day
+- **Commercial Use**: Requires paid plan at [ip-api.com/pricing](https://ip-api.com/pricing)
+- **Accuracy**: Results are provided "as-is" for informational purposes
+- **Attribution**: Required to include proper attribution when using IP-API data
+- **Rate Limiting**: Requests exceeding the limit are blocked; upgrade for higher limits
+- **Data Privacy**: Queries are logged by IP-API.com per their privacy policy
+
+Full terms available at: [ip-api.com/docs/legal](https://ip-api.com/docs/legal)
+
+#### Configuration
+
+IP-API is enabled by default. To use:
+
+1. **Manual Tool**: Navigate to **Tools > GeoIP Tool**, enter an IP address, and click "Lookup"
+2. **Automatic Enrichment**: Imported or created IOCs of type `ipv4` or `ipv6` are automatically enriched
+3. **View Results**: Results displayed inline with location, organization, and ASN information
+
+**Cache Management**: Elasticsearch index `elaslip_enrichment_cache` stores results to reduce API calls.
+
+#### Disabling IP-API
+
+If you prefer not to use this service, disable enrichment via:
+
+- Settings > Enrichment Settings (when available)
+- Or set enrichment to "disabled" in app configuration
+
   
+
 
 ### Environment Variables
  
@@ -228,6 +318,8 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 | `PUBLIC_SUBMISSIONS_SUBMIT_ENABLED` | `true` | Enable public IOC submission form
 | `PUBLIC_SUBMISSIONS_MAX_RESULTS` | `10` | Max results for public search
 | `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow submissions without account login
+| `ENRICHMENT_CACHE_TTL` | `3600` | Enrichment cache time-to-live in seconds (GeoIP results)
+| `GEOIP_ENABLED` | `true` | Enable IP-API.com GeoIP enrichment for IP indicators
 
 See `.env.example` for the canonical defaults and examples.
 
@@ -280,7 +372,7 @@ The application uses the following Elasticsearch indices for data storage:
 - `elaslip_api_configs` - API configurations
 - `elaslip_webhooks` - Webhooks
 - `elaslip_webhook_logs` - Webhook logs
-- `elaslip_enrichment_cache` - Enrichment cache
+- `elaslip_enrichment_cache` - Enrichment cache (GeoIP results, etc.)
 - `elaslip_import_jobs` - Import jobs
 - `elaslip_scan_results` - Scan results
 - `elaslip_ioc_relations` - IOC relationships
@@ -297,6 +389,7 @@ The application uses the following Elasticsearch indices for data storage:
 - `elaslip_submissions` - Submissions
 - `elaslip_app_config` - Application configuration
 - `elaslip_finops_token_usage` - FinOps token usage
+- `elaslip_images` - Uploaded images for IOCs, Cases, Incidents, and Checklists
 
 
 ## License

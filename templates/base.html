@@ -107,7 +107,7 @@
                 </a>
             </li>
             {% endif %}
-            {% if has_any_permission('report.view', 'report.create') %}
+            {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
                     <i class="bi bi-file-earmark-pdf"></i> LLM Reports

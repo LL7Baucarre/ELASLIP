@@ -166,7 +166,7 @@ def dashboard():
     # Get stats by status/severity
     try:
         cases_by_status = es.aggregate('cases', {
-            'by_status': {'terms': {'field': 'status.keyword', 'size': 10}}
+            'by_status': {'terms': {'field': 'status', 'size': 10}}
         })
         cases_status_stats = {b['key']: b['doc_count'] 
                              for b in cases_by_status.get('aggregations', {}).get('by_status', {}).get('buckets', [])}
@@ -175,7 +175,7 @@ def dashboard():
     
     try:
         incidents_by_severity = es.aggregate('incidents', {
-            'by_severity': {'terms': {'field': 'severity.keyword', 'size': 10}}
+            'by_severity': {'terms': {'field': 'severity', 'size': 10}}
         })
         incidents_severity_stats = {b['key']: b['doc_count'] 
                                    for b in incidents_by_severity.get('aggregations', {}).get('by_severity', {}).get('buckets', [])}
@@ -184,7 +184,7 @@ def dashboard():
     
     try:
         iocs_by_threat = es.aggregate('ioc', {
-            'by_threat_level': {'terms': {'field': 'x_metadata.threat_level.keyword', 'size': 10}}
+            'by_threat_level': {'terms': {'field': 'x_metadata.threat_level', 'size': 10}}
         })
         iocs_threat_stats = {b['key']: b['doc_count'] 
                             for b in iocs_by_threat.get('aggregations', {}).get('by_threat_level', {}).get('buckets', [])}
@@ -388,11 +388,11 @@ def get_graph_data():
         nodes.append({
             'data': {
                 'id': node_id,
-                'label': ioc.get('ioc_value', ioc.get('value', 'Unknown')),
-                'type': ioc.get('ioc_type', ''),
-                'threat_level': threat_level,
-                'confidence': ioc.get('confidence', ''),
-                'tlp': ioc.get('tlp', '')
+                'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
+                'type': str(ioc.get('ioc_type', 'unknown')),
+                'threat_level': str(threat_level),
+                'confidence': str(ioc.get('confidence', '')),
+                'tlp': str(ioc.get('tlp', ''))
             },
             'classes': classes
         })
@@ -509,11 +509,11 @@ def get_ioc_graph_data(ioc_id):
         nodes.append({
             'data': {
                 'id': main_ioc['id'],
-                'label': main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown')),
-                'type': main_ioc.get('ioc_type', ''),
-                'threat_level': main_ioc.get('threat_level', 'unknown'),
-                'confidence': main_ioc.get('confidence', ''),
-                'tlp': main_ioc.get('tlp', '')
+                'label': str(main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown'))),
+                'type': str(main_ioc.get('ioc_type', 'unknown')),
+                'threat_level': str(main_ioc.get('threat_level', 'unknown')),
+                'confidence': str(main_ioc.get('confidence', '')),
+                'tlp': str(main_ioc.get('tlp', ''))
             },
             'classes': f"ioc-{main_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
         })
@@ -571,11 +571,11 @@ def get_ioc_graph_data(ioc_id):
                     nodes.append({
                         'data': {
                             'id': related_ioc['id'],
-                            'label': related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown')),
-                            'type': related_ioc.get('ioc_type', ''),
-                            'threat_level': related_ioc.get('threat_level', 'unknown'),
-                            'confidence': related_ioc.get('confidence', ''),
-                            'tlp': related_ioc.get('tlp', '')
+                            'label': str(related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown'))),
+                            'type': str(related_ioc.get('ioc_type', 'unknown')),
+                            'threat_level': str(related_ioc.get('threat_level', 'unknown')),
+                            'confidence': str(related_ioc.get('confidence', '')),
+                            'tlp': str(related_ioc.get('tlp', ''))
                         },
                         'classes': f"ioc-{related_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
                     })
