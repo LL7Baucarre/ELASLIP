@@ -699,6 +699,30 @@ FINOPS_TOKEN_USAGE_MAPPING = {
 }
 
 
+# Images Index Mapping - Image uploads for comments, timeline events, etc.
+IMAGES_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "filename": {"type": "keyword"},
+            "stored_filename": {"type": "keyword"},
+            "file_hash": {"type": "keyword"},
+            "file_size": {"type": "integer"},
+            "mime_type": {"type": "keyword"},
+            "entity_type": {"type": "keyword"},
+            "entity_id": {"type": "keyword"},
+            "uploaded_by_id": {"type": "keyword"},
+            "uploaded_at": {"type": "date"},
+            "url": {"type": "keyword"}
+        }
+    }
+}
+
+
 # All indices with their mappings
 INDICES = {
     "elaslip_ioc": IOC_MAPPING,
@@ -723,5 +747,6 @@ INDICES = {
     "elaslip_checklist_templates": CHECKLIST_TEMPLATES_MAPPING,
     "elaslip_submissions": SUBMISSIONS_MAPPING,
     "elaslip_app_config": APP_CONFIG_MAPPING,
-    "elaslip_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING
+    "elaslip_finops_token_usage": FINOPS_TOKEN_USAGE_MAPPING,
+    "elaslip_images": IMAGES_MAPPING
 }

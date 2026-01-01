@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 
 from app.auth import login_or_api_key_required
 from app.decorators import permission_required
@@ -450,6 +450,210 @@ def reverse_dns():
     
     scan_id = _save_scan_result('reverse-dns', target, result)
     result['scan_id'] = scan_id
+    return jsonify(result)
+
+def _clean_email_address(email_str, all_emails=False):
+    """
+    Clean email address from headers (handle format: "Name <email@domain.com>" or variations).
+    
+    Args:
+        email_str: Raw email address string from header
+        all_emails: If True, return all emails as list; if False, return only first as string
+    
+    Returns:
+        str or list: Cleaned email address(es)
+    """
+    import re
+    
+    if not email_str:
+        return [] if all_emails else 'N/A'
+    
+    # Split by comma to get individual emails
+    email_list = []
+    for email_item in email_str.split(','):
+        email_item = email_item.strip()
+        
+        # Handle "Name <email@domain.com>" format
+        match = re.search(r'<(.+?)>', email_item)
+        if match:
+            email_list.append(match.group(1).strip())
+        else:
+            # If no angle brackets, use as-is
+            email_list.append(email_item)
+    
+    if all_emails:
+        return email_list if email_list else []
+    else:
+        return email_list[0] if email_list else 'N/A'
+
+
+def _parse_email_headers(headers_text):
+    """
+    Parse email headers and extract key information.
+    
+    Args:
+        headers_text: Raw email headers as string
+    
+    Returns:
+        dict: Parsed header information with analysis
+    """
+    import re
+    from email.parser import Parser
+    from io import StringIO
+    
+    try:
+        # Parse headers using email library
+        parser = Parser()
+        message = parser.parsestr(headers_text)
+        
+        # Extract key headers with cleaning
+        extracted = {
+            'from': _clean_email_address(message.get('From', 'N/A')),
+            'to': _clean_email_address(message.get('To', 'N/A'), all_emails=True),
+            'cc': _clean_email_address(message.get('Cc', 'N/A'), all_emails=True),
+            'subject': message.get('Subject', 'N/A'),
+            'date': message.get('Date', 'N/A'),
+            'message_id': message.get('Message-ID', 'N/A'),
+            'content_type': message.get('Content-Type', 'N/A'),
+            'all_headers': dict(message)
+        }
+        
+        # Parse hop information from Received headers
+        hops = []
+        received_headers = message.get_all('Received') or []
+        
+        for i, received in enumerate(reversed(received_headers)):
+            hop = {
+                'number': i + 1,
+                'raw': received.strip(),
+                'from': _extract_received_field(received, 'from'),
+                'by': _extract_received_field(received, 'by'),
+                'with': _extract_received_field(received, 'with'),
+                'date': _extract_received_field(received, ';'),
+            }
+            hops.append(hop)
+        
+        # Extract source IP (from first hop)
+        source_ip = None
+        if hops:
+            hop_data = hops[0]['raw']
+            ip_match = re.search(r'\[(\d+\.\d+\.\d+\.\d+)\]', hop_data)
+            if ip_match:
+                source_ip = ip_match.group(1)
+        
+        extracted['hops'] = hops
+        extracted['source_ip'] = source_ip
+        extracted['hop_count'] = len(hops)
+        
+        return {
+            'success': True,
+            'parsed': extracted,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        return {
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+
+def _extract_received_field(received_header, field_name):
+    """
+    Extract specific field from Received header.
+    
+    Args:
+        received_header: Full Received header string
+        field_name: Field to extract (from, by, with, ;)
+    
+    Returns:
+        str: Extracted field value or None
+    """
+    import re
+    
+    field_map = {
+        'from': r'from\s+([^\s]+)',
+        'by': r'by\s+([^\s]+)',
+        'with': r'with\s+([^\s]+)',
+        ';': r';\s*(.+?)(?:$|(?=\n))'
+    }
+    
+    pattern = field_map.get(field_name)
+    if not pattern:
+        return None
+    
+    match = re.search(pattern, received_header, re.IGNORECASE)
+    return match.group(1) if match else None
+
+
+@tools_bp.route('/email-headers', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def email_header_analyzer():
+    """
+    Analyze email headers and extract key information.
+    ---
+    tags:
+      - Tools
+    summary: Email Header Analysis
+    requestBody:
+      description: Email headers to analyze
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - headers
+            properties:
+              headers:
+                type: string
+                description: Raw email headers
+    responses:
+      200:
+        description: Email header analysis result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            parsed:
+              type: object
+              properties:
+                from:
+                  type: string
+                to:
+                  type: string
+                subject:
+                  type: string
+                hops:
+                  type: array
+                  items:
+                    type: object
+                source_ip:
+                  type: string
+      400:
+        description: Invalid input
+    """
+    data = request.get_json()
+    headers = data.get('headers', '').strip()
+    
+    if not headers:
+        return jsonify({'error': 'Email headers are required'}), 400
+    
+    # Limit header size to 100KB
+    if len(headers) > 102400:
+        return jsonify({'error': 'Headers too large (max 100KB)'}), 400
+    
+    result = _parse_email_headers(headers)
+    
+    if result['success']:
+        scan_id = _save_scan_result('email-headers', 'Email Analysis', result, {
+            'source_ip': result['parsed'].get('source_ip'),
+            'hop_count': result['parsed'].get('hop_count')
+        })
+        result['scan_id'] = scan_id
+    
     return jsonify(result)
 
 
@@ -970,3 +1174,137 @@ def get_task_status(task_id):
         'result': result.result if result.successful() else None,
         'error': str(result.info) if result.failed() else None
     })
+
+
+@tools_bp.route('/geoip', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def geoip_lookup():
+    """
+    Perform GeoIP lookup on an IP address.
+    
+    ---
+    tags:
+      - Tools
+    summary: GeoIP Lookup
+    requestBody:
+      description: IP address for GeoIP lookup
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ip
+            properties:
+              ip:
+                type: string
+                description: IPv4 or IPv6 address to look up
+    responses:
+      200:
+        description: GeoIP lookup result
+        schema:
+          type: object
+          properties:
+            ip:
+              type: string
+            continent:
+              type: string
+            country:
+              type: string
+            country_code:
+              type: string
+            city:
+              type: string
+            latitude:
+              type: number
+            longitude:
+              type: number
+            timezone:
+              type: string
+            isp:
+              type: string
+            organization:
+              type: string
+            asn:
+              type: string
+      400:
+        description: Invalid IP address
+    """
+    data = request.get_json()
+    ip_address = data.get('target', '').strip()
+    
+    if not ip_address:
+        return jsonify({'error': 'IP address is required'}), 400
+    
+    try:
+        from app.services.geoip_service import GeoIPService
+        service = GeoIPService()
+        result = service.lookup(ip_address)
+        
+        # Save scan result
+        scan_id = _save_scan_result('geoip', ip_address, result)
+        result['scan_id'] = scan_id
+        
+        return jsonify(result), 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.exception(f"GeoIP lookup error: {str(e)}")
+        return jsonify({'error': 'GeoIP lookup failed'}), 500
+
+
+@tools_bp.route('/geoip/bulk', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def geoip_bulk_lookup():
+    """
+    Perform bulk GeoIP lookups.
+    
+    ---
+    tags:
+      - Tools
+    summary: Bulk GeoIP Lookup
+    requestBody:
+      description: List of IP addresses
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - ips
+            properties:
+              ips:
+                type: array
+                items:
+                  type: string
+                description: List of IPv4 or IPv6 addresses
+    responses:
+      200:
+        description: Bulk GeoIP lookup results
+    """
+    data = request.get_json()
+    ips = data.get('targets', [])
+    
+    if not ips or not isinstance(ips, list):
+        return jsonify({'error': 'List of IPs is required'}), 400
+    
+    if len(ips) > 100:
+        return jsonify({'error': 'Maximum 100 IPs per request'}), 400
+    
+    try:
+        from app.services.geoip_service import GeoIPService
+        service = GeoIPService()
+        results = service.bulk_lookup(ips)
+        
+        # Save scan result
+        scan_id = _save_scan_result('geoip_bulk', f"{len(ips)} IPs", results, {
+            'ip_count': len(ips)
+        })
+        results['scan_id'] = scan_id
+        
+        return jsonify(results), 200
+    except Exception as e:
+        current_app.logger.exception(f"Bulk GeoIP lookup error: {str(e)}")
+        return jsonify({'error': 'Bulk GeoIP lookup failed'}), 500
