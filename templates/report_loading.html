@@ -108,8 +108,20 @@ async function checkTaskStatus() {
         if (attempt < maxAttempts) {
             setTimeout(checkTaskStatus, 1000);
         } else {
-            // Even if we timeout, redirect to report page to check there
-            showSuccess();
+            // Timeout reached - check if report exists before giving up
+            try {
+                const statusResponse = await fetch(`/api/reports/task-status/${taskId}`);
+                const statusData = await statusResponse.json();
+                if (statusData.es_status === 'completed') {
+                    showSuccess();
+                } else if (statusData.es_status === 'error') {
+                    showError(statusData.error || 'Report generation failed after timeout');
+                } else {
+                    showError('Report generation timeout - task status: ' + (statusData.es_status || 'unknown'));
+                }
+            } catch (e) {
+                showError('Report generation timeout and could not verify status');
+            }
         }
     } catch (error) {
         console.error('Error checking task status:', error);

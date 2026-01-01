@@ -135,6 +135,20 @@
                             <small class="text-muted">Dig / Reverse DNS</small>
                         </div>
                     </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="email-headers">
+                            <i class="bi bi-envelope tool-icon text-danger"></i>
+                            <h6 class="mb-0">Email Headers</h6>
+                            <small class="text-muted">Header analysis</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="geoip">
+                            <i class="bi bi-globe tool-icon text-primary"></i>
+                            <h6 class="mb-0">GeoIP</h6>
+                            <small class="text-muted">IP geolocation</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -463,6 +477,211 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Email Header Analyzer Panel -->
+        <div id="email-headersPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-envelope me-2"></i>Email Header Analyzer</h6>
+                </div>
+                <div class="card-body">
+                    <form id="emailHeadersForm">
+                        <div class="mb-3">
+                            <label class="form-label">Email Headers</label>
+                            <small class="text-muted d-block mb-2">Paste the complete email headers here (including all Received:, From:, To:, Subject: lines, etc.)</small>
+                            <textarea class="form-control" id="emailHeadersInput" rows="12" 
+                                      placeholder="Paste email headers here..." required style="font-family: monospace; font-size: 0.85rem;"></textarea>
+                        </div>
+                        <button class="btn btn-danger" type="submit" id="emailHeadersBtn">
+                            <i class="bi bi-play-fill"></i> Analyze Headers
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="emailHeadersResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Email Header Analysis Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success" id="createIocFromEmailHeaders" title="Create IOC" style="display: none;">
+                            <i class="bi bi-plus-circle"></i> Create IOC
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleRawEmailHeaders">
+                            <i class="bi bi-code"></i> Raw
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="emailHeadersParsed">
+                        <!-- Summary Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-info-circle me-2"></i>Summary</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">From</small>
+                                    <div class="d-flex justify-content-between align-items-center gap-1">
+                                        <div id="email-from" class="mb-3 flex-grow-1"></div>
+                                        <div class="btn-group btn-group-sm" role="group" style="display: none;" data-ioc-group="email-from">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="domain" title="Create IOC from domain">
+                                                <i class="bi bi-globe"></i>
+                                            </button>
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="email" title="Create IOC from email">
+                                                <i class="bi bi-envelope"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Subject</small>
+                                    <div id="email-subject" class="mb-3"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">To</small>
+                                    <div class="d-flex justify-content-between align-items-center gap-1">
+                                        <div id="email-to" class="mb-3 flex-grow-1"></div>
+                                        <div class="btn-group btn-group-sm" role="group" style="display: none;" data-ioc-group="email-to">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="domain" title="Create IOC from domain">
+                                                <i class="bi bi-globe"></i>
+                                            </button>
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="email" title="Create IOC from email">
+                                                <i class="bi bi-envelope"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <small class="text-muted">Date</small>
+                                    <div id="email-date" class="mb-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Hop Analysis -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-diagram-3 me-2"></i>Email Route (Hops)</h6>
+                            <small class="text-muted d-block mb-2">Total hops: <span id="hop-count">0</span></small>
+                            <div id="hops-list"></div>
+                            <div id="source-ip-section" style="display: none; margin-top: 1rem;">
+                                <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>Source IP:</strong> <code id="source-ip"></code>
+                                    </div>
+                                    <button class="btn btn-sm btn-warning" id="createIocFromSourceIp">
+                                        <i class="bi bi-plus-circle"></i> Create IOC
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- All Headers -->
+                        <div>
+                            <h6 class="border-bottom pb-2"><i class="bi bi-file-earmark me-2"></i>All Headers</h6>
+                            <div id="all-headers"></div>
+                        </div>
+                    </div>
+                    <div id="emailHeadersRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GeoIP Lookup Panel -->
+        <div id="geoipPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-globe me-2"></i>GeoIP Lookup</h6>
+                </div>
+                <div class="card-body">
+                    <form id="geoipForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">IP Address</label>
+                                <input type="text" class="form-control" id="geoipTarget" 
+                                       placeholder="e.g., 8.8.8.8 or 2001:4860:4860::8888" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-primary w-100" type="submit" id="geoipBtn">
+                                    <i class="bi bi-play-fill"></i> Lookup
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Bulk Lookup</label>
+                            <textarea class="form-control" id="geoipBulkInput" rows="4" 
+                                      placeholder="One IP per line..." style="font-family: monospace;"></textarea>
+                            <button class="btn btn-info btn-sm mt-2" id="geoipBulkBtn">
+                                <i class="bi bi-play-fill"></i> Bulk Lookup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" id="geoipResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>GeoIP Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleRawGeoip">
+                            <i class="bi bi-code"></i> Raw
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="geoipParsed">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">IP Address</small>
+                                <div id="geoip-ip" class="fw-bold"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Country</small>
+                                <div id="geoip-country"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">City</small>
+                                <div id="geoip-city"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Timezone</small>
+                                <div id="geoip-timezone"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">ISP / Organization</small>
+                                <div id="geoip-isp"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">ASN</small>
+                                <div id="geoip-asn"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Latitude</small>
+                                <div id="geoip-lat"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Longitude</small>
+                                <div id="geoip-lon"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Hosting</small>
+                                <div id="geoip-hosting"></div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted">Proxy</small>
+                                <div id="geoip-proxy"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="geoipRaw" class="result-panel p-3" style="display: none;">
+                        <pre id="geoipRawPre"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -481,6 +700,7 @@
                         <select class="form-select" id="iocType" required>
                             <option value="">Select type...</option>
                             <option value="domain">Domain</option>
+                            <option value="email">Email Address</option>
                             <option value="ipv4">IPv4</option>
                             <option value="asn">ASN</option>
                         </select>
@@ -521,6 +741,42 @@
 {% block extra_js %}
 <script>
 let currentScanResult = null;
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Helper function to parse email addresses
+function parseEmailAddress(emailStr) {
+    if (!emailStr) return null;
+    
+    // Handle format: "Name <email@example.com>" or "email@example.com"
+    const match = emailStr.match(/<(.+?)>/);
+    if (match) {
+        return match[1].trim(); // Extract email from angle brackets
+    }
+    
+    // If no angle brackets, return the first part (in case of multiple emails)
+    const emails = emailStr.split(',')[0].trim();
+    return emails;
+}
+
+// Helper function to extract domain from email
+function extractDomainFromEmail(emailStr) {
+    const email = parseEmailAddress(emailStr);
+    if (email && email.includes('@')) {
+        return email.split('@')[1];
+    }
+    return email;
+}
 
 $(document).ready(function() {
     // Tool card selection
@@ -587,6 +843,12 @@ $(document).ready(function() {
         runReverseDns();
     });
     
+    // Email Headers form
+    $('#emailHeadersForm').submit(function(e) {
+        e.preventDefault();
+        analyzeEmailHeaders();
+    });
+    
     // Toggle raw output
     $('#toggleRawWhois').click(function() {
         $('#whoisParsed').toggle();
@@ -611,6 +873,89 @@ $(document).ready(function() {
     $('#toggleRawDig').click(function() {
         $('#digParsed').toggle();
         $('#digRaw').toggle();
+    });
+    
+    $('#toggleRawEmailHeaders').click(function() {
+        $('#emailHeadersParsed').toggle();
+        $('#emailHeadersRaw').toggle();
+    });
+    
+    // IOC creation from email headers - source IP
+    $('#createIocFromSourceIp').click(function() {
+        if (window.emailHeadersData && window.emailHeadersData.source_ip) {
+            $('#iocValue').val(window.emailHeadersData.source_ip);
+            $('#iocType').val('ipv4');
+            $('#iocDescription').val('Email source IP from header analysis');
+            $('#iocTags').val('email-headers,forensics');
+            new bootstrap.Modal('#createIocModal').show();
+        }
+    });
+    
+    // IOC creation from email headers - from address
+    $(document).on('click', 'button[data-ioc-type="email-from"]', function() {
+        if (window.emailHeadersData && window.emailHeadersData.from) {
+            const fromAddr = window.emailHeadersData.from;
+            const email = parseEmailAddress(fromAddr);
+            const domain = extractDomainFromEmail(fromAddr);
+            const valueType = $(this).data('ioc-value-type');
+            
+            if (valueType === 'email') {
+                $('#iocValue').val(email);
+                $('#iocType').val('email');
+                $('#iocDescription').val(`Email sender: ${email}`);
+            } else {
+                $('#iocValue').val(domain);
+                $('#iocType').val('domain');
+                $('#iocDescription').val(`Email sender domain: ${email}`);
+            }
+            
+            $('#iocTags').val('email-headers,sender');
+            new bootstrap.Modal('#createIocModal').show();
+        }
+    });
+    
+    // IOC creation from email headers - to address
+    $(document).on('click', 'button[data-ioc-type="email-to"]', function() {
+        if (window.emailHeadersData && window.emailHeadersData.to) {
+            let toAddr = window.emailHeadersData.to;
+            
+            // Handle array of addresses (take first one)
+            if (Array.isArray(toAddr)) {
+                toAddr = toAddr.length > 0 ? toAddr[0] : '';
+            }
+            
+            if (!toAddr) return;
+            
+            const email = parseEmailAddress(toAddr);
+            const domain = extractDomainFromEmail(toAddr);
+            const valueType = $(this).data('ioc-value-type');
+            
+            if (valueType === 'email') {
+                $('#iocValue').val(email);
+                $('#iocType').val('email');
+                $('#iocDescription').val(`Email recipient: ${email}`);
+            } else {
+                $('#iocValue').val(domain);
+                $('#iocType').val('domain');
+                $('#iocDescription').val(`Email recipient domain: ${email}`);
+            }
+            
+            $('#iocTags').val('email-headers,recipient');
+            new bootstrap.Modal('#createIocModal').show();
+        }
+    });
+    
+    // GeoIP Lookup
+    $('#geoipForm').submit(function(e) {
+        e.preventDefault();
+        runGeoipLookup();
+    });
+    
+    $('#geoipBtn').click(runGeoipLookup);
+    $('#geoipBulkBtn').click(runGeoipBulkLookup);
+    $('#toggleRawGeoip').click(function() {
+        $('#geoipParsed').toggle();
+        $('#geoipRaw').toggle();
     });
     
     // Refresh history
@@ -1244,6 +1589,143 @@ function displayDigResult(data) {
     $('#digRaw').hide();
 }
 
+function analyzeEmailHeaders() {
+    const headers = $('#emailHeadersInput').val().trim();
+    
+    if (!headers) {
+        showAlert('Please paste email headers', 'warning');
+        return;
+    }
+    
+    const $btn = $('#emailHeadersBtn');
+    const originalText = $btn.html();
+    $btn.html('<i class="bi bi-hourglass-split"></i> Analyzing...').prop('disabled', true);
+    
+    $.ajax({
+        url: '/api/tools/email-headers',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ headers: headers }),
+        success: function(data) {
+            currentScanResult = {
+                tool: 'email-headers',
+                target: 'Email Analysis',
+                result: data,
+                timestamp: new Date().toLocaleString()
+            };
+            
+            displayEmailHeadersResult(data);
+            $('#emailHeadersResultCard').show();
+            
+            // Store raw data
+            $('#emailHeadersRaw pre').text(JSON.stringify(data, null, 2));
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON?.error || 'Failed to analyze headers';
+            showAlert(error, 'danger');
+        },
+        complete: function() {
+            $btn.html(originalText).prop('disabled', false);
+        }
+    });
+}
+
+function displayEmailHeadersResult(data) {
+    if (!data.success) {
+        $('#emailHeadersParsed').html(`<div class="alert alert-danger">${data.error}</div>`);
+        return;
+    }
+    
+    const parsed = data.parsed || {};
+    
+    // Display summary
+    const fromAddr = parsed.from || 'N/A';
+    const toAddrs = parsed.to || [];
+    const toDisplay = Array.isArray(toAddrs) ? toAddrs.join(', ') : toAddrs;
+    
+    $('#email-from').text(fromAddr);
+    $('#email-to').text(toDisplay || 'N/A');
+    $('#email-subject').text(parsed.subject || '(No subject)');
+    $('#email-date').text(parsed.date || 'N/A');
+    
+    // Show IOC button groups for from/to if available
+    if (fromAddr !== 'N/A') {
+        $('[data-ioc-group="email-from"]').show();
+    }
+    if (toDisplay) {
+        $('[data-ioc-group="email-to"]').show();
+    }
+    
+    // Display hop count
+    const hops = parsed.hops || [];
+    $('#hop-count').text(hops.length);
+    
+    // Display hops
+    let hopsHtml = '';
+    if (hops.length > 0) {
+        hopsHtml += '<div class="accordion" id="hopsAccordion">';
+        
+        for (let i = 0; i < hops.length; i++) {
+            const hop = hops[i];
+            const bgColor = i === 0 ? 'bg-light' : '';
+            
+            hopsHtml += `
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button ${i > 0 ? 'collapsed' : ''}" type="button" data-bs-toggle="collapse" data-bs-target="#hop${i}">
+                            <strong>Hop ${hop.number}</strong>
+                            ${hop.by ? ` - ${hop.by}` : ''}
+                            ${i === 0 ? '<span class="badge bg-danger ms-2">Source</span>' : ''}
+                        </button>
+                    </h2>
+                    <div id="hop${i}" class="accordion-collapse collapse ${i === 0 ? 'show' : ''}" data-bs-parent="#hopsAccordion">
+                        <div class="accordion-body ${bgColor}">
+                            ${hop.from ? `<div><strong>From:</strong> <code>${hop.from}</code></div>` : ''}
+                            ${hop.by ? `<div><strong>By:</strong> <code>${hop.by}</code></div>` : ''}
+                            ${hop.with ? `<div><strong>With:</strong> <code>${hop.with}</code></div>` : ''}
+                            ${hop.date ? `<div><strong>Date:</strong> <code>${hop.date}</code></div>` : ''}
+                            <div class="mt-2"><small class="text-muted"><strong>Raw:</strong> ${hop.raw}</small></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        hopsHtml += '</div>';
+    } else {
+        hopsHtml = '<div class="alert alert-info">No hop information found in headers</div>';
+    }
+    
+    $('#hops-list').html(hopsHtml);
+    
+    // Display source IP
+    if (parsed.source_ip) {
+        $('#source-ip').text(parsed.source_ip);
+        $('#source-ip-section').show();
+    } else {
+        $('#source-ip-section').hide();
+    }
+    
+    // Display all headers
+    let allHeadersHtml = '<div class="table-responsive"><table class="table table-sm">';
+    allHeadersHtml += '<thead><tr><th>Header</th><th>Value</th></tr></thead><tbody>';
+    
+    const allHeaders = parsed.all_headers || {};
+    for (const [key, value] of Object.entries(allHeaders)) {
+        if (!['hops', 'source_ip', 'hop_count'].includes(key)) {
+            const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+            const shortValue = displayValue.length > 100 ? displayValue.substring(0, 100) + '...' : displayValue;
+            allHeadersHtml += `<tr><td><strong>${key}</strong></td><td><code>${escapeHtml(shortValue)}</code></td></tr>`;
+        }
+    }
+    
+    allHeadersHtml += '</tbody></table></div>';
+    $('#all-headers').html(allHeadersHtml);
+    
+    // Store parsed data globally for IOC creation
+    window.emailHeadersData = parsed;
+}
+
 function loadScanHistory() {
     $.ajax({
         url: '/api/tools/scans',
@@ -1333,7 +1815,8 @@ function displayScanHistory(scans) {
         'nmap': { icon: 'bi-hdd-network', color: 'success' },
         'traceroute': { icon: 'bi-diagram-3', color: 'warning' },
         'dig': { icon: 'bi-globe2', color: 'info' },
-        'reverse-dns': { icon: 'bi-globe2', color: 'info' }
+        'reverse-dns': { icon: 'bi-globe2', color: 'info' },
+        'email-headers': { icon: 'bi-envelope', color: 'danger' }
     };
     
     let html = '';
@@ -1406,12 +1889,165 @@ function loadScanDetails(scanId) {
                 $('.tool-panel').hide();
                 $('#digPanel').show();
                 displayDigResult(response);
+            } else if (tool === 'email-headers') {
+                $('.tool-card').removeClass('active');
+                $(`.tool-card[data-tool="email-headers"]`).addClass('active');
+                $('.tool-panel').hide();
+                $('#email-headersPanel').show();
+                displayEmailHeadersResult(response);
             }
         },
         error: function() {
             showAlert('Failed to load scan details', 'danger');
         }
     });
+}
+
+function runGeoipLookup() {
+    const target = $('#geoipTarget').val().trim();
+    if (!target) {
+        showAlert('Please enter an IP address', 'warning');
+        return;
+    }
+    
+    const $btn = $('#geoipBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/geoip',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ target: target }),
+        success: function(response) {
+            currentScanResult = response;
+            displayGeoipResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'GeoIP lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Lookup');
+        }
+    });
+}
+
+function runGeoipBulkLookup() {
+    const input = $('#geoipBulkInput').val().trim();
+    if (!input) {
+        showAlert('Please enter at least one IP address', 'warning');
+        return;
+    }
+    
+    const ips = input.split('\n')
+        .map(ip => ip.trim())
+        .filter(ip => ip.length > 0);
+    
+    if (ips.length === 0) {
+        showAlert('Please enter at least one IP address', 'warning');
+        return;
+    }
+    
+    if (ips.length > 100) {
+        showAlert('Maximum 100 IPs allowed per bulk lookup', 'warning');
+        return;
+    }
+    
+    const $btn = $('#geoipBulkBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
+    
+    $.ajax({
+        url: '/api/tools/geoip/bulk',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ targets: ips }),
+        success: function(response) {
+            displayGeoipBulkResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Bulk GeoIP lookup failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Bulk Lookup');
+        }
+    });
+}
+
+function displayGeoipResult(data) {
+    $('#geoipResultCard').show();
+    
+    // Raw output
+    $('#geoipRawPre').text(JSON.stringify(data, null, 2));
+    
+    // Parsed output - populate individual fields
+    const result = data.result || data;
+    
+    $('#geoip-ip').text(result.query || result.ip || '-');
+    $('#geoip-country').text((result.country || '-') + (result.countryCode ? ` (${result.countryCode})` : ''));
+    $('#geoip-city').text(result.city || result.regionName || '-');
+    $('#geoip-timezone').text(result.timezone || '-');
+    $('#geoip-isp').text(result.isp || result.org || '-');
+    $('#geoip-asn').text(result.as || result.asn || '-');
+    $('#geoip-lat').text(result.lat || '-');
+    $('#geoip-lon').text(result.lon || '-');
+    $('#geoip-hosting').text(result.hosting ? 'Yes' : 'No');
+    $('#geoip-proxy').text(result.proxy ? 'Yes' : 'No');
+    
+    $('#geoipParsed').show();
+    $('#geoipRaw').hide();
+}
+
+function displayGeoipBulkResult(response) {
+    $('#geoipResultCard').show();
+    
+    // Raw output
+    $('#geoipRawPre').text(JSON.stringify(response, null, 2));
+    
+    // Parsed output - show as table
+    const results = response.results || [];
+    let html = '';
+    
+    if (results.length === 0) {
+        html = '<div class="alert alert-warning">No results returned</div>';
+    } else {
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>IP</th><th>Country</th><th>City</th><th>ISP</th><th>Coordinates</th></tr></thead><tbody>';
+        
+        for (const result of results) {
+            if (result.status === 'success') {
+                const data = result.data;
+                html += `<tr>
+                    <td><code>${data.query || data.ip}</code></td>
+                    <td>${data.country || '-'}</td>
+                    <td>${data.city || data.regionName || '-'}</td>
+                    <td>${data.isp || data.org || '-'}</td>
+                    <td>${data.lat ? data.lat.toFixed(3) : '-'}, ${data.lon ? data.lon.toFixed(3) : '-'}</td>
+                </tr>`;
+            } else {
+                html += `<tr class="text-danger">
+                    <td><code>${result.target}</code></td>
+                    <td colspan="4">${result.error || 'Error'}</td>
+                </tr>`;
+            }
+        }
+        
+        html += '</tbody></table></div>';
+        
+        // Add summary
+        const succeeded = results.filter(r => r.status === 'success').length;
+        const failed = results.filter(r => r.status !== 'success').length;
+        html += `<div class="mt-2 text-muted small">
+            <i class="bi bi-info-circle me-1"></i>
+            ${succeeded} succeeded, ${failed} failed out of ${results.length} total
+        </div>`;
+    }
+    
+    $('#geoipParsed').html(html);
+    $('#geoipParsed').show();
+    $('#geoipRaw').hide();
 }
 </script>
 {% endblock %}

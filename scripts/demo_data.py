@@ -497,6 +497,99 @@ def populate_demo_data():
         
         logger.info("Created %d IOCs successfully", len(created_ids))
         
+        # Create multi-level IOC relationships for graph testing
+        print("\n1b. Creating multi-level IOC relationships...")
+        from app.routes.ioc_relations import ioc_relations_bp
+        
+        relation_types = ['related', 'caused_by', 'used_by', 'implements', 'variant_of']
+        relations_created = 0
+        
+        try:
+            # Create multiple levels of relationships for graph traversal testing
+            if len(created_ids) >= 10:
+                # Level 1: Create a primary node with 3-4 direct connections
+                primary_node = created_ids[0]
+                level1_nodes = created_ids[1:4]  # 3 nodes at level 1
+                
+                for target_id in level1_nodes:
+                    relation = {
+                        'source_id': primary_node,
+                        'target_id': target_id,
+                        'relation_type': random.choice(relation_types),
+                        'created_at': datetime.utcnow().isoformat()
+                    }
+                    relation_id = str(uuid.uuid4())
+                    es.index('ioc_relations', relation_id, relation)
+                    relations_created += 1
+                
+                # Level 2: Create relationships from level 1 nodes to level 2 nodes
+                level2_nodes = created_ids[4:8]  # 4 nodes at level 2
+                
+                for level1_id in level1_nodes:
+                    for level2_id in random.sample(level2_nodes, random.randint(1, 2)):
+                        relation = {
+                            'source_id': level1_id,
+                            'target_id': level2_id,
+                            'relation_type': random.choice(relation_types),
+                            'created_at': datetime.utcnow().isoformat()
+                        }
+                        relation_id = str(uuid.uuid4())
+                        es.index('ioc_relations', relation_id, relation)
+                        relations_created += 1
+                
+                # Level 3: Create relationships from level 2 nodes to level 3 nodes
+                if len(created_ids) >= 12:
+                    level3_nodes = created_ids[8:12]  # 4 nodes at level 3
+                    
+                    for level2_id in level2_nodes:
+                        for level3_id in random.sample(level3_nodes, random.randint(1, 2)):
+                            relation = {
+                                'source_id': level2_id,
+                                'target_id': level3_id,
+                                'relation_type': random.choice(relation_types),
+                                'created_at': datetime.utcnow().isoformat()
+                            }
+                            relation_id = str(uuid.uuid4())
+                            es.index('ioc_relations', relation_id, relation)
+                            relations_created += 1
+                
+                # Level 4: Create relationships from level 3 nodes to level 4 nodes
+                if len(created_ids) >= 16:
+                    level4_nodes = created_ids[12:16]  # 4 nodes at level 4
+                    
+                    for level3_id in level3_nodes:
+                        for level4_id in random.sample(level4_nodes, random.randint(1, 2)):
+                            relation = {
+                                'source_id': level3_id,
+                                'target_id': level4_id,
+                                'relation_type': random.choice(relation_types),
+                                'created_at': datetime.utcnow().isoformat()
+                            }
+                            relation_id = str(uuid.uuid4())
+                            es.index('ioc_relations', relation_id, relation)
+                            relations_created += 1
+                
+                # Add some cross-level relationships for complexity
+                for _ in range(5):
+                    if len(created_ids) > 20:
+                        source_id = random.choice(created_ids[1:10])
+                        target_id = random.choice(created_ids[10:20])
+                        
+                        relation = {
+                            'source_id': source_id,
+                            'target_id': target_id,
+                            'relation_type': random.choice(relation_types),
+                            'created_at': datetime.utcnow().isoformat()
+                        }
+                        relation_id = str(uuid.uuid4())
+                        es.index('ioc_relations', relation_id, relation)
+                        relations_created += 1
+            
+            print(f"   ✓ Created {relations_created} multi-level IOC relationships (4+ levels deep)")
+            
+        except Exception as e:
+            print(f"   Warning: Failed to create IOC relationships: {str(e)}")
+        
         # Create cases and incidents with IOC links
         logger.info("2. Creating cases with related incidents...")
         case_service = CaseService()
