@@ -363,7 +363,8 @@ class STIXBundle:
                         indicators.append(indicator)
                     except ValueError as e:
                         # Log but continue processing other indicators
-                        print(f"Warning: Skipping invalid indicator: {e}")
+                        import logging
+                        logging.getLogger(__name__).warning("Skipping invalid indicator: %s", e)
         elif stix_type == 'indicator':
             # Handle single STIX Indicator
             try:

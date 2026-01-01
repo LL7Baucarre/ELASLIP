@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any
 from app.services.elasticsearch_service import ElasticsearchService
 import json
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FinOpsService:
@@ -142,7 +144,7 @@ class FinOpsService:
             
             return timeline
         except Exception as e:
-            print(f"Error getting token usage timeline: {str(e)}")
+            logger.exception("Error getting token usage timeline: %s", str(e))
             return []
     
     def get_token_usage_by_report_type(self, limit_days: int = 30) -> Dict[str, Dict[str, Any]]:
@@ -206,7 +208,7 @@ class FinOpsService:
             
             return breakdown
         except Exception as e:
-            print(f"Error getting token usage by type: {str(e)}")
+            logger.exception("Error getting token usage by type: %s", str(e))
             return {}
     
     def get_top_token_consumers(self, limit: int = 10, limit_days: int = 30) -> List[Dict[str, Any]]:
@@ -257,7 +259,7 @@ class FinOpsService:
             
             return consumers
         except Exception as e:
-            print(f"Error getting top token consumers: {str(e)}")
+            logger.exception("Error getting top token consumers: %s", str(e))
             return []
     
     def get_statistics(self, limit_days: int = 30) -> Dict[str, Any]:
@@ -314,5 +316,5 @@ class FinOpsService:
             
             return stats
         except Exception as e:
-            print(f"Error getting statistics: {str(e)}")
+            logger.exception("Error getting statistics: %s", str(e))
             return {}

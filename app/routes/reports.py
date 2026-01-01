@@ -14,6 +14,8 @@ from app.services.elasticsearch_service import ElasticsearchService
 from app.config import Config
 from datetime import datetime
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('reports', __name__)
 report_service = ReportService()
@@ -584,7 +586,7 @@ def generate_ioc_report(ioc_id):
         import time
         
         # Launch async task (Celery required)
-        print(f"[REPORT] Launching IOC report for user_id={current_user.id}, username={current_user.username}")
+        logger.info("Launching IOC report for user_id=%s, username=%s", current_user.id, current_user.username)
         task = task_generate_ioc.delay(ioc_id, current_user.id)
         task_id = task.id
         
@@ -659,14 +661,14 @@ def generate_case_report(case_id):
         from app.tasks.report_tasks import generate_case_report as task_generate_case
         import time
         
-        print(f"[REPORT] Generating case report for case_id: {case_id}")
-        print(f"[REPORT] LLM_ENABLED: {os.getenv('LLM_ENABLED', 'false')}")
+        logger.info("Generating case report for case_id: %s", case_id)
+        logger.debug("LLM_ENABLED: %s", os.getenv('LLM_ENABLED', 'false'))
         
         # Launch async task (Celery required)
         task = task_generate_case.delay(case_id, current_user.id)
         task_id = task.id
         
-        print(f"[REPORT] Task launched with ID: {task_id}")
+        logger.info("Task launched with ID: %s", task_id)
         
         # Wait briefly for completion (up to 5 seconds) instead of returning immediately
         # This allows synchronous-like behavior with async workers
@@ -844,8 +846,7 @@ def generate_checklist_report(checklist_id):
             'message': 'Report generation started'
         })
     except Exception as e:
-        import sys
-        print(f"DEBUG: Error in generate_checklist_report: {str(e)}", file=sys.stderr)
+        logger.exception("Error in generate_checklist_report: %s", str(e))
         return jsonify({'error': str(e)}), 500
 
 
@@ -1175,9 +1176,7 @@ def get_task_status(task_id):
             })
             
     except Exception as e:
-        import traceback
-        print(f"Error checking task status: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error checking task status: %s", e)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
@@ -1389,9 +1388,7 @@ def view_report(task_id):
         
         return jsonify(report_data)
     except Exception as e:
-        import sys, traceback
-        print(f"DEBUG: Exception in view_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
+        logger.exception("Exception in view_report: %s", str(e))
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 @bp.route('/api/reports/<task_id>', methods=['DELETE'])
@@ -1454,7 +1451,5 @@ def delete_report(task_id):
         
         return jsonify({'success': True, 'message': 'Report deleted successfully'})
     except Exception as e:
-        import sys, traceback
-        print(f"DEBUG: Exception in delete_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
+        logger.exception("Exception in delete_report: %s", str(e))
         return jsonify({'error': str(e)}), 500

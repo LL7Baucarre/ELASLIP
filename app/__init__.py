@@ -46,6 +46,10 @@ def create_app(config_name=None):
     
     # Load configuration
     app.config.from_object(config.get(config_name, config['default']))
+
+    # Initialize logging from central config
+    from app.logging_config import init_logging
+    init_logging(app.config)
     
     # Initialize extensions
     login_manager.init_app(app)

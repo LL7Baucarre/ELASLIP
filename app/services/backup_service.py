@@ -7,6 +7,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 from app.services.elasticsearch_service import ElasticsearchService
+import logging
+logger = logging.getLogger(__name__)
 
 
 class BackupService:
@@ -78,6 +80,7 @@ class BackupService:
                         'error': str(e),
                         'doc_count': 0
                     }
+                    logger.exception("Error backing up index %s: %s", index_name, e)
             
             # Write backup data to JSON file
             backup_file = backup_path / 'data.json'
@@ -225,9 +228,7 @@ class BackupService:
                     restored_count += 1
                 
                 except Exception as e:
-                    import traceback
-                    print(f"Error restoring {index_name}: {str(e)}")
-                    traceback.print_exc()
+                    logger.exception("Error restoring %s: %s", index_name, e)
                     failed_count += 1
             
             return {
@@ -240,9 +241,7 @@ class BackupService:
             }
         
         except Exception as e:
-            import traceback
-            print(f"Restore error: {str(e)}")
-            traceback.print_exc()
+            logger.exception("Restore error: %s", str(e))
             return {
                 'success': False,
                 'error': str(e),

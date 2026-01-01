@@ -7,7 +7,13 @@ Run this before starting the application for the first time.
 import os
 import sys
 import time
+import logging
 from elasticsearch import Elasticsearch
+
+# Initialize logging for script
+from app.logging_config import init_logging
+init_logging()
+logger = logging.getLogger(__name__)
 
 
 # Index mappings
@@ -204,14 +210,14 @@ def wait_for_elasticsearch(es, max_retries=30, delay=2):
     for i in range(max_retries):
         try:
             if es.ping():
-                print("✓ Elasticsearch is ready")
+                logger.info("Elasticsearch is ready")
                 return True
         except Exception:
             pass
-        print(f"  Waiting for Elasticsearch... ({i+1}/{max_retries})")
+        logger.info("Waiting for Elasticsearch... (%d/%d)", i+1, max_retries)
         time.sleep(delay)
     
-    print("✗ Elasticsearch is not available")
+    logger.error("Elasticsearch is not available")
     return False
 
 
@@ -221,11 +227,11 @@ def create_indices(es):
         try:
             if not es.indices.exists(index=index_name):
                 es.indices.create(index=index_name, body=config)
-                print(f"✓ Created index: {index_name}")
+                logger.info("Creating index: %s", index_name)
             else:
-                print(f"  Index already exists: {index_name}")
+                logger.info("Index already exists: %s", index_name)
         except Exception as e:
-            print(f"✗ Failed to create index {index_name}: {e}")
+            logger.error("Failed to create index %s: %s", index_name, e)
             return False
     
     return True
@@ -238,9 +244,9 @@ def main():
     es_user = os.environ.get("ELASTICSEARCH_USER", "elastic")
     es_password = os.environ.get("ELASTICSEARCH_PASSWORD", "elastic123")
     
-    print(f"\nIOC Manager - Elasticsearch Initialization")
-    print(f"=" * 50)
-    print(f"Elasticsearch URL: {es_url}\n")
+    logger.info("\nIOC Manager - Elasticsearch Initialization")
+    logger.info("%s", "=" * 50)
+    logger.info("Elasticsearch URL: %s\n", es_url)
     
     # Construct URL with credentials if not already included
     if es_user and es_password and 'http://' in es_url and '@' not in es_url:
@@ -255,20 +261,20 @@ def main():
     
     # Get cluster info
     info = es.info()
-    print(f"  Cluster: {info.get('cluster_name', 'unknown')}")
-    print(f"  Version: {info.get('version', {}).get('number', 'unknown')}\n")
+    logger.info("  Cluster: %s", info.get('cluster_name', 'unknown'))
+    logger.info("  Version: %s\n", info.get('version', {}).get('number', 'unknown'))
     
     # Create indices
-    print("Creating indices...")
+    logger.info("Creating indices...")
     if not create_indices(es):
         sys.exit(1)
     
-    print(f"\n{'=' * 50}")
-    print("✓ Initialization complete!")
-    print("\nYou can now start the application:")
-    print("  docker-compose up -d")
-    print("  or")
-    print("  flask run")
+    logger.info("%s", "=" * 50)
+    logger.info("Initialization complete!")
+    logger.info("You can now start the application:")
+    logger.info("  docker-compose up -d")
+    logger.info("  or")
+    logger.info("  flask run")
 
 
 if __name__ == "__main__":

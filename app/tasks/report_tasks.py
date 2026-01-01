@@ -11,6 +11,9 @@ from app.services.audit_service import AuditService
 from app.services.finops_service import FinOpsService
 from app.services.notification_service import NotificationService
 from app.auth import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 def get_real_user_id(user_id_param: str) -> str:
     """
@@ -158,14 +161,14 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         # Send notification
         notification = NotificationService()
         real_user_id = get_real_user_id(user_id)
-        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        logger.info("Creating notification for user_id: %s -> %s", user_id, real_user_id)
         notif_result = notification.notify_report_completed(
             user_id=real_user_id,
             report_type='ioc',
             entity_name=report_data.get('ioc_value', ioc_id),
             task_id=task_id
         )
-        print(f"[NOTIFICATION] Notification created: {notif_result}")
+        logger.info("Notification created: %s", notif_result)
         
         audit.log(
             action='report_generated',
@@ -297,14 +300,14 @@ def generate_case_report(case_id: str, user_id: str = 'system'):
         # Send notification
         notification = NotificationService()
         real_user_id = get_real_user_id(user_id)
-        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        logger.info("Creating notification for user_id: %s -> %s", user_id, real_user_id)
         notif_result = notification.notify_report_completed(
             user_id=real_user_id,
             report_type='case',
             entity_name=report_data.get('case_name', case_id),
             task_id=task_id
         )
-        print(f"[NOTIFICATION] Notification created: {notif_result}")
+        logger.info("Notification created: %s", notif_result)
         audit.log(
             action='report_generated',
             entity_type='case',
@@ -435,14 +438,14 @@ def generate_incident_report(incident_id: str, user_id: str = 'system'):
         # Send notification
         notification = NotificationService()
         real_user_id = get_real_user_id(user_id)
-        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        logger.info("Creating notification for user_id: %s -> %s", user_id, real_user_id)
         notif_result = notification.notify_report_completed(
             user_id=real_user_id,
             report_type='incident',
             entity_name=report_data.get('incident_name', incident_id),
             task_id=task_id
         )
-        print(f"[NOTIFICATION] Notification created: {notif_result}")
+        logger.info("Notification created: %s", notif_result)
         audit.log(
             action='report_generated',
             entity_type='incident',
@@ -600,7 +603,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
     # Get task ID from Celery
     task_id = generate_checklist_report.request.id
     
-    print(f"DEBUG: Starting checklist report generation. Task ID: {task_id}, Checklist ID: {checklist_id}", file=sys.stderr)
+    logger.debug("Starting checklist report generation. Task ID: %s, Checklist ID: %s", task_id, checklist_id)
     
     # Initialize report_entry early for error handling
     report_entry = {
@@ -622,7 +625,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         checklist_service = ChecklistService()
         checklist = checklist_service.get_checklist(checklist_id)
         
-        print(f"DEBUG: Retrieved checklist: {checklist is not None}", file=sys.stderr)
+        logger.debug("Retrieved checklist: %s", checklist is not None)
         
         if not checklist:
             report_entry['status'] = 'failed'
@@ -632,7 +635,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             return {'status': 'error', 'error': 'Checklist not found', 'task_id': task_id}
         
         # Save pending report
-        print(f"DEBUG: Saving pending report to {f'report_{task_id}'}", file=sys.stderr)
+        logger.debug("Saving pending report to %s", f'report_{task_id}')
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
         # Generate report
@@ -647,11 +650,11 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             'generated_at': datetime.utcnow().isoformat()
         }
         
-        print(f"DEBUG: Generated report data with {len(report_data.get('items', []))} items", file=sys.stderr)
+        logger.debug("Generated report data with %d items", len(report_data.get('items', [])))
         
         # Call LLM to enhance the report if configured
         if report_service.is_configured():
-            print(f"DEBUG: LLM is configured, waiting for queue slot", file=sys.stderr)
+            logger.debug("LLM is configured, waiting for queue slot")
             
             # Mark as queued while waiting for lock
             report_entry['status'] = 'queued'
@@ -660,7 +663,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
             try:
                 # Acquire lock to ensure only one report generates at a time
                 if not acquire_report_lock(timeout=600):
-                    print(f"DEBUG: Failed to acquire report lock after timeout", file=sys.stderr)
+                    logger.debug("Failed to acquire report lock after timeout")
                     raise RuntimeError("Report generation queue is full. Please try again later.")
                 
                 # Update status to processing once we have the lock
@@ -669,9 +672,9 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 es.index('elaslip_app_config', f'report_{task_id}', report_entry)
                 
                 try:
-                    print(f"DEBUG: Lock acquired, generating enhanced report", file=sys.stderr)
+                    logger.debug("Lock acquired, generating enhanced report")
                     enhanced = report_service.generate_checklist_report(checklist_id)
-                    print(f"DEBUG: LLM generated enhanced analysis", file=sys.stderr)
+                    logger.debug("LLM generated enhanced analysis")
                     report_data['analysis'] = enhanced.get('analysis', '')
                     
                     # Record token usage if available
@@ -688,12 +691,12 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
                 finally:
                     # Always release the lock
                     release_report_lock()
-                    print(f"DEBUG: Report lock released", file=sys.stderr)
+                    logger.debug("Report lock released")
             except Exception as llm_err:
-                print(f"DEBUG: LLM enhancement failed: {str(llm_err)}", file=sys.stderr)
+                logger.exception("LLM enhancement failed: %s", str(llm_err))
                 # Continue without LLM enhancement
         else:
-            print(f"DEBUG: LLM not configured, skipping enhancement", file=sys.stderr)
+            logger.debug("LLM not configured, skipping enhancement")
         
         # Save completed report
         report_entry['status'] = 'completed'
@@ -701,22 +704,22 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         report_entry['report_data'] = report_data
         report_entry['entity_name'] = checklist.get('title', checklist_id)
         
-        print(f"DEBUG: Saving completed report", file=sys.stderr)
+        logger.debug("Saving completed report")
         es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         
-        print(f"DEBUG: Report saved successfully. Stored at app_config/report_{task_id}", file=sys.stderr)
+        logger.debug("Report saved successfully. Stored at app_config/report_%s", task_id)
         
         # Send notification
         notification = NotificationService()
         real_user_id = get_real_user_id(user_id)
-        print(f"[NOTIFICATION] Creating notification for user_id: {user_id} -> {real_user_id}")
+        logger.info("Creating notification for user_id: %s -> %s", user_id, real_user_id)
         notif_result = notification.notify_report_completed(
             user_id=real_user_id,
             report_type='checklist',
             entity_name=checklist.get('title', checklist_id),
             task_id=task_id
         )
-        print(f"[NOTIFICATION] Notification created: {notif_result}")
+        logger.info("Notification created: %s", notif_result)
         
         audit.log(
             action='report_generated',
@@ -753,9 +756,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         
         return {'status': 'completed', 'task_id': task_id, 'report': report_data}
     except Exception as e:
-        import traceback
-        print(f"DEBUG: Exception in generate_checklist_report: {str(e)}", file=sys.stderr)
-        print(f"DEBUG: Traceback: {traceback.format_exc()}", file=sys.stderr)
+        logger.exception("Exception in generate_checklist_report: %s", str(e))
         
         report_entry['status'] = 'failed'
         report_entry['completed_at'] = datetime.utcnow().isoformat()
@@ -764,7 +765,7 @@ def generate_checklist_report(checklist_id: str, user_id: str = 'system'):
         try:
             es.index('elaslip_app_config', f'report_{task_id}', report_entry)
         except Exception as save_err:
-            print(f"DEBUG: Failed to save error report: {str(save_err)}", file=sys.stderr)
+            logger.exception("Failed to save error report: %s", str(save_err))
         
         audit.log(
             action='report_generation_failed',

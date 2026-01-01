@@ -6,6 +6,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import Dict, List, Optional
 import ipaddress
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ToolsService:
@@ -229,10 +231,9 @@ class ToolsService:
             )
             
             # Log for debugging
-            import sys
-            print(f"NMAP DEBUG: returncode={result.returncode}, stdout_len={len(result.stdout)}, stderr_len={len(result.stderr)}", file=sys.stderr)
+            logger.debug("NMAP DEBUG: returncode=%s, stdout_len=%d, stderr_len=%d", result.returncode, len(result.stdout), len(result.stderr))
             if result.stderr:
-                print(f"NMAP STDERR: {result.stderr}", file=sys.stderr)
+                logger.debug("NMAP STDERR: %s", result.stderr)
             
             # Parse XML output
             parsed = ToolsService._parse_nmap_xml(result.stdout)
@@ -748,9 +749,8 @@ class ToolsService:
             raw_output = output
             
             # Log for debugging
-            import sys
-            print(f"PING DEBUG: system={system}, output_len={len(output)}, returncode={result.returncode}", file=sys.stderr)
-            print(f"PING OUTPUT:\n{output}", file=sys.stderr)
+            logger.debug("PING DEBUG: system=%s, output_len=%d, returncode=%s", system, len(output), result.returncode)
+            logger.debug("PING OUTPUT:\n%s", output)
             
             # Check for actual connectivity - even if return code != 0, may have partial results
             packets_received = 0

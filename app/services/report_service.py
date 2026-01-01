@@ -10,6 +10,8 @@ from app.services.case_service import CaseService, IncidentService, TimelineServ
 from app.services.comment_service import CommentService
 from app.config import Config
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Default prompt templates - Optimized for LLM generation
@@ -331,7 +333,7 @@ class ReportService:
                 headers['Authorization'] = f'Bearer {self.llm_api_key}'
             response = requests.get(f"{self.llm_url}/v1/models", headers=headers, timeout=3)
             if response.status_code == 200:
-                print(f"[LLM DETECT] Detected OpenAI-compatible provider at {self.llm_url}")
+                logger.info("[LLM DETECT] Detected OpenAI-compatible provider at %s", self.llm_url)
                 return 'openai'
         except requests.RequestException:
             pass
@@ -340,18 +342,18 @@ class ReportService:
         try:
             response = requests.get(f"{self.llm_url}/api/tags", timeout=3)
             if response.status_code == 200:
-                print(f"[LLM DETECT] Detected Ollama provider at {self.llm_url}")
+                logger.info("[LLM DETECT] Detected Ollama provider at %s", self.llm_url)
                 return 'ollama'
         except requests.RequestException:
             pass
         
         # Default to OpenAI if URL contains 'openai' or v1/chat/completions pattern
         if 'openai' in self.llm_url or '/v1/' in self.llm_url:
-            print(f"[LLM DETECT] Detected OpenAI-compatible by URL pattern")
+            logger.info("[LLM DETECT] Detected OpenAI-compatible by URL pattern")
             return 'openai'
         
         # Default to Ollama
-        print(f"[LLM DETECT] Defaulting to Ollama provider")
+        logger.info("[LLM DETECT] Defaulting to Ollama provider")
         return 'ollama'
     
     def _call_llm(self, prompt: str) -> tuple:
@@ -380,29 +382,29 @@ class ReportService:
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
                 self.custom_prompt_incident = config.get('custom_prompt_incident', '')
                 self.custom_prompt_checklist = config.get('custom_prompt_checklist', '')
-                print(f"[LLM CONFIG LOADED] Language: {old_lang} -> {self.generation_language}")
+                logger.info("[LLM CONFIG LOADED] Language: %s -> %s", old_lang, self.generation_language)
         except Exception as e:
-            print(f"[LLM CONFIG ERROR] Failed to reload: {str(e)}")
+            logger.exception("[LLM CONFIG ERROR] Failed to reload: %s", str(e))
         
         try:
-            print(f"[LLM CALL] Using LLM URL: {self.llm_url}")
-            print(f"[LLM CALL] Generation language: {self.generation_language}")
+            logger.debug("[LLM CALL] Using LLM URL: %s", self.llm_url)
+            logger.debug("[LLM CALL] Generation language: %s", self.generation_language)
             
             # Detect provider
             provider = self._detect_llm_provider()
-            print(f"[LLM CALL] Provider: {provider}, Model: {self.llm_model}, Language: {self.generation_language}")
+            logger.debug("[LLM CALL] Provider: %s, Model: %s, Language: %s", provider, self.llm_model, self.generation_language)
             
             if provider == 'openai':
-                print(f"[LLM CALL] Calling OpenAI-compatible endpoint...")
+                logger.debug("[LLM CALL] Calling OpenAI-compatible endpoint...")
                 return self._call_openai_llm(prompt)
             else:
-                print(f"[LLM CALL] Calling Ollama endpoint...")
+                logger.debug("[LLM CALL] Calling Ollama endpoint...")
                 return self._call_ollama_llm(prompt)
         except requests.RequestException as e:
-            print(f"[LLM ERROR] RequestException: {str(e)}")
+            logger.exception("[LLM ERROR] RequestException: %s", str(e))
             raise RuntimeError(f"Failed to call LLM: {str(e)}")
         except Exception as e:
-            print(f"[LLM ERROR] General exception: {type(e).__name__}: {str(e)}")
+            logger.exception("[LLM ERROR] General exception: %s: %s", type(e).__name__, str(e))
             raise
     
     def _call_ollama_llm(self, prompt: str) -> tuple:
@@ -435,7 +437,7 @@ class ReportService:
             'completion_tokens': data.get('eval_count', 0)
         }
         
-        print(f"[LLM RESPONSE] First 100 chars: {response_text[:100]}")
+        logger.debug("[LLM RESPONSE] First 100 chars: %s", response_text[:100])
         return response_text, token_usage
     
     def _call_openai_llm(self, prompt: str) -> tuple:
@@ -460,7 +462,7 @@ class ReportService:
         }
         
         request_url = f"{self.llm_url}/v1/chat/completions"
-        print(f"[OPENAI LLM] Posting to {request_url} with model {self.llm_model}")
+        logger.debug("[OPENAI LLM] Posting to %s with model %s", request_url, self.llm_model)
         
         response = requests.post(
             request_url,
@@ -469,11 +471,11 @@ class ReportService:
             timeout=120
         )
         
-        print(f"[OPENAI LLM] Response status: {response.status_code}")
+        logger.debug("[OPENAI LLM] Response status: %s", response.status_code)
         response.raise_for_status()
         
         data = response.json()
-        print(f"[OPENAI LLM] Response keys: {list(data.keys())}")
+        logger.debug("[OPENAI LLM] Response keys: %s", list(data.keys()))
         
         # Extract response from OpenAI format
         if 'choices' in data and len(data['choices']) > 0:
@@ -499,8 +501,8 @@ class ReportService:
             'completion_tokens': usage.get('completion_tokens', 0)
         }
         
-        print(f"[OPENAI LLM RESPONSE] First 100 chars: {response_text[:100]}")
-        print(f"[OPENAI LLM TOKENS] Prompt: {token_usage['prompt_tokens']}, Completion: {token_usage['completion_tokens']}")
+        logger.debug("[OPENAI LLM RESPONSE] First 100 chars: %s", response_text[:100])
+        logger.debug("[OPENAI LLM TOKENS] Prompt: %d, Completion: %d", token_usage.get('prompt_tokens', 0), token_usage.get('completion_tokens', 0))
         return response_text, token_usage
     
     def _get_language_instruction(self) -> str:
