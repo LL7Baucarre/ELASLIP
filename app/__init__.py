@@ -138,7 +138,8 @@ def create_app(config_name=None):
             'SITE_NAME': app.config.get('SITE_NAME', 'IOC Manager'),
             'SITE_TITLE': app.config.get('SITE_TITLE', 'IOC Manager'),
             'has_permission': has_permission,
-            'has_any_permission': has_any_permission
+            'has_any_permission': has_any_permission,
+            'llm_enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true'
         }
     
     # Initialize Redis
@@ -168,6 +169,7 @@ def create_app(config_name=None):
     from app.routes.main import main_bp
     from app.routes.api_keys import api_keys_bp
     from app.routes.tools import tools_bp
+    from app.routes.images import images_bp
     from app.routes.audit import audit_bp
     from app.routes.cases import bp as cases_bp
     from app.routes.reports import bp as reports_bp
@@ -188,6 +190,7 @@ def create_app(config_name=None):
     app.register_blueprint(webhook_bp, url_prefix='/api/webhooks')
     app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
     app.register_blueprint(tools_bp, url_prefix='/api/tools')
+    app.register_blueprint(images_bp)
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
     app.register_blueprint(reports_bp)

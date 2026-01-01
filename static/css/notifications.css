@@ -318,50 +318,37 @@
     overflow-y: auto;
 }
 
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .notification-dropdown {
-        background-color: #2d2d2d;
-        border-color: #444;
-    }
-
-    .notification-item {
-        border-bottom-color: #444;
-    }
-
-    .notification-item:hover {
-        background-color: #3a3a3a;
-    }
-
-    .notification-item.notification-unread {
-        background-color: #1a3a52;
-        border-left-color: #0dcaf0;
-    }
-
-    .notification-title {
-        color: #e0e0e0;
-    }
-
-    .notification-message {
-        color: #a0a0a0;
-    }
-
-    .notification-time {
-        color: #777;
-    }
-
-    .notification-dropdown .dropdown-header {
-        background-color: #3a3a3a;
-        color: #e0e0e0;
-    }
-
-    .notification-dropdown .dropdown-item.text-center {
-        color: #0dcaf0 !important;
-    }
+/* Dark mode - close button */
+[data-theme="dark"] .notifications-sidebar .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
 }
-    }
 
-    .notification-dropdown .dropdown-item.text-center:hover {
-        background-color: #3a3a3a;
-    }
+/* Dark mode - loading and empty states */
+[data-theme="dark"] .notifications-sidebar .text-muted {
+    color: #adb5bd !important;
+}
+
+/* Dark mode - footer buttons */
+[data-theme="dark"] .notifications-sidebar-footer .btn-outline-secondary {
+    color: #adb5bd;
+    border-color: #495057;
+}
+
+[data-theme="dark"] .notifications-sidebar-footer .btn-outline-secondary:hover {
+    background-color: #495057;
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .notifications-sidebar-footer .btn-outline-primary {
+    color: #5dade2;
+    border-color: #5dade2;
+}
+
+[data-theme="dark"] .notifications-sidebar-footer .btn-outline-primary:hover {
+    background-color: #5dade2;
+    color: #1a1d21;
+}
+
+[data-theme="dark"] .notifications-sidebar-footer hr {
+    border-color: #3d4449;
 }
