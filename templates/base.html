@@ -26,20 +26,19 @@
                     </span>
                 </a>
             </li>
-            
-            <li class="nav-section-title">MANAGEMENT</li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
-                    <i class="bi bi-speedometer2"></i> Dashboard
-                </a>
-            </li>
-            {% if has_permission('search.advanced') %}
+                        {% if has_permission('search.advanced') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
                     <i class="bi bi-search"></i> Search
                 </a>
             </li>
             {% endif %}
+            <li class="nav-section-title">IOCs</li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
+                    <i class="bi bi-speedometer2"></i> Dashboard
+                </a>
+            </li>
             {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
@@ -84,6 +83,13 @@
                 </a>
             </li>
             {% endif %}
+                        {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
+                    <i class="bi bi-file-earmark-pdf"></i> LLM Reports
+                </a>
+            </li>
+            {% endif %}
             
             <li class="nav-section-title">TOOLS</li>
             {% if has_permission('ioc.import') %}
@@ -104,13 +110,6 @@
             <li class="nav-item">
                 <a class="nav-link {% if 'snippets' in request.endpoint %}active{% endif %}" href="{{ url_for('main.snippets_library') }}">
                     <i class="bi bi-file-earmark-text"></i> Snippets
-                </a>
-            </li>
-            {% endif %}
-            {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
-                    <i class="bi bi-file-earmark-pdf"></i> LLM Reports
                 </a>
             </li>
             {% endif %}
@@ -135,11 +134,6 @@
                     <i class="bi bi-gear"></i> Settings
                 </a>
             </li>
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
-                    <i class="bi bi-file-earmark-code"></i> API Docs
-                </a>
-            </li>
         </ul>
         
         <div class="user-section">
@@ -156,6 +150,9 @@
             </div>
             <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 10px 20px; margin: 10px -20px 0 -20px; width: calc(100% + 40px);">
                 <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
+            </a>
+            <a class="nav-link" href="{{ url_for('main.api_docs') }}" title="API Docs" style="padding: 10px 20px; margin: 10px -20px 0 -20px; width: calc(100% + 40px);">
+                <i class="bi bi-file-earmark-code"></i> <span>API Docs</span>
             </a>
         </div>
         </div>

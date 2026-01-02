@@ -5,8 +5,8 @@
 {% block content %}
 <div class="top-bar">
     <div>
-        <h4 class="mb-0">Search IOCs</h4>
-        <small class="text-muted">Find indicators by value, pattern, or metadata</small>
+        <h4 class="mb-0">Search Entities</h4>
+        <small class="text-muted">Find IOCs, Cases, Incidents, and Users across your investigation</small>
     </div>
 </div>
 
@@ -19,7 +19,7 @@
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                         <input type="text" class="form-control" id="searchQuery" 
-                               placeholder="Enter IOC value (IP, domain, hash, URL, email...)" autofocus>
+                               placeholder="Search IOCs, cases, incidents, users..." autofocus>
                     </div>
                 </div>
                 <div class="col-md-2">
@@ -107,7 +107,7 @@
 <!-- No Results Message -->
 <div id="noResults" class="text-center py-5" style="display: none;">
     <i class="bi bi-search display-1 text-muted"></i>
-    <h5 class="mt-3">No IOCs found</h5>
+    <h5 class="mt-3">No results found</h5>
     <p class="text-muted">Try a different search term or adjust filters</p>
     {% if has_permission('ioc.create') %}
     <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
@@ -119,30 +119,37 @@
 <!-- Empty State -->
 <div id="emptyState" class="text-center py-5">
     <i class="bi bi-search display-1 text-primary"></i>
-    <h5 class="mt-3">Search for Indicators</h5>
-    <p class="text-muted">Enter an IOC value like an IP address, domain, file hash, URL, or email</p>
+    <h5 class="mt-3">Universal Search</h5>
+    <p class="text-muted">Search across IOCs, Cases, Incidents, and Users</p>
     <div class="row justify-content-center mt-4">
-        <div class="col-md-8">
+        <div class="col-md-10">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="border rounded p-3 text-start">
-                        <strong>IPs & Domains</strong>
+                        <strong><i class="bi bi-shield-exclamation me-2"></i>IOCs</strong>
                         <br>
-                        <small class="text-muted">192.168.1.1, example.com</small>
+                        <small class="text-muted">IPs, domains, hashes, URLs, emails</small>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="border rounded p-3 text-start">
-                        <strong>File Hashes</strong>
+                        <strong><i class="bi bi-folder me-2"></i>Cases</strong>
                         <br>
-                        <small class="text-muted">MD5, SHA1, SHA256</small>
+                        <small class="text-muted">Investigation cases and records</small>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="border rounded p-3 text-start">
-                        <strong>URLs & Emails</strong>
+                        <strong><i class="bi bi-exclamation-triangle me-2"></i>Incidents</strong>
                         <br>
-                        <small class="text-muted">http://..., user@domain</small>
+                        <small class="text-muted">Security incidents and events</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-3 text-start">
+                        <strong><i class="bi bi-person me-2"></i>Users</strong>
+                        <br>
+                        <small class="text-muted">Team members and accounts</small>
                     </div>
                 </div>
             </div>
@@ -235,8 +242,9 @@ function displayResults(data) {
         return;
     }
     
-    // Show enrich button if we have results
-    $('#enrichAllBtn').toggle(results.length > 0);
+    // Show enrich button if we have results (only for IOCs)
+    const hasIOCs = results.some(r => (r.entity_type || r.ioc_type) === 'ioc');
+    $('#enrichAllBtn').toggle(hasIOCs);
     
     // Display quick stats
     displayQuickStats(results);
@@ -245,27 +253,47 @@ function displayResults(data) {
     const tbody = $('#resultsBody');
     tbody.empty();
     
-    results.forEach(ioc => {
-        const labels = (ioc.labels || []).slice(0, 3)
-            .map(l => `<span class="badge bg-light text-dark me-1">${l}</span>`)
-            .join('');
+    results.forEach(item => {
+        // Determine entity type and display accordingly
+        const entityType = item.entity_type || item.ioc_type || 'unknown';
+        let displayType = entityType.toUpperCase();
+        let displayValue = '';
+        let viewLink = '';
+        let labelBadges = '';
         
-        const moreLabels = (ioc.labels || []).length > 3 
-            ? `<span class="badge bg-secondary">+${ioc.labels.length - 3}</span>` 
-            : '';
+        if (entityType === 'ioc') {
+            displayValue = escapeHtml(item.ioc_value || item.pattern || '');
+            viewLink = `/iocs/${item.id}`;
+            const labels = (item.labels || []).slice(0, 3)
+                .map(l => `<span class="badge bg-light text-dark me-1">${l}</span>`)
+                .join('');
+            const moreLabels = (item.labels || []).length > 3 
+                ? `<span class="badge bg-secondary">+${item.labels.length - 3}</span>` 
+                : '';
+            labelBadges = labels + moreLabels;
+        } else if (entityType === 'case') {
+            displayValue = escapeHtml(item.title || item.name || '');
+            viewLink = `/cases/${item.id}`;
+        } else if (entityType === 'incident') {
+            displayValue = escapeHtml(item.title || item.name || '');
+            viewLink = `/incidents/${item.id}`;
+        } else if (entityType === 'user') {
+            displayValue = escapeHtml(item.name || item.username || '');
+            viewLink = `/users/${item.id}`;
+        }
         
-        const sources = (ioc.x_metadata?.sources || []).length;
-        const created = ioc.created ? ioc.created.substring(0, 10) : 'N/A';
+        const created = item.created_at ? item.created_at.substring(0, 10) : (item.created ? item.created.substring(0, 10) : 'N/A');
+        const sources = (item.x_metadata?.sources || []).length || 0;
         
         const row = `
             <tr>
-                <td><span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${ioc.ioc_type.toUpperCase()}</span></td>
-                <td><code class="pattern-text">${escapeHtml(ioc.ioc_value || ioc.pattern)}</code></td>
-                <td>${labels}${moreLabels}</td>
+                <td><span class="ioc-type-badge ioc-type-${entityType}">${displayType}</span></td>
+                <td><code class="pattern-text">${displayValue}</code></td>
+                <td>${labelBadges}</td>
                 <td><span class="badge bg-info">${sources}</span></td>
                 <td><small>${created}</small></td>
                 <td>
-                    <a href="/iocs/${ioc.id}" class="btn btn-sm btn-outline-primary">View</a>
+                    <a href="${viewLink}" class="btn btn-sm btn-outline-primary">View</a>
                 </td>
             </tr>
         `;
@@ -275,8 +303,9 @@ function displayResults(data) {
 
 function displayQuickStats(results) {
     const stats = {};
-    results.forEach(ioc => {
-        const type = ioc.ioc_type || 'unknown';
+    results.forEach(item => {
+        // Use entity_type for multi-index results, fall back to ioc_type for IOCs
+        const type = item.entity_type || item.ioc_type || 'unknown';
         stats[type] = (stats[type] || 0) + 1;
     });
     
@@ -288,7 +317,11 @@ function displayQuickStats(results) {
         'domain': 'warning',
         'email': 'danger',
         'url': 'warning',
-        'asn': 'secondary'
+        'asn': 'secondary',
+        'case': 'info',
+        'incident': 'danger',
+        'user': 'secondary',
+        'ioc': 'primary'
     };
     
     const container = $('#quickStats');
