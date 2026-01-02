@@ -363,12 +363,15 @@ def activity_timeline():
 @main_bp.route('/api/iocs/graph-data')
 @login_required
 def get_graph_data():
-    """Get IOCs and relationships for graph visualization."""
-    service = IOCService()
+    """Get IOCs and relationships for graph visualization, including cases and incidents."""
+    from app.services.case_service import CaseService
+    
+    ioc_service = IOCService()
+    case_service = CaseService()
     
     # Get all IOCs with limit
     limit = request.args.get('limit', default=100, type=int)
-    all_iocs = service.list(page=1, per_page=limit)
+    all_iocs = ioc_service.list(page=1, per_page=limit)
     
     nodes = []
     edges = []
@@ -378,7 +381,7 @@ def get_graph_data():
     # Create nodes from IOCs
     for ioc in all_iocs.get('items', []):
         node_id = ioc.get('id')
-        node_ids[node_id] = ioc
+        node_ids[node_id] = {'type': 'ioc', 'data': ioc}
         
         # Build classes with IOC type and threat level
         ioc_type = ioc.get('ioc_type', 'unknown').replace('-', '_')
@@ -392,15 +395,70 @@ def get_graph_data():
                 'type': str(ioc.get('ioc_type', 'unknown')),
                 'threat_level': str(threat_level),
                 'confidence': str(ioc.get('confidence', '')),
-                'tlp': str(ioc.get('tlp', ''))
+                'tlp': str(ioc.get('tlp', '')),
+                'entity_type': 'ioc'
             },
             'classes': classes
         })
     
+    # Get all cases
+    try:
+        all_cases = case_service.es.search(
+            'cases',
+            {
+                'size': 1000,
+                'query': {'match_all': {}}
+            }
+        )
+        
+        for hit in all_cases.get('hits', {}).get('hits', []):
+            case_id = hit.get('_id')
+            case_data = hit.get('_source', {})
+            node_ids[case_id] = {'type': 'case', 'data': case_data}
+            
+            nodes.append({
+                'data': {
+                    'id': case_id,
+                    'label': str(case_data.get('title', 'Unknown Case')),
+                    'entity_type': 'case',
+                    'status': case_data.get('status', 'unknown')
+                },
+                'classes': 'case'
+            })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch cases: {str(e)}")
+    
+    # Get all incidents
+    try:
+        all_incidents = case_service.es.search(
+            'incidents',
+            {
+                'size': 1000,
+                'query': {'match_all': {}}
+            }
+        )
+        
+        for hit in all_incidents.get('hits', {}).get('hits', []):
+            incident_id = hit.get('_id')
+            incident_data = hit.get('_source', {})
+            node_ids[incident_id] = {'type': 'incident', 'data': incident_data}
+            
+            nodes.append({
+                'data': {
+                    'id': incident_id,
+                    'label': str(incident_data.get('title', 'Unknown Incident')),
+                    'entity_type': 'incident',
+                    'severity': incident_data.get('severity', 'unknown')
+                },
+                'classes': 'incident'
+            })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
+    
     # Get relationships from Elasticsearch
     try:
-        # First, try to get all relations from the index
-        all_relations = service.es.search(
+        # Get IOC-IOC relations
+        all_relations = ioc_service.es.search(
             'ioc_relations',
             {
                 'size': 10000,
@@ -409,25 +467,18 @@ def get_graph_data():
         )
         
         total_relations = all_relations.get('hits', {}).get('total', {}).get('value', 0)
-        current_app.logger.info(f"Total relations found in index: {total_relations}")
+        current_app.logger.info(f"Total IOC relations found: {total_relations}")
         
-        # Log details of loaded IOCs
-        current_app.logger.info(f"Loaded IOC IDs: {list(node_ids.keys())}")
-        
-        # Create edges from relationships
+        # Create edges from IOC relationships
         for rel in all_relations.get('hits', {}).get('hits', []):
             rel_data = rel.get('_source', {})
             rel_id = rel.get('_id', '')
             
-            # Try both naming conventions
             source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
             target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
             relation_type = rel_data.get('relation_type', 'related-to')
             
-            current_app.logger.debug(f"Relation {rel_id}: {source_id} -> {target_id} ({relation_type})")
-            current_app.logger.debug(f"Source in nodes: {source_id in node_ids}, Target in nodes: {target_id in node_ids}")
-            
-            # Only add edge if both nodes exist and edge not already added
+            # Only add edge if both nodes exist
             if source_id and target_id and source_id in node_ids and target_id in node_ids:
                 edge_id = f"{source_id}-{target_id}"
                 if edge_id not in edge_set:
@@ -441,14 +492,56 @@ def get_graph_data():
                         },
                         'classes': f"relation-{relation_type.replace('-', '_')}"
                     })
-                    current_app.logger.info(f"Added edge: {edge_id}")
-        
-        current_app.logger.info(f"Final: {len(edges)} edges created for graph")
     except Exception as e:
-        # Relations index might not exist, continue without relations
-        import traceback
-        current_app.logger.error(f"Could not fetch relations: {str(e)}")
-        current_app.logger.error(traceback.format_exc())
+        current_app.logger.warning(f"Could not fetch IOC relations: {str(e)}")
+    
+    # Get IOC-Case relations from case ioc_ids
+    try:
+        for case_id, node_info in node_ids.items():
+            if node_info['type'] == 'case':
+                case_data = node_info['data']
+                ioc_ids = case_data.get('ioc_ids', [])
+                for ioc_id in ioc_ids:
+                    if ioc_id in node_ids and node_ids[ioc_id]['type'] == 'ioc':
+                        edge_id = f"{ioc_id}-{case_id}"
+                        if edge_id not in edge_set:
+                            edge_set.add(edge_id)
+                            edges.append({
+                                'data': {
+                                    'id': edge_id,
+                                    'source': ioc_id,
+                                    'target': case_id,
+                                    'label': 'found-in-case'
+                                },
+                                'classes': 'relation-found_in_case'
+                            })
+    except Exception as e:
+        current_app.logger.warning(f"Could not process IOC-Case relations: {str(e)}")
+    
+    # Get IOC-Incident relations from incident ioc_ids
+    try:
+        for incident_id, node_info in node_ids.items():
+            if node_info['type'] == 'incident':
+                incident_data = node_info['data']
+                ioc_ids = incident_data.get('ioc_ids', [])
+                for ioc_id in ioc_ids:
+                    if ioc_id in node_ids and node_ids[ioc_id]['type'] == 'ioc':
+                        edge_id = f"{ioc_id}-{incident_id}"
+                        if edge_id not in edge_set:
+                            edge_set.add(edge_id)
+                            edges.append({
+                                'data': {
+                                    'id': edge_id,
+                                    'source': ioc_id,
+                                    'target': incident_id,
+                                    'label': 'found-in-incident'
+                                },
+                                'classes': 'relation-found_in_incident'
+                            })
+    except Exception as e:
+        current_app.logger.warning(f"Could not process IOC-Incident relations: {str(e)}")
+    
+    current_app.logger.info(f"Final graph: {len(nodes)} nodes, {len(edges)} edges")
     
     return jsonify({
         'nodes': nodes,
@@ -492,16 +585,20 @@ def debug_relations():
 @main_bp.route('/api/iocs/<ioc_id>/graph-data')
 @login_required
 def get_ioc_graph_data(ioc_id):
-    """Get graph data for a specific IOC and its relations."""
-    service = IOCService()
+    """Get graph data for a specific IOC and its relations (including cases and incidents)."""
+    from app.services.case_service import CaseService
+    
+    ioc_service = IOCService()
+    case_service = CaseService()
     
     nodes = []
     edges = []
-    edge_set = set()  # Track edges to avoid duplicates
+    edge_set = set()
+    node_ids = set()
     
     try:
         # Get the main IOC
-        main_ioc = service.get(ioc_id)
+        main_ioc = ioc_service.get(ioc_id)
         if not main_ioc:
             return jsonify({'error': 'IOC not found'}), 404
         
@@ -513,13 +610,15 @@ def get_ioc_graph_data(ioc_id):
                 'type': str(main_ioc.get('ioc_type', 'unknown')),
                 'threat_level': str(main_ioc.get('threat_level', 'unknown')),
                 'confidence': str(main_ioc.get('confidence', '')),
-                'tlp': str(main_ioc.get('tlp', ''))
+                'tlp': str(main_ioc.get('tlp', '')),
+                'entity_type': 'ioc'
             },
             'classes': f"ioc-{main_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
         })
+        node_ids.add(ioc_id)
         
         # Get all relations for this IOC
-        all_relations = service.es.search(
+        all_relations = ioc_service.es.search(
             'ioc_relations',
             {'size': 10000, 'query': {'match_all': {}}}
         )
@@ -566,7 +665,7 @@ def get_ioc_graph_data(ioc_id):
         # Load related IOCs
         for related_id in related_ioc_ids:
             try:
-                related_ioc = service.get(related_id)
+                related_ioc = ioc_service.get(related_id)
                 if related_ioc:
                     nodes.append({
                         'data': {
@@ -575,12 +674,94 @@ def get_ioc_graph_data(ioc_id):
                             'type': str(related_ioc.get('ioc_type', 'unknown')),
                             'threat_level': str(related_ioc.get('threat_level', 'unknown')),
                             'confidence': str(related_ioc.get('confidence', '')),
-                            'tlp': str(related_ioc.get('tlp', ''))
+                            'tlp': str(related_ioc.get('tlp', '')),
+                            'entity_type': 'ioc'
                         },
                         'classes': f"ioc-{related_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
                     })
+                    node_ids.add(related_id)
             except:
                 pass
+        
+        # Get cases that contain this IOC
+        try:
+            all_cases = case_service.es.search(
+                'cases',
+                {'size': 1000, 'query': {'match_all': {}}}
+            )
+            
+            for hit in all_cases.get('hits', {}).get('hits', []):
+                case_id = hit.get('_id')
+                case_data = hit.get('_source', {})
+                ioc_ids = case_data.get('ioc_ids', [])
+                
+                if ioc_id in ioc_ids:
+                    nodes.append({
+                        'data': {
+                            'id': case_id,
+                            'label': str(case_data.get('title', 'Unknown Case')),
+                            'entity_type': 'case',
+                            'status': case_data.get('status', 'unknown')
+                        },
+                        'classes': 'case'
+                    })
+                    node_ids.add(case_id)
+                    
+                    # Add edge from IOC to case
+                    edge_id = f"{ioc_id}-{case_id}"
+                    if edge_id not in edge_set:
+                        edge_set.add(edge_id)
+                        edges.append({
+                            'data': {
+                                'id': edge_id,
+                                'source': ioc_id,
+                                'target': case_id,
+                                'label': 'found-in-case'
+                            },
+                            'classes': 'relation-found_in_case'
+                        })
+        except Exception as e:
+            current_app.logger.warning(f"Could not fetch cases: {str(e)}")
+        
+        # Get incidents that contain this IOC
+        try:
+            all_incidents = case_service.es.search(
+                'incidents',
+                {'size': 1000, 'query': {'match_all': {}}}
+            )
+            
+            for hit in all_incidents.get('hits', {}).get('hits', []):
+                incident_id = hit.get('_id')
+                incident_data = hit.get('_source', {})
+                ioc_ids = incident_data.get('ioc_ids', [])
+                
+                if ioc_id in ioc_ids:
+                    nodes.append({
+                        'data': {
+                            'id': incident_id,
+                            'label': str(incident_data.get('title', 'Unknown Incident')),
+                            'entity_type': 'incident',
+                            'severity': incident_data.get('severity', 'unknown')
+                        },
+                        'classes': 'incident'
+                    })
+                    node_ids.add(incident_id)
+                    
+                    # Add edge from IOC to incident
+                    edge_id = f"{ioc_id}-{incident_id}"
+                    if edge_id not in edge_set:
+                        edge_set.add(edge_id)
+                        edges.append({
+                            'data': {
+                                'id': edge_id,
+                                'source': ioc_id,
+                                'target': incident_id,
+                                'label': 'found-in-incident'
+                            },
+                            'classes': 'relation-found_in_incident'
+                        })
+        except Exception as e:
+            current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
         
         return jsonify({
             'nodes': nodes,
