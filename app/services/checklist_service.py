@@ -116,6 +116,18 @@ class ChecklistService:
             checklist['items'] = updates['items']
         if 'status' in updates:
             checklist['status'] = updates['status']
+        if 'tags' in updates:
+            checklist['tags'] = updates['tags']
+        if 'campaigns' in updates:
+            checklist['campaigns'] = updates['campaigns']
+        if 'related_cases' in updates:
+            checklist['related_cases'] = updates['related_cases']
+        if 'related_incidents' in updates:
+            checklist['related_incidents'] = updates['related_incidents']
+        if 'assigned_to' in updates:
+            checklist['assigned_to'] = updates['assigned_to']
+        if 'assigned_to_name' in updates:
+            checklist['assigned_to_name'] = updates['assigned_to_name']
         
         checklist['updated_at'] = datetime.utcnow().isoformat() + 'Z'
         
