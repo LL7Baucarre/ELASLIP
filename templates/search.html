@@ -235,8 +235,9 @@ function displayResults(data) {
         return;
     }
     
-    // Show enrich button if we have results
-    $('#enrichAllBtn').toggle(results.length > 0);
+    // Show enrich button if we have results (only for IOCs)
+    const hasIOCs = results.some(r => (r.entity_type || r.ioc_type) === 'ioc');
+    $('#enrichAllBtn').toggle(hasIOCs);
     
     // Display quick stats
     displayQuickStats(results);
@@ -245,27 +246,47 @@ function displayResults(data) {
     const tbody = $('#resultsBody');
     tbody.empty();
     
-    results.forEach(ioc => {
-        const labels = (ioc.labels || []).slice(0, 3)
-            .map(l => `<span class="badge bg-light text-dark me-1">${l}</span>`)
-            .join('');
+    results.forEach(item => {
+        // Determine entity type and display accordingly
+        const entityType = item.entity_type || item.ioc_type || 'unknown';
+        let displayType = entityType.toUpperCase();
+        let displayValue = '';
+        let viewLink = '';
+        let labelBadges = '';
         
-        const moreLabels = (ioc.labels || []).length > 3 
-            ? `<span class="badge bg-secondary">+${ioc.labels.length - 3}</span>` 
-            : '';
+        if (entityType === 'ioc') {
+            displayValue = escapeHtml(item.ioc_value || item.pattern || '');
+            viewLink = `/iocs/${item.id}`;
+            const labels = (item.labels || []).slice(0, 3)
+                .map(l => `<span class="badge bg-light text-dark me-1">${l}</span>`)
+                .join('');
+            const moreLabels = (item.labels || []).length > 3 
+                ? `<span class="badge bg-secondary">+${item.labels.length - 3}</span>` 
+                : '';
+            labelBadges = labels + moreLabels;
+        } else if (entityType === 'case') {
+            displayValue = escapeHtml(item.title || item.name || '');
+            viewLink = `/cases/${item.id}`;
+        } else if (entityType === 'incident') {
+            displayValue = escapeHtml(item.title || item.name || '');
+            viewLink = `/incidents/${item.id}`;
+        } else if (entityType === 'user') {
+            displayValue = escapeHtml(item.name || item.username || '');
+            viewLink = `/users/${item.id}`;
+        }
         
-        const sources = (ioc.x_metadata?.sources || []).length;
-        const created = ioc.created ? ioc.created.substring(0, 10) : 'N/A';
+        const created = item.created_at ? item.created_at.substring(0, 10) : (item.created ? item.created.substring(0, 10) : 'N/A');
+        const sources = (item.x_metadata?.sources || []).length || 0;
         
         const row = `
             <tr>
-                <td><span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${ioc.ioc_type.toUpperCase()}</span></td>
-                <td><code class="pattern-text">${escapeHtml(ioc.ioc_value || ioc.pattern)}</code></td>
-                <td>${labels}${moreLabels}</td>
+                <td><span class="ioc-type-badge ioc-type-${entityType}">${displayType}</span></td>
+                <td><code class="pattern-text">${displayValue}</code></td>
+                <td>${labelBadges}</td>
                 <td><span class="badge bg-info">${sources}</span></td>
                 <td><small>${created}</small></td>
                 <td>
-                    <a href="/iocs/${ioc.id}" class="btn btn-sm btn-outline-primary">View</a>
+                    <a href="${viewLink}" class="btn btn-sm btn-outline-primary">View</a>
                 </td>
             </tr>
         `;
@@ -275,8 +296,9 @@ function displayResults(data) {
 
 function displayQuickStats(results) {
     const stats = {};
-    results.forEach(ioc => {
-        const type = ioc.ioc_type || 'unknown';
+    results.forEach(item => {
+        // Use entity_type for multi-index results, fall back to ioc_type for IOCs
+        const type = item.entity_type || item.ioc_type || 'unknown';
         stats[type] = (stats[type] || 0) + 1;
     });
     
@@ -288,7 +310,11 @@ function displayQuickStats(results) {
         'domain': 'warning',
         'email': 'danger',
         'url': 'warning',
-        'asn': 'secondary'
+        'asn': 'secondary',
+        'case': 'info',
+        'incident': 'danger',
+        'user': 'secondary',
+        'ioc': 'primary'
     };
     
     const container = $('#quickStats');
