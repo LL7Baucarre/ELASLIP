@@ -1487,6 +1487,26 @@ $(document).ready(function() {
                     }
                 },
                 {
+                    selector: 'node.case',
+                    style: {
+                        'shape': 'square',
+                        'background-color': '#0d6efd',
+                        'border-color': '#0b5ed7',
+                        'width': 45,
+                        'height': 45
+                    }
+                },
+                {
+                    selector: 'node.incident',
+                    style: {
+                        'shape': 'diamond',
+                        'background-color': '#dc3545',
+                        'border-color': '#bb2d3b',
+                        'width': 45,
+                        'height': 45
+                    }
+                },
+                {
                     selector: 'edge',
                     style: {
                         'line-color': '#999',
@@ -1530,11 +1550,20 @@ $(document).ready(function() {
             }
         }, 500);
 
-        // Click on node to navigate to IOC
+        // Click on node to navigate to correct entity type
         miniCy.on('tap', 'node', function(e) {
             const nodeId = e.target.id();
+            const entityType = e.target.data('entity_type');
+            
             if (nodeId !== iocId) {
-                window.location.href = `/iocs/${nodeId}`;
+                if (entityType === 'case') {
+                    window.location.href = `/cases/${nodeId}`;
+                } else if (entityType === 'incident') {
+                    window.location.href = `/incidents/${nodeId}`;
+                } else {
+                    // Default to IOC
+                    window.location.href = `/iocs/${nodeId}`;
+                }
             }
         });
     }
@@ -1549,11 +1578,20 @@ $(document).ready(function() {
 
                 // Add colors
                 nodes.forEach(node => {
-                    const type = node.data.type.replace('-', '_');
-                    node.data.color = getColorForType(type);
+                    const type = node.data.type ? node.data.type.replace('-', '_') : 'unknown';
+                    
+                    // Use entity_type for cases/incidents, fallback to IOC type coloring
+                    if (node.data.entity_type === 'case') {
+                        node.data.color = '#0d6efd'; // Blue for cases
+                    } else if (node.data.entity_type === 'incident') {
+                        node.data.color = '#dc3545'; // Red for incidents
+                    } else {
+                        node.data.color = getColorForType(type);
+                    }
                 });
 
-                if (nodes.length > 1) {
+                // Show graph if there are any relations (not just the central IOC)
+                if (nodes.length > 0 && edges.length > 0) {
                     initMiniGraph(nodes, edges);
                     document.getElementById('iocGraphCard').style.display = 'block';
                 }
@@ -1941,6 +1979,131 @@ function submitRenameImage() {
 
 
 // Load images on page load
-document.addEventListener('DOMContentLoaded', loadEntityImages);
+document.addEventListener('DOMContentLoaded', function() {
+    loadEntityImages();
+    loadIOCGraph();
+});
+
+// Load IOC graph
+function loadIOCGraph() {
+    const iocId = '{{ ioc.id }}';
+    const container = document.getElementById('iocGraphContainer');
+    
+    if (!container) return;
+    
+    fetch(`/api/iocs/${iocId}/graph-data`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.nodes || data.nodes.length === 0) {
+                container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">No relationships found</div>';
+                return;
+            }
+            
+            // Initialize Cytoscape
+            const cy = cytoscape({
+                container: container,
+                elements: data.nodes.concat(data.edges),
+                style: [
+                    {
+                        selector: 'node',
+                        style: {
+                            'content': 'data(label)',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'font-size': 11,
+                            'width': 50,
+                            'height': 50,
+                            'background-color': '#6c757d',
+                            'border-width': 2,
+                            'border-color': '#495057',
+                            'text-wrap': 'wrap',
+                            'text-max-width': 100
+                        }
+                    },
+                    {
+                        selector: 'node.ioc-ipv4, node.ioc-ipv6, node.ioc-domain, node.ioc-url, node.ioc-email, node.ioc-md5, node.ioc-sha1, node.ioc-sha256, node.ioc-asn, node.ioc-asn_cidr',
+                        style: {
+                            'background-color': '#0dcaf0',
+                            'border-color': '#0ba5d8'
+                        }
+                    },
+                    {
+                        selector: 'node.case',
+                        style: {
+                            'background-color': '#0d6efd',
+                            'border-color': '#0b5ed7',
+                            'shape': 'square',
+                            'width': 60,
+                            'height': 60
+                        }
+                    },
+                    {
+                        selector: 'node.incident',
+                        style: {
+                            'background-color': '#dc3545',
+                            'border-color': '#bb2d3b',
+                            'shape': 'diamond',
+                            'width': 60,
+                            'height': 60
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'line-color': '#ccc',
+                            'target-arrow-color': '#999',
+                            'target-arrow-shape': 'triangle',
+                            'curve-style': 'bezier',
+                            'width': 2
+                        }
+                    },
+                    {
+                        selector: 'edge.relation-found_in_case',
+                        style: {
+                            'line-color': '#0d6efd',
+                            'target-arrow-color': '#0d6efd',
+                            'line-style': 'dashed'
+                        }
+                    },
+                    {
+                        selector: 'edge.relation-found_in_incident',
+                        style: {
+                            'line-color': '#dc3545',
+                            'target-arrow-color': '#dc3545',
+                            'line-style': 'dashed'
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'cose',
+                    directed: true,
+                    animate: true,
+                    animationDuration: 500,
+                    fit: true,
+                    padding: 20
+                }
+            });
+            
+            // Add click handlers for navigation
+            cy.on('tap', 'node', function(evt) {
+                const node = evt.target;
+                const nodeData = node.data();
+                const entityType = nodeData.entity_type;
+                const entityId = nodeData.id;
+                
+                if (entityType === 'case') {
+                    window.location.href = `/cases/${entityId}`;
+                } else if (entityType === 'incident') {
+                    window.location.href = `/incidents/${entityId}`;
+                } else if (entityType === 'ioc') {
+                    window.location.href = `/iocs/${entityId}`;
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading graph:', error);
+            container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">Failed to load graph</div>';
+        });
+}
 </script>
 {% endblock %}

@@ -454,6 +454,7 @@ INCIDENTS_MAPPING = {
         "properties": {
             "id": {"type": "keyword"},
             "case_id": {"type": "keyword"},  # Parent case
+            "checklist_ids": {"type": "keyword"},  # Linked checklist instances
             "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
             "description": {"type": "text"},
             "status": {"type": "keyword"},  # detected, analyzing, contained, eradicated, recovered, closed
