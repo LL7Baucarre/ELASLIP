@@ -92,7 +92,8 @@ class ChecklistService:
                                 'id': incident_id,
                                 'title': incident_id
                             })
-                    doc['related_incidents'] = resolved_incidents
+                    # Store enriched version for display but keep original IDs for storage
+                    doc['_related_incidents_enriched'] = resolved_incidents
                 
                 return doc
             return None
@@ -157,8 +158,8 @@ class ChecklistService:
         
         checklist['updated_at'] = datetime.utcnow().isoformat() + 'Z'
         
-        # Remove the 'id' field before indexing (it's stored as _id)
-        doc = {k: v for k, v in checklist.items() if k != 'id'}
+        # Remove the 'id' and enriched fields before indexing
+        doc = {k: v for k, v in checklist.items() if k not in ['id', '_related_incidents_enriched']}
         self.es.index('checklists', checklist_id, doc)
         return self.get_checklist(checklist_id)
     
