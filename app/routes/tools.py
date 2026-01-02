@@ -1316,10 +1316,12 @@ def geoip_bulk_lookup():
 @permission_required('tools.execute')
 def analyze_file():
     """
-    Analyze an uploaded file and extract details (hash, type, metadata).
+    Analyze an uploaded file and extract hashes, metadata, and properties.
     
-    Returns MD5, SHA1, and SHA256 hashes, file size, MIME type, and other metadata.
-    File is automatically deleted after analysis.
+    Calculates MD5, SHA1, and SHA256 hashes. Extracts comprehensive file metadata including:
+    file type detection, architecture detection, document metadata (PDF, Office), image EXIF data,
+    and file entropy analysis. Scan results are automatically saved to history.
+    
     ---
     tags:
       - Tools
@@ -1338,7 +1340,7 @@ def analyze_file():
               file:
                 type: string
                 format: binary
-                description: File to analyze (max size configured by MAX_FILE_SIZE env var)
+                description: File to analyze
     responses:
       200:
         description: File analysis result with hashes and metadata
@@ -1347,56 +1349,44 @@ def analyze_file():
           properties:
             success:
               type: boolean
-              description: Whether analysis was successful
             filename:
               type: string
-              description: Original filename
             size:
               type: integer
-              description: File size in bytes
             mime_type:
               type: string
-              description: MIME type of file
             extension:
               type: string
-              description: File extension
             is_binary:
               type: boolean
-              description: Whether file is binary
             magic_signature:
               type: string
-              description: File magic signature (hex)
             hashes:
               type: object
-              required:
-                - md5
-                - sha1
-                - sha256
               properties:
                 md5:
                   type: string
-                  description: MD5 hash
                 sha1:
                   type: string
-                  description: SHA1 hash
                 sha256:
                   type: string
-                  description: SHA256 hash
+            metadata:
+              type: object
+              properties:
+                file_entropy:
+                  type: number
+                sections:
+                  type: object
+                properties:
+                  type: object
             scan_id:
               type: string
-              format: uuid
-              description: ID of saved scan result
       400:
         description: Invalid input or file too large
-        schema:
-          type: object
-          properties:
-            error:
-              type: string
       401:
         description: Unauthorized
       403:
-        description: Forbidden - insufficient permissions (requires tools.execute)
+        description: Forbidden
     """
     # Check if file is in request
     if 'file' not in request.files:
