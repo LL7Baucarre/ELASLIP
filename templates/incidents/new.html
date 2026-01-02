@@ -83,6 +83,17 @@
                             <input type="text" class="form-control" id="tags" placeholder="Enter tags separated by commas">
                         </div>
 
+                        <!-- Linked Checklist Template -->
+                        <div class="mb-3">
+                            <label class="form-label">Response Checklists <span class="text-muted">(optional)</span></label>
+                            <select class="form-select" id="checklistId" multiple>
+                                {% for checklist in checklist_templates %}
+                                <option value="{{ checklist.id }}">{{ checklist.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Select one or more checklist templates to create from them</small>
+                        </div>
+
                         <!-- MITRE ATT&CK -->
                         <div class="mb-3">
                             <label class="form-label">MITRE ATT&CK Tactics</label>
@@ -215,7 +226,8 @@ document.getElementById('incidentForm').addEventListener('submit', function(e) {
         detection_time: document.getElementById('detectionTime').value || null,
         occurrence_time: document.getElementById('occurrenceTime').value || null,
         tags: tags,
-        mitre_tactics: tactics
+        mitre_tactics: tactics,
+        checklist_ids: Array.from(document.getElementById('checklistId').selectedOptions).map(o => o.value)
     };
 
     fetch('/api/incidents', {
@@ -228,7 +240,30 @@ document.getElementById('incidentForm').addEventListener('submit', function(e) {
         return r.json();
     })
     .then(result => {
-        window.location.href = `/incidents/${result.id}`;
+        // Create checklists from templates
+        const checklistIds = document.getElementById('checklistId').selectedOptions;
+        let createdCount = 0;
+        
+        if (checklistIds.length === 0) {
+            window.location.href = `/incidents/${result.id}`;
+            return;
+        }
+        
+        Array.from(checklistIds).forEach(option => {
+            const templateId = option.value;
+            fetch(`/api/incidents/${result.id}/checklists`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ template_id: templateId })
+            })
+            .then(() => {
+                createdCount++;
+                if (createdCount === checklistIds.length) {
+                    window.location.href = `/incidents/${result.id}`;
+                }
+            })
+            .catch(err => console.error('Error creating checklist:', err));
+        });
     })
     .catch(error => {
         alert('Error: ' + error.message);
