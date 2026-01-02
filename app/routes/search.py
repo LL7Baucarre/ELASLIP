@@ -236,42 +236,42 @@ def search_iocs():
         except Exception as e:
             logger.error(f"Incidents search error: {str(e)}", exc_info=True)
     
-    # Search in Users
-    if query_text:
-        # Use wildcard since username/email are keyword fields (non-analyzed)
-        users_query = {
-            "bool": {
-                "should": [
-                    {"wildcard": {"username": f"*{query_text.lower()}*"}},
-                    {"wildcard": {"email": f"*{query_text.lower()}*"}}
-                ],
-                "minimum_should_match": 1
-            }
-        }
-        
-        try:
-            users_result = es.search('users', {
-                "query": users_query,
-                "from": 0,
-                "size": per_page,
-                "sort": [{"created_at": {"order": "desc"}}]
-            })
-            
-            users_found = 0
-            for hit in users_result['hits']['hits']:
-                doc = hit['_source']
-                doc['id'] = hit['_id']
-                doc['entity_type'] = 'user'
-                doc['name'] = doc.get('username', '')
-                doc['title'] = f"User: {doc.get('username', '')}"
-                items.append(doc)
-                users_found += 1
-            
-            users_total = users_result['hits']['total']['value']
-            total += users_total
-            logger.debug(f"Users search found {users_total} results")
-        except Exception as e:
-            logger.error(f"Users search error: {str(e)}", exc_info=True)
+    # Search in Users - DISABLED
+    # if query_text:
+    #     # Use wildcard since username/email are keyword fields (non-analyzed)
+    #     users_query = {
+    #         "bool": {
+    #             "should": [
+    #                 {"wildcard": {"username": f"*{query_text.lower()}*"}},
+    #                 {"wildcard": {"email": f"*{query_text.lower()}*"}}
+    #             ],
+    #             "minimum_should_match": 1
+    #         }
+    #     }
+    #     
+    #     try:
+    #         users_result = es.search('users', {
+    #             "query": users_query,
+    #             "from": 0,
+    #             "size": per_page,
+    #             "sort": [{"created_at": {"order": "desc"}}]
+    #         })
+    #         
+    #         users_found = 0
+    #         for hit in users_result['hits']['hits']:
+    #             doc = hit['_source']
+    #             doc['id'] = hit['_id']
+    #             doc['entity_type'] = 'user'
+    #             doc['name'] = doc.get('username', '')
+    #             doc['title'] = f"User: {doc.get('username', '')}"
+    #             items.append(doc)
+    #             users_found += 1
+    #         
+    #         users_total = users_result['hits']['total']['value']
+    #         total += users_total
+    #         logger.debug(f"Users search found {users_total} results")
+    #     except Exception as e:
+    #         logger.error(f"Users search error: {str(e)}", exc_info=True)
     
     logger.info(f"Total search results: {total}, items returned: {len(items)}")
     
