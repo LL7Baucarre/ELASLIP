@@ -48,22 +48,31 @@
                                    placeholder="Enter campaign names separated by commas">
                         </div>
 
+                        <!-- Related Cases Dropdown -->
                         <div class="mb-3">
-                            <label for="relatedCases" class="form-label">Related Cases</label>
-                            <input type="text" class="form-control" id="relatedCases"
-                                   placeholder="Enter case IDs or names separated by commas">
+                            <label class="form-label">Related Cases</label>
+                            <input type="text" class="form-control" id="relatedCasesSearch" 
+                                   placeholder="Search for cases...">
+                            <div id="relatedCasesResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                            <div id="relatedCasesTags" class="mt-2"></div>
                         </div>
 
+                        <!-- Related Incidents Dropdown -->
                         <div class="mb-3">
-                            <label for="relatedIncidents" class="form-label">Related Incidents</label>
-                            <input type="text" class="form-control" id="relatedIncidents"
-                                   placeholder="Enter incident IDs or names separated by commas">
+                            <label class="form-label">Related Incidents</label>
+                            <input type="text" class="form-control" id="relatedIncidentsSearch" 
+                                   placeholder="Search for incidents...">
+                            <div id="relatedIncidentsResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                            <div id="relatedIncidentsTags" class="mt-2"></div>
                         </div>
 
+                        <!-- Assign To Dropdown -->
                         <div class="mb-3">
-                            <label for="assignedTo" class="form-label">Assign To</label>
-                            <input type="text" class="form-control" id="assignedTo"
-                                   placeholder="Username or user ID">
+                            <label class="form-label">Assign To</label>
+                            <input type="text" class="form-control" id="assignToSearch" 
+                                   placeholder="Search for users...">
+                            <div id="assignToResults" class="list-group mt-2" style="max-height: 200px; overflow-y: auto;"></div>
+                            <div id="assignToTag" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
@@ -119,6 +128,9 @@
 
 <script>
 let itemCount = 0;
+let selectedRelatedCases = {};
+let selectedRelatedIncidents = {};
+let selectedAssignTo = null;
 
 // Load template from localStorage if present
 function loadTemplateData() {
@@ -149,6 +161,232 @@ function loadTemplateData() {
             console.error('Error loading template:', e);
         }
     }
+}
+
+// Related Cases search
+document.getElementById('relatedCasesSearch').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('relatedCasesResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/api/search?q=${encodeURIComponent(query)}&per_page=10`)
+        .then(r => r.json())
+        .then(data => {
+            const items = data.items || [];
+            let html = '';
+            
+            for (const item of items) {
+                if (item.entity_type === 'case' && !(item.name in selectedRelatedCases)) {
+                    const displayTitle = item.title || item.name || 'Untitled';
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-case" data-title="${displayTitle}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${displayTitle}</strong>
+                                    <small class="text-muted d-block">Case</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (!html) {
+                html = '<div class="list-group-item text-muted text-center py-2">No cases found</div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            document.querySelectorAll('.link-case').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const title = this.dataset.title;
+                    selectedRelatedCases[title] = title;
+                    updateRelatedCasesDisplay();
+                    document.getElementById('relatedCasesSearch').value = '';
+                    resultsDiv.innerHTML = '';
+                });
+            });
+        });
+});
+
+// Related Incidents search
+document.getElementById('relatedIncidentsSearch').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('relatedIncidentsResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/api/search?q=${encodeURIComponent(query)}&per_page=10`)
+        .then(r => r.json())
+        .then(data => {
+            const items = data.items || [];
+            let html = '';
+            
+            for (const item of items) {
+                if (item.entity_type === 'incident' && !(item.name in selectedRelatedIncidents)) {
+                    const displayTitle = item.title || item.name || 'Untitled';
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-incident" data-title="${displayTitle}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${displayTitle}</strong>
+                                    <small class="text-muted d-block">Incident</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (!html) {
+                html = '<div class="list-group-item text-muted text-center py-2">No incidents found</div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            document.querySelectorAll('.link-incident').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const title = this.dataset.title;
+                    selectedRelatedIncidents[title] = title;
+                    updateRelatedIncidentsDisplay();
+                    document.getElementById('relatedIncidentsSearch').value = '';
+                    resultsDiv.innerHTML = '';
+                });
+            });
+        });
+});
+
+// Assign To search
+document.getElementById('assignToSearch').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('assignToResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/api/search?q=${encodeURIComponent(query)}&per_page=10`)
+        .then(r => r.json())
+        .then(data => {
+            const items = data.items || [];
+            let html = '';
+            
+            for (const item of items) {
+                if (item.entity_type === 'user' && item.name !== selectedAssignTo) {
+                    const displayName = item.name || item.username || 'Unknown';
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-user" data-name="${displayName}">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>${displayName}</strong>
+                                    <small class="text-muted d-block">User</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (!html) {
+                html = '<div class="list-group-item text-muted text-center py-2">No users found</div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            document.querySelectorAll('.link-user').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const name = this.dataset.name;
+                    selectedAssignTo = name;
+                    updateAssignToDisplay();
+                    document.getElementById('assignToSearch').value = '';
+                    resultsDiv.innerHTML = '';
+                });
+            });
+        });
+});
+
+function updateRelatedCasesDisplay() {
+    const tagsDiv = document.getElementById('relatedCasesTags');
+    let html = '';
+    
+    for (const [id, title] of Object.entries(selectedRelatedCases)) {
+        html += `
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                <div>
+                    <small><strong>${title}</strong></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-close" data-id="${id}" aria-label="Remove"></button>
+            </div>
+        `;
+    }
+    
+    tagsDiv.innerHTML = html;
+    
+    tagsDiv.querySelectorAll('.btn-close').forEach(btn => {
+        btn.addEventListener('click', function() {
+            delete selectedRelatedCases[this.dataset.id];
+            updateRelatedCasesDisplay();
+        });
+    });
+}
+
+function updateRelatedIncidentsDisplay() {
+    const tagsDiv = document.getElementById('relatedIncidentsTags');
+    let html = '';
+    
+    for (const [id, title] of Object.entries(selectedRelatedIncidents)) {
+        html += `
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                <div>
+                    <small><strong>${title}</strong></small>
+                </div>
+                <button type="button" class="btn btn-sm btn-close" data-id="${id}" aria-label="Remove"></button>
+            </div>
+        `;
+    }
+    
+    tagsDiv.innerHTML = html;
+    
+    tagsDiv.querySelectorAll('.btn-close').forEach(btn => {
+        btn.addEventListener('click', function() {
+            delete selectedRelatedIncidents[this.dataset.id];
+            updateRelatedIncidentsDisplay();
+        });
+    });
+}
+
+function updateAssignToDisplay() {
+    const tagsDiv = document.getElementById('assignToTag');
+    let html = '';
+    
+    if (selectedAssignTo) {
+        html = `
+            <div class="border rounded p-2 d-flex justify-content-between align-items-center" style="background: #f8f9fa;">
+                <div>
+                    <strong>${selectedAssignTo}</strong>
+                </div>
+                <button type="button" class="btn btn-sm btn-close" aria-label="Remove"></button>
+            </div>
+        `;
+    }
+    
+    tagsDiv.innerHTML = html;
+    
+    tagsDiv.querySelector('.btn-close')?.addEventListener('click', function() {
+        selectedAssignTo = null;
+        updateAssignToDisplay();
+    });
 }
 
 document.getElementById('createChecklistForm').addEventListener('submit', function(e) {
@@ -184,10 +422,9 @@ document.getElementById('createChecklistForm').addEventListener('submit', functi
         items,
         tags: parseTags(document.getElementById('tags').value),
         campaigns: parseTags(document.getElementById('campaigns').value),
-        related_cases: parseTags(document.getElementById('relatedCases').value),
-        related_incidents: parseTags(document.getElementById('relatedIncidents').value),
-        assigned_to: document.getElementById('assignedTo').value.trim(),
-        assigned_to_name: document.getElementById('assignedTo').value.trim()
+        related_cases: Object.keys(selectedRelatedCases),
+        related_incidents: Object.keys(selectedRelatedIncidents),
+        assigned_to_name: selectedAssignTo || null
     };
     
     fetch('/checklists/api/create', {
