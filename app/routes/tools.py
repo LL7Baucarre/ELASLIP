@@ -1309,3 +1309,166 @@ def geoip_bulk_lookup():
     except Exception as e:
         current_app.logger.exception(f"Bulk GeoIP lookup error: {str(e)}")
         return jsonify({'error': 'Bulk GeoIP lookup failed'}), 500
+
+
+@tools_bp.route('/file-analysis', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def analyze_file():
+    """
+    Analyze an uploaded file and extract hashes, metadata, and properties.
+    
+    Calculates MD5, SHA1, and SHA256 hashes. Extracts comprehensive file metadata including:
+    - File type detection (PE, ELF, ZIP, PDF, etc.)
+    - Architecture detection (32-bit, 64-bit, ARM, etc.)
+    - Document metadata (PDF: author, title, dates; Office: creator, word count, etc.)
+    - Image EXIF data (camera, GPS, dimensions, date taken, etc.)
+    - File entropy analysis
+    
+    Scan results are automatically saved to history for reference.
+    ---
+    tags:
+      - Tools
+    summary: File Analysis
+    description: Analyze file to extract hashes, metadata, and document properties
+    operationId: analyzeFile
+    requestBody:
+      description: File to analyze
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: File to analyze (max size configured by MAX_FILE_SIZE env var)
+    responses:
+      200:
+        description: File analysis result with hashes, metadata, and properties
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              description: Whether analysis was successful
+            filename:
+              type: string
+              description: Original filename
+            size:
+              type: integer
+              description: File size in bytes
+            mime_type:
+              type: string
+              description: MIME type of file
+            extension:
+              type: string
+              description: File extension
+            is_binary:
+              type: boolean
+              description: Whether file is binary
+            magic_signature:
+              type: string
+              description: File magic signature (first 32 bytes in hex)
+            hashes:
+              type: object
+              required:
+                - md5
+                - sha1
+                - sha256
+              properties:
+                md5:
+                  type: string
+                  description: MD5 hash
+                sha1:
+                  type: string
+                  description: SHA1 hash
+                sha256:
+                  type: string
+                  description: SHA256 hash
+            metadata:
+              type: object
+              description: Comprehensive file metadata
+              properties:
+                file_entropy:
+                  type: number
+                  description: Shannon entropy score (0-8, higher = more random/compressed)
+                sections:
+                  type: object
+                  description: File structure analysis
+                  properties:
+                    type:
+                      type: string
+                      description: File type (PE Executable, ELF, ZIP, PDF, etc.)
+                    pe_type:
+                      type: string
+                      description: PE subtype (DLL, EXE, SYS, etc.)
+                    architecture:
+                      type: string
+                      description: CPU architecture (x64, i386, ARM, ARM64, etc.)
+                    pe_signature:
+                      type: string
+                      description: PE signature validation status
+                    size_readable:
+                      type: string
+                      description: Human-readable file size
+                properties:
+                  type: object
+                  description: Document-specific metadata
+                  properties:
+                    author:
+                      type: string
+                    creator:
+                      type: string
+                    title:
+                      type: string
+                    subject:
+                      type: string
+                    creation_date:
+                      type: string
+                    modification_date:
+                      type: string
+            scan_id:
+              type: string
+              format: uuid
+              description: ID of saved scan result
+      400:
+        description: Invalid input or file too large
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden - insufficient permissions (requires tools.execute)
+    """
+    # Check if file is in request
+    if 'file' not in request.files:
+        return jsonify({'error': 'File is required'}), 400
+    
+    file_obj = request.files['file']
+    
+    # Analyze the file
+    service = ToolsService()
+    result = service.analyze_file(file_obj)
+    
+    if not result.get('success'):
+        return jsonify(result), 400
+    
+    # Save analysis result to Elasticsearch
+    scan_id = _save_scan_result(
+        'file-analysis',
+        result.get('filename'),
+        result,
+        {'file_size': result.get('size')}
+    )
+    
+    result['scan_id'] = scan_id
+    
+    return jsonify(result), 200
+
