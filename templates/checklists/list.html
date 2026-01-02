@@ -46,6 +46,7 @@
                         <th>Title</th>
                         <th>Status</th>
                         <th>Items</th>
+                        <th>Assigned To</th>
                         <th>Created By</th>
                         <th>Created At</th>
                         <th>Actions</th>
@@ -71,17 +72,19 @@
                                     {{ completed }}/{{ checklist['items']|length }}
                                 </small>
                             </td>
+                            <td>
+                                {% if checklist.get('assigned_to_name') %}
+                                    <small>{{ checklist.assigned_to_name }}</small>
+                                {% else %}
+                                    <small class="text-muted">-</small>
+                                {% endif %}
+                            </td>
                             <td>{{ checklist.created_by }}</td>
                             <td>{{ checklist.created_at[:10] if checklist.created_at else '-' }}</td>
                             <td>
                                 <a href="{{ url_for('checklists.detail_page', checklist_id=checklist.id) }}" class="btn btn-sm btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                {% if has_permission('checklist.edit') %}
-                                <button class="btn btn-sm btn-outline-secondary" onclick="editChecklist('{{ checklist.id }}')">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                {% endif %}
                                 {% if has_permission('checklist.delete') %}
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteChecklist('{{ checklist.id }}', '{{ checklist.title }}')">
                                     <i class="bi bi-trash"></i>
@@ -92,7 +95,7 @@
                         {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             No checklists yet. <a href="{{ url_for('checklists.new_page') }}">Create one</a>
                         </td>
                     </tr>

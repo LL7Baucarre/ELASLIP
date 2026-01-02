@@ -1293,6 +1293,334 @@ def import_snippet():
     return jsonify(snippet), 201
 
 
+# ============== GRAPH DATA ENDPOINTS ==============
+
+@bp.route('/api/cases/<case_id>/graph-data')
+@login_required
+def get_case_graph_data(case_id):
+    """Get graph data for a specific case and its relations (IOCs, related cases/incidents)."""
+    from app.services.ioc_service import IOCService
+    
+    nodes = []
+    edges = []
+    edge_set = set()
+    node_ids = set()
+    
+    # Get the main case
+    case = case_service.get_case(case_id)
+    if not case:
+        return jsonify({'error': 'Case not found'}), 404
+    
+    # Add main case as central node - ALWAYS added, no try/except
+    nodes.append({
+        'data': {
+            'id': case_id,
+            'label': str(case.get('title', 'Unknown Case')),
+            'entity_type': 'case',
+            'status': case.get('status', 'unknown')
+        },
+        'classes': 'case'
+    })
+    node_ids.add(case_id)
+    
+    # Get all IOCs in this case
+    ioc_ids = case.get('ioc_ids', [])
+    current_app.logger.info(f"Case {case_id} has {len(ioc_ids)} IOCs: {ioc_ids}")
+    
+    ioc_service = IOCService()
+    
+    # Load IOCs
+    for ioc_id in ioc_ids:
+        try:
+            ioc = ioc_service.get(ioc_id)
+            if ioc:
+                nodes.append({
+                    'data': {
+                        'id': ioc['id'],
+                        'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
+                        'type': str(ioc.get('ioc_type', 'unknown')),
+                        'threat_level': str(ioc.get('threat_level', 'unknown')),
+                        'confidence': str(ioc.get('confidence', '')),
+                        'tlp': str(ioc.get('tlp', '')),
+                        'entity_type': 'ioc'
+                    },
+                    'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+                })
+                node_ids.add(ioc_id)
+                
+                # Add edge from case to IOC
+                edge_id = f"{case_id}-{ioc_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': case_id,
+                            'target': ioc_id,
+                            'label': 'contains-ioc'
+                        },
+                        'classes': 'relation-contains_ioc'
+                    })
+        except:
+            pass
+    
+    # Get other cases that share IOCs with this case
+    try:
+        all_cases = case_service.es.search(
+            'cases',
+            {'size': 1000, 'query': {'match_all': {}}}
+        )
+        
+        for hit in all_cases.get('hits', {}).get('hits', []):
+            other_case_id = hit.get('_id')
+            if other_case_id == case_id:
+                continue
+            
+            other_case_data = hit.get('_source', {})
+            other_ioc_ids = other_case_data.get('ioc_ids', [])
+            
+            # Check if they share any IOCs
+            shared_iocs = set(ioc_ids) & set(other_ioc_ids)
+            if shared_iocs:
+                if other_case_id not in node_ids:
+                    nodes.append({
+                        'data': {
+                            'id': other_case_id,
+                            'label': str(other_case_data.get('title', 'Unknown Case')),
+                            'entity_type': 'case',
+                            'status': other_case_data.get('status', 'unknown')
+                        },
+                        'classes': 'case'
+                    })
+                    node_ids.add(other_case_id)
+                
+                edge_id = f"{case_id}-{other_case_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': case_id,
+                            'target': other_case_id,
+                            'label': f'shares-{len(shared_iocs)}-iocs'
+                        },
+                        'classes': 'relation-shares_iocs'
+                    })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch related cases: {str(e)}")
+    
+    # Get incidents that share IOCs with this case
+    try:
+        all_incidents = case_service.es.search(
+            'incidents',
+            {'size': 1000, 'query': {'match_all': {}}}
+        )
+        
+        for hit in all_incidents.get('hits', {}).get('hits', []):
+            incident_id = hit.get('_id')
+            incident_data = hit.get('_source', {})
+            incident_ioc_ids = incident_data.get('ioc_ids', [])
+            
+            # Check if they share any IOCs
+            shared_iocs = set(ioc_ids) & set(incident_ioc_ids)
+            if shared_iocs:
+                if incident_id not in node_ids:
+                    nodes.append({
+                        'data': {
+                            'id': incident_id,
+                            'label': str(incident_data.get('title', 'Unknown Incident')),
+                            'entity_type': 'incident',
+                            'severity': incident_data.get('severity', 'unknown')
+                        },
+                        'classes': 'incident'
+                    })
+                    node_ids.add(incident_id)
+                
+                edge_id = f"{case_id}-{incident_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': case_id,
+                            'target': incident_id,
+                            'label': f'shares-{len(shared_iocs)}-iocs'
+                        },
+                        'classes': 'relation-shares_iocs'
+                    })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
+    
+    # Always return nodes and edges, at least with the case node
+    return jsonify({
+        'nodes': nodes,
+        'edges': edges,
+        'count': len(nodes)
+    })
+
+
+@bp.route('/api/incidents/<incident_id>/graph-data')
+@login_required
+def get_incident_graph_data(incident_id):
+    """Get graph data for a specific incident and its relations (IOCs, related cases/incidents)."""
+    from app.services.ioc_service import IOCService
+    
+    nodes = []
+    edges = []
+    edge_set = set()
+    node_ids = set()
+    
+    # Get the main incident
+    incident = incident_service.get_incident(incident_id)
+    if not incident:
+        return jsonify({'error': 'Incident not found'}), 404
+    
+    # Add main incident as central node - ALWAYS added, no try/except
+    nodes.append({
+        'data': {
+            'id': incident_id,
+            'label': str(incident.get('title', 'Unknown Incident')),
+            'entity_type': 'incident',
+            'severity': incident.get('severity', 'unknown')
+        },
+        'classes': 'incident'
+    })
+    node_ids.add(incident_id)
+    
+    # Get all IOCs in this incident
+    ioc_ids = incident.get('ioc_ids', [])
+    ioc_service = IOCService()
+    
+    # Load IOCs - wrapped in try/except, but doesn't prevent returning at least the incident
+    try:
+        for ioc_id in ioc_ids:
+            try:
+                ioc = ioc_service.get(ioc_id)
+                if ioc:
+                    nodes.append({
+                        'data': {
+                            'id': ioc['id'],
+                            'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
+                            'type': str(ioc.get('ioc_type', 'unknown')),
+                            'threat_level': str(ioc.get('threat_level', 'unknown')),
+                            'confidence': str(ioc.get('confidence', '')),
+                            'tlp': str(ioc.get('tlp', '')),
+                            'entity_type': 'ioc'
+                        },
+                        'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+                    })
+                    node_ids.add(ioc_id)
+                    
+                    # Add edge from incident to IOC
+                    edge_id = f"{incident_id}-{ioc_id}"
+                    if edge_id not in edge_set:
+                        edge_set.add(edge_id)
+                        edges.append({
+                            'data': {
+                                'id': edge_id,
+                                'source': incident_id,
+                                'target': ioc_id,
+                                'label': 'contains-ioc'
+                            },
+                            'classes': 'relation-contains_ioc'
+                        })
+            except:
+                pass
+        
+        # Get cases that share IOCs with this incident
+        all_cases = case_service.es.search(
+            'cases',
+            {'size': 1000, 'query': {'match_all': {}}}
+        )
+        
+        for hit in all_cases.get('hits', {}).get('hits', []):
+            case_id = hit.get('_id')
+            case_data = hit.get('_source', {})
+            case_ioc_ids = case_data.get('ioc_ids', [])
+            
+            # Check if they share any IOCs
+            shared_iocs = set(ioc_ids) & set(case_ioc_ids)
+            if shared_iocs:
+                if case_id not in node_ids:
+                    nodes.append({
+                        'data': {
+                            'id': case_id,
+                            'label': str(case_data.get('title', 'Unknown Case')),
+                            'entity_type': 'case',
+                            'status': case_data.get('status', 'unknown')
+                        },
+                        'classes': 'case'
+                    })
+                    node_ids.add(case_id)
+                
+                edge_id = f"{incident_id}-{case_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': incident_id,
+                            'target': case_id,
+                            'label': f'shares-{len(shared_iocs)}-iocs'
+                        },
+                        'classes': 'relation-shares_iocs'
+                    })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch cases: {str(e)}")
+    
+    # Get other incidents that share IOCs with this incident
+    try:
+        all_incidents = case_service.es.search(
+            'incidents',
+            {'size': 1000, 'query': {'match_all': {}}}
+        )
+        
+        for hit in all_incidents.get('hits', {}).get('hits', []):
+            other_incident_id = hit.get('_id')
+            if other_incident_id == incident_id:
+                continue
+            
+            other_incident_data = hit.get('_source', {})
+            other_ioc_ids = other_incident_data.get('ioc_ids', [])
+            
+            # Check if they share any IOCs
+            shared_iocs = set(ioc_ids) & set(other_ioc_ids)
+            if shared_iocs:
+                if other_incident_id not in node_ids:
+                    nodes.append({
+                        'data': {
+                            'id': other_incident_id,
+                            'label': str(other_incident_data.get('title', 'Unknown Incident')),
+                            'entity_type': 'incident',
+                            'severity': other_incident_data.get('severity', 'unknown')
+                        },
+                        'classes': 'incident'
+                    })
+                    node_ids.add(other_incident_id)
+                
+                edge_id = f"{incident_id}-{other_incident_id}"
+                if edge_id not in edge_set:
+                    edge_set.add(edge_id)
+                    edges.append({
+                        'data': {
+                            'id': edge_id,
+                            'source': incident_id,
+                            'target': other_incident_id,
+                            'label': f'shares-{len(shared_iocs)}-iocs'
+                        },
+                        'classes': 'relation-shares_iocs'
+                    })
+    except Exception as e:
+        current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
+    
+    # Always return nodes and edges, at least with the incident node
+    return jsonify({
+        'nodes': nodes,
+        'edges': edges,
+        'count': len(nodes)
+    })
+
+
 @bp.route('/api/cases/<case_id>/generate-report', methods=['POST'])
 @login_required
 @permission_required('report.create')
