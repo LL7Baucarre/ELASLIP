@@ -1,7 +1,7 @@
 
-# ELASLIP
+# ELA(SLIP)
 
-**Elastic Lightweight Analytical Security Logging & Incident Platform**
+**Elastic Security Logging & Incident Platform**
 
 A lightweight MISP and TheHive alternative for managing Indicators of Compromise (IOCs), investigating security incidents, and organizing security operations with AI-powered insights. Features comprehensive case and incident management, security checklists with AI analysis, IOC relationship mapping, risk scoring, multi-language LLM report generation, and token usage tracking (FinOps). Supports STIX 2.1, MISP, OpenIOC, and IODEF formats with Elasticsearch backend.
 
