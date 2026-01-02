@@ -1316,21 +1316,14 @@ def geoip_bulk_lookup():
 @permission_required('tools.execute')
 def analyze_file():
     """
-    Analyze an uploaded file and extract hashes, metadata, and properties.
+    Analyze an uploaded file and extract details (hash, type, metadata).
     
-    Calculates MD5, SHA1, and SHA256 hashes. Extracts comprehensive file metadata including:
-    - File type detection (PE, ELF, ZIP, PDF, etc.)
-    - Architecture detection (32-bit, 64-bit, ARM, etc.)
-    - Document metadata (PDF: author, title, dates; Office: creator, word count, etc.)
-    - Image EXIF data (camera, GPS, dimensions, date taken, etc.)
-    - File entropy analysis
-    
-    Scan results are automatically saved to history for reference.
+    Returns MD5, SHA1, and SHA256 hashes, file size, MIME type, and other metadata.
+    File is automatically deleted after analysis.
     ---
     tags:
       - Tools
     summary: File Analysis
-    description: Analyze file to extract hashes, metadata, and document properties
     operationId: analyzeFile
     requestBody:
       description: File to analyze
@@ -1348,7 +1341,7 @@ def analyze_file():
                 description: File to analyze (max size configured by MAX_FILE_SIZE env var)
     responses:
       200:
-        description: File analysis result with hashes, metadata, and properties
+        description: File analysis result with hashes and metadata
         schema:
           type: object
           properties:
@@ -1372,7 +1365,7 @@ def analyze_file():
               description: Whether file is binary
             magic_signature:
               type: string
-              description: File magic signature (first 32 bytes in hex)
+              description: File magic signature (hex)
             hashes:
               type: object
               required:
@@ -1389,48 +1382,6 @@ def analyze_file():
                 sha256:
                   type: string
                   description: SHA256 hash
-            metadata:
-              type: object
-              description: Comprehensive file metadata
-              properties:
-                file_entropy:
-                  type: number
-                  description: Shannon entropy score (0-8, higher = more random/compressed)
-                sections:
-                  type: object
-                  description: File structure analysis
-                  properties:
-                    type:
-                      type: string
-                      description: File type (PE Executable, ELF, ZIP, PDF, etc.)
-                    pe_type:
-                      type: string
-                      description: PE subtype (DLL, EXE, SYS, etc.)
-                    architecture:
-                      type: string
-                      description: CPU architecture (x64, i386, ARM, ARM64, etc.)
-                    pe_signature:
-                      type: string
-                      description: PE signature validation status
-                    size_readable:
-                      type: string
-                      description: Human-readable file size
-                properties:
-                  type: object
-                  description: Document-specific metadata
-                  properties:
-                    author:
-                      type: string
-                    creator:
-                      type: string
-                    title:
-                      type: string
-                    subject:
-                      type: string
-                    creation_date:
-                      type: string
-                    modification_date:
-                      type: string
             scan_id:
               type: string
               format: uuid
