@@ -68,6 +68,32 @@ class ChecklistService:
             if result and 'found' in result and result['found']:
                 doc = result['_source']
                 doc['id'] = checklist_id
+                
+                # Resolve incident IDs to incident objects with titles
+                if 'related_incidents' in doc and doc['related_incidents']:
+                    from app.services.case_service import IncidentService
+                    incident_service = IncidentService()
+                    resolved_incidents = []
+                    for incident_id in doc['related_incidents']:
+                        try:
+                            incident = incident_service.get_incident(incident_id)
+                            if incident:
+                                resolved_incidents.append({
+                                    'id': incident_id,
+                                    'title': incident.get('title', incident_id)
+                                })
+                            else:
+                                resolved_incidents.append({
+                                    'id': incident_id,
+                                    'title': incident_id
+                                })
+                        except Exception:
+                            resolved_incidents.append({
+                                'id': incident_id,
+                                'title': incident_id
+                            })
+                    doc['related_incidents'] = resolved_incidents
+                
                 return doc
             return None
         except Exception:
