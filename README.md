@@ -17,8 +17,9 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 **What's Included:**
 
 -  **Interactive Dashboard** - Real-time statistics
--  **Advanced Search** - Full-text and pattern-based search capabilities
--  **IOC Graph** - Visual relationship mapping and search
+-  **Advanced Search** - Full-text and pattern-based search capabilities (IOCs, Cases, Incidents)
+-  **IOC Graph** - Visual relationship mapping with Cases and Incidents
+-  **Entity Graphs** - Visualize relationships across IOCs, Cases, and Incidents with interactive navigation
 -  **Two-Factor Authentication (2FA)** - Secure login with TOTP and backup codes
 -  **Public Submission Portal** - Anonymous IOC reporting and public search
 -  **API** - Token-based authentication for programmatic usage
@@ -54,12 +55,20 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Bulk Operations** - Select multiple, bulk update/delete/export
 -  **Expiration Automation** - Set validity dates, auto-detect expired, schedule archival
 -  **Enrichment Cache** - API response caching
+-  **IOC Relationship Graphs** - Interactive visualization of IOC connections with related Cases and Incidents
+   - **Color-coded nodes**: IOCs by type, Cases (blue squares), Incidents (red diamonds)
+   - **Smart navigation**: Click nodes to navigate to entity detail pages
+   - **Relationship visualization**: See all connected entities at a glance
 
 #### Incident Management
 
 -  **Cases & Incidents** - Organize investigation cases and incidents
 -  **Investigation Timeline** - Chronological event tracking with timestamps
 -  **IOC Linking** - Associate IOCs with incidents and cases
+-  **Entity Relationship Graphs** - Interactive visualization showing connected IOCs, Cases, and Incidents
+   - **Unified design**: Consistent styling across all entity graphs
+   - **Central node highlighting**: Golden border identifies the current entity
+   - **Interactive navigation**: Click to navigate between related entities
 -  **Comments** - Collaborative discussion with timestamps
 -  **Status Management** - Track lifecycle through investigation stages
 -  **Assignment** - Assign to users
