@@ -1309,3 +1309,117 @@ def geoip_bulk_lookup():
     except Exception as e:
         current_app.logger.exception(f"Bulk GeoIP lookup error: {str(e)}")
         return jsonify({'error': 'Bulk GeoIP lookup failed'}), 500
+
+
+@tools_bp.route('/file-analysis', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def analyze_file():
+    """
+    Analyze an uploaded file and extract details (hash, type, metadata).
+    
+    Returns MD5, SHA1, and SHA256 hashes, file size, MIME type, and other metadata.
+    File is automatically deleted after analysis.
+    ---
+    tags:
+      - Tools
+    summary: File Analysis
+    operationId: analyzeFile
+    requestBody:
+      description: File to analyze
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: File to analyze (max size configured by MAX_FILE_SIZE env var)
+    responses:
+      200:
+        description: File analysis result with hashes and metadata
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+              description: Whether analysis was successful
+            filename:
+              type: string
+              description: Original filename
+            size:
+              type: integer
+              description: File size in bytes
+            mime_type:
+              type: string
+              description: MIME type of file
+            extension:
+              type: string
+              description: File extension
+            is_binary:
+              type: boolean
+              description: Whether file is binary
+            magic_signature:
+              type: string
+              description: File magic signature (hex)
+            hashes:
+              type: object
+              required:
+                - md5
+                - sha1
+                - sha256
+              properties:
+                md5:
+                  type: string
+                  description: MD5 hash
+                sha1:
+                  type: string
+                  description: SHA1 hash
+                sha256:
+                  type: string
+                  description: SHA256 hash
+            scan_id:
+              type: string
+              format: uuid
+              description: ID of saved scan result
+      400:
+        description: Invalid input or file too large
+        schema:
+          type: object
+          properties:
+            error:
+              type: string
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden - insufficient permissions (requires tools.execute)
+    """
+    # Check if file is in request
+    if 'file' not in request.files:
+        return jsonify({'error': 'File is required'}), 400
+    
+    file_obj = request.files['file']
+    
+    # Analyze the file
+    service = ToolsService()
+    result = service.analyze_file(file_obj)
+    
+    if not result.get('success'):
+        return jsonify(result), 400
+    
+    # Save analysis result to Elasticsearch
+    scan_id = _save_scan_result(
+        'file-analysis',
+        result.get('filename'),
+        result,
+        {'file_size': result.get('size')}
+    )
+    
+    result['scan_id'] = scan_id
+    
+    return jsonify(result), 200
+

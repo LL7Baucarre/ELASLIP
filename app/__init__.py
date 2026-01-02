@@ -46,7 +46,11 @@ def create_app(config_name=None):
     
     # Load configuration
     app.config.from_object(config.get(config_name, config['default']))
-
+    
+    # Ensure MAX_CONTENT_LENGTH is set (for file uploads)
+    if 'MAX_CONTENT_LENGTH' not in app.config or app.config['MAX_CONTENT_LENGTH'] is None:
+        app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB default
+    
     # Initialize logging from central config
     from app.logging_config import init_logging
     init_logging(app.config)
