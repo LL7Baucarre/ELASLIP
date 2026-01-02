@@ -2,6 +2,19 @@
 
 {% block title %}{{ case.title }} - Cases - {{ SITE_NAME }}{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
+<style>
+#caseGraphContainer {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+[data-theme="dark"] #caseGraphContainer {
+    background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
@@ -214,6 +227,18 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Graph Visualization -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h6 class="mb-0">
+                <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
+            </h6>
+        </div>
+        <div class="card-body">
+            <div id="caseGraphContainer" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px;"></div>
         </div>
     </div>
 </div>
@@ -1088,6 +1113,173 @@ function submitRenameImage() {
 }
 
 // Load images on page load
-document.addEventListener('DOMContentLoaded', loadEntityImages);
+document.addEventListener('DOMContentLoaded', function() {
+    loadEntityImages();
+    loadCaseGraph();
+});
+
+// Load case graph
+let caseCy = null;
+
+function initCaseGraph(nodes, edges, caseId) {
+    if (caseCy) {
+        caseCy.destroy();
+    }
+
+    caseCy = cytoscape({
+        container: document.getElementById('caseGraphContainer'),
+        elements: { nodes: nodes, edges: edges },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'background-color': 'data(color)',
+                    'width': 40,
+                    'height': 40,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'font-size': 10,
+                    'color': 'white',
+                    'text-outline-width': 1,
+                    'text-outline-color': '#333',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'padding': 3
+                }
+            },
+            {
+                selector: 'node[id="' + caseId + '"]',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FFD700',
+                    'width': 50,
+                    'height': 50
+                }
+            },
+            {
+                selector: 'node.case',
+                style: {
+                    'shape': 'square',
+                    'background-color': '#0d6efd',
+                    'border-color': '#0b5ed7',
+                    'width': 45,
+                    'height': 45
+                }
+            },
+            {
+                selector: 'node.incident',
+                style: {
+                    'shape': 'diamond',
+                    'background-color': '#dc3545',
+                    'border-color': '#bb2d3b',
+                    'width': 45,
+                    'height': 45
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#999',
+                    'target-arrow-color': '#999',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 2,
+                    'opacity': 0.8,
+                    'font-size': 8,
+                    'color': '#333',
+                    'content': 'data(label)',
+                    'text-background-color': '#fff',
+                    'text-background-opacity': 0.8,
+                    'text-background-padding': '2px'
+                }
+            }
+        ],
+        layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 400,
+            randomize: false,
+            nodeSpacing: 30,
+            padding: 40,
+            fit: true,
+            directed: true,
+            avoidOverlap: true,
+            avoidOverlapPadding: 10,
+            minNodeSpacing: 40
+        },
+        wheelSensitivity: 0.1,
+        minZoom: 0.5,
+        maxZoom: 2
+    });
+
+    // Wait for layout to finish and center properly
+    setTimeout(function() {
+        if (caseCy && caseCy.elements().length > 0) {
+            caseCy.fit(caseCy.elements(), 40);
+            caseCy.center();
+        }
+    }, 500);
+
+    // Click on node to navigate to entity
+    caseCy.on('tap', 'node', function(e) {
+        const nodeId = e.target.id();
+        const entityType = e.target.data('entity_type');
+        
+        if (nodeId !== caseId) {
+            if (entityType === 'case') {
+                window.location.href = `/cases/${nodeId}`;
+            } else if (entityType === 'incident') {
+                window.location.href = `/incidents/${nodeId}`;
+            } else if (entityType === 'ioc') {
+                window.location.href = `/iocs/${nodeId}`;
+            }
+        }
+    });
+}
+
+function loadCaseGraph() {
+    const caseId = '{{ case.id }}';
+    const container = document.getElementById('caseGraphContainer');
+    
+    if (!container) return;
+    
+    fetch(`/api/cases/${caseId}/graph-data`)
+        .then(response => response.json())
+        .then(data => {
+            if (!data.nodes || data.nodes.length === 0) {
+                container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">Unable to load graph</div>';
+                return;
+            }
+            
+            // Check if there are only the central case node (no relations)
+            if (data.nodes.length === 1 && (!data.edges || data.edges.length === 0)) {
+                // Still show the graph with just the case node - better than empty
+            }
+            
+            // Add colors for nodes
+            const getColorForEntity = (type) => {
+                const colors = {
+                    'ioc': '#0dcaf0',
+                    'case': '#0d6efd',
+                    'incident': '#dc3545',
+                    'user': '#6c757d'
+                };
+                return colors[type] || '#888';
+            };
+            
+            data.nodes.forEach(node => {
+                const type = node.data.entity_type || 'ioc';
+                node.data.color = getColorForEntity(type);
+            });
+            
+            initCaseGraph(data.nodes, data.edges, caseId);
+        })
+        .catch(error => {
+            console.error('Error loading graph:', error);
+            container.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #999;">Failed to load graph</div>';
+        });
+}
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
 {% endblock %}
