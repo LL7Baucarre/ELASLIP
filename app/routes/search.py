@@ -1,6 +1,7 @@
 """Search API Routes."""
 
 from flask import Blueprint, request, jsonify
+import logging
 
 from app.auth import login_or_api_key_required
 from app.services.elasticsearch_service import ElasticsearchService
@@ -11,13 +12,14 @@ from app.utils.request_helpers import get_pagination_params, parse_comma_separat
 
 search_bp = Blueprint('search', __name__)
 es_service = ElasticsearchService()
+logger = logging.getLogger(__name__)
 
 
 @search_bp.route('', methods=['GET', 'POST'])
 @login_or_api_key_required
 def search_iocs():
     """
-    Search for IOCs.
+    Search across all entities (IOCs, Cases, Incidents, Users).
     ---
     tags:
       - Search
@@ -103,89 +105,181 @@ def search_iocs():
     if isinstance(labels, str):
         labels = [l.strip() for l in labels.split(',') if l.strip()]
     
-    # Build Elasticsearch query
-    es_query = {"bool": {"must": [], "filter": []}}
+    # Execute multi-index search
+    es = ElasticsearchService()
+    from_idx = (page - 1) * per_page
     
+    items = []
+    total = 0
+    
+    logger.debug(f"Search query: {query_text}")
+    
+    # Search in IOCs
+    ioc_query = {"bool": {"must": [], "filter": []}}
     if query_text:
-        # Search in pattern field and x_metadata.ioc_value
-        es_query["bool"]["must"].append({
+        ioc_query["bool"]["must"].append({
             "multi_match": {
                 "query": query_text,
                 "fields": ["pattern", "pattern.keyword", "x_metadata.ioc_value", "name", "description"],
                 "type": "best_fields"
             }
         })
-    
     if ioc_type:
-        es_query["bool"]["filter"].append({"term": {"x_metadata.ioc_type": ioc_type.lower()}})
-    
+        ioc_query["bool"]["filter"].append({"term": {"x_metadata.ioc_type": ioc_type.lower()}})
     if labels:
         for label in labels:
-            es_query["bool"]["filter"].append({"term": {"labels": label}})
-    
+            ioc_query["bool"]["filter"].append({"term": {"labels": label}})
     if source:
-        es_query["bool"]["filter"].append({
+        ioc_query["bool"]["filter"].append({
             "nested": {
                 "path": "sources",
                 "query": {"term": {"sources.name": source}}
             }
         })
-    
     if from_date or to_date:
         date_range = {"range": {"created": {}}}
         if from_date:
             date_range["range"]["created"]["gte"] = from_date
         if to_date:
             date_range["range"]["created"]["lte"] = to_date
-        es_query["bool"]["filter"].append(date_range)
+        ioc_query["bool"]["filter"].append(date_range)
     
-    # If no conditions, match all
-    if not es_query["bool"]["must"] and not es_query["bool"]["filter"]:
-        es_query = {"match_all": {}}
+    if not ioc_query["bool"]["must"] and not ioc_query["bool"]["filter"]:
+        ioc_query = {"match_all": {}}
     
-    # Execute search
-    es = ElasticsearchService()
-    from_idx = (page - 1) * per_page
+    try:
+        ioc_result = es.search('ioc', {
+            "query": ioc_query,
+            "from": from_idx,
+            "size": per_page,
+            "sort": [{"created": {"order": "desc"}}]
+        })
+        
+        ioc_service = IOCService()
+        for hit in ioc_result['hits']['hits']:
+            doc_id = hit['_id']
+            doc = ioc_service.get(doc_id)
+            if doc:
+                doc['entity_type'] = 'ioc'
+                items.append(doc)
+        
+        ioc_total = ioc_result['hits']['total']['value']
+        total += ioc_total
+        logger.debug(f"IOC search found {ioc_total} results")
+    except Exception as e:
+        logger.error(f"IOC search error: {str(e)}")
+        ioc_total = 0
     
-    es_body = {
-        "query": es_query,
-        "from": from_idx,
-        "size": per_page,
-        "sort": [{"created": {"order": "desc"}}],
-        "highlight": {
-            "fields": {
-                "pattern": {},
-                "name": {},
-                "description": {}
+    # Search in Cases
+    if query_text:
+        cases_query = {
+            "multi_match": {
+                "query": query_text,
+                "fields": ["title", "description"],
+                "type": "best_fields"
             }
         }
-    }
-    
-    result = es.search('ioc', es_body)
-    
-    items = []
-    ioc_service = IOCService()
-    for hit in result['hits']['hits']:
-        doc_id = hit['_id']
-        # Use IOCService to get enriched document with metadata
-        doc = ioc_service.get(doc_id)
-        if doc:
-            if 'highlight' in hit:
-                doc['_highlight'] = hit['highlight']
+        
+        try:
+            cases_result = es.search('cases', {
+                "query": cases_query,
+                "from": from_idx,
+                "size": per_page,
+                "sort": [{"created_at": {"order": "desc"}}]
+            })
             
-            # Add compatibility aliases for frontend
-            if 'ioc_value' in doc and 'value' not in doc:
-                doc['value'] = doc['ioc_value']
-            if 'ioc_type' in doc and 'type' not in doc:
-                doc['type'] = doc['ioc_type']
+            cases_found = 0
+            for hit in cases_result['hits']['hits']:
+                doc = hit['_source']
+                doc['id'] = hit['_id']
+                doc['entity_type'] = 'case'
+                doc['name'] = doc.get('title', '')
+                items.append(doc)
+                cases_found += 1
             
-            items.append(doc)
+            cases_total = cases_result['hits']['total']['value']
+            total += cases_total
+            logger.debug(f"Cases search found {cases_total} results")
+        except Exception as e:
+            logger.error(f"Cases search error: {str(e)}", exc_info=True)
+    
+    # Search in Incidents
+    if query_text:
+        incidents_query = {
+            "multi_match": {
+                "query": query_text,
+                "fields": ["title", "description"],
+                "type": "best_fields"
+            }
+        }
+        
+        try:
+            incidents_result = es.search('incidents', {
+                "query": incidents_query,
+                "from": from_idx,
+                "size": per_page,
+                "sort": [{"created_at": {"order": "desc"}}]
+            })
+            
+            incidents_found = 0
+            for hit in incidents_result['hits']['hits']:
+                doc = hit['_source']
+                doc['id'] = hit['_id']
+                doc['entity_type'] = 'incident'
+                doc['name'] = doc.get('title', '')
+                items.append(doc)
+                incidents_found += 1
+            
+            incidents_total = incidents_result['hits']['total']['value']
+            total += incidents_total
+            logger.debug(f"Incidents search found {incidents_total} results")
+        except Exception as e:
+            logger.error(f"Incidents search error: {str(e)}", exc_info=True)
+    
+    # Search in Users - DISABLED
+    # if query_text:
+    #     # Use wildcard since username/email are keyword fields (non-analyzed)
+    #     users_query = {
+    #         "bool": {
+    #             "should": [
+    #                 {"wildcard": {"username": f"*{query_text.lower()}*"}},
+    #                 {"wildcard": {"email": f"*{query_text.lower()}*"}}
+    #             ],
+    #             "minimum_should_match": 1
+    #         }
+    #     }
+    #     
+    #     try:
+    #         users_result = es.search('users', {
+    #             "query": users_query,
+    #             "from": 0,
+    #             "size": per_page,
+    #             "sort": [{"created_at": {"order": "desc"}}]
+    #         })
+    #         
+    #         users_found = 0
+    #         for hit in users_result['hits']['hits']:
+    #             doc = hit['_source']
+    #             doc['id'] = hit['_id']
+    #             doc['entity_type'] = 'user'
+    #             doc['name'] = doc.get('username', '')
+    #             doc['title'] = f"User: {doc.get('username', '')}"
+    #             items.append(doc)
+    #             users_found += 1
+    #         
+    #         users_total = users_result['hits']['total']['value']
+    #         total += users_total
+    #         logger.debug(f"Users search found {users_total} results")
+    #     except Exception as e:
+    #         logger.error(f"Users search error: {str(e)}", exc_info=True)
+    
+    logger.info(f"Total search results: {total}, items returned: {len(items)}")
     
     response = {
         'query': query_text,
         'items': items,
         'results': items,  # Alias for frontend compatibility
-        'total': result['hits']['total']['value'],
+        'total': total,
         'page': page,
         'per_page': per_page
     }

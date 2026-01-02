@@ -24,12 +24,6 @@ from app.services.checklist_service import ChecklistService
 from app.services.audit_service import AuditService
 from app.auth import User, APIKey
 
-import logging
-from app.logging_config import init_logging
-
-# Initialize logging for script
-init_logging()
-logger = logging.getLogger(__name__)
 
 # Check if demo data generation is enabled
 def is_demo_enabled():
@@ -446,16 +440,16 @@ def generate_random_iocs(count=100):
 
 def populate_demo_data():
     """Populate database with demo data."""
-    logger.info("%s", "=" * 60)
-    logger.info("ELASLIP Demo Data Generator")
-    logger.info("%s", "=" * 60)
+    print("=" * 60)
+    print("ELASLIP Demo Data Generator")
+    print("=" * 60)
     
     if not is_demo_enabled():
-        logger.info("Demo data generation is DISABLED.")
-        logger.info("To enable, set DEMO_DATA_ENABLED=true in your .env file")
+        print("\nDemo data generation is DISABLED.")
+        print("To enable, set DEMO_DATA_ENABLED=true in your .env file")
         return
     
-    logger.info("Generating demo data...")
+    print("\nGenerating demo data...")
     
     # Create app context
     app = create_app()
@@ -464,7 +458,7 @@ def populate_demo_data():
         service = IOCService()
         
         # Generate and insert IOCs
-        logger.info("1. Generating 100 random IOCs with diverse types...")
+        print("\n1. Generating 100 random IOCs with diverse types...")
         iocs = generate_random_iocs(100)
         
         created_ids = []
@@ -491,11 +485,11 @@ def populate_demo_data():
                 )
                 created_ids.append(ioc_doc['id'])
                 if i % 10 == 0:
-                    logger.info("Created %d/100 IOCs...", i)
+                    print(f"   Created {i}/100 IOCs...")
             except Exception as e:
-                logger.warning("Error creating IOC %d: %s", i, str(e))
+                print(f"   Error creating IOC {i}: {str(e)}")
         
-        logger.info("Created %d IOCs successfully", len(created_ids))
+        print(f"   ✓ Created {len(created_ids)} IOCs successfully")
         
         # Create multi-level IOC relationships for graph testing
         print("\n1b. Creating multi-level IOC relationships...")
@@ -591,7 +585,7 @@ def populate_demo_data():
             print(f"   Warning: Failed to create IOC relationships: {str(e)}")
         
         # Create cases and incidents with IOC links
-        logger.info("2. Creating cases with related incidents...")
+        print("\n2. Creating cases with related incidents...")
         case_service = CaseService()
         incident_service = IncidentService()
         
@@ -631,7 +625,7 @@ def populate_demo_data():
                 
                 case = case_service.create_case(case_data, 'demo_user', 'Demo User')
                 created_cases.append(case)
-                logger.info("Created case: %s", case_title)
+                print(f"   Created case: {case_title}")
                 
                 # Create 2-4 incidents for this case
                 num_incidents = random.randint(2, 4)
@@ -645,7 +639,7 @@ def populate_demo_data():
                             'case_id': case['id'],
                             'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
                             'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['detected', 'analyzing', 'contained', 'eradicated', 'recovered', 'closed']),
+                            'status': random.choice(['new', 'investigating', 'containment', 'eradication', 'recovery', 'post-incident', 'closed']),
                             'severity': random.choice(severities),
                             'category': random.choice(incident_categories),
                             'ioc_ids': incident_iocs,
@@ -657,16 +651,16 @@ def populate_demo_data():
                         
                         incident = incident_service.create_incident(incident_data, 'demo_user', 'Demo User')
                         created_incidents.append(incident)
-                        logger.info("Created incident: %s", incident_data['title'])
+                        print(f"      Created incident: {incident_data['title']}")
                     except Exception as e:
-                        logger.warning("Failed to create incident %d: %s", j+1, str(e))
+                        print(f"      Warning: Failed to create incident {j+1}: {str(e)}")
             except Exception as e:
-                logger.warning("Failed to create case %d: %s", i+1, str(e))
+                print(f"   Warning: Failed to create case {i+1}: {str(e)}")
         
-        logger.info("Created %d cases with %d incidents", len(created_cases), len(created_incidents))
+        print(f"   ✓ Created {len(created_cases)} cases with {len(created_incidents)} incidents")
         
         # Create case-to-incident relationships
-        logger.info("3. Creating relationships between cases and incidents...")
+        print("\n3. Creating relationships between cases and incidents...")
         created_relations = 0
         for case in created_cases:
             # Link 1-2 random incidents to this case
@@ -677,12 +671,12 @@ def populate_demo_data():
                         case_service.link_incident(case['id'], incident['id'])
                         created_relations += 1
                     except Exception as e:
-                        logger.warning("Failed to link incident: %s", str(e))
+                        print(f"      Warning: Failed to link incident: {str(e)}")
         
-        logger.info("Created %d case-incident relationships", created_relations)
+        print(f"   ✓ Created {created_relations} case-incident relationships")
         
         # Create demo users with different roles
-        logger.info("4. Creating demo users with different roles...")
+        print("\n4. Creating demo users with different roles...")
         created_users = []
         user_config = [
             ('analyst1', 'analyst1@demo.local', 'Security Analyst #1', 'analyst'),
@@ -698,16 +692,16 @@ def populate_demo_data():
                 user, error = User.create(username, email, 'demo_password_123', is_admin=False, role=role)
                 if user:
                     created_users.append(user)
-                    logger.info("Created %s | %s", role, username)
+                    print(f"   Created {role:20s} | {username}")
                 else:
-                    logger.info("User %s already exists", username)
+                    print(f"   User {username} already exists")
             except Exception as e:
-                logger.warning("Failed to create user %s: %s", username, str(e))
+                print(f"      Warning: Failed to create user {username}: {str(e)}")
         
-        logger.info("Created %d users with granular roles", len(created_users))
+        print(f"   ✓ Created {len(created_users)} users with granular roles")
         
         # Create API keys
-        logger.info("5. Creating API keys...")
+        print("\n5. Creating API keys...")
         api_keys_created = 0
         users_for_api_keys = created_users if created_users else []
         for user in users_for_api_keys[:1]:  # Create API key for first user
@@ -715,18 +709,18 @@ def populate_demo_data():
                 key, key_obj = APIKey.create(user.id, 'Demo API Key')
                 api_keys_created += 1
                 api_key_user_id = user.id
-                logger.info("Created API key for user: %s", user.username)
+                print(f"   Created API key for user: {user.username}")
                 # Don't print the actual key, just confirmation
             except Exception as e:
-                logger.warning("Failed to create API key: %s", str(e))
+                print(f"      Warning: Failed to create API key: {str(e)}")
         
         # Use first user's ID for remaining resources, or admin ID if no users created
         resource_user_id = api_key_user_id if created_users else 'a0e04ea15f41c020'  # admin default ID
         
-        logger.info("Created %d API keys", api_keys_created)
+        print(f"   ✓ Created {api_keys_created} API keys")
         
         # Create external API configuration
-        logger.info("6. Creating external API configuration...")
+        print("\n6. Creating external API configuration...")
         es = ElasticsearchService()
         external_api_created = 0
         
@@ -758,14 +752,14 @@ def populate_demo_data():
             }
             es.index('api_configs', external_api_id, external_api_config)
             external_api_created += 1
-            logger.info("Created external API: %s", external_api_config['name'])
+            print(f"   Created external API: {external_api_config['name']}")
         except Exception as e:
-            logger.warning("Failed to create external API: %s", str(e))
+            print(f"      Warning: Failed to create external API: {str(e)}")
         
-        logger.info("Created %d external API configurations", external_api_created)
+        print(f"   ✓ Created {external_api_created} external API configurations")
         
         # Create webhook
-        logger.info("7. Creating webhook...")
+        print("\n7. Creating webhook...")
         webhooks_created = 0
         
         try:
@@ -782,14 +776,14 @@ def populate_demo_data():
             }
             es.index('webhooks', webhook_id, webhook)
             webhooks_created += 1
-            logger.info("Created webhook: %s", webhook['name'])
+            print(f"   Created webhook: {webhook['name']}")
         except Exception as e:
-            logger.warning("Failed to create webhook: %s", str(e))
+            print(f"      Warning: Failed to create webhook: {str(e)}")
         
-        logger.info("Created %d webhooks", webhooks_created)
+        print(f"   ✓ Created {webhooks_created} webhooks")
         
         # Create snippets
-        logger.info("8. Creating snippets...")
+        print("\n8. Creating snippets...")
         snippet_service = SnippetService()
         snippets_created = 0
         
@@ -810,14 +804,14 @@ def populate_demo_data():
                 )
                 snippets_created += 1
                 if (i + 1) % 2 == 0:
-                    logger.info("Created %d/5 snippets...", i + 1)
+                    print(f"   Created {i + 1}/5 snippets...")
             except Exception as e:
-                logger.warning("Failed to create snippet: %s", str(e))
+                print(f"      Warning: Failed to create snippet: {str(e)}")
         
-        logger.info("Created %d snippets", snippets_created)
+        print(f"   ✓ Created {snippets_created} snippets")
         
         # Create checklist templates
-        logger.info("9. Creating checklist templates...")
+        print("\n9. Creating checklist templates...")
         template_service = ChecklistTemplateService()
         templates_created = 0
         
@@ -836,16 +830,16 @@ def populate_demo_data():
                         comments=template_data.get('comments', [])
                     )
                     templates_created += 1
-                    logger.info("Created template: %s", template_data['name'])
+                    print(f"   Created template: {template_data['name']}")
                 except Exception as e:
-                    logger.warning("Failed to create template '%s': %s", template_data['name'], str(e))
+                    print(f"      Warning: Failed to create template '{template_data['name']}': {str(e)}")
         except Exception as e:
-            logger.warning("Failed to generate templates: %s", str(e))
+            print(f"      Warning: Failed to generate templates: {str(e)}")
         
-        logger.info("Created %d checklist templates", templates_created)
+        print(f"   ✓ Created {templates_created} checklist templates")
         
         # Create demo checklists
-        logger.info("10. Creating demo checklists...")
+        print("\n10. Creating demo checklists...")
         checklist_service = ChecklistService()
         checklists_created = 0
         
@@ -863,16 +857,135 @@ def populate_demo_data():
                         comments=checklist_data.get('comments', [])
                     )
                     checklists_created += 1
-                    logger.info("Created checklist: %s", checklist_data['title'])
+                    print(f"   Created checklist: {checklist_data['title']}")
                 except Exception as e:
-                    logger.warning("Failed to create checklist '%s': %s", checklist_data['title'], str(e))
+                    print(f"      Warning: Failed to create checklist '{checklist_data['title']}': {str(e)}")
         except Exception as e:
-            logger.warning("Failed to generate checklists: %s", str(e))
+            print(f"      Warning: Failed to generate checklists: {str(e)}")
         
-        logger.info("Created %d checklists", checklists_created)
+        print(f"   ✓ Created {checklists_created} checklists")
+        
+        # Create relationships between checklists and cases
+        print("\n10a. Linking checklists to cases...")
+        checklist_case_relations = 0
+        
+        try:
+            # Get all checklist IDs from the created checklists
+            checklist_ids = []
+            try:
+                # Query to get created checklist IDs
+                es_service = ElasticsearchService()
+                checklists_result = es_service.search('checklists', {
+                    "size": 100,
+                    "query": {"match_all": {}}
+                })
+                if checklists_result and 'hits' in checklists_result:
+                    checklist_ids = [hit['_id'] for hit in checklists_result['hits']['hits']]
+            except Exception as e:
+                print(f"      Warning: Could not fetch checklist IDs: {str(e)}")
+            
+            # Link 1-2 random checklists to each case
+            if checklist_ids:
+                for case in created_cases:
+                    try:
+                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
+                        selected_checklists = random.sample(checklist_ids, num_checklists)
+                        
+                        for checklist_id in selected_checklists:
+                            try:
+                                # Create a relationship document between case and checklist
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'case',
+                                    'source_id': case['id'],
+                                    'target_type': 'checklist',
+                                    'target_id': checklist_id,
+                                    'relation_type': 'uses_checklist',
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('case_checklist_relations', relation_id, relation)
+                                checklist_case_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to link checklist to case: {str(e)}")
+                    except Exception as e:
+                        print(f"      Warning: Error processing case for checklist linking: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create case-checklist relationships: {str(e)}")
+        
+        print(f"   ✓ Created {checklist_case_relations} case-checklist relationships")
+        
+        # Create relationships between checklists and incidents
+        print("\n10b. Linking checklists to incidents...")
+        checklist_incident_relations = 0
+        
+        try:
+            if checklist_ids:
+                for incident in created_incidents:
+                    try:
+                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
+                        selected_checklists = random.sample(checklist_ids, num_checklists)
+                        
+                        for checklist_id in selected_checklists:
+                            try:
+                                # Create a relationship document between incident and checklist
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'incident',
+                                    'source_id': incident['id'],
+                                    'target_type': 'checklist',
+                                    'target_id': checklist_id,
+                                    'relation_type': 'uses_checklist',
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('incident_checklist_relations', relation_id, relation)
+                                checklist_incident_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to link checklist to incident: {str(e)}")
+                    except Exception as e:
+                        print(f"      Warning: Error processing incident for checklist linking: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create incident-checklist relationships: {str(e)}")
+        
+        print(f"   ✓ Created {checklist_incident_relations} incident-checklist relationships")
+        
+        # Create additional relationships between incidents within the same case
+        print("\n10c. Creating multi-incident relationships within cases...")
+        incident_to_incident_relations = 0
+        
+        try:
+            for case in created_cases:
+                # Find incidents belonging to this case
+                case_incidents = [inc for inc in created_incidents if inc.get('case_id') == case['id']]
+                
+                if len(case_incidents) > 1:
+                    # Create relationships between pairs of incidents in the same case
+                    for i in range(len(case_incidents)):
+                        for j in range(i + 1, min(i + 3, len(case_incidents))):
+                            try:
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'incident',
+                                    'source_id': case_incidents[i]['id'],
+                                    'target_type': 'incident',
+                                    'target_id': case_incidents[j]['id'],
+                                    'relation_type': random.choice(['related', 'part_of_same_campaign', 'sequential_activity', 'shared_infrastructure']),
+                                    'case_id': case['id'],
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('incident_relations', relation_id, relation)
+                                incident_to_incident_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to create incident-to-incident relationship: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create incident-to-incident relationships: {str(e)}")
+        
+        print(f"   ✓ Created {incident_to_incident_relations} incident-to-incident relationships")
                 # Create random relationships between IOCs
         if len(created_ids) > 1:
-            logger.info("11. Creating random IOC relationships...")
+            print("\n11. Creating random IOC relationships...")
             relation_types = [
                 'communicates-with',
                 'exploits',
@@ -918,14 +1031,14 @@ def populate_demo_data():
                         
                 except Exception as e:
                     failed_relations += 1
-                    logger.warning("Failed to create relation %d: %s", attempt + 1, str(e))
+                    print(f"      Warning: Failed to create relation {attempt + 1}: {str(e)}")
             
-            logger.info("Created %d relationships (out of %d attempts)", created_relations, num_relations)
+            print(f"   ✓ Created {created_relations} relationships (out of {num_relations} attempts)")
             if failed_relations > 0:
-                logger.warning("Failed to create %d relationships", failed_relations)
+                print(f"   ⚠ Failed to create {failed_relations} relationships")
         
         # Add comments to IOCs
-        logger.info("Adding comments to IOCs...")
+        print("\n12. Adding comments to IOCs...")
         comment_service = CommentService()
         ioc_comments_created = 0
         
@@ -943,12 +1056,12 @@ def populate_demo_data():
                     )
                     ioc_comments_created += 1
             except Exception as e:
-                logger.warning("Failed to create IOC comment: %s", str(e))
+                print(f"      Warning: Failed to create IOC comment: {str(e)}")
         
-        logger.info("Created %d comments on IOCs", ioc_comments_created)
+        print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
         
         # Add comments to cases
-        logger.info("13. Adding comments to cases...")
+        print("\n13. Adding comments to cases...")
         case_comments_created = 0
         
         for case in created_cases:
@@ -965,12 +1078,12 @@ def populate_demo_data():
                     )
                     case_comments_created += 1
             except Exception as e:
-                logger.warning("Failed to create case comment: %s", str(e))
+                print(f"      Warning: Failed to create case comment: {str(e)}")
         
-        logger.info("Created %d comments on cases", case_comments_created)
+        print(f"   ✓ Created {case_comments_created} comments on cases")
         
         # Add comments to incidents
-        logger.info("14. Adding comments to incidents...")
+        print("\n14. Adding comments to incidents...")
         incident_comments_created = 0
         
         for incident in created_incidents:
@@ -987,12 +1100,12 @@ def populate_demo_data():
                     )
                     incident_comments_created += 1
             except Exception as e:
-                logger.warning("Failed to create incident comment: %s", str(e))
+                print(f"      Warning: Failed to create incident comment: {str(e)}")
         
-        logger.info("Created %d comments on incidents", incident_comments_created)
+        print(f"   ✓ Created {incident_comments_created} comments on incidents")
         
         # Create timeline events (audit log entries)
-        logger.info("15. Creating timeline events...")
+        print("\n15. Creating timeline events...")
         timeline_service = TimelineService()
         timeline_events_created = 0
         
@@ -1017,7 +1130,7 @@ def populate_demo_data():
                     )
                     timeline_events_created += 1
             except Exception as e:
-                logger.warning("Failed to create case timeline event: %s", str(e))
+                print(f"      Warning: Failed to create case timeline event: {str(e)}")
         
         # Timeline events for incidents
         for incident in created_incidents:
@@ -1040,26 +1153,30 @@ def populate_demo_data():
                     )
                     timeline_events_created += 1
             except Exception as e:
-                logger.warning("Failed to create incident timeline event: %s", str(e))
+                print(f"      Warning: Failed to create incident timeline event: {str(e)}")
         
-        logger.info("Created %d timeline events", timeline_events_created)
-        logger.info("%s", "=" * 60)
-        logger.info("Demo data population complete!")
-        logger.info("Total IOCs created: %d", len(created_ids))
-        logger.info("Total IOC comments: %d", ioc_comments_created)
-        logger.info("Total cases created: %d", len(created_cases))
-        logger.info("Total case comments: %d", case_comments_created)
-        logger.info("Total incidents created: %d", len(created_incidents))
-        logger.info("Total incident comments: %d", incident_comments_created)
-        logger.info("Total timeline events: %d", timeline_events_created)
-        logger.info("Total demo users created: %d", len(created_users))
-        logger.info("Total API keys created: %d", api_keys_created)
-        logger.info("Total external API configs: %d", external_api_created)
-        logger.info("Total webhooks created: %d", webhooks_created)
-        logger.info("Total snippets created: %d", snippets_created)
-        logger.info("Total checklist templates created: %d", templates_created)
-        logger.info("Total checklists created: %d", checklists_created)
-        logger.info("%s", "=" * 60)
+        print(f"   ✓ Created {timeline_events_created} timeline events")
+        
+        print("\n" + "=" * 60)
+        print("Demo data population complete!")
+        print(f"Total IOCs created: {len(created_ids)}")
+        print(f"Total IOC comments: {ioc_comments_created}")
+        print(f"Total cases created: {len(created_cases)}")
+        print(f"Total case comments: {case_comments_created}")
+        print(f"Total incidents created: {len(created_incidents)}")
+        print(f"Total incident comments: {incident_comments_created}")
+        print(f"Total timeline events: {timeline_events_created}")
+        print(f"Total demo users created: {len(created_users)}")
+        print(f"Total API keys created: {api_keys_created}")
+        print(f"Total external API configs: {external_api_created}")
+        print(f"Total webhooks created: {webhooks_created}")
+        print(f"Total snippets created: {snippets_created}")
+        print(f"Total checklist templates created: {templates_created}")
+        print(f"Total checklists created: {checklists_created}")
+        print(f"Total case-checklist relationships: {checklist_case_relations}")
+        print(f"Total incident-checklist relationships: {checklist_incident_relations}")
+        print(f"Total incident-to-incident relationships: {incident_to_incident_relations}")
+        print("=" * 60)
 
 
 if __name__ == '__main__':
