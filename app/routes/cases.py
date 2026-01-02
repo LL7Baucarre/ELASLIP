@@ -320,6 +320,45 @@ def link_incident_to_case(case_id):
     return jsonify({'success': True})
 
 
+@bp.route('/api/incidents/<incident_id>/cases', methods=['GET'])
+@login_required
+@permission_required('incident.view')
+def get_incident_cases(incident_id):
+    """Get cases linked to an incident."""
+    incident = incident_service.get_incident(incident_id)
+    if not incident:
+        abort(404, 'Incident not found')
+    
+    # Query Elasticsearch for cases that have this incident in their incident_ids
+    es = ElasticsearchService()
+    try:
+        query = {
+            'query': {
+                'terms': {
+                    'incident_ids': [incident_id]
+                }
+            },
+            'size': 100
+        }
+        result = es.search('cases', query)
+        cases = []
+        for hit in result.get('hits', {}).get('hits', []):
+            case = hit['_source']
+            case['id'] = hit['_id']
+            cases.append(case)
+        
+        return jsonify({
+            'items': cases,
+            'total': len(cases)
+        })
+    except Exception as e:
+        print(f'Error searching for cases: {e}')
+        return jsonify({
+            'items': [],
+            'total': 0
+        })
+
+
 @bp.route('/api/cases/stats', methods=['GET'])
 @login_required
 @permission_required('case.view')
