@@ -657,7 +657,9 @@ CHECKLISTS_MAPPING = {
                     "user": {"type": "keyword"},
                     "created_at": {"type": "date"}
                 }
-            }
+            },
+            "related_cases": {"type": "keyword"},
+            "related_incidents": {"type": "keyword"}
         }
     }
 }
