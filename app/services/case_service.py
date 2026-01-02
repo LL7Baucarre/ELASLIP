@@ -293,6 +293,7 @@ class IncidentService:
         incident_doc = {
             'id': incident_id,
             'case_id': data.get('case_id'),
+            'checklist_ids': data.get('checklist_ids', []),  # Link to checklist instances
             'title': data.get('title', '').strip(),
             'description': data.get('description', ''),
             'status': data.get('status', 'detected'),
@@ -359,7 +360,8 @@ class IncidentService:
         allowed_fields = [
             'title', 'description', 'status', 'severity', 'category', 'ioc_ids',
             'affected_assets', 'attack_vector', 'mitre_tactics', 'mitre_techniques',
-            'report_content', 'report_sections', 'assignee_id', 'assignee_name'
+            'report_content', 'report_sections', 'assignee_id', 'assignee_name',
+            'checklist_ids'
         ]
         
         update_doc = {k: v for k, v in updates.items() if k in allowed_fields}
