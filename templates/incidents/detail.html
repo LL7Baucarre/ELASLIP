@@ -61,6 +61,13 @@
     background: var(--secondary-color);
     border: 3px solid var(--card-bg);
 }
+#incidentGraphContainer {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+[data-theme="dark"] #incidentGraphContainer {
+    background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+}
 </style>
 {% endblock %}
 
@@ -341,18 +348,14 @@
     </div>
     
     <!-- Graph Visualization -->
-    <div class="row mt-5">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header bg-white">
-                    <h6 class="mb-0">
-                        <i class="bi bi-bezier me-2"></i>Incident Relationship Graph
-                    </h6>
-                </div>
-                <div class="card-body" style="height: 500px; position: relative;">
-                    <div id="incidentGraphContainer" style="width: 100%; height: 100%; border: 1px solid #ddd; border-radius: 4px;"></div>
-                </div>
-            </div>
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h6 class="mb-0">
+                <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
+            </h6>
+        </div>
+        <div class="card-body">
+            <div id="incidentGraphContainer" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px;"></div>
         </div>
     </div>
 </div>
@@ -1494,6 +1497,125 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Load incident graph
+let incidentCy = null;
+
+function initIncidentGraph(nodes, edges, incidentId) {
+    if (incidentCy) {
+        incidentCy.destroy();
+    }
+
+    incidentCy = cytoscape({
+        container: document.getElementById('incidentGraphContainer'),
+        elements: { nodes: nodes, edges: edges },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'background-color': 'data(color)',
+                    'width': 40,
+                    'height': 40,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'font-size': 10,
+                    'color': 'white',
+                    'text-outline-width': 1,
+                    'text-outline-color': '#333',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'padding': 3
+                }
+            },
+            {
+                selector: 'node[id="' + incidentId + '"]',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FFD700',
+                    'width': 50,
+                    'height': 50
+                }
+            },
+            {
+                selector: 'node.case',
+                style: {
+                    'shape': 'square',
+                    'background-color': '#0d6efd',
+                    'border-color': '#0b5ed7',
+                    'width': 45,
+                    'height': 45
+                }
+            },
+            {
+                selector: 'node.incident',
+                style: {
+                    'shape': 'diamond',
+                    'background-color': '#dc3545',
+                    'border-color': '#bb2d3b',
+                    'width': 45,
+                    'height': 45
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#999',
+                    'target-arrow-color': '#999',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 2,
+                    'opacity': 0.8,
+                    'font-size': 8,
+                    'color': '#333',
+                    'content': 'data(label)',
+                    'text-background-color': '#fff',
+                    'text-background-opacity': 0.8,
+                    'text-background-padding': '2px'
+                }
+            }
+        ],
+        layout: {
+            name: 'cose',
+            animate: true,
+            animationDuration: 400,
+            randomize: false,
+            nodeSpacing: 30,
+            padding: 40,
+            fit: true,
+            directed: true,
+            avoidOverlap: true,
+            avoidOverlapPadding: 10,
+            minNodeSpacing: 40
+        },
+        wheelSensitivity: 0.1,
+        minZoom: 0.5,
+        maxZoom: 2
+    });
+
+    // Wait for layout to finish and center properly
+    setTimeout(function() {
+        if (incidentCy && incidentCy.elements().length > 0) {
+            incidentCy.fit(incidentCy.elements(), 40);
+            incidentCy.center();
+        }
+    }, 500);
+
+    // Click on node to navigate to entity
+    incidentCy.on('tap', 'node', function(e) {
+        const nodeId = e.target.id();
+        const entityType = e.target.data('entity_type');
+        
+        if (nodeId !== incidentId) {
+            if (entityType === 'case') {
+                window.location.href = `/cases/${nodeId}`;
+            } else if (entityType === 'incident') {
+                window.location.href = `/incidents/${nodeId}`;
+            } else if (entityType === 'ioc') {
+                window.location.href = `/iocs/${nodeId}`;
+            }
+        }
+    });
+}
+
 function loadIncidentGraph() {
     const incidentId = '{{ incident.id }}';
     const container = document.getElementById('incidentGraphContainer');
@@ -1509,94 +1631,27 @@ function loadIncidentGraph() {
             }
             
             // Check if there are only the central incident node (no relations)
-            if (data.nodes.length === 1 && !data.edges || data.edges.length === 0) {
+            if (data.nodes.length === 1 && (!data.edges || data.edges.length === 0)) {
                 // Still show the graph with just the incident node - better than empty
             }
             
-            // Initialize Cytoscape
-            const cy = cytoscape({
-                container: container,
-                elements: data.nodes.concat(data.edges),
-                style: [
-                    {
-                        selector: 'node',
-                        style: {
-                            'content': 'data(label)',
-                            'text-valign': 'center',
-                            'text-halign': 'center',
-                            'font-size': 11,
-                            'width': 50,
-                            'height': 50,
-                            'background-color': '#6c757d',
-                            'border-width': 2,
-                            'border-color': '#495057',
-                            'text-wrap': 'wrap',
-                            'text-max-width': 100
-                        }
-                    },
-                    {
-                        selector: 'node.ioc-ipv4, node.ioc-ipv6, node.ioc-domain, node.ioc-url, node.ioc-email, node.ioc-md5, node.ioc-sha1, node.ioc-sha256, node.ioc-asn, node.ioc-asn_cidr',
-                        style: {
-                            'background-color': '#0dcaf0',
-                            'border-color': '#0ba5d8'
-                        }
-                    },
-                    {
-                        selector: 'node.case',
-                        style: {
-                            'background-color': '#0d6efd',
-                            'border-color': '#0b5ed7',
-                            'shape': 'square',
-                            'width': 60,
-                            'height': 60
-                        }
-                    },
-                    {
-                        selector: 'node.incident',
-                        style: {
-                            'background-color': '#dc3545',
-                            'border-color': '#bb2d3b',
-                            'shape': 'diamond',
-                            'width': 60,
-                            'height': 60
-                        }
-                    },
-                    {
-                        selector: 'edge',
-                        style: {
-                            'line-color': '#ccc',
-                            'target-arrow-color': '#999',
-                            'target-arrow-shape': 'triangle',
-                            'curve-style': 'bezier',
-                            'width': 2
-                        }
-                    }
-                ],
-                layout: {
-                    name: 'cose',
-                    directed: true,
-                    animate: true,
-                    animationDuration: 500,
-                    fit: true,
-                    padding: 20
-                }
+            // Add colors for nodes
+            const getColorForEntity = (type) => {
+                const colors = {
+                    'ioc': '#0dcaf0',
+                    'case': '#0d6efd',
+                    'incident': '#dc3545',
+                    'user': '#6c757d'
+                };
+                return colors[type] || '#888';
+            };
+            
+            data.nodes.forEach(node => {
+                const type = node.data.entity_type || 'ioc';
+                node.data.color = getColorForEntity(type);
             });
             
-            // Add click handlers for navigation
-            cy.on('tap', 'node', function(evt) {
-                const node = evt.target;
-                const nodeData = node.data();
-                const entityType = nodeData.entity_type;
-                const entityId = nodeData.id;
-                
-                if (entityType === 'case') {
-                    window.location.href = `/cases/${entityId}`;
-                } else if (entityType === 'incident') {
-                    window.location.href = `/incidents/${entityId}`;
-                } else if (entityType === 'ioc') {
-                    window.location.href = `/iocs/${entityId}`;
-                }
-            });
+            initIncidentGraph(data.nodes, data.edges, incidentId);
         })
         .catch(error => {
             console.error('Error loading graph:', error);
