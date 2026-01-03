@@ -3,501 +3,216 @@
 
 **Elastic Lightweight Analytical Security & Incident Platform**
 
-A lightweight MISP and TheHive alternative for managing Indicators of Compromise (IOCs), investigating security incidents, and organizing security operations with AI-powered insights. Features comprehensive case and incident management, security checklists with AI analysis, IOC relationship mapping, risk scoring, multi-language LLM report generation, and token usage tracking (FinOps). Supports STIX 2.1, MISP, OpenIOC, and IODEF formats with Elasticsearch backend.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://docker.com)
+[![Python](https://img.shields.io/badge/python-3670A0?style=flat&logo=python&logoColor=ffdd54)](https://python.org)
 
-  
+A lightweight MISP and TheHive alternative for managing Indicators of Compromise (IOCs), investigating security incidents, and organizing security operations with AI-powered insights.
 
 ![ELASLIP Demo](.github/demo.gif)
 
-  
+## Key Features
 
-## Key Highlights
+- **IOC Management** - Multi-format import (STIX, MISP, OpenIOC, IODEF), deduplication, enrichment, relationship mapping
+- **Case & Incident Investigation** - Organize investigations with timeline events, comments, and IOC linking
+- **AI-Powered Reports** - Generate IOC, case, incident, and checklist reports via LLM (Ollama or OpenAI-compatible)
+- **Advanced Search** - Full-text and pattern-based search with interactive graphs
+- **Reconnaissance Tools** - WHOIS, Ping, Nmap, Traceroute, DNS, GeoIP, Email Headers, File Analysis, DMARC/DKIM, **Shodan Device Search**
+- **Two-Factor Authentication** - TOTP support with backup codes
+- **RBAC & Audit Logging** - Granular permissions and complete audit trail
+- **OAuth2 Integration** - Support for Google, GitHub, and OIDC providers
+- **Public Portal** - Anonymous IOC submissions and public search
+- **Dark Mode** - Eye-friendly theme support
+- **LLM Tracker Dashboard** - LLM token usage tracking and analytics
+- **Webhooks & Notifications** - Real-time event notifications
+- **API First** - Token-based programmatic access with Swagger documentation
 
+## Integrated Tools
 
-**What's Included:**
+| Tool | Description |
+|------|-------------|
+| **WHOIS** | Domain and IP ownership information |
+| **Ping** | Host connectivity and latency testing |
+| **Nmap** | Network scanning and service enumeration |
+| **Traceroute** | Network path analysis |
+| **DNS Lookup** | DNS record resolution (A, AAAA, CNAME, MX, NS, TXT, SOA) |
+| **Reverse DNS** | IP to hostname resolution |
+| **GeoIP** | IP geolocation and organization lookup (single/bulk) |
+| **Email Headers** | Email header parsing, hop analysis, source IP extraction |
+| **File Analysis** | Hash extraction (MD5/SHA1/SHA256), metadata, EXIF, entropy |
+| **DMARC/DKIM/SPF** | Email authentication record analysis |
+| **Shodan** | Internet-facing device search (requires API key) |
 
--  **Interactive Dashboard** - Real-time statistics
--  **Advanced Search** - Full-text and pattern-based search capabilities (IOCs, Cases, Incidents)
--  **IOC Graph** - Visual relationship mapping with Cases and Incidents
--  **Entity Graphs** - Visualize relationships across IOCs, Cases, and Incidents with interactive navigation
--  **Two-Factor Authentication (2FA)** - Secure login with TOTP and backup codes
--  **Public Submission Portal** - Anonymous IOC reporting and public search
--  **API** - Token-based authentication for programmatic usage
--  **Activity Timeline** - Comprehensive audit trail of all actions in app
--  **Dark Mode** - Eye-friendly dark theme support
--  **Import/Export** - Support for STIX, MISP, OpenIOC, and IODEF formats
--  **Case Management** - Organize investigations with related incidents and IOCs
--  **Incident Investigation** - Track cases, incidents, timeline events, and team collaboration
--  **AI-Powered Reports** - Generate IOC, Case, Incident, Checklist reports via LLM
--  **FinOps Dashboard** - Track LLM token usage with analytics
--  **Security Checklists** - Create, manage, and analyze security operation tasks with AI insights  
--  **Webhooks** - Real-time event notifications
--  **Notification system** - Be aware when reports are submitted by LLM
-
-## Features
-  
-### Core Features
-
--  **Multi-format Import** - STIX, MISP JSON, OpenIOC, IODEF support
--  **Simple IOC Entry** - Form-based input with automatic STIX pattern generation
--  **IOC Relationships** - Link IOCs with relationship types
--  **IOC Metadata** - Confidence levels, TLP, campaigns tracking
--  **Interactive Graph** - Visualize IOC relationships
--  **Deduplication** - Automatic with source tracking
--  **External API Integration** - VirusTotal, AbuseIPDB, etc.
--  **Swagger UI** - Interactive API documentation
--  **Dockerized** - Complete Docker Compose setup
-
-### Advanced Features
-
-#### IOC Management
-
--  **Bulk Operations** - Select multiple, bulk update/delete/export
--  **Expiration Automation** - Set validity dates, auto-detect expired, schedule archival
--  **Enrichment Cache** - API response caching
--  **IOC Relationship Graphs** - Interactive visualization of IOC connections with related Cases and Incidents
-   - **Color-coded nodes**: IOCs by type, Cases (blue squares), Incidents (red diamonds)
-   - **Smart navigation**: Click nodes to navigate to entity detail pages
-   - **Relationship visualization**: See all connected entities at a glance
-
-#### Incident Management
-
--  **Cases & Incidents** - Organize investigation cases and incidents
--  **Investigation Timeline** - Chronological event tracking with timestamps
--  **IOC Linking** - Associate IOCs with incidents and cases
--  **Entity Relationship Graphs** - Interactive visualization showing connected IOCs, Cases, and Incidents
-   - **Unified design**: Consistent styling across all entity graphs
-   - **Central node highlighting**: Golden border identifies the current entity
-   - **Interactive navigation**: Click to navigate between related entities
--  **Comments** - Collaborative discussion with timestamps
--  **Status Management** - Track lifecycle through investigation stages
--  **Assignment** - Assign to users
--  **Reusable Snippets** - Markdown snippets for common sections
-
-#### AI-Powered Report Generation
-
--  **LLM Integration** - Ollama and OpenAI-compatible providers
--  **Report Types** - IOC, Case, Incident, Checklist reports
--  **Custom Prompts** - Define templates per report type
--  **Markdown Output** - Formatted reports
--  **Language Instruction** - Automatic language prepend
--  **Async Generation** - Background processing with progress tracking
-
-#### LLM Token Tracking
-
--  **Token Counting** - Track prompt and completion tokens
--  **Dashboard** - Real-time consumption metrics in Activity page
--  **Temporal Analysis** - Token usage trends over time
--  **Report Breakdown** - Analyze by report type
-
-#### Checklist Management
-
--  **Create Checklists** - Task-based security operation checklists
--  **Templates** - Reusable checklist templates
--  **Item Tracking** - Track completion status with descriptions
--  **Campaign/Case Association** - Link to campaigns, cases, incidents
--  **Team Collaboration** - Global comments with timestamps
--  **AI Analysis** - Generate analysis reports of completed checklists
-
-#### Security & Authentication
-
--  **Two-Factor Authentication (2FA)** - TOTP support (Google Authenticator, Authy, etc.)
--  **Backup Codes** - Secure recovery codes for account access
--  **RBAC** - Role-Based Access Control with granular permissions
--  **Audit Logging** - Detailed tracking of all user and system actions
--  **API Key Management** - Secure programmatic access with scoped keys
-
-#### Image Management
-
--  **Image Upload** - Upload and attach images to IOCs, Cases, Incidents, and Checklists
--  **Image Viewer Modal** - Full-screen image preview with download capability
--  **Image Rename** - Rename uploaded images for better organization
--  **Image Gallery** - View all images associated with an entity
--  **File Size Limit** - 10MB per image with type validation (PNG, JPG, GIF, WebP, BMP)
-
-#### Enrichment Tools
-
--  **GeoIP Tool** - Resolve IP addresses to geographic locations and organization information
--  **IP API Integration** - Automatic geographic and ASN lookup for IP indicators
--  **Location Mapping** - Visual and data-based IP geolocation
-
-#### Public Portal
-
--  **Anonymous Submissions** - Allow external users to report IOCs
--  **Public Search** - Limited search interface for public verification
--  **Submission Review** - Admin workflow to validate and import public reports
--  **Configurable Access** - Enable/disable public features via environment variables
-
-## Supported IOC Types
-
-**Hashes**: MD5, SHA1, SHA256
-**Network**: IPv4, IPv6, Domain, Email, URL, ASN
-**Files/Processes**: File Path, Process Name, Registry Key, Mutex
-**Other**: Certificate Serial
+All scan results are automatically saved to history and can be converted to IOCs.
 
 ## Quick Start
+
 ### Prerequisites
-
 - Docker & Docker Compose
-
 - (Optional) Ollama for AI reports
 
 ### Installation
 
 ```bash
-
-git  clone <repo-url>
-
-cd  ELASLIP
-
-cp  .env.example  .env
-
-  
+git clone <repo-url>
+cd ELASLIP
+cp .env.example .env
 
 # Start with included Elasticsearch
-
-docker-compose  up  -d
-
-  
+docker-compose up -d
 
 # Or with external Elasticsearch
-
-docker-compose  -f  docker-compose.external-elasticsearch.yml  up  -d
- 
+docker-compose -f docker-compose.external-elasticsearch.yml up -d
 
 # Initialize
-
-docker-compose  exec  app  python  scripts/init_elasticsearch.py
-
-  
+docker-compose exec app python scripts/init_elasticsearch.py
 
 # Create admin user
-
-docker-compose  exec  app  python  scripts/create_admin.py
-
-  
-# One liner for quick demo start
-docker compose down -v ; docker compose up -d --build ; docker compose exec app python /app/scripts/demo_data.py ; docker compose logs app worker -f
+docker-compose exec app python scripts/create_admin.py
 
 # Access
-
 # Web: http://localhost:5000
-
-# API: http://localhost:5000/apidocs
-
+# API Docs: http://localhost:5000/api-docs
 ```
 
 ### Demo Data (Optional)
 
-To populate the database with sample IOCs, cases, and incidents, set `DEMO_DATA_ENABLED=true` in `.env` before startup, or run manually:
-
 ```bash
-
-docker-compose  exec  app  python  scripts/demo_data.py
-
+docker-compose exec app python scripts/demo_data.py
 ```
 
-This generates realistic test data useful for exploring features and understanding workflows.
+AND set `DEMO_DATA_ENABLED=true` in `.env` before startup.
 
-  
+## Supported IOC Types
 
-## Configuration
+**Hashes**: MD5, SHA1, SHA256  
+**Network**: IPv4, IPv6, Domain, Email, URL, ASN  
+**Files/Processes**: File Path, Process Name, Registry Key, Mutex  
+**Other**: Certificate Serial
 
-
-### LLM Setup (for AI Reports)  
-
-**Settings > LLM Settings:**
-
--  **LLM URL**: `http://ollama:11434` (default)
-
--  **Model**: `mistral` (or preferred model)
-
--  **Generation Language**: Select output language
-
--  **Custom Prompts** (optional): Template per report type
-
-Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{name}`, `{status}`, etc.
-
-### OAuth Configuration
-
-ELASLIP supports OAuth (Google, GitHub, and generic OIDC providers) for user authentication.
-
-Key points:
-
-- Enable OAuth via environment variables or the Admin UI.
-- Admins can configure provider credentials (Client ID / Secret) and enable/disable providers.
-- Admins can choose the **default role** assigned to newly created OAuth users using the Settings UI or by setting `OAUTH_DEFAULT_ROLE` in `.env`.
-- OAuth global settings are available in the app at **Settings → OAuth Configuration** (admin only). The page provides toggles and credential forms for Google, GitHub, and OIDC, and a **Default Role** dropdown that is populated from available roles in the system.
-- Changes made in the Settings UI update the running configuration; to persist changes across restarts, add/update the corresponding variables in your `.env` file.
-
-Important environment variables (see `.env.example` / `.env.oauth.example` for full examples):
-
-- `OAUTH_ENABLED` — Set to `true` to enable OAuth
-- `OAUTH_ENCRYPTION_KEY` — **Required** when OAuth is enabled. Generate with:
-
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
-
-- `OAUTH_AUTO_CREATE_USER` — Automatically create users on first OAuth login (default `true`)
-- `OAUTH_AUTO_LINK_BY_EMAIL` — Link OAuth accounts to existing users by email (default `false`)
-- `OAUTH_DEFAULT_ROLE` — Default role for new OAuth users (e.g., `viewer`, `analyst`, `admin`)
-- `OAUTH_GOOGLE_ENABLED`, `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET` — Google credentials; authorized redirect URI: `http://localhost:5000/oauth/callback/google`
-- `OAUTH_GITHUB_ENABLED`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET` — GitHub credentials; callback: `http://localhost:5000/oauth/callback/github`
-- `OAUTH_OIDC_ENABLED`, `OAUTH_OIDC_CLIENT_ID`, `OAUTH_OIDC_CLIENT_SECRET`, `OAUTH_OIDC_DISCOVERY_URL`, `OAUTH_OIDC_PROVIDER_NAME` — Generic OIDC provider settings
-
-Admin REST endpoints:
-
-- `GET /api/settings/oauth` — Read current OAuth settings
-- `PUT /api/settings/oauth` — Update runtime OAuth settings (note: not persisted to `.env`)
-- `GET /api/settings/oauth/roles` — Retrieve available roles to populate the Default Role dropdown
-
----
-
-### Enrichment Tools
-
-#### GeoIP Tool
-- **Single Lookup** - Resolve an IP address to geolocation, organization, and ASN data
-- **Bulk Lookup** - Lookup up to 100 IP addresses at once (one per line)
-- **Source Extraction** - Automatically extract source IP from email headers and perform GeoIP lookup
-- **IOC Integration** - Create IOCs directly from results with pre-populated location data
-- **Result Caching** - Responses cached to minimize API calls (default: 1 hour TTL)
-
-**Access**: Tools menu → GeoIP Lookup
-
-**Features**:
-- Displays: Country, City, Timezone, ISP/Organization, ASN, Latitude, Longitude, Mobile/Proxy/Hosting flags
-- Bulk operations return summary with successful/failed counts
-- Results saved to scan history for reference
-
-#### Email Header Analyzer Tool
-- **Header Parsing** - Extract key information from email headers (From, To, Subject, Date)
-- **Hop Analysis** - Display complete email route showing all relay servers
-- **Source IP Extraction** - Automatically identify sending server IP from Received headers
-- **GeoIP Integration** - Perform GeoIP lookup on extracted source IP
-- **IOC Creation** - Create IOCs from extracted recipient addresses or source IP
-- **Recipient Analysis** - Extract domain from email recipients for domain-based investigation
-
-**Access**: Tools menu → Email Headers
-
-**Features**:
-- Visual hop diagram showing email route with server information
-- One-click GeoIP lookup for source IP
-- Extract and create IOCs from recipients or source IP
-- Supports large headers (up to 100KB)
-- Email tags automatically applied to created IOCs
-
-#### Shodan Device Search Tool
-- **Internet Device Reconnaissance** - Search for internet-facing devices, servers, and IoT systems
-- **IP Lookup** - Query specific IP addresses for ports, services, and vulnerabilities
-- **Service Search** - Find devices running specific services (Apache, Nginx, OpenSSL, etc.)
-- **Port-Based Search** - Discover systems with specific ports open (SSH, RDP, HTTP, etc.)
-- **Geographic Filtering** - Filter results by country or region
-- **Vulnerability Search** - Find systems with known vulnerabilities (premium API required)
-- **Organization Search** - Search for devices owned by specific organizations
-- **Result Caching** - Query results saved to scan history for reference
-
-**Access**: Tools menu → Shodan Device Search
-
-**Configuration**: 
-- Admin users can configure the Shodan API key via **Settings → Shodan Configuration**
-- API key can be set via environment variable `SHODAN_API_KEY`
-- Integration can be enabled/disabled via `SHODAN_ENABLED`
-- Test connection button verifies API key validity
-
-**Features**:
-- Real-time internet-facing device discovery
-- Detailed host information including open ports, services, and banners
-- Service enumeration with version detection
-- Vulnerability information when available
-- Results stored in scan history for audit trail
-- One-click IOC creation from discovered devices
-
-#### File Analysis Tool
-- **Hash Extraction** - Calculate MD5, SHA1, and SHA256 hashes from uploaded files
-- **File Metadata** - Extract comprehensive file properties and document metadata
-- **File Type Detection** - Identify executable types (EXE, DLL, SYS), archives, documents, etc.
-- **Architecture Detection** - Detect CPU architecture (32-bit, 64-bit, ARM, etc.) from PE files
-- **Document Metadata Extraction**:
-  - **PDF**: Title, Author, Subject, Creator, Producer, Creation/Modification dates
-  - **Office Documents** (DOCX, XLSX, PPTX): Author, Creator, Title, Subject, Page/Word counts
-  - **Images**: Format, Dimensions, EXIF data (camera, GPS, date taken, etc.)
-- **File Entropy Analysis** - Detect compressed or encrypted content
-- **IOC Creation** - Create IOCs from file hashes with automatic relationships
-- **IOC Deduplication** - Prevent duplicate IOC creation (shows existing vs new)
-- **Relationship Management** - Establish "related" relationships between hash IOCs
-
-**Access**: Tools menu → File Analysis
-
-**Features**:
-- Drag-and-drop or click-to-select file upload
-- Real-time hash calculation for large files
-- Complete file metadata display with entropy score
-- Create individual hash IOCs with one-click buttons
-- Create all IOCs at once with automatic relationships
-- VirusTotal integration - one-click search for any hash
-- Scan history persistence for future reference
-- Shows summary of created vs existing IOCs with color-coded alerts
-
-### IP API Integration (GeoIP Enrichment)
-
-The application integrates with **[IP-API.com](https://ip-api.com)** for geographic and ASN information enrichment on IP addresses.
-
-#### Features
-
-- **Automatic GeoIP Lookup** - Resolve IP addresses to location, organization, and ASN
-- **GeoIP Tool** - Manual single and bulk lookup tool available in Tools menu
-- **Email Header Integration** - Extract source IPs from email headers and geolocate them
-- **IP Enrichment** - Automatic enrichment when creating or importing IOCs
-- **Caching** - Responses cached to minimize API calls (default: 1 hour TTL)
-
-#### Terms of Service & Limitations
-
-⚠️ **Important**: By using this feature, you agree to IP-API.com's Terms of Service:
-
-- **Free Plan**: 45 requests per minute, ~1,440 per day
-- **Commercial Use**: Requires paid plan at [ip-api.com/pricing](https://ip-api.com/pricing)
-- **Accuracy**: Results are provided "as-is" for informational purposes
-- **Attribution**: Required to include proper attribution when using IP-API data
-- **Rate Limiting**: Requests exceeding the limit are blocked; upgrade for higher limits
-- **Data Privacy**: Queries are logged by IP-API.com per their privacy policy
-
-Full terms available at: [ip-api.com/docs/legal](https://ip-api.com/docs/legal)
-
-#### Configuration
-
-IP-API is enabled by default. To use:
-
-1. **Manual Tool**: Navigate to **Tools > GeoIP Tool**, enter an IP address, and click "Lookup"
-2. **Automatic Enrichment**: Imported or created IOCs of type `ipv4` or `ipv6` are automatically enriched
-3. **View Results**: Results displayed inline with location, organization, and ASN information
-
-**Cache Management**: Elasticsearch index `elaslip_enrichment_cache` stores results to reduce API calls.
-
-#### Disabling IP-API
-
-If you prefer not to use this service, disable enrichment via:
-
-- Settings > Enrichment Settings (when available)
-- Or set enrichment to "disabled" in app configuration
-
-  
-
-
-### Environment Variables
- 
+## Environment Variables
 
 | Variable | Default | Description |
-|---|---:|---|
-| `FLASK_ENV` | `development` | Flask environment
-| `FLASK_APP` | `app` | Flask application entrypoint
-| `SECRET_KEY` | `your-super-secret-key-change-in-production` | Flask secret key (change in production)
-| `SITE_NAME` | `ELASLIP` | Short site name
-| `SITE_TITLE` | `ELASLIP` | Full site title shown in the UI
-| `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch URL
-| `ELASTICSEARCH_USER` | `elastic` | Elasticsearch username
-| `ELASTICSEARCH_PASSWORD` | `elastic123` | Elasticsearch password
-| `ELASTICSEARCH_MEMORY_XMS` | `256m` | ES JVM initial heap size
-| `ELASTICSEARCH_MEMORY_XMX` | `256m` | ES JVM max heap size
-| `REDIS_URL` | `redis://localhost:6379/0` | Redis URL (sessions/cache)
-| `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Celery broker / result backend URL
-| `DEFAULT_ADMIN_USER` | `admin` | Default admin username created on first init
-| `DEFAULT_ADMIN_PASSWORD` | `admin123` | Default admin password created on first init
-| `DEMO_DATA_ENABLED` | `false` | Populate demo data on first run
-| `DEBUG` | `false` | Flask debug flag
-| `LLM_ENABLED` | `false` | Enable AI-based report generation
-| `LLM_PROVIDER` | `auto` | LLM provider type (`auto`, `ollama`, `openai`)
-| `LLM_URL` | `http://ollama:11434` | LLM provider URL (Ollama / OpenAI-compatible)
-| `LLM_MODEL` | `mistral` | Default LLM model
-| `LLM_API_KEY` | `` | API key for OpenAI-compatible providers (optional)
-| `LLM_GENERATION_LANGUAGE` | `fr` | Default language for generated reports
-| `PUBLIC_SEARCH_ENABLED` | `true` | Enable public search portal
-| `PUBLIC_SUBMISSIONS_SUBMIT_ENABLED` | `true` | Enable public IOC submission form
-| `PUBLIC_SUBMISSIONS_MAX_RESULTS` | `10` | Max results for public search
-| `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow submissions without account login
-| `ENRICHMENT_CACHE_TTL` | `3600` | Enrichment cache time-to-live in seconds (GeoIP results)
-| `GEOIP_ENABLED` | `true` | Enable IP-API.com GeoIP enrichment for IP indicators
-| `SHODAN_API_KEY` | `` | Shodan API key for internet-facing device search
-| `SHODAN_ENABLED` | `false` | Enable Shodan device search tool
-| `OAUTH_ENABLED` | `false` | Enable OAuth authentication (Google, GitHub, OIDC)
-| `OAUTH_ENCRYPTION_KEY` | `` | Encryption key for OAuth credentials (required when OAuth enabled)
-| `OAUTH_AUTO_CREATE_USER` | `true` | Automatically create users on first OAuth login
-| `OAUTH_AUTO_LINK_BY_EMAIL` | `false` | Link OAuth accounts to existing users by email
-| `OAUTH_DEFAULT_ROLE` | `viewer` | Default role for new OAuth users
+|---|---|---|
+| `FLASK_ENV` | `development` | Flask environment |
+| `FLASK_APP` | `app` | Flask application entrypoint |
+| `SECRET_KEY` | `your-super-secret-key-change-in-production` | Flask secret key (change in production) |
+| `SITE_NAME` | `ELASLIP` | Site short name |
+| `SITE_TITLE` | `ELASLIP` | Site full title |
+| `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch URL |
+| `ELASTICSEARCH_USER` | `elastic` | Elasticsearch username |
+| `ELASTICSEARCH_PASSWORD` | `elastic123` | Elasticsearch password |
+| `ELASTICSEARCH_MEMORY_XMS` | `256m` | ES JVM initial heap size |
+| `ELASTICSEARCH_MEMORY_XMX` | `256m` | ES JVM max heap size |
+| `REDIS_URL` | `redis://localhost:6379/0` | Redis URL (sessions/cache) |
+| `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Celery broker URL |
+| `DEFAULT_ADMIN_USER` | `admin` | Default admin username |
+| `DEFAULT_ADMIN_PASSWORD` | `admin123` | Default admin password |
+| `DEMO_DATA_ENABLED` | `false` | Populate demo data on first run |
+| `DEBUG` | `false` | Flask debug flag |
+| `LLM_ENABLED` | `false` | Enable AI-based report generation |
+| `LLM_PROVIDER` | `auto` | LLM provider (`auto`, `ollama`, `openai`) |
+| `LLM_URL` | `http://ollama:11434` | LLM provider URL |
+| `LLM_MODEL` | `mistral` | Default LLM model |
+| `LLM_API_KEY` | `` | API key for OpenAI-compatible providers |
+| `LLM_GENERATION_LANGUAGE` | `fr` | Default language for generated reports |
+| `PUBLIC_SEARCH_ENABLED` | `true` | Enable public search portal |
+| `PUBLIC_SUBMISSIONS_SUBMIT_ENABLED` | `true` | Enable public IOC submission form |
+| `PUBLIC_SUBMISSIONS_MAX_RESULTS` | `10` | Max results for public search |
+| `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow anonymous submissions |
+| `ENRICHMENT_CACHE_TTL` | `3600` | Enrichment cache TTL in seconds |
+| `GEOIP_ENABLED` | `true` | Enable IP-API.com GeoIP enrichment |
+| `SHODAN_API_KEY` | `` | Shodan API key for device search |
+| `SHODAN_ENABLED` | `false` | Enable Shodan device search tool |
+| `OAUTH_ENABLED` | `false` | Enable OAuth authentication (Google, GitHub, OIDC) |
+| `OAUTH_ENCRYPTION_KEY` | `` | Encryption key for OAuth credentials (required when OAuth enabled) |
+| `OAUTH_AUTO_CREATE_USER` | `true` | Automatically create users on first OAuth login |
+| `OAUTH_AUTO_LINK_BY_EMAIL` | `false` | Link OAuth accounts to existing users by email |
+| `OAUTH_DEFAULT_ROLE` | `viewer` | Default role for new OAuth users |
+| `OAUTH_GOOGLE_ENABLED` | `false` | Enable Google OAuth |
+| `OAUTH_GOOGLE_CLIENT_ID` | `` | Google OAuth Client ID |
+| `OAUTH_GOOGLE_CLIENT_SECRET` | `` | Google OAuth Client Secret |
+| `OAUTH_GITHUB_ENABLED` | `false` | Enable GitHub OAuth |
+| `OAUTH_GITHUB_CLIENT_ID` | `` | GitHub OAuth Client ID |
+| `OAUTH_GITHUB_CLIENT_SECRET` | `` | GitHub OAuth Client Secret |
+| `OAUTH_OIDC_ENABLED` | `false` | Enable OIDC provider |
+| `OAUTH_OIDC_CLIENT_ID` | `` | OIDC Client ID |
+| `OAUTH_OIDC_CLIENT_SECRET` | `` | OIDC Client Secret |
+| `OAUTH_OIDC_DISCOVERY_URL` | `` | OIDC Discovery URL |
+| `OAUTH_OIDC_PROVIDER_NAME` | `` | OIDC Provider name |
 
-See `.env.example` for the canonical defaults and examples.
-
-
-See `http://localhost:5000/apidocs` for full API documentation.
+See `.env.example` for complete defaults and examples.
 
 ## Docker Deployment
 
 ```bash
-
 # Standard (with Elasticsearch)
-
-docker-compose  up  -d
+docker-compose up -d
 
 # External Elasticsearch
-
-docker-compose  -f  docker-compose.external-elasticsearch.yml  up  -d
-
+docker-compose -f docker-compose.external-elasticsearch.yml up -d
 ```
 
 ## Development
 
-
 ```bash
-
-python  -m  venv  venv
-
-source  venv/bin/activate
-
-pip  install  -r  requirements.txt
-
-docker-compose  up  -d  elasticsearch  redis
-
-flask  run  --debug
-
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+docker-compose up -d elasticsearch redis
+flask run --debug
 ```
 
-  
+## Architecture
 
-## Elasticsearch Indices
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Frontend  │    │   Flask API     │    │   Elasticsearch │
+│   (Bootstrap)   │◄──►│   (Python)      │◄──►│   (Search DB)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Redis Cache   │    │   Celery Tasks  │    │   File Storage  │
+│   (Sessions)    │    │   (Async Jobs)  │    │    (Uploads)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+```
 
-  
-## Elasticsearch Indices
+**Core Components:**
+- **Flask Backend** - REST API with RBAC authentication
+- **Elasticsearch** - Full-text search and data storage
+- **Redis** - Caching, sessions, and Celery broker
+- **Celery** - Asynchronous task processing
+- **Bootstrap UI** - Responsive web interface
 
-The application uses the following Elasticsearch indices for data storage:
+### Development Setup
 
-- `elaslip_ioc` - IOC indicators
-- `elaslip_users` - User data
-- `elaslip_api_keys` - API keys
-- `elaslip_api_configs` - API configurations
-- `elaslip_webhooks` - Webhooks
-- `elaslip_webhook_logs` - Webhook logs
-- `elaslip_enrichment_cache` - Enrichment cache (GeoIP results, etc.)
-- `elaslip_import_jobs` - Import jobs
-- `elaslip_scan_results` - Scan results
-- `elaslip_ioc_relations` - IOC relationships
-- `elaslip_audit_logs` - Audit logs
-- `elaslip_ioc_versions` - IOC versions
-- `elaslip_roles` - Roles
-- `elaslip_cases` - Cases
-- `elaslip_incidents` - Incidents
-- `elaslip_timeline_events` - Timeline events
-- `elaslip_comments` - Comments
-- `elaslip_snippets` - Snippets
-- `elaslip_checklists` - Checklists
-- `elaslip_checklist_templates` - Checklist templates
-- `elaslip_submissions` - Submissions
-- `elaslip_app_config` - Application configuration
-- `elaslip_finops_token_usage` - FinOps token usage
-- `elaslip_images` - Uploaded images for IOCs, Cases, Incidents, and Checklists
+```bash
+# Clone repository
+git clone <repo-url>
+cd ELASLIP
 
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start services
+docker-compose up -d elasticsearch redis
+
+# Run development server
+flask run --debug
+```
 
 ## License
 
-  
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-MIT
+## Acknowledgments
+
+- Built with [Flask](https://flask.palletsprojects.com/)
+- Search powered by [Elasticsearch](https://www.elastic.co/)
+- UI styled with [Bootstrap](https://getbootstrap.com/)
+- Icons from [Bootstrap Icons](https://icons.getbootstrap.com/)
