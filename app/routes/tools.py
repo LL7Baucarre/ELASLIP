@@ -1,6 +1,7 @@
 """Tools routes for WHOIS, Nmap, and other reconnaissance tools."""
 
 import uuid
+import re
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g, current_app
 
@@ -1413,3 +1414,93 @@ def analyze_file():
     
     return jsonify(result), 200
 
+
+@tools_bp.route('/dmarc-dkim', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def analyze_dmarc_dkim():
+    """
+    Analyze DMARC, DKIM, and SPF records for a domain.
+    ---
+    tags:
+      - Tools
+    summary: DMARC/DKIM/SPF Analysis
+    requestBody:
+      description: Domain to analyze
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - domain
+            properties:
+              domain:
+                type: string
+                description: Domain name to analyze
+    responses:
+      200:
+        description: DMARC/DKIM/SPF analysis result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            target:
+              type: string
+            dmarc:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                policy:
+                  type: string
+                alignment:
+                  type: object
+                reporting:
+                  type: object
+            dkim:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                selector1:
+                  type: object
+            spf:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                mechanisms:
+                  type: array
+            security_score:
+              type: object
+              properties:
+                total:
+                  type: integer
+                max:
+                  type: integer
+            recommendations:
+              type: array
+              items:
+                type: string
+      400:
+        description: Invalid input
+    """
+    data = request.get_json()
+    domain = data.get('domain', '').strip()
+    
+    if not domain:
+        return jsonify({'error': 'Domain is required'}), 400
+    
+    # Basic domain validation
+    if not re.match(r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$', domain):
+        return jsonify({'error': 'Invalid domain format'}), 400
+    
+    tools = ToolsService()
+    result = tools.analyze_dmarc_dkim(domain)
+    
+    scan_id = _save_scan_result('dmarc-dkim', domain, result)
+    result['scan_id'] = scan_id
+    
+    return jsonify(result)
