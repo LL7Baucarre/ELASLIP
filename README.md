@@ -156,8 +156,17 @@ docker-compose -f docker-compose.external-elasticsearch.yml up -d
 ## Development
 
 ```bash
+#Linux
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+source venv/bin/activate
+pip install -r requirements.txt
+docker-compose up -d elasticsearch redis
+flask run --debug
+
+
+#Windows
+py -3.12 -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
 docker-compose up -d elasticsearch redis
 flask run --debug
