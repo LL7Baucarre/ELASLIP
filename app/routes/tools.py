@@ -1,6 +1,7 @@
 """Tools routes for WHOIS, Nmap, and other reconnaissance tools."""
 
 import uuid
+import re
 from datetime import datetime
 from flask import Blueprint, request, jsonify, g, current_app
 
@@ -1413,3 +1414,165 @@ def analyze_file():
     
     return jsonify(result), 200
 
+
+@tools_bp.route('/dmarc-dkim', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def analyze_dmarc_dkim():
+    """
+    Analyze DMARC, DKIM, and SPF records for a domain.
+    ---
+    tags:
+      - Tools
+    summary: DMARC/DKIM/SPF Analysis
+    requestBody:
+      description: Domain to analyze
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - domain
+            properties:
+              domain:
+                type: string
+                description: Domain name to analyze
+    responses:
+      200:
+        description: DMARC/DKIM/SPF analysis result
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            target:
+              type: string
+            dmarc:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                policy:
+                  type: string
+                alignment:
+                  type: object
+                reporting:
+                  type: object
+            dkim:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                selector1:
+                  type: object
+            spf:
+              type: object
+              properties:
+                found:
+                  type: boolean
+                mechanisms:
+                  type: array
+            security_score:
+              type: object
+              properties:
+                total:
+                  type: integer
+                max:
+                  type: integer
+            recommendations:
+              type: array
+              items:
+                type: string
+      400:
+        description: Invalid input
+    """
+    data = request.get_json()
+    domain = data.get('domain', '').strip()
+    
+    if not domain:
+        return jsonify({'error': 'Domain is required'}), 400
+    
+    # Basic domain validation
+    if not re.match(r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$', domain):
+        return jsonify({'error': 'Invalid domain format'}), 400
+    
+    tools = ToolsService()
+    result = tools.analyze_dmarc_dkim(domain)
+    
+    scan_id = _save_scan_result('dmarc-dkim', domain, result)
+    result['scan_id'] = scan_id
+    
+    return jsonify(result)
+
+@tools_bp.route('/shodan', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def query_shodan():
+    """
+    Search Shodan for internet-facing devices and services.
+    ---
+    tags:
+      - Tools
+    summary: Shodan Query
+    requestBody:
+      description: Shodan search query (IP address, hostname, query string)
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - query
+            properties:
+              query:
+                type: string
+                description: Search query (IP, domain, or Shodan filter query)
+    responses:
+      200:
+        description: Shodan search results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            query:
+              type: string
+            type:
+              type: string
+              enum: [host, search]
+            timestamp:
+              type: string
+            data:
+              type: object
+              description: Host data (for single IP)
+            matches:
+              type: array
+              description: Search results (for query)
+      400:
+        description: Invalid input or missing API key
+    """
+    from app.config import Config
+    
+    # Check if Shodan is enabled - first check runtime config (from settings), then fall back to environment
+    shodan_api_key = current_app.config.get('SHODAN_API_KEY') or Config.SHODAN_API_KEY
+    
+    if not shodan_api_key:
+        return jsonify({'error': 'Shodan API key not configured'}), 400
+    
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Query is required'}), 400
+    
+    if len(query) > 500:
+        return jsonify({'error': 'Query is too long (max 500 characters)'}), 400
+    
+    tools = ToolsService()
+    result = tools.shodan_query(query, shodan_api_key)
+    
+    scan_id = _save_scan_result('shodan', query, result)
+    result['scan_id'] = scan_id
+    
+    return jsonify(result)
