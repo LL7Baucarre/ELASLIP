@@ -6,13 +6,6 @@
 <div class="top-bar">
     <h4 class="mb-0">IOC List</h4>
     <div class="d-flex align-items-center gap-3">
-        <div class="search-box">
-            <i class="bi bi-search"></i>
-            <input type="text" class="form-control" id="quickSearch" placeholder="Quick search...">
-        </div>
-        <a href="{{ url_for('main.iocs_graph') }}" class="btn btn-outline-info">
-            <i class="bi bi-diagram-3 me-1"></i> Graph View
-        </a>
         {% if has_permission('ioc.create') %}
         <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
             <i class="bi bi-plus-lg me-1"></i> Add IOC

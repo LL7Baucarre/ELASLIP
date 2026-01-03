@@ -314,6 +314,18 @@ def dashboard():
     # Sort by updated_at descending and take top 10
     all_recent = sorted(all_recent, key=lambda x: x.get('updated_at', ''), reverse=True)[:10]
     
+    # Get unresolved public submissions
+    try:
+        submissions_result = es.search('submissions', {
+            'query': {'term': {'status': 'pending'}},
+            'size': 5,
+            'sort': [{'created_at': {'order': 'desc'}}]
+        })
+        unresolved_submissions = [hit['_source'] | {'id': hit['_id']} 
+                                  for hit in submissions_result['hits']['hits']]
+    except:
+        unresolved_submissions = []
+    
     return render_template('dashboard.html', 
                           stats=ioc_stats,
                           total_iocs=total_iocs,
@@ -323,7 +335,8 @@ def dashboard():
                           cases_status_stats=cases_status_stats,
                           incidents_severity_stats=incidents_severity_stats,
                           iocs_threat_stats=iocs_threat_stats,
-                          all_recent=all_recent)
+                          all_recent=all_recent,
+                          unresolved_submissions=unresolved_submissions)
 
 
 @main_bp.route('/iocs')

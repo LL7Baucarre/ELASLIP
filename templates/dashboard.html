@@ -10,11 +10,34 @@
         <a href="https://github.com/LL7Baucarre/ELASLIP" target="_blank" class="btn btn-outline-secondary btn-sm" title="View on GitHub">
             <i class="bi bi-github me-1"></i> GitHub
         </a>
-        {% if has_permission('ioc.create') %}
-        <a href="{{ url_for('main.iocs_add') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Add IOC
-        </a>
-        {% endif %}
+        <!-- Create Dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" id="createDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-plus-lg me-1"></i> Create
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="createDropdown">
+                {% if has_permission('ioc.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('main.iocs_add') }}">
+                    <i class="bi bi-shield-check me-2"></i> IOC
+                </a></li>
+                {% endif %}
+                {% if has_permission('case.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('main.cases_new') }}">
+                    <i class="bi bi-folder2-open me-2"></i> Case
+                </a></li>
+                {% endif %}
+                {% if has_permission('incident.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('main.incidents_new') }}">
+                    <i class="bi bi-exclamation-triangle me-2"></i> Incident
+                </a></li>
+                {% endif %}
+                {% if has_permission('checklist.create') %}
+                <li><a class="dropdown-item" href="{{ url_for('checklists.new_page') }}">
+                    <i class="bi bi-list-check me-2"></i> Checklist
+                </a></li>
+                {% endif %}
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -254,6 +277,47 @@
         </div>
     </div>
 </div>
+
+<!-- Unresolved Public Submissions -->
+{% if unresolved_submissions %}
+<div class="card mt-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+            <i class="bi bi-inbox me-2"></i>Unresolved Public Submissions
+            <span class="badge bg-warning ms-2">{{ unresolved_submissions|length }}</span>
+        </h6>
+        <a href="{{ url_for('submissions.list_submissions') }}" class="btn btn-sm btn-outline-primary">
+            View All
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Submitter</th>
+                        <th>IOC Type</th>
+                        <th>IOC Value</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for submission in unresolved_submissions[:5] %}
+                    <tr style="cursor: pointer" onclick="window.location='{{ url_for('submissions.view_submission', submission_id=submission.id) }}'">
+                        <td><small>{{ submission.submitter_email or 'Anonymous' }}</small></td>
+                        <td><span class="badge bg-info">{{ submission.ioc_type|capitalize }}</span></td>
+                        <td><small>{{ submission.ioc_value[:50] }}{% if submission.ioc_value|length > 50 %}...{% endif %}</small></td>
+                        <td><span class="badge bg-{% if submission.status == 'pending' %}warning{% elif submission.status == 'approved' %}success{% else %}secondary{% endif %}">{{ submission.status|capitalize }}</span></td>
+                        <td><small class="text-muted">{{ submission.created_at[:10] if submission.created_at else 'N/A' }}</small></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Recent Entries -->
 <div class="card mt-4">
