@@ -1,7 +1,7 @@
 
 # ELA(SLIP)
 
-**Elastic Lightweight Analytical Security & Incident Platform**
+**Elastic Security Life-cycle Incident Platform**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=flat&logo=docker&logoColor=white)](https://docker.com)
