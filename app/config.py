@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Application Version
+__version__ = "1.0.0"
+
 
 def env_bool(name: str, default: bool = False) -> bool:
     """
@@ -27,6 +30,9 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 class Config:
     """Application configuration."""
+    
+    # Application Version
+    APP_VERSION = os.getenv('APP_VERSION', __version__)
     
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')

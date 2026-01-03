@@ -114,6 +114,32 @@ def admin_required(f):
     return decorated_function
 
 
+@main_bp.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for Docker and monitoring."""
+    try:
+        from app.config import Config
+        return jsonify({
+            'status': 'healthy',
+            'version': Config.APP_VERSION
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'unhealthy',
+            'error': str(e)
+        }), 500
+
+
+@main_bp.route('/api/version', methods=['GET'])
+def get_version():
+    """Get application version."""
+    from app.config import Config
+    return jsonify({
+        'version': Config.APP_VERSION,
+        'app_name': current_app.config.get('SITE_NAME', 'IOC Manager')
+    }), 200
+
+
 @main_bp.route('/')
 def index():
     """Landing page."""
