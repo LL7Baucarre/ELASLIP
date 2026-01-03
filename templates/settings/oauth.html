@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}OAuth Settings - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <div>
+        <h4 class="mb-0 mt-2">OAuth Configuration</h4>
+        <small class="text-muted">Configure OAuth/OIDC providers for authentication</small>
+    </div>
+</div>
+
+<div class="container-fluid">
+    <!-- Global OAuth Settings -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <h6 class="mb-0">
+                <i class="bi bi-shield-lock me-2"></i> Global OAuth Settings
+            </h6>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">Configure global OAuth settings that apply to all providers.</p>
+            
+            <form id="globalOAuthForm">
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="oauthEnabled" 
+                               name="oauth_enabled">
+                        <label class="form-check-label" for="oauthEnabled">
+                            <strong>Enable OAuth Authentication</strong>
+                        </label>
+                        <div class="form-text">Allow users to authenticate using OAuth providers</div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div id="oauthEncryptionWarning" class="alert alert-warning" style="display: none;">
+                    <strong>⚠️ Warning:</strong> OAuth is enabled but no encryption key is configured. 
+                    Generate one with: <code>python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</code>
+                </div>
+
+                <div id="oauthSettings" style="display: none;">
+                    <div class="mb-3">
+                        <label for="encryptionKeyDisplay" class="form-label">Encryption Key Status</label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <span id="encryptionKeyStatus" class="badge bg-danger">Not Set</span>
+                            </span>
+                            <input type="text" class="form-control" id="encryptionKeyDisplay" 
+                                   disabled value="(configured in environment)">
+                        </div>
+                        <div class="form-text">
+                            Set via <code>OAUTH_ENCRYPTION_KEY</code> environment variable.
+                            Generate with: <code>python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"</code>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="autoCreateUser" class="form-label">Auto Create Users</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="autoCreateUser" 
+                                           name="oauth_auto_create_user">
+                                    <label class="form-check-label" for="autoCreateUser">
+                                        Create accounts automatically on first OAuth login
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="autoLinkByEmail" class="form-label">Auto Link by Email</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="autoLinkByEmail" 
+                                           name="oauth_auto_link_by_email">
+                                    <label class="form-check-label" for="autoLinkByEmail">
+                                        Link OAuth accounts to existing users by email
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="defaultRole" class="form-label">Default Role for New Users</label>
+                        <select class="form-select" id="defaultRole" name="oauth_default_role">
+                            <option value="">Loading available roles...</option>
+                        </select>
+                        <div class="form-text">Role automatically assigned to newly created OAuth users</div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check me-1"></i> Save Global Settings
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Google OAuth -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-google me-2"></i> Google OAuth
+                </h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input provider-toggle" type="checkbox" id="googleEnabled" 
+                           data-provider="google" value="true">
+                    <label class="form-check-label" for="googleEnabled">
+                        <span class="badge bg-success" id="googleBadge" style="display: none;">Enabled</span>
+                        <span class="badge bg-secondary" id="googleBadgeOff" style="display: none;">Disabled</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Get credentials from: <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>
+            </p>
+            <form id="googleOAuthForm" class="provider-form">
+                <div class="alert alert-info">
+                    <small>Authorized redirect URI: <code id="googleRedirectUri">{{ request.host_url }}oauth/callback/google</code></small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="googleClientId" class="form-label">Client ID</label>
+                    <input type="text" class="form-control" id="googleClientId" 
+                           name="oauth_google_client_id" placeholder="xxx.apps.googleusercontent.com">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="googleClientSecret" class="form-label">Client Secret</label>
+                    <input type="password" class="form-control" id="googleClientSecret" 
+                           name="oauth_google_client_secret" placeholder="***">
+                </div>
+                
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check me-1"></i> Save Google Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- GitHub OAuth -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-github me-2"></i> GitHub OAuth
+                </h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input provider-toggle" type="checkbox" id="githubEnabled" 
+                           data-provider="github" value="true">
+                    <label class="form-check-label" for="githubEnabled">
+                        <span class="badge bg-success" id="githubBadge" style="display: none;">Enabled</span>
+                        <span class="badge bg-secondary" id="githubBadgeOff" style="display: none;">Disabled</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Get credentials from: <a href="https://github.com/settings/developers" target="_blank">GitHub Developer Settings</a>
+            </p>
+            <form id="githubOAuthForm" class="provider-form">
+                <div class="alert alert-info">
+                    <small>Authorization callback URL: <code id="githubRedirectUri">{{ request.host_url }}oauth/callback/github</code></small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="githubClientId" class="form-label">Client ID</label>
+                    <input type="text" class="form-control" id="githubClientId" 
+                           name="oauth_github_client_id" placeholder="Iv23li...">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="githubClientSecret" class="form-label">Client Secret</label>
+                    <input type="password" class="form-control" id="githubClientSecret" 
+                           name="oauth_github_client_secret" placeholder="***">
+                </div>
+                
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check me-1"></i> Save GitHub Settings
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- OIDC OAuth -->
+    <div class="card mb-4">
+        <div class="card-header bg-white">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">
+                    <i class="bi bi-shield-check me-2"></i> Generic OIDC
+                </h6>
+                <div class="form-check form-switch">
+                    <input class="form-check-input provider-toggle" type="checkbox" id="oidcEnabled" 
+                           data-provider="oidc" value="true">
+                    <label class="form-check-label" for="oidcEnabled">
+                        <span class="badge bg-success" id="oidcBadge" style="display: none;">Enabled</span>
+                        <span class="badge bg-secondary" id="oidcBadgeOff" style="display: none;">Disabled</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Supports Keycloak, Auth0, Okta, Azure AD, and other OIDC-compatible providers.
+            </p>
+            <form id="oidcOAuthForm" class="provider-form">
+                <div class="mb-3">
+                    <label for="oidcProviderName" class="form-label">Provider Name</label>
+                    <input type="text" class="form-control" id="oidcProviderName" 
+                           name="oauth_oidc_provider_name" placeholder="e.g., Keycloak, Auth0, Okta">
+                    <div class="form-text">Friendly name shown on login button</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="oidcDiscoveryUrl" class="form-label">Discovery URL</label>
+                    <input type="url" class="form-control" id="oidcDiscoveryUrl" 
+                           name="oauth_oidc_discovery_url" 
+                           placeholder="https://your-idp.com/.well-known/openid-configuration">
+                    <div class="form-text">OIDC discovery endpoint</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="oidcClientId" class="form-label">Client ID</label>
+                    <input type="text" class="form-control" id="oidcClientId" 
+                           name="oauth_oidc_client_id" placeholder="client-id">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="oidcClientSecret" class="form-label">Client Secret</label>
+                    <input type="password" class="form-control" id="oidcClientSecret" 
+                           name="oauth_oidc_client_secret" placeholder="***">
+                </div>
+
+                <div class="alert alert-info">
+                    <small>Redirect URI: <code id="oidcRedirectUri">{{ request.host_url }}oauth/callback/oidc</code></small>
+                </div>
+                
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check me-1"></i> Save OIDC Settings
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadOAuthSettings() {
+    $.ajax({
+        url: '/api/settings/oauth',
+        method: 'GET',
+        success: function(data) {
+            // Global settings
+            $('#oauthEnabled').prop('checked', data.oauth_enabled);
+            $('#autoCreateUser').prop('checked', data.oauth_auto_create_user);
+            $('#autoLinkByEmail').prop('checked', data.oauth_auto_link_by_email);
+            $('#defaultRole').val(data.oauth_default_role);
+            
+            // Update encryption key status
+            if (data.oauth_encryption_key_set) {
+                $('#encryptionKeyStatus').removeClass('bg-danger').addClass('bg-success').text('Configured');
+                $('#encryptionKeyDisplay').val('(configured in environment)');
+            } else {
+                $('#encryptionKeyStatus').addClass('bg-danger').text('Not Set');
+            }
+
+            // Toggle settings visibility
+            if (data.oauth_enabled) {
+                $('#oauthSettings').show();
+                $('#oauthEncryptionWarning').toggle(!data.oauth_encryption_key_set);
+            }
+
+            // Google settings
+            $('#googleEnabled').prop('checked', data.oauth_google_enabled);
+            $('#googleClientId').val(data.oauth_google_client_id || '');
+            $('#googleClientSecret').val(data.oauth_google_client_secret || '');
+            updateProviderBadge('google', data.oauth_google_enabled);
+
+            // GitHub settings
+            $('#githubEnabled').prop('checked', data.oauth_github_enabled);
+            $('#githubClientId').val(data.oauth_github_client_id || '');
+            $('#githubClientSecret').val(data.oauth_github_client_secret || '');
+            updateProviderBadge('github', data.oauth_github_enabled);
+
+            // OIDC settings
+            $('#oidcEnabled').prop('checked', data.oauth_oidc_enabled);
+            $('#oidcProviderName').val(data.oauth_oidc_provider_name || 'OIDC');
+            $('#oidcDiscoveryUrl').val(data.oauth_oidc_discovery_url || '');
+            $('#oidcClientId').val(data.oauth_oidc_client_id || '');
+            $('#oidcClientSecret').val(data.oauth_oidc_client_secret || '');
+            updateProviderBadge('oidc', data.oauth_oidc_enabled);
+
+            // Ensure roles are loaded and select the configured default role after settings load
+            loadRoles(data.oauth_default_role);
+        },
+        error: function(xhr) {
+            showAlert('Failed to load OAuth settings', 'danger');
+        }
+    });
+}
+
+function updateProviderBadge(provider, enabled) {
+    $(`#${provider}Badge`).toggle(enabled);
+    $(`#${provider}BadgeOff`).toggle(!enabled);
+}
+
+function loadRoles(selectedRole) {
+    $.ajax({
+        url: '/api/settings/oauth/roles',
+        method: 'GET',
+        success: function(data) {
+            $('#defaultRole').empty();
+
+            if (data.roles && data.roles.length > 0) {
+                data.roles.forEach(function(role) {
+                    const option = $('<option>')
+                        .val(role.name)
+                        .text(role.name + (role.description ? ' - ' + role.description : ''));
+                    $('#defaultRole').append(option);
+                });
+
+                // If a desired role was passed, select it; otherwise keep current selection
+                if (selectedRole) {
+                    $('#defaultRole').val(selectedRole);
+                }
+            } else {
+                $('#defaultRole').html('<option value="">No roles available</option>');
+            }
+        },
+        error: function(xhr) {
+            console.error('Failed to load roles', xhr);
+            $('#defaultRole').html('<option value="">Failed to load roles</option>');
+        }
+    });
+}
+
+// Load settings on page load
+$(function() {
+    // Load OAuth settings first, then load roles and apply the configured default role
+    loadOAuthSettings();
+
+    // Toggle OAuth settings visibility
+    $('#oauthEnabled').change(function() {
+        $('#oauthSettings').toggle(this.checked);
+    });
+
+    // Global OAuth form
+    $('#globalOAuthForm').submit(function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: '/api/settings/oauth',
+            method: 'PUT',
+            data: JSON.stringify({
+                oauth_enabled: $('#oauthEnabled').is(':checked'),
+                oauth_auto_create_user: $('#autoCreateUser').is(':checked'),
+                oauth_auto_link_by_email: $('#autoLinkByEmail').is(':checked'),
+                oauth_default_role: $('#defaultRole').val()
+            }),
+            success: function() {
+                showAlert('Global OAuth settings saved successfully', 'success');
+                loadOAuthSettings();
+            },
+            error: function(xhr) {
+                showAlert(xhr.responseJSON?.error || 'Failed to save settings', 'danger');
+            }
+        });
+    });
+
+    // Provider forms
+    $('#googleOAuthForm').submit(function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: '/api/settings/oauth',
+            method: 'PUT',
+            data: JSON.stringify({
+                oauth_google_enabled: $('#googleEnabled').is(':checked'),
+                oauth_google_client_id: $('#googleClientId').val(),
+                oauth_google_client_secret: $('#googleClientSecret').val()
+            }),
+            success: function() {
+                showAlert('Google OAuth settings saved successfully', 'success');
+            },
+            error: function(xhr) {
+                showAlert(xhr.responseJSON?.error || 'Failed to save settings', 'danger');
+            }
+        });
+    });
+
+    $('#githubOAuthForm').submit(function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: '/api/settings/oauth',
+            method: 'PUT',
+            data: JSON.stringify({
+                oauth_github_enabled: $('#githubEnabled').is(':checked'),
+                oauth_github_client_id: $('#githubClientId').val(),
+                oauth_github_client_secret: $('#githubClientSecret').val()
+            }),
+            success: function() {
+                showAlert('GitHub OAuth settings saved successfully', 'success');
+            },
+            error: function(xhr) {
+                showAlert(xhr.responseJSON?.error || 'Failed to save settings', 'danger');
+            }
+        });
+    });
+
+    $('#oidcOAuthForm').submit(function(e) {
+        e.preventDefault();
+        
+        $.ajax({
+            url: '/api/settings/oauth',
+            method: 'PUT',
+            data: JSON.stringify({
+                oauth_oidc_enabled: $('#oidcEnabled').is(':checked'),
+                oauth_oidc_provider_name: $('#oidcProviderName').val(),
+                oauth_oidc_discovery_url: $('#oidcDiscoveryUrl').val(),
+                oauth_oidc_client_id: $('#oidcClientId').val(),
+                oauth_oidc_client_secret: $('#oidcClientSecret').val()
+            }),
+            success: function() {
+                showAlert('OIDC OAuth settings saved successfully', 'success');
+            },
+            error: function(xhr) {
+                showAlert(xhr.responseJSON?.error || 'Failed to save settings', 'danger');
+            }
+        });
+    });
+
+    // Provider toggles
+    $('.provider-toggle').change(function() {
+        const provider = $(this).data('provider');
+        const enabled = $(this).is(':checked');
+        updateProviderBadge(provider, enabled);
+    });
+});
+</script>
+{% endblock %}

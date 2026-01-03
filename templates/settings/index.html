@@ -44,6 +44,10 @@
             </a>
             {% endif %}
             {% if current_user.is_admin %}
+            <a href="{{ url_for('main.settings_oauth') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-shield-check me-2"></i> OAuth Configuration
+            </a>
             <a href="{{ url_for('main.settings_roles') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-shield-lock me-2"></i> Roles & Permissions
