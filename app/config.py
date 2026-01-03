@@ -54,7 +54,8 @@ class Config:
     WEBHOOK_RETRY_DELAY = 5  # seconds
     
     # Upload settings
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_FILE_SIZE = int(os.getenv('MAX_FILE_SIZE', '100')) * 1024 * 1024  # Max file size in MB
+    MAX_CONTENT_LENGTH = MAX_FILE_SIZE
     
     # LLM Configuration (Ollama or OpenAI-compatible)
     # For Docker: http://ollama:11434 (service name), for local: http://localhost:11434

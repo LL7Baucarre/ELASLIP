@@ -251,6 +251,32 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 - Supports large headers (up to 100KB)
 - Email tags automatically applied to created IOCs
 
+#### File Analysis Tool
+- **Hash Extraction** - Calculate MD5, SHA1, and SHA256 hashes from uploaded files
+- **File Metadata** - Extract comprehensive file properties and document metadata
+- **File Type Detection** - Identify executable types (EXE, DLL, SYS), archives, documents, etc.
+- **Architecture Detection** - Detect CPU architecture (32-bit, 64-bit, ARM, etc.) from PE files
+- **Document Metadata Extraction**:
+  - **PDF**: Title, Author, Subject, Creator, Producer, Creation/Modification dates
+  - **Office Documents** (DOCX, XLSX, PPTX): Author, Creator, Title, Subject, Page/Word counts
+  - **Images**: Format, Dimensions, EXIF data (camera, GPS, date taken, etc.)
+- **File Entropy Analysis** - Detect compressed or encrypted content
+- **IOC Creation** - Create IOCs from file hashes with automatic relationships
+- **IOC Deduplication** - Prevent duplicate IOC creation (shows existing vs new)
+- **Relationship Management** - Establish "related" relationships between hash IOCs
+
+**Access**: Tools menu → File Analysis
+
+**Features**:
+- Drag-and-drop or click-to-select file upload
+- Real-time hash calculation for large files
+- Complete file metadata display with entropy score
+- Create individual hash IOCs with one-click buttons
+- Create all IOCs at once with automatic relationships
+- VirusTotal integration - one-click search for any hash
+- Scan history persistence for future reference
+- Shows summary of created vs existing IOCs with color-coded alerts
+
 ### IP API Integration (GeoIP Enrichment)
 
 The application integrates with **[IP-API.com](https://ip-api.com)** for geographic and ASN information enrichment on IP addresses.

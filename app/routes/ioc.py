@@ -19,11 +19,17 @@ ioc_bp = Blueprint('ioc', __name__, url_prefix=None)
 @permission_required('ioc.create')
 def create_ioc():
     """
-    Create a new IOC.
+    Create a new IOC or add source to existing IOC.
+    
+    Automatically deduplicates IOCs based on type and value. If an IOC with the same type 
+    and value already exists, a new source is added instead of creating a duplicate.
+    The 'is_new' flag indicates whether this is a newly created IOC (201) or an existing 
+    one (200) with a new source added.
     ---
     tags:
       - IOCs
     summary: Create a new Indicator of Compromise
+    description: Create an IOC with deduplication - returns existing IOC if already present
     parameters:
       - in: header
         name: X-API-Key
@@ -90,16 +96,33 @@ def create_ioc():
                 description: Validity end date (ISO 8601 format)
     responses:
       201:
-        description: IOC created successfully
+        description: New IOC created successfully
         schema:
           type: object
           properties:
             message:
               type: string
+              description: "IOC created successfully"
             is_new:
               type: boolean
+              description: "true - IOC was newly created; false - IOC already existed"
             ioc:
               type: object
+              description: Complete IOC object with all properties
+      200:
+        description: IOC already existed, source added
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              description: "IOC already exists, source added"
+            is_new:
+              type: boolean
+              description: "false - IOC already existed in database"
+            ioc:
+              type: object
+              description: Existing IOC object with updated source
       400:
         description: Invalid input
         schema:
