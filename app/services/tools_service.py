@@ -1483,4 +1483,172 @@ class ToolsService:
         if not recommendations:
             recommendations.append('✅ Email authentication configuration looks good')
         
-        return recommendations
+        return recommendations    
+    @staticmethod
+    def shodan_query(query: str, api_key: str = None) -> Dict:
+        """
+        Query Shodan for internet-facing devices.
+        
+        Args:
+            query: Search query (IP, hostname, etc)
+            api_key: Shodan API key (optional, can use config)
+            
+        Returns:
+            Dict with Shodan search results
+        """
+        try:
+            import requests
+            
+            if not api_key:
+                from app.config import Config
+                api_key = Config.SHODAN_API_KEY
+            
+            if not api_key:
+                return {
+                    'success': False,
+                    'error': 'Shodan API key not configured',
+                    'query': query
+                }
+            
+            # Check if query is an IP address for /host endpoint
+            is_ip = False
+            try:
+                ipaddress.ip_address(query)
+                is_ip = True
+            except ValueError:
+                pass
+            
+            if is_ip:
+                # Use /host endpoint for single IP
+                url = f'https://api.shodan.io/shodan/host/{query}'
+                params = {'key': api_key}
+            else:
+                # Use /search endpoint for general queries
+                url = 'https://api.shodan.io/shodan/host/search'
+                params = {
+                    'query': query,
+                    'key': api_key,
+                    'limit': 100
+                }
+            
+            response = requests.get(url, params=params, timeout=30)
+            
+            if response.status_code == 401:
+                return {
+                    'success': False,
+                    'error': 'Invalid Shodan API key',
+                    'query': query
+                }
+            elif response.status_code == 403:
+                return {
+                    'success': False,
+                    'error': 'Access denied - API plan may not support this endpoint',
+                    'query': query
+                }
+            elif response.status_code == 429:
+                return {
+                    'success': False,
+                    'error': 'Rate limit exceeded. Please try again later.',
+                    'query': query
+                }
+            elif response.status_code != 200:
+                return {
+                    'success': False,
+                    'error': f'HTTP {response.status_code}: {response.text}',
+                    'query': query
+                }
+            
+            data = response.json()
+            
+            if is_ip:
+                # Single host result
+                result = {
+                    'success': True,
+                    'query': query,
+                    'type': 'host',
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
+                    'data': ToolsService._parse_shodan_host(data)
+                }
+            else:
+                # Search results
+                result = {
+                    'success': True,
+                    'query': query,
+                    'type': 'search',
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
+                    'matches': [ToolsService._parse_shodan_host(item) for item in data.get('matches', [])],
+                    'total': data.get('total', 0),
+                    'page': data.get('page', 1)
+                }
+            
+            return result
+            
+        except ImportError:
+            return {
+                'success': False,
+                'error': 'requests library not installed. Install with: pip install requests',
+                'query': query
+            }
+        except requests.Timeout:
+            return {
+                'success': False,
+                'error': 'Shodan API request timed out',
+                'query': query
+            }
+        except requests.ConnectionError as e:
+            return {
+                'success': False,
+                'error': f'Connection error: {str(e)}',
+                'query': query
+            }
+        except Exception as e:
+            logger.exception(f'Shodan query error: {str(e)}')
+            return {
+                'success': False,
+                'error': str(e),
+                'query': query
+            }
+    
+    @staticmethod
+    def _parse_shodan_host(data: Dict) -> Dict:
+        """
+        Parse Shodan host data to extract key information.
+        
+        Args:
+            data: Raw Shodan host data
+            
+        Returns:
+            Dict with parsed host information
+        """
+        parsed = {
+            'ip': data.get('ip_str') or data.get('ip'),
+            'ports': data.get('ports', []),
+            'hostnames': data.get('hostnames', []),
+            'org': data.get('org', 'Unknown'),
+            'country': data.get('country_name'),
+            'country_code': data.get('country_code'),
+            'isp': data.get('isp'),
+            'asn': data.get('asn'),
+            'latitude': data.get('latitude'),
+            'longitude': data.get('longitude'),
+            'last_update': data.get('last_update'),
+            'vulns': data.get('vulns', []),
+            'services': []
+        }
+        
+        # Parse services from data
+        if 'data' in data:
+            for item in data['data']:
+                service = {
+                    'port': item.get('port'),
+                    'protocol': item.get('_shodan', {}).get('module', 'unknown'),
+                    'transport': item.get('transport'),
+                    'timestamp': item.get('timestamp'),
+                    'banner': item.get('data', '')[:200]  # First 200 chars
+                }
+                parsed['services'].append(service)
+        
+        # Clean up empty values
+        parsed = {k: v for k, v in parsed.items() if v not in [None, '', []]}
+        
+        return parsed

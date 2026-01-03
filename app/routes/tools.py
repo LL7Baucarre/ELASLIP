@@ -1504,3 +1504,75 @@ def analyze_dmarc_dkim():
     result['scan_id'] = scan_id
     
     return jsonify(result)
+
+@tools_bp.route('/shodan', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def query_shodan():
+    """
+    Search Shodan for internet-facing devices and services.
+    ---
+    tags:
+      - Tools
+    summary: Shodan Query
+    requestBody:
+      description: Shodan search query (IP address, hostname, query string)
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - query
+            properties:
+              query:
+                type: string
+                description: Search query (IP, domain, or Shodan filter query)
+    responses:
+      200:
+        description: Shodan search results
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            query:
+              type: string
+            type:
+              type: string
+              enum: [host, search]
+            timestamp:
+              type: string
+            data:
+              type: object
+              description: Host data (for single IP)
+            matches:
+              type: array
+              description: Search results (for query)
+      400:
+        description: Invalid input or missing API key
+    """
+    from app.config import Config
+    
+    # Check if Shodan is enabled - first check runtime config (from settings), then fall back to environment
+    shodan_api_key = current_app.config.get('SHODAN_API_KEY') or Config.SHODAN_API_KEY
+    
+    if not shodan_api_key:
+        return jsonify({'error': 'Shodan API key not configured'}), 400
+    
+    data = request.get_json()
+    query = data.get('query', '').strip()
+    
+    if not query:
+        return jsonify({'error': 'Query is required'}), 400
+    
+    if len(query) > 500:
+        return jsonify({'error': 'Query is too long (max 500 characters)'}), 400
+    
+    tools = ToolsService()
+    result = tools.shodan_query(query, shodan_api_key)
+    
+    scan_id = _save_scan_result('shodan', query, result)
+    result['scan_id'] = scan_id
+    
+    return jsonify(result)

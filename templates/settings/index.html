@@ -60,6 +60,10 @@
                class="list-group-item list-group-item-action">
                 <i class="bi bi-cloud-download me-2"></i> Backup & Restore
             </a>
+            <a href="{{ url_for('main.settings_shodan') }}" 
+               class="list-group-item list-group-item-action">
+                <i class="bi bi-search me-2"></i> Shodan API
+            </a>
             {% endif %}
             <a href="{{ url_for('main.settings_llm') }}" 
                class="list-group-item list-group-item-action" target="_self">
