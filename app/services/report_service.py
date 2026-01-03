@@ -19,38 +19,42 @@ DEFAULT_PROMPT_IOC = """You are a senior threat intelligence analyst. Analyze th
 
 ## INPUT DATA
 
-**IOC Type:** {type}
-**IOC Value:** {value}
-**Threat Level:** {severity}
-**Description:** {description}
+**🎯 MAIN IOC (Primary Focus):**
+- Type: {type}
+- Value: {value}
+- Threat Level: {severity}
+- Description: {description}
 
-**Related Indicators:**
+**First-Level Relations (exactly like the IOC graph):**
 {relations}
 
 ## YOUR TASK
 
-Generate a comprehensive threat assessment in Markdown format with the following sections:
+Generate a comprehensive threat assessment in Markdown format. The MAIN IOC is the primary focus, but you must analyze ALL first-level relations shown above.
 
 ### 1. Executive Summary
-Write 2-3 sentences summarizing what this IOC represents and its threat significance.
+Write 2-3 sentences summarizing the MAIN IOC, its threat significance, and its relationships with other entities.
 
-### 2. Threat Analysis
+### 2. Main IOC Threat Analysis (Primary Focus)
 - What type of threat does this indicator represent?
 - What attack techniques or malware families is it associated with?
 - What is the potential impact if this IOC is detected in an environment?
 
-### 3. Related Indicators Analysis
-For each related indicator provided:
-- Explain the connection between indicators
-- Describe how they work together in an attack chain
-- Assess the combined threat level
+### 3. First-Level Relations Analysis (Important)
+Analyze ALL related entities shown in the relations:
+- **Related IOCs**: Explain how each related IOC connects to the main one and their role in the attack chain
+- **Cases**: How is this IOC connected to investigation cases? What does this reveal?
+- **Incidents**: What security incidents involve this IOC? What patterns emerge?
 
-### 4. Detection & Response
-- How to detect this IOC in your environment
+### 4. Attack Chain Reconstruction
+Based on the main IOC and its relations, reconstruct the potential attack chain or threat scenario.
+
+### 5. Detection & Response
+- How to detect the main IOC and its related indicators
 - Immediate actions to take if detected
 - Tools and techniques for investigation
 
-### 5. Mitigation Recommendations
+### 6. Mitigation Recommendations
 - Short-term containment actions
 - Long-term remediation steps
 - Prevention measures
@@ -58,19 +62,21 @@ For each related indicator provided:
 ## OUTPUT FORMAT
 - Use Markdown formatting with headers, bullet points, and bold text
 - Be specific and actionable
-- Reference the actual IOC values provided
+- Reference the actual IOC values and ALL relations provided
+- Give proper attention to each relation - they provide critical context
 - Do NOT wrap the response in code blocks"""
 
 DEFAULT_PROMPT_CASE = """You are a senior security incident response analyst. Generate a comprehensive investigation report for the following security case.
 
 ## CASE INFORMATION
 
-**Case Name:** {name}
-**Status:** {status}
-**Priority:** {priority}
-**Severity:** {severity}
-**Assigned To:** {assigned_to}
-**Description:** {description}
+**🎯 MAIN CASE (Primary Focus):**
+- Name: {name}
+- Status: {status}
+- Priority: {priority}
+- Severity: {severity}
+- Assigned To: {assigned_to}
+- Description: {description}
 
 **Associated Data:**
 - Incidents: {incidents_count}
@@ -86,10 +92,10 @@ DEFAULT_PROMPT_CASE = """You are a senior security incident response analyst. Ge
 
 ## YOUR TASK
 
-Generate a professional security investigation report with the following sections:
+Generate a professional security investigation report. The CASE is the primary focus, but analyze ALL IOCs and their first-level relations shown in the IOC details section.
 
 ### 1. Executive Summary
-Provide a 3-4 sentence overview of the case, key findings, and current status.
+Provide a 3-4 sentence overview of the case, key findings, current status, and the scope of related entities.
 
 ### 2. Timeline of Events
 Reconstruct the attack timeline chronologically using the provided events. Include:
@@ -103,10 +109,10 @@ Reconstruct the attack timeline chronologically using the provided events. Inclu
 - Threat actor assessment (if identifiable)
 
 ### 4. Technical Analysis
-For each IOC:
+For each IOC in this case:
 - Its role in the attack
-- How it relates to the incidents
-- Threat significance
+- Its first-level relations (other IOCs, cases, incidents it connects to)
+- How this reveals the broader attack pattern
 
 ### 5. Impact Assessment
 - Affected systems and assets
@@ -114,7 +120,7 @@ For each IOC:
 - Data exposure risk
 
 ### 6. Investigation Findings
-Synthesize analyst observations and key discoveries.
+Synthesize analyst observations and key discoveries from the entire relation graph.
 
 ### 7. Recommendations
 - Immediate containment actions
@@ -123,11 +129,11 @@ Synthesize analyst observations and key discoveries.
 - Lessons learned
 
 ### 8. Risk Rating
-Provide overall risk assessment (Critical/High/Medium/Low) with justification.
+Provide overall risk assessment (Critical/High/Medium/Low) with justification based on IOCs and their relations.
 
 ## OUTPUT FORMAT
 - Use Markdown formatting
-- Be specific and reference actual data from the case
+- Be specific and reference actual data from the case AND the IOC relations
 - Provide actionable recommendations
 - Do NOT wrap response in code blocks"""
 
@@ -135,11 +141,12 @@ DEFAULT_PROMPT_INCIDENT = """You are a security incident response specialist. An
 
 ## INCIDENT DATA
 
-**Incident Name:** {name}
-**Type:** {type}
-**Severity:** {severity}
-**Status:** {status}
-**Description:** {description}
+**🎯 MAIN INCIDENT (Primary Focus):**
+- Name: {name}
+- Type: {type}
+- Severity: {severity}
+- Status: {status}
+- Description: {description}
 
 **Timeline:**
 {timeline}
@@ -150,15 +157,15 @@ DEFAULT_PROMPT_INCIDENT = """You are a security incident response specialist. An
 **MITRE ATT&CK:**
 {tactics}
 
-**Associated IOCs ({iocs_count}):**
+**Associated IOCs ({iocs_count}) with their first-level relations:**
 {iocs}
 
 ## YOUR TASK
 
-Generate a comprehensive incident report with the following sections:
+Generate a comprehensive incident report. The INCIDENT is the primary focus, but analyze ALL IOCs and their first-level relations (other IOCs, cases, incidents they connect to).
 
 ### 1. Incident Summary
-Summarize the incident in 3-4 sentences: what happened, when, and current status.
+Summarize the incident in 3-4 sentences: what happened, when, current status, and scope of related entities.
 
 ### 2. Attack Vector Analysis
 - Initial access method
@@ -171,10 +178,12 @@ Summarize the incident in 3-4 sentences: what happened, when, and current status
 - Data at risk
 - Scope of impact
 
-### 4. Indicators of Compromise
+### 4. Indicators of Compromise with Relations
 For each IOC:
 - What it indicates
 - Its role in the attack
+- Its first-level relations (connected IOCs, cases, incidents)
+- How these relations reveal the attack pattern
 - Detection priority
 
 ### 5. Response Actions
@@ -186,12 +195,12 @@ For each IOC:
 What allowed this incident to occur and what can prevent recurrence.
 
 ### 7. Lessons Learned
-Key takeaways and security improvements needed.
+Key takeaways and security improvements needed based on the full relation graph.
 
 ## OUTPUT FORMAT
 - Use Markdown with headers and bullet points
 - Be specific and actionable
-- Reference actual incident data
+- Reference actual incident data AND IOC relations
 - Do NOT wrap response in code blocks"""
 
 DEFAULT_PROMPT_CHECKLIST = """You are a security operations analyst. Generate a work completion report based on the following security checklist.
@@ -541,10 +550,10 @@ class ReportService:
         # Ensure IOC has its ID for relation comparison
         ioc['id'] = ioc_id
         
-        # Get relations
-        relations = self._get_ioc_relations(ioc_id)
+        # Get ALL first-level relations (IOCs, cases, incidents) like the graph
+        relations = self._get_first_level_relations(ioc_id)
         
-        # Build prompt
+        # Build prompt with emphasis on the main IOC
         prompt = self._build_ioc_prompt(ioc, relations)
         
         # Generate analysis
@@ -578,8 +587,8 @@ class ReportService:
         # Get incidents in case
         incidents = self._get_case_incidents(case_id)
         
-        # Get IOCs related to case
-        iocs = self._get_case_iocs(case_id)
+        # Get IOCs related to case WITH all their possible relations
+        iocs = self._get_case_iocs_with_relations(case_id)
         
         # Get timeline and comments
         timeline = self._get_timeline_events(case_id=case_id)
@@ -616,8 +625,8 @@ class ReportService:
         if not incident:
             raise ValueError(f"Incident {incident_id} not found")
         
-        # Get related IOCs
-        iocs = self._get_incident_iocs(incident_id)
+        # Get related IOCs WITH all their possible relations
+        iocs = self._get_incident_iocs_with_relations(incident_id)
         
         # Get timeline and comments
         timeline = self._get_timeline_events(incident_id=incident_id)
@@ -678,7 +687,7 @@ class ReportService:
         
         Args:
             ioc_id: The IOC document ID
-            correction_prompt: User's correction/refinement instructions
+            correction_prompt: User correction/refinement instructions
             previous_report: The previous report content for context
             
         Returns:
@@ -690,7 +699,7 @@ class ReportService:
             raise ValueError(f"IOC {ioc_id} not found")
         
         ioc['id'] = ioc_id
-        relations = self._get_ioc_relations(ioc_id)
+        relations = self._get_first_level_relations(ioc_id)
         
         # Build base prompt
         base_prompt = self._build_ioc_prompt(ioc, relations)
@@ -718,7 +727,7 @@ class ReportService:
         
         Args:
             case_id: The case document ID
-            correction_prompt: User's correction/refinement instructions
+            correction_prompt: User correction/refinement instructions
             previous_report: The previous report content for context
             
         Returns:
@@ -729,7 +738,7 @@ class ReportService:
             raise ValueError(f"Case {case_id} not found")
         
         incidents = self._get_case_incidents(case_id)
-        iocs = self._get_case_iocs(case_id)
+        iocs = self._get_case_iocs_with_relations(case_id)
         timeline = self._get_timeline_events(case_id=case_id)
         comments = self._get_comments('case', case_id)
         
@@ -759,7 +768,7 @@ class ReportService:
         
         Args:
             incident_id: The incident document ID
-            correction_prompt: User's correction/refinement instructions
+            correction_prompt: User correction/refinement instructions
             previous_report: The previous report content for context
             
         Returns:
@@ -769,7 +778,7 @@ class ReportService:
         if not incident:
             raise ValueError(f"Incident {incident_id} not found")
         
-        iocs = self._get_incident_iocs(incident_id)
+        iocs = self._get_incident_iocs_with_relations(incident_id)
         timeline = self._get_timeline_events(incident_id=incident_id)
         comments = self._get_comments('incident', incident_id)
         
@@ -798,7 +807,7 @@ class ReportService:
         
         Args:
             checklist_id: The checklist document ID
-            correction_prompt: User's correction/refinement instructions
+            correction_prompt: User correction/refinement instructions
             previous_report: The previous report content for context
             
         Returns:
@@ -837,7 +846,7 @@ class ReportService:
         
         Args:
             base_prompt: The original prompt with all data
-            correction_prompt: User's correction/refinement instructions
+            correction_prompt: User correction/refinement instructions
             previous_report: The previous report for context (optional)
             
         Returns:
@@ -870,7 +879,7 @@ Here is the previous version of the report that needs to be improved:
 
 ## IMPORTANT
 
-Apply the user's correction instructions to generate an improved version of the report. 
+Apply the user correction instructions to generate an improved version of the report. 
 Focus on addressing the specific feedback while maintaining the professional quality and structure.
 Do NOT wrap the response in code blocks."""
         
@@ -896,6 +905,76 @@ Do NOT wrap the response in code blocks."""
             doc['id'] = hit['_id']
             items.append(doc)
         return items
+    
+    def _get_first_level_relations(self, ioc_id: str) -> Dict[str, List[Dict]]:
+        """
+        Get ALL first-level relations for an IOC (exactly like the IOC graph):
+        - Direct IOC-to-IOC relations
+        - Cases containing this IOC
+        - Incidents containing this IOC
+        
+        Args:
+            ioc_id: The IOC document ID
+            
+        Returns:
+            Dict with 'iocs', 'cases', 'incidents' keys containing relation lists
+        """
+        relations = {
+            'iocs': [],
+            'cases': [],
+            'incidents': []
+        }
+        
+        # 1. Get direct IOC-to-IOC relations
+        direct_ioc_relations = self._get_ioc_relations(ioc_id)
+        for relation in direct_ioc_relations:
+            source_id = relation.get('source_id')
+            target_id = relation.get('target_id')
+            related_ioc_id = target_id if source_id == ioc_id else source_id
+            
+            # Fetch the related IOC details
+            try:
+                related_ioc = self.ioc_service.get(related_ioc_id)
+                if related_ioc:
+                    related_ioc['id'] = related_ioc_id
+                    related_ioc['_relation_type'] = relation.get('relation_type', 'related-to')
+                    relations['iocs'].append(related_ioc)
+            except Exception:
+                pass
+        
+        # 2. Get cases containing this IOC (same as graph)
+        try:
+            cases_result = self.es.search('cases', {
+                'query': {'match_all': {}},
+                'size': 1000
+            })
+            for hit in cases_result.get('hits', {}).get('hits', []):
+                case_doc = hit['_source']
+                ioc_ids = case_doc.get('ioc_ids', [])
+                if ioc_id in ioc_ids:
+                    case_doc['id'] = hit['_id']
+                    case_doc['_relation_type'] = 'found-in-case'
+                    relations['cases'].append(case_doc)
+        except Exception:
+            pass
+        
+        # 3. Get incidents containing this IOC (same as graph)
+        try:
+            incidents_result = self.es.search('incidents', {
+                'query': {'match_all': {}},
+                'size': 1000
+            })
+            for hit in incidents_result.get('hits', {}).get('hits', []):
+                incident_doc = hit['_source']
+                ioc_ids = incident_doc.get('ioc_ids', [])
+                if ioc_id in ioc_ids:
+                    incident_doc['id'] = hit['_id']
+                    incident_doc['_relation_type'] = 'found-in-incident'
+                    relations['incidents'].append(incident_doc)
+        except Exception:
+            pass
+        
+        return relations
     
     def _get_case_incidents(self, case_id: str) -> List[Dict]:
         """Get incidents for a case."""
@@ -938,6 +1017,68 @@ Do NOT wrap the response in code blocks."""
                 ioc = self.ioc_service.get(ioc_id)
                 if ioc:
                     ioc['id'] = ioc_id
+                    items.append(ioc)
+            except Exception:
+                pass
+        return items
+    
+    def _get_case_iocs_with_relations(self, case_id: str) -> List[Dict]:
+        """
+        Get IOCs for a case WITH all their possible relations included.
+        For each IOC, includes:
+        - Direct IOC-to-IOC relations
+        - Transitive relations
+        - Cases and incidents containing the IOC
+        """
+        # Get case document first
+        case = self.case_service.get_case(case_id)
+        if not case:
+            return []
+        
+        ioc_ids = case.get('ioc_ids', [])
+        if not ioc_ids:
+            return []
+        
+        # Fetch each IOC with all its first-level relations
+        items = []
+        for ioc_id in ioc_ids[:20]:  # Limit to 20
+            try:
+                ioc = self.ioc_service.get(ioc_id)
+                if ioc:
+                    ioc['id'] = ioc_id
+                    # Include first-level relations for this IOC (like the graph)
+                    ioc['_first_level_relations'] = self._get_first_level_relations(ioc_id)
+                    items.append(ioc)
+            except Exception:
+                pass
+        return items
+    
+    def _get_incident_iocs_with_relations(self, incident_id: str) -> List[Dict]:
+        """
+        Get IOCs for an incident WITH all their first-level relations included.
+        For each IOC, includes (exactly like the graph):
+        - Direct IOC-to-IOC relations
+        - Cases containing the IOC
+        - Incidents containing the IOC
+        """
+        # Get incident document first
+        incident = self.incident_service.get_incident(incident_id)
+        if not incident:
+            return []
+        
+        ioc_ids = incident.get('ioc_ids', [])
+        if not ioc_ids:
+            return []
+        
+        # Fetch each IOC with all its first-level relations
+        items = []
+        for ioc_id in ioc_ids[:20]:  # Limit to 20
+            try:
+                ioc = self.ioc_service.get(ioc_id)
+                if ioc:
+                    ioc['id'] = ioc_id
+                    # Include first-level relations for this IOC (like the graph)
+                    ioc['_first_level_relations'] = self._get_first_level_relations(ioc_id)
                     items.append(ioc)
             except Exception:
                 pass
@@ -1042,6 +1183,22 @@ Do NOT wrap the response in code blocks."""
         
         for idx, relation in enumerate(relations[:max_relations], 1):
             try:
+                # Check if this is a container entity (case or incident)
+                if relation.get('_relation_type') in ['contained_in_case', 'contained_in_incident']:
+                    entity_type = 'Case' if relation.get('_relation_type') == 'contained_in_case' else 'Incident'
+                    entity_name = relation.get('name') or relation.get('title', 'Unknown')
+                    entity_desc = relation.get('description', 'No description')
+                    relation_entry = (
+                        f"**{entity_type} #{idx}**:\n"
+                        f"   Type: {entity_type}\n"
+                        f"   Name: {entity_name}\n"
+                        f"   Description: {entity_desc[:150]}{'...' if len(entity_desc) > 150 else ''}\n"
+                        f"   Connection Reason: This IOC is directly involved in this {entity_type.lower()}"
+                    )
+                    detailed_relations.append(relation_entry)
+                    continue
+                
+                # Handle IOC-to-IOC relations
                 # Determine the target IOC ID
                 source_id = relation.get('source_id')
                 target_id = relation.get('target_id')
@@ -1132,6 +1289,81 @@ Do NOT wrap the response in code blocks."""
             return "No relations found"
         
         return "\n\n".join(detailed_relations)
+    
+    def _build_first_level_relations_context(self, main_ioc: Dict, relations: Dict[str, List[Dict]]) -> str:
+        """
+        Build detailed context for first-level relations (exactly like the graph).
+        
+        Args:
+            main_ioc: The main IOC document
+            relations: Dict with 'iocs', 'cases', 'incidents' keys
+            
+        Returns:
+            Formatted string with detailed relation information
+        """
+        sections = []
+        
+        # 1. Related IOCs section
+        related_iocs = relations.get('iocs', [])
+        if related_iocs:
+            ioc_section = "### Related IOCs (Direct first-level connections)\n"
+            for idx, ioc in enumerate(related_iocs[:15], 1):
+                ioc_value = ioc.get('value') or ioc.get('ioc_value') or ioc.get('pattern', 'Unknown')
+                if ioc_value.startswith('[') and '=' in ioc_value:
+                    ioc_value = ioc_value.split("'")[1] if "'" in ioc_value else ioc_value
+                ioc_type = ioc.get('type') or ioc.get('ioc_type', 'Unknown')
+                threat_level = ioc.get('x_metadata', {}).get('threat_level', ioc.get('threat_level', 'Unknown'))
+                relation_type = ioc.get('_relation_type', 'related-to').replace('_', ' ').replace('-', ' ').title()
+                description = ioc.get('description', 'No description')[:100]
+                
+                ioc_section += f"""
+**{idx}. {ioc_type.upper()}: {ioc_value}**
+   - Relationship: **{relation_type}**
+   - Threat Level: {threat_level}
+   - Description: {description}{'...' if len(description) >= 100 else ''}
+"""
+            sections.append(ioc_section)
+        
+        # 2. Cases containing this IOC
+        cases = relations.get('cases', [])
+        if cases:
+            case_section = "### Cases Containing This IOC\n"
+            for idx, case in enumerate(cases[:10], 1):
+                case_title = case.get('title') or case.get('name', 'Unknown Case')
+                case_status = case.get('status', 'Unknown')
+                case_severity = case.get('severity', 'Unknown')
+                case_desc = case.get('description', 'No description')[:100]
+                
+                case_section += f"""
+**{idx}. Case: {case_title}**
+   - Status: {case_status}
+   - Severity: {case_severity}
+   - Description: {case_desc}{'...' if len(case_desc) >= 100 else ''}
+"""
+            sections.append(case_section)
+        
+        # 3. Incidents containing this IOC
+        incidents = relations.get('incidents', [])
+        if incidents:
+            incident_section = "### Incidents Containing This IOC\n"
+            for idx, incident in enumerate(incidents[:10], 1):
+                incident_title = incident.get('title') or incident.get('name', 'Unknown Incident')
+                incident_status = incident.get('status', 'Unknown')
+                incident_severity = incident.get('severity', 'Unknown')
+                incident_desc = incident.get('description', 'No description')[:100]
+                
+                incident_section += f"""
+**{idx}. Incident: {incident_title}**
+   - Status: {incident_status}
+   - Severity: {incident_severity}
+   - Description: {incident_desc}{'...' if len(incident_desc) >= 100 else ''}
+"""
+            sections.append(incident_section)
+        
+        if not sections:
+            return "No first-level relations found for this IOC."
+        
+        return "\n".join(sections)
     
     def _find_common_attributes(self, ioc1: Dict, ioc2: Dict) -> List[str]:
         """
@@ -1249,16 +1481,28 @@ Do NOT wrap the response in code blocks."""
         
         return f"{base_explanation}. {additional_context}"
     
-    def _build_ioc_prompt(self, ioc: Dict, relations: List[Dict]) -> str:
-        """Build prompt for IOC analysis."""
+    def _build_ioc_prompt(self, ioc: Dict, relations: Dict[str, List[Dict]]) -> str:
+        """
+        Build prompt for IOC analysis with emphasis on the main IOC.
+        
+        Args:
+            ioc: The main IOC document
+            relations: Dict with 'iocs', 'cases', 'incidents' keys (from _get_first_level_relations)
+        """
         # Get IOC value from either value field or extract from STIX pattern
         ioc_value = ioc.get('value') or ioc.get('pattern', '')
         if ioc_value.startswith('[') and '=' in ioc_value:
             # Extract value from STIX pattern like [file:hashes.SHA1 = '...']
             ioc_value = ioc_value.split("'")[1] if "'" in ioc_value else ioc_value
         
-        # Build detailed relations context with actual IOC data
-        relations_text = self._build_detailed_relations_context(ioc, relations, max_relations=15)
+        # Build detailed relations context with the new structure
+        relations_text = self._build_first_level_relations_context(ioc, relations)
+        
+        # Calculate totals
+        total_iocs = len(relations.get('iocs', []))
+        total_cases = len(relations.get('cases', []))
+        total_incidents = len(relations.get('incidents', []))
+        total_relations = total_iocs + total_cases + total_incidents
         
         # Use custom prompt if available
         if self.custom_prompt_ioc:
@@ -1308,26 +1552,33 @@ Do NOT wrap the response in code blocks."""
                     refs_list.append(f"- {source}")
             refs_text = '\n'.join(refs_list)
         
-        # Build a more detailed prompt that emphasizes relations
+        # Build a more detailed prompt that emphasizes the MAIN IOC and all first-level relations
         relations_section = ""
-        if relations:
+        if total_relations > 0:
             relations_section = f"""
-## Analysis of Related Indicators
+## ALL First-Level Relations (exactly like the graph visualization)
 
-The following {len(relations)} indicators are directly related to this IOC. Each relationship provides important context:
+This IOC has **{total_relations} first-level connections**:
+- **{total_iocs}** related IOCs
+- **{total_cases}** cases containing this IOC  
+- **{total_incidents}** incidents containing this IOC
 
 {relations_text}
 
-IMPORTANT: You MUST analyze each of the {len(relations)} related indicators listed above and explain:
-- How each relationship type (e.g., exploits, based-on, communicates-with) affects the threat assessment
-- Specific insights about the threat based on the related IOC values and their threat levels
-- The combined threat picture when considering all related indicators together
+**CRITICAL ANALYSIS INSTRUCTIONS:**
+1. This report is about the **MAIN IOC: {ioc_value}** - it must be the PRIMARY FOCUS
+2. Analyze how EACH of the {total_relations} related entities connect to the main IOC
+3. For related IOCs: explain the relationship type and combined threat
+4. For cases: explain what the IOC role is in the investigation
+5. For incidents: explain how this IOC contributed to the security event
 """
         
         language_instruction = self._get_language_instruction()
-        return language_instruction + f"""Analyze this Indicator of Compromise (IOC) and provide a comprehensive threat assessment:
+        return language_instruction + f"""# Threat Assessment Report: {ioc_value}
 
-## IOC Details
+**THIS REPORT FOCUSES ON THE MAIN IOC BELOW. All related entities provide context.**
+
+## 🎯 MAIN IOC Details (Primary Focus)
 - **Type**: {ioc.get('type')}
 - **IOC Value**: {ioc_value}
 - **IOC Categories**: {indicator_types_text}
@@ -1353,12 +1604,16 @@ IMPORTANT: You MUST analyze each of the {len(relations)} related indicators list
 {f"- **External References**:" + chr(10) + refs_text if refs_text else ""}
 {relations_section}
 
-Please provide in **Markdown format**:
-1. What this indicator represents and its role in potential attacks
-2. Potential threats it indicates based on its type and severity
-3. Analysis of how related indicators amplify or contextualize this threat (CRITICAL: mention each related indicator and how it connects)
-4. Recommended mitigation and detection steps
-5. Summary of the threat landscape based on the indicator network"""
+## Report Requirements
+
+Generate a comprehensive threat assessment with **emphasis on the MAIN IOC**:
+
+1. **Executive Summary** - What does {ioc_value} represent? Why is it important?
+2. **Threat Analysis** - Detailed analysis of this specific IOC
+3. **Related Entities Analysis** - How each related IOC/case/incident connects to the main IOC
+4. **Attack Chain Context** - How this IOC fits in potential attack scenarios
+5. **Detection & Response** - How to detect and respond to this specific IOC
+6. **Mitigation Recommendations** - Actions specific to this threat"""
     
     def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for case analysis."""
@@ -1444,10 +1699,10 @@ Please provide in **Markdown format**:
                 incidents_details += f"   - Status: {incident_status}\n"
                 incidents_details += f"   - Details: {incident_desc[:200]}{'...' if len(incident_desc) > 200 else ''}\n"
         
-        # Build detailed IOC section with more context
+        # Build detailed IOC section with more context and ALL their first-level relations
         iocs_details = ""
         if iocs:
-            iocs_details = "### Associated Indicators of Compromise\n"
+            iocs_details = "### Associated Indicators of Compromise (with first-level relations like the graph)\n"
             for idx, ioc in enumerate(iocs[:15], 1):
                 ioc_type = ioc.get('type', 'Unknown')
                 ioc_value = ioc.get('value') or ioc.get('pattern', 'Unknown')
@@ -1460,6 +1715,34 @@ Please provide in **Markdown format**:
                 iocs_details += f"   - Threat Level: {threat_level}\n"
                 iocs_details += f"   - Status: {ioc_status}\n"
                 iocs_details += f"   - Description: {ioc_desc[:150]}{'...' if len(ioc_desc) > 150 else ''}\n"
+                
+                # Add first-level relations for this IOC (exactly like the graph)
+                first_level_rels = ioc.get('_first_level_relations', {})
+                related_iocs = first_level_rels.get('iocs', [])
+                related_cases = first_level_rels.get('cases', [])
+                related_incidents = first_level_rels.get('incidents', [])
+                total_rels = len(related_iocs) + len(related_cases) + len(related_incidents)
+                
+                if total_rels > 0:
+                    iocs_details += f"   - **First-Level Relations**: {total_rels} entities ({len(related_iocs)} IOCs, {len(related_cases)} cases, {len(related_incidents)} incidents)\n"
+                    
+                    # Show related IOCs
+                    for rel_ioc in related_iocs[:3]:
+                        rel_value = rel_ioc.get('value') or rel_ioc.get('ioc_value') or rel_ioc.get('pattern', 'Unknown')
+                        if rel_value.startswith('[') and '=' in rel_value:
+                            rel_value = rel_value.split("'")[1] if "'" in rel_value else rel_value
+                        rel_type = rel_ioc.get('_relation_type', 'related').replace('-', ' ')
+                        iocs_details += f"      - IOC ({rel_type}): {rel_value}\n"
+                    
+                    # Show related cases
+                    for rel_case in related_cases[:2]:
+                        case_name = rel_case.get('title') or rel_case.get('name', 'Unknown')
+                        iocs_details += f"      - Case: {case_name}\n"
+                    
+                    # Show related incidents  
+                    for rel_incident in related_incidents[:2]:
+                        incident_name = rel_incident.get('title') or rel_incident.get('name', 'Unknown')
+                        iocs_details += f"      - Incident: {incident_name}\n"
         
         # Build detailed timeline section with rich content
         timeline_details = ""
@@ -1641,7 +1924,52 @@ Based on the complete investigation:
         # Get language instruction to add to default prompts
         language_instruction = self._get_language_instruction()
         
-        # Format IOC details - handle STIX pattern format
+        # Build detailed IOC section with all their relations
+        iocs_details = ""
+        if iocs:
+            iocs_details = "\n## Detailed Indicators of Compromise (with first-level relations like the graph)\n"
+            for idx, ioc in enumerate(iocs[:15], 1):
+                ioc_type = ioc.get('type', 'Unknown')
+                ioc_value = ioc.get('value') or ioc.get('pattern', 'Unknown')
+                if ioc_value.startswith('[') and '=' in ioc_value:
+                    ioc_value = ioc_value.split("'")[1] if "'" in ioc_value else ioc_value
+                threat_level = ioc.get('x_metadata', {}).get('threat_level', ioc.get('severity', 'Unknown'))
+                ioc_desc = ioc.get('description', 'No description')
+                ioc_status = ioc.get('x_metadata', {}).get('status', ioc.get('status', 'Active'))
+                iocs_details += f"\n**{idx}. {ioc_type.upper()}: {ioc_value}**\n"
+                iocs_details += f"   - Threat Level: {threat_level}\n"
+                iocs_details += f"   - Status: {ioc_status}\n"
+                iocs_details += f"   - Description: {ioc_desc[:150]}{'...' if len(ioc_desc) > 150 else ''}\n"
+                
+                # Add first-level relations for this IOC (exactly like the graph)
+                first_level_rels = ioc.get('_first_level_relations', {})
+                related_iocs = first_level_rels.get('iocs', [])
+                related_cases = first_level_rels.get('cases', [])
+                related_incidents = first_level_rels.get('incidents', [])
+                total_rels = len(related_iocs) + len(related_cases) + len(related_incidents)
+                
+                if total_rels > 0:
+                    iocs_details += f"   - **First-Level Relations**: {total_rels} entities ({len(related_iocs)} IOCs, {len(related_cases)} cases, {len(related_incidents)} incidents)\n"
+                    
+                    # Show related IOCs
+                    for rel_ioc in related_iocs[:3]:
+                        rel_value = rel_ioc.get('value') or rel_ioc.get('ioc_value') or rel_ioc.get('pattern', 'Unknown')
+                        if rel_value.startswith('[') and '=' in rel_value:
+                            rel_value = rel_value.split("'")[1] if "'" in rel_value else rel_value
+                        rel_type = rel_ioc.get('_relation_type', 'related').replace('-', ' ')
+                        iocs_details += f"      - IOC ({rel_type}): {rel_value}\n"
+                    
+                    # Show related cases
+                    for rel_case in related_cases[:2]:
+                        case_name = rel_case.get('title') or rel_case.get('name', 'Unknown')
+                        iocs_details += f"      - Case: {case_name}\n"
+                    
+                    # Show related incidents  
+                    for rel_incident in related_incidents[:2]:
+                        incident_name = rel_incident.get('title') or rel_incident.get('name', 'Unknown')
+                        iocs_details += f"      - Incident: {incident_name}\n"
+        
+        # Format IOC details - handle STIX pattern format (for simple list)
         iocs_text = '\n'.join([
             f"- {i.get('type')}: {i.get('value') or i.get('pattern', 'N/A')} (Severity: {i.get('x_metadata', {}).get('threat_level', i.get('severity', 'N/A'))})"
             for i in iocs[:15]
@@ -1718,14 +2046,13 @@ Based on the complete investigation:
 - **Detected**: {incident.get('detected_at', 'Unknown')}
 - **Resolved**: {incident.get('resolved_at', 'Not resolved')}
 
-## Associated Indicators ({len(iocs)}):
-{iocs_text}
+{iocs_details if iocs_details else "## Associated Indicators: No IOCs"}
 
 Please provide in **Markdown format**:
 1. Incident Summary (include key timeline events)
 2. Attack Vector Analysis (include MITRE tactics/techniques)
 3. Affected Systems and Assets
-4. Indicators and their role in the incident
+4. Indicators and their role in the incident (include all related IOCs and their connections)
 5. Key Analyst Observations (synthesize comments from the analyst comments section above)
 6. Immediate Actions Required
 7. Long-term Recommendations and Lessons Learned"""
@@ -1873,4 +2200,4 @@ Please provide a detailed analysis in plain formatted text (NOT wrapped in code 
 4. Key findings and discoveries from the completed work
 5. Recommendations for follow-up or related security measures
 
-IMPORTANT: Output plain text formatted with markdown - use headings, bullet points, bold text - but do NOT wrap the entire response in triple backticks or code blocks."""
+IMPORTANT: Output plain text formatted with markdown - use headings, bullet points, bold text - but do NOT wrap the entire response in code blocks."""
