@@ -1751,7 +1751,24 @@ Please provide in **Markdown format**:
         tags_text = ', '.join(tags) if tags else 'No tags assigned'
         campaigns_text = ', '.join(campaigns) if campaigns else 'No campaigns assigned'
         cases_text = ', '.join(related_cases) if related_cases else 'No related cases'
-        incidents_text = ', '.join(related_incidents) if related_incidents else 'No related incidents'
+        
+        # Resolve incident IDs to names
+        incidents_text = ''
+        if related_incidents:
+            incident_names = []
+            for incident_id in related_incidents:
+                try:
+                    incident = self.incident_service.get_incident(incident_id)
+                    if incident:
+                        incident_name = incident.get('title', incident_id)
+                        incident_names.append(incident_name)
+                    else:
+                        incident_names.append(incident_id)
+                except Exception:
+                    incident_names.append(incident_id)
+            incidents_text = ', '.join(incident_names)
+        else:
+            incidents_text = 'No related incidents'
         
         # Build global comments text
         global_comments_text = ""

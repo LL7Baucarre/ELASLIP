@@ -68,6 +68,33 @@ class ChecklistService:
             if result and 'found' in result and result['found']:
                 doc = result['_source']
                 doc['id'] = checklist_id
+                
+                # Resolve incident IDs to incident objects with titles
+                if 'related_incidents' in doc and doc['related_incidents']:
+                    from app.services.case_service import IncidentService
+                    incident_service = IncidentService()
+                    resolved_incidents = []
+                    for incident_id in doc['related_incidents']:
+                        try:
+                            incident = incident_service.get_incident(incident_id)
+                            if incident:
+                                resolved_incidents.append({
+                                    'id': incident_id,
+                                    'title': incident.get('title', incident_id)
+                                })
+                            else:
+                                resolved_incidents.append({
+                                    'id': incident_id,
+                                    'title': incident_id
+                                })
+                        except Exception:
+                            resolved_incidents.append({
+                                'id': incident_id,
+                                'title': incident_id
+                            })
+                    # Store enriched version for display but keep original IDs for storage
+                    doc['_related_incidents_enriched'] = resolved_incidents
+                
                 return doc
             return None
         except Exception:
@@ -131,8 +158,8 @@ class ChecklistService:
         
         checklist['updated_at'] = datetime.utcnow().isoformat() + 'Z'
         
-        # Remove the 'id' field before indexing (it's stored as _id)
-        doc = {k: v for k, v in checklist.items() if k != 'id'}
+        # Remove the 'id' and enriched fields before indexing
+        doc = {k: v for k, v in checklist.items() if k not in ['id', '_related_incidents_enriched']}
         self.es.index('checklists', checklist_id, doc)
         return self.get_checklist(checklist_id)
     

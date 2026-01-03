@@ -34,6 +34,13 @@
     background-color: #f0f8ff !important;
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.15);
 }
+.case-card {
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+.case-card:hover {
+    background-color: #f0f8ff !important;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.15);
+}
 .timeline-item {
     position: relative;
     padding-left: 30px;
@@ -239,6 +246,23 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- Linked Cases -->
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0"><i class="bi bi-folder me-2"></i>Related Cases</h6>
+                            {% if has_permission('incident.edit') %}
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#linkCaseModal">
+                                <i class="bi bi-plus"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div class="card-body">
+                            <div id="casesContainer">
+                                <span class="text-muted">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Linked Checklist -->
                     <div class="card mb-4">
@@ -976,6 +1000,33 @@ function deleteTimelineEvent(eventId) {
 }
 
 // IOCs
+function loadCases() {
+    fetch(`/api/incidents/${incidentId}/cases`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('casesContainer');
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<p class="text-muted mb-0"><small>No cases linked to this incident</small></p>';
+                return;
+            }
+            
+            container.innerHTML = data.items.map(cse => `
+                <div class="mb-3 p-3 border rounded case-card" id="case-${cse.id}" 
+                     onclick="window.location.href='/cases/${cse.id}'" style="cursor: pointer; transition: background-color 0.2s;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div style="flex-grow: 1;">
+                            <h6 class="mb-1"><strong>${escapeHtml(cse.title)}</strong></h6>
+                            <p class="text-muted small mb-2">${escapeHtml(cse.description || '')}</p>
+                            <small class="text-muted">
+                                <span class="badge bg-primary">${escapeHtml(cse.status || 'Unknown')}</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        });
+}
+
 function loadIOCs() {
     const iocIds = {{ incident.ioc_ids | tojson }};
     document.getElementById('iocCount').textContent = iocIds.length;
@@ -1183,6 +1234,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load content
     loadTimeline();
+    loadCases();
     loadIOCs();
     loadComments();
     loadSnippets();

@@ -1,7 +1,7 @@
 
 # ELA(SLIP)
 
-**Elastic Security Logging & Incident Platform**
+**Elastic Lightweight Analytical Security & Incident Platform**
 
 A lightweight MISP and TheHive alternative for managing Indicators of Compromise (IOCs), investigating security incidents, and organizing security operations with AI-powered insights. Features comprehensive case and incident management, security checklists with AI analysis, IOC relationship mapping, risk scoring, multi-language LLM report generation, and token usage tracking (FinOps). Supports STIX 2.1, MISP, OpenIOC, and IODEF formats with Elasticsearch backend.
 
@@ -17,8 +17,9 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 **What's Included:**
 
 -  **Interactive Dashboard** - Real-time statistics
--  **Advanced Search** - Full-text and pattern-based search capabilities
--  **IOC Graph** - Visual relationship mapping and search
+-  **Advanced Search** - Full-text and pattern-based search capabilities (IOCs, Cases, Incidents)
+-  **IOC Graph** - Visual relationship mapping with Cases and Incidents
+-  **Entity Graphs** - Visualize relationships across IOCs, Cases, and Incidents with interactive navigation
 -  **Two-Factor Authentication (2FA)** - Secure login with TOTP and backup codes
 -  **Public Submission Portal** - Anonymous IOC reporting and public search
 -  **API** - Token-based authentication for programmatic usage
@@ -54,12 +55,20 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 -  **Bulk Operations** - Select multiple, bulk update/delete/export
 -  **Expiration Automation** - Set validity dates, auto-detect expired, schedule archival
 -  **Enrichment Cache** - API response caching
+-  **IOC Relationship Graphs** - Interactive visualization of IOC connections with related Cases and Incidents
+   - **Color-coded nodes**: IOCs by type, Cases (blue squares), Incidents (red diamonds)
+   - **Smart navigation**: Click nodes to navigate to entity detail pages
+   - **Relationship visualization**: See all connected entities at a glance
 
 #### Incident Management
 
 -  **Cases & Incidents** - Organize investigation cases and incidents
 -  **Investigation Timeline** - Chronological event tracking with timestamps
 -  **IOC Linking** - Associate IOCs with incidents and cases
+-  **Entity Relationship Graphs** - Interactive visualization showing connected IOCs, Cases, and Incidents
+   - **Unified design**: Consistent styling across all entity graphs
+   - **Central node highlighting**: Golden border identifies the current entity
+   - **Interactive navigation**: Click to navigate between related entities
 -  **Comments** - Collaborative discussion with timestamps
 -  **Status Management** - Track lifecycle through investigation stages
 -  **Assignment** - Assign to users
@@ -241,6 +250,32 @@ Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{
 - Extract and create IOCs from recipients or source IP
 - Supports large headers (up to 100KB)
 - Email tags automatically applied to created IOCs
+
+#### File Analysis Tool
+- **Hash Extraction** - Calculate MD5, SHA1, and SHA256 hashes from uploaded files
+- **File Metadata** - Extract comprehensive file properties and document metadata
+- **File Type Detection** - Identify executable types (EXE, DLL, SYS), archives, documents, etc.
+- **Architecture Detection** - Detect CPU architecture (32-bit, 64-bit, ARM, etc.) from PE files
+- **Document Metadata Extraction**:
+  - **PDF**: Title, Author, Subject, Creator, Producer, Creation/Modification dates
+  - **Office Documents** (DOCX, XLSX, PPTX): Author, Creator, Title, Subject, Page/Word counts
+  - **Images**: Format, Dimensions, EXIF data (camera, GPS, date taken, etc.)
+- **File Entropy Analysis** - Detect compressed or encrypted content
+- **IOC Creation** - Create IOCs from file hashes with automatic relationships
+- **IOC Deduplication** - Prevent duplicate IOC creation (shows existing vs new)
+- **Relationship Management** - Establish "related" relationships between hash IOCs
+
+**Access**: Tools menu → File Analysis
+
+**Features**:
+- Drag-and-drop or click-to-select file upload
+- Real-time hash calculation for large files
+- Complete file metadata display with entropy score
+- Create individual hash IOCs with one-click buttons
+- Create all IOCs at once with automatic relationships
+- VirusTotal integration - one-click search for any hash
+- Scan history persistence for future reference
+- Shows summary of created vs existing IOCs with color-coded alerts
 
 ### IP API Integration (GeoIP Enrichment)
 

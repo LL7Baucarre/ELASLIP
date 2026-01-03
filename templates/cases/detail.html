@@ -844,13 +844,22 @@ function loadIncidents() {
         .then(data => {
             const container = document.getElementById('incidentsContainer');
             if (!data.items || data.items.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted py-3">No linked incidents</div>';
+                container.innerHTML = '<p class="text-muted mb-0"><small>No incidents linked to this case</small></p>';
                 return;
             }
             
             container.innerHTML = data.items.map(inc => `
-                <div class="badge bg-warning me-2 mb-2">
-                    ${escapeHtml(inc.title)}
+                <div class="mb-3 p-3 border rounded incident-card" id="incident-${inc.id}" 
+                     onclick="window.location.href='/incidents/${inc.id}'" style="cursor: pointer; transition: background-color 0.2s;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div style="flex-grow: 1;">
+                            <h6 class="mb-1"><strong>${escapeHtml(inc.title)}</strong></h6>
+                            <p class="text-muted small mb-2">${escapeHtml(inc.description || '')}</p>
+                            <small class="text-muted">
+                                <span class="badge bg-danger">${escapeHtml(inc.severity || 'Unknown')}</span>
+                            </small>
+                        </div>
+                    </div>
                 </div>
             `).join('');
         });

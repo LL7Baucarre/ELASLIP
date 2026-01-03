@@ -515,6 +515,406 @@
             </div>
         </div>
 
+        <!-- Webhooks Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Webhooks Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Webhooks</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/webhooks</code>
+                </div>
+                <p>Get all webhooks for current user</p>
+
+                <h6 class="mt-4">Create Webhook</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/webhooks</code>
+                </div>
+                <p>Create a new webhook to receive events</p>
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "url": "https://example.com/webhook",
+  "events": ["ioc.created", "ioc.updated", "report.llm_created"],
+  "enabled": true
+}</code></pre>
+
+                <h6 class="mt-4">Get Webhook</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/webhooks/:webhook_id</code>
+                </div>
+
+                <h6 class="mt-4">Update Webhook</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/webhooks/:webhook_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete Webhook</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/webhooks/:webhook_id</code>
+                </div>
+
+                <h6 class="mt-4">Test Webhook URL</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/webhooks/test</code>
+                </div>
+
+                <h6 class="mt-4">Get Webhook Events</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/webhooks/events</code>
+                </div>
+                <p>Get list of available webhook events</p>
+
+                <h6 class="mt-4">Get Webhook Logs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/webhooks/:webhook_id/logs</code>
+                </div>
+
+                <h6 class="mt-4">Retry Webhook Delivery</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/webhooks/logs/:log_id/retry</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- API Keys Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>API Keys Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List API Keys</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/api-keys</code>
+                </div>
+                <p>Get all API keys for current user</p>
+
+                <h6 class="mt-4">Create API Key</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/api-keys</code>
+                </div>
+                <p>Create a new API key for authentication</p>
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "name": "My API Key",
+  "scopes": ["ioc.view", "ioc.create", "report.view"]
+}</code></pre>
+
+                <h6 class="mt-4">Revoke API Key</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/api-keys/:key_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checklists Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Checklists Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Checklists</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/checklists</code>
+                </div>
+                <p>Get paginated list of checklists</p>
+
+                <h6 class="mt-4">Create Checklist</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/checklists</code>
+                </div>
+
+                <h6 class="mt-4">Get Checklist</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/checklists/:checklist_id</code>
+                </div>
+
+                <h6 class="mt-4">Update Checklist</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/checklists/:checklist_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete Checklist</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/checklists/:checklist_id</code>
+                </div>
+
+                <h6 class="mt-4">Generate Checklist Report</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/reports/checklists/:checklist_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checklist Templates Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Checklist Templates Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Templates</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/checklist-templates</code>
+                </div>
+
+                <h6 class="mt-4">Create Template</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/checklist-templates</code>
+                </div>
+
+                <h6 class="mt-4">Get Template</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/checklist-templates/:template_id</code>
+                </div>
+
+                <h6 class="mt-4">Update Template</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/checklist-templates/:template_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete Template</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/checklist-templates/:template_id</code>
+                </div>
+
+                <h6 class="mt-4">Create Checklist from Template</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/checklist-templates/:template_id/create-checklist</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- RBAC Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>RBAC (Role-Based Access Control) Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Permissions</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/rbac/permissions</code>
+                </div>
+                <p>Get all available permissions in the system</p>
+
+                <h6 class="mt-4">List Roles</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/rbac/roles</code>
+                </div>
+                <p>Get all available roles with their permissions</p>
+
+                <h6 class="mt-4">Get Role</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/rbac/roles/:role_name</code>
+                </div>
+
+                <h6 class="mt-4">Create Role</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/rbac/roles</code>
+                </div>
+
+                <h6 class="mt-4">Update Role</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/rbac/roles/:role_name</code>
+                </div>
+
+                <h6 class="mt-4">Delete Role</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/rbac/roles/:role_name</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submissions Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Submissions Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">List Submissions</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/submissions/list</code>
+                </div>
+                <p>Get paginated list of submissions with filtering</p>
+                <p><strong>Query Parameters:</strong> page, per_page, status (pending|processed|created_ioc|rejected)</p>
+
+                <h6 class="mt-4">Get Submission</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/submissions/:submission_id</code>
+                </div>
+
+                <h6 class="mt-4">Process Submission</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/submissions/:submission_id/process</code>
+                </div>
+
+                <h6 class="mt-4">Reject Submission</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/submissions/:submission_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notifications Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Notifications Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Get Notifications</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/notifications</code>
+                </div>
+                <p>Get user notifications with pagination</p>
+
+                <h6 class="mt-4">Get Unread Count</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/notifications/unread-count</code>
+                </div>
+
+                <h6 class="mt-4">Mark Notification as Read</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/notifications/:notification_id/read</code>
+                </div>
+
+                <h6 class="mt-4">Mark All as Read</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/notifications/read-all</code>
+                </div>
+
+                <h6 class="mt-4">Delete Notification</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/notifications/:notification_id</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- FinOps (Token Usage) Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>FinOps (Token Usage Tracking) Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Get Token Usage Timeline</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/finops/token-usage/timeline</code>
+                </div>
+                <p>Get token usage timeline data for reports</p>
+
+                <h6 class="mt-4">Get Token Usage Breakdown</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/finops/token-usage/breakdown</code>
+                </div>
+                <p>Get token usage breakdown by report type (IOC, case, incident, checklist)</p>
+
+                <h6 class="mt-4">Get Token Statistics</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/finops/token-usage/statistics</code>
+                </div>
+
+                <h6 class="mt-4">Get Top Token Consumers</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/finops/token-usage/top-consumers</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- IOC Operations Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>IOC Operations Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Get IOC Statistics</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/ioc/stats</code>
+                </div>
+                <p>Get IOC statistics and counts</p>
+
+                <h6 class="mt-4">Get Supported IOC Types</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/ioc/types</code>
+                </div>
+
+                <h6 class="mt-4">Get IOC Sources</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/ioc/:ioc_id/sources</code>
+                </div>
+
+                <h6 class="mt-4">Enrich IOC</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/ioc/:ioc_id/enrich</code>
+                </div>
+                <p>Enrich IOC with external intelligence data</p>
+
+                <h6 class="mt-4">Bulk Update IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/ioc/bulk/update</code>
+                </div>
+                <p>Update multiple IOCs at once</p>
+
+                <h6 class="mt-4">Bulk Delete IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">POST</code> <code>/api/ioc/bulk/delete</code>
+                </div>
+
+                <h6 class="mt-4">Bulk Export IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">POST</code> <code>/api/ioc/bulk/export</code>
+                </div>
+
+                <h6 class="mt-4">Get Expired IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/ioc/expired</code>
+                </div>
+
+                <h6 class="mt-4">Get Expiring Soon IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/ioc/expiring-soon</code>
+                </div>
+
+                <h6 class="mt-4">Archive Expired IOCs</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/ioc/archive-expired</code>
+                </div>
+
+                <h6 class="mt-4">Validate IOC</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/ioc/validate</code>
+                </div>
+
+                <h6 class="mt-4">Create from STIX</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/ioc/stix</code>
+                </div>
+                <p>Create IOC from STIX 2.1 format</p>
+            </div>
+        </div>
+
+        <!-- Advanced Search Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Advanced Search Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Quick Search</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/search/quick</code>
+                </div>
+                <p>Quick search with minimal filtering</p>
+
+                <h6 class="mt-4">Advanced Search</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/search/advanced</code>
+                </div>
+                <p>Advanced search with complex filters and aggregations</p>
+
+                <h6 class="mt-4">Search IOCs API</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/search/iocs</code>
+                </div>
+            </div>
+        </div>
+
         <!-- Error Responses -->
         <div class="card mb-4">
             <div class="card-header bg-white">
@@ -529,6 +929,11 @@
                 <p class="mt-3"><strong>401 Unauthorized</strong></p>
                 <pre><code>{
   "error": "Authentication required"
+}</code></pre>
+
+                <p class="mt-3"><strong>403 Forbidden</strong></p>
+                <pre><code>{
+  "error": "Permission denied"
 }</code></pre>
 
                 <p class="mt-3"><strong>404 Not Found</strong></p>
