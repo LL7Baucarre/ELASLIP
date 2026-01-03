@@ -207,6 +207,39 @@
   "count": 4
 }</code></pre>
 
+                <!-- POST /api/tools/shodan -->
+                <h6 class="mt-4">Shodan Device Search</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/tools/shodan</code>
+                </div>
+                <p>Search Shodan for internet-facing devices and services. Requires Shodan API key to be configured.</p>
+                <p><strong>Request Body:</strong></p>
+                <pre><code>{
+  "query": "192.168.1.1"
+}</code></pre>
+                <p><strong>Query Examples:</strong></p>
+                <ul>
+                  <li>IP lookup: <code>8.8.8.8</code></li>
+                  <li>Service search: <code>Apache 2.4</code></li>
+                  <li>Port search: <code>port:22</code></li>
+                  <li>Country filter: <code>country:US port:443</code></li>
+                </ul>
+                <p><strong>Response:</strong></p>
+                <pre><code>{
+  "success": true,
+  "query": "8.8.8.8",
+  "type": "host",
+  "data": {
+    "ip": "8.8.8.8",
+    "organization": "Google",
+    "country": "US",
+    "ports": [53, 443, 80],
+    "services": [...],
+    "vulnerabilities": [...]
+  },
+  "scan_id": "..."
+}</code></pre>
+
                 <!-- GET /api/tools/task/:task_id -->
                 <h6 class="mt-4">Get Task Status</h6>
                 <div class="bg-light p-3 rounded mb-3">
