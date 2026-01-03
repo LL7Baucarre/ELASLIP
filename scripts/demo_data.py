@@ -639,7 +639,7 @@ def populate_demo_data():
                             'case_id': case['id'],
                             'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
                             'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['detected', 'analyzing', 'contained', 'eradicated', 'recovered', 'closed']),
+                            'status': random.choice(['new', 'investigating', 'containment', 'eradication', 'recovery', 'post-incident', 'closed']),
                             'severity': random.choice(severities),
                             'category': random.choice(incident_categories),
                             'ioc_ids': incident_iocs,
@@ -864,6 +864,125 @@ def populate_demo_data():
             print(f"      Warning: Failed to generate checklists: {str(e)}")
         
         print(f"   ✓ Created {checklists_created} checklists")
+        
+        # Create relationships between checklists and cases
+        print("\n10a. Linking checklists to cases...")
+        checklist_case_relations = 0
+        
+        try:
+            # Get all checklist IDs from the created checklists
+            checklist_ids = []
+            try:
+                # Query to get created checklist IDs
+                es_service = ElasticsearchService()
+                checklists_result = es_service.search('checklists', {
+                    "size": 100,
+                    "query": {"match_all": {}}
+                })
+                if checklists_result and 'hits' in checklists_result:
+                    checklist_ids = [hit['_id'] for hit in checklists_result['hits']['hits']]
+            except Exception as e:
+                print(f"      Warning: Could not fetch checklist IDs: {str(e)}")
+            
+            # Link 1-2 random checklists to each case
+            if checklist_ids:
+                for case in created_cases:
+                    try:
+                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
+                        selected_checklists = random.sample(checklist_ids, num_checklists)
+                        
+                        for checklist_id in selected_checklists:
+                            try:
+                                # Create a relationship document between case and checklist
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'case',
+                                    'source_id': case['id'],
+                                    'target_type': 'checklist',
+                                    'target_id': checklist_id,
+                                    'relation_type': 'uses_checklist',
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('case_checklist_relations', relation_id, relation)
+                                checklist_case_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to link checklist to case: {str(e)}")
+                    except Exception as e:
+                        print(f"      Warning: Error processing case for checklist linking: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create case-checklist relationships: {str(e)}")
+        
+        print(f"   ✓ Created {checklist_case_relations} case-checklist relationships")
+        
+        # Create relationships between checklists and incidents
+        print("\n10b. Linking checklists to incidents...")
+        checklist_incident_relations = 0
+        
+        try:
+            if checklist_ids:
+                for incident in created_incidents:
+                    try:
+                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
+                        selected_checklists = random.sample(checklist_ids, num_checklists)
+                        
+                        for checklist_id in selected_checklists:
+                            try:
+                                # Create a relationship document between incident and checklist
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'incident',
+                                    'source_id': incident['id'],
+                                    'target_type': 'checklist',
+                                    'target_id': checklist_id,
+                                    'relation_type': 'uses_checklist',
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('incident_checklist_relations', relation_id, relation)
+                                checklist_incident_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to link checklist to incident: {str(e)}")
+                    except Exception as e:
+                        print(f"      Warning: Error processing incident for checklist linking: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create incident-checklist relationships: {str(e)}")
+        
+        print(f"   ✓ Created {checklist_incident_relations} incident-checklist relationships")
+        
+        # Create additional relationships between incidents within the same case
+        print("\n10c. Creating multi-incident relationships within cases...")
+        incident_to_incident_relations = 0
+        
+        try:
+            for case in created_cases:
+                # Find incidents belonging to this case
+                case_incidents = [inc for inc in created_incidents if inc.get('case_id') == case['id']]
+                
+                if len(case_incidents) > 1:
+                    # Create relationships between pairs of incidents in the same case
+                    for i in range(len(case_incidents)):
+                        for j in range(i + 1, min(i + 3, len(case_incidents))):
+                            try:
+                                relation_id = str(uuid.uuid4())
+                                relation = {
+                                    'source_type': 'incident',
+                                    'source_id': case_incidents[i]['id'],
+                                    'target_type': 'incident',
+                                    'target_id': case_incidents[j]['id'],
+                                    'relation_type': random.choice(['related', 'part_of_same_campaign', 'sequential_activity', 'shared_infrastructure']),
+                                    'case_id': case['id'],
+                                    'created_at': datetime.utcnow().isoformat(),
+                                    'created_by': 'demo_user'
+                                }
+                                es_service.index('incident_relations', relation_id, relation)
+                                incident_to_incident_relations += 1
+                            except Exception as e:
+                                print(f"         Warning: Failed to create incident-to-incident relationship: {str(e)}")
+        except Exception as e:
+            print(f"      Warning: Failed to create incident-to-incident relationships: {str(e)}")
+        
+        print(f"   ✓ Created {incident_to_incident_relations} incident-to-incident relationships")
                 # Create random relationships between IOCs
         if len(created_ids) > 1:
             print("\n11. Creating random IOC relationships...")
@@ -1054,6 +1173,9 @@ def populate_demo_data():
         print(f"Total snippets created: {snippets_created}")
         print(f"Total checklist templates created: {templates_created}")
         print(f"Total checklists created: {checklists_created}")
+        print(f"Total case-checklist relationships: {checklist_case_relations}")
+        print(f"Total incident-checklist relationships: {checklist_incident_relations}")
+        print(f"Total incident-to-incident relationships: {incident_to_incident_relations}")
         print("=" * 60)
 
 

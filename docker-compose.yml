@@ -14,10 +14,13 @@ services:
       - FLASK_ENV=development
       - FLASK_APP=app
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+      - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
+      - APP_URL=${APP_URL:-http://localhost:5000}
       - ELASTICSEARCH_URL=http://elastic:${ELASTICSEARCH_PASSWORD:-elastic123}@elasticsearch:9200
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
       - REDIS_URL=redis://redis:6379/0
+      - SESSION_REDIS_DB=${SESSION_REDIS_DB:-2}
       - CELERY_BROKER_URL=redis://redis:6379/1
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
@@ -26,6 +29,28 @@ services:
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_GENERATION_LANGUAGE=${LLM_GENERATION_LANGUAGE:-en}
+      # OAuth Configuration
+      - OAUTH_ENABLED=${OAUTH_ENABLED:-false}
+      - OAUTH_AUTO_CREATE_USER=${OAUTH_AUTO_CREATE_USER:-true}
+      - OAUTH_AUTO_LINK_BY_EMAIL=${OAUTH_AUTO_LINK_BY_EMAIL:-false}
+      - OAUTH_DEFAULT_ROLE=${OAUTH_DEFAULT_ROLE:-viewer}
+      # NOTE: Must be set to a non-empty value when OAUTH_ENABLED=true, otherwise the app will fail to start.
+      #       Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      - OAUTH_ENCRYPTION_KEY=${OAUTH_ENCRYPTION_KEY:-}
+      # Default to secure cookies; override to 'false' only for pure-HTTP local setups.
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
+      # OAuth Providers
+      - OAUTH_GOOGLE_ENABLED=${OAUTH_GOOGLE_ENABLED:-false}
+      - OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID:-}
+      - OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET:-}
+      - OAUTH_GITHUB_ENABLED=${OAUTH_GITHUB_ENABLED:-false}
+      - OAUTH_GITHUB_CLIENT_ID=${OAUTH_GITHUB_CLIENT_ID:-}
+      - OAUTH_GITHUB_CLIENT_SECRET=${OAUTH_GITHUB_CLIENT_SECRET:-}
+      - OAUTH_OIDC_ENABLED=${OAUTH_OIDC_ENABLED:-false}
+      - OAUTH_OIDC_CLIENT_ID=${OAUTH_OIDC_CLIENT_ID:-}
+      - OAUTH_OIDC_CLIENT_SECRET=${OAUTH_OIDC_CLIENT_SECRET:-}
+      - OAUTH_OIDC_DISCOVERY_URL=${OAUTH_OIDC_DISCOVERY_URL:-}
+      - OAUTH_OIDC_PROVIDER_NAME=${OAUTH_OIDC_PROVIDER_NAME:-OIDC}
     volumes:
       - ./app:/app/app
       - ./templates:/app/templates
