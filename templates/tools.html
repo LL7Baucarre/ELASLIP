@@ -81,6 +81,16 @@
     .scan-history-item:hover {
         background: rgba(0,0,0,0.02);
     }
+
+    /* Small button styles */
+    .btn-xs {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+
+    .hash-container .btn {
+        margin-left: 0.25rem;
+    }
 </style>
 {% endblock %}
 
@@ -147,6 +157,13 @@
                             <i class="bi bi-globe tool-icon text-primary"></i>
                             <h6 class="mb-0">GeoIP</h6>
                             <small class="text-muted">IP geolocation</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="file-analysis">
+                            <i class="bi bi-file-earmark tool-icon text-secondary"></i>
+                            <h6 class="mb-0">File Analysis</h6>
+                            <small class="text-muted">Hash & metadata</small>
                         </div>
                     </div>
                 </div>
@@ -682,6 +699,124 @@
                 </div>
             </div>
         </div>
+
+        <!-- File Analysis Panel -->
+        <div id="file-analysisPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-file-earmark me-2"></i>File Analysis</h6>
+                </div>
+                <div class="card-body">
+                    <form id="fileAnalysisForm">
+                        <div class="mb-3">
+                            <label class="form-label">Upload File</label>
+                            <input type="file" class="form-control" id="fileInput" required>
+                            <small class="text-muted">Select a file to analyze and extract hash/metadata (Max: see config)</small>
+                        </div>
+                        <button class="btn btn-secondary" type="submit" id="analyzeFileBtn">
+                            <i class="bi bi-play-fill"></i> Analyze File
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card" id="fileAnalysisResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>File Analysis Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-success" id="createAllIocsFromFile" title="Create all IOCs with relationships">
+                            <i class="bi bi-plus-circle"></i> Create All IOCs
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="fileAnalysisParsed">
+                        <!-- File info table -->
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td><strong>Filename:</strong></td>
+                                        <td id="file-filename"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Size:</strong></td>
+                                        <td id="file-size"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>MIME Type:</strong></td>
+                                        <td id="file-mime"></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>File Type:</strong></td>
+                                        <td id="file-type"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Hashes section -->
+                        <h6 class="mt-4 mb-3"><i class="bi bi-hash"></i> File Hashes</h6>
+                        <div class="hash-container">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">MD5</label>
+                                    <div>
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('md5')" title="Create MD5 IOC">
+                                            <i class="bi bi-plus"></i> IOC
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('md5')" title="Search on VirusTotal">
+                                            <i class="bi bi-search"></i> VT
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="text" class="form-control font-monospace" id="file-hash-md5" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">SHA1</label>
+                                    <div>
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha1')" title="Create SHA1 IOC">
+                                            <i class="bi bi-plus"></i> IOC
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('sha1')" title="Search on VirusTotal">
+                                            <i class="bi bi-search"></i> VT
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="text" class="form-control font-monospace" id="file-hash-sha1" readonly>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label mb-0">SHA256</label>
+                                    <div>
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha256')" title="Create SHA256 IOC">
+                                            <i class="bi bi-plus"></i> IOC
+                                        </button>
+                                        <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('sha256')" title="Search on VirusTotal">
+                                            <i class="bi bi-search"></i> VT
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="text" class="form-control font-monospace" id="file-hash-sha256" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Metadata section -->
+                        <div id="metadataSection" style="display: none;">
+                            <h6 class="mt-4 mb-3"><i class="bi bi-info-circle"></i> File Metadata</h6>
+                            <ul class="list-unstyled" id="metadataList"></ul>
+                        </div>
+
+                        <!-- Created IOCs section -->
+                        <div id="createdIocsSection" style="display: none;">
+                            <h6 class="mt-4 mb-3"><i class="bi bi-check-circle"></i> Created IOCs</h6>
+                            <div id="createdIocsList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -956,6 +1091,24 @@ $(document).ready(function() {
     $('#toggleRawGeoip').click(function() {
         $('#geoipParsed').toggle();
         $('#geoipRaw').toggle();
+    });
+
+    // File Analysis
+    $('#fileAnalysisForm').submit(function(e) {
+        e.preventDefault();
+        analyzeFile();
+    });
+
+    $('#createAllIocsFromFile').click(function() {
+        if (currentScanResult) {
+            // Normalize data - handle both direct and nested (result field) structures
+            const fileData = currentScanResult.result || currentScanResult;
+            if (fileData && fileData.hashes) {
+                createIocsFromFileHashes(currentScanResult);
+            } else {
+                showAlert('No file hash data available', 'warning');
+            }
+        }
     });
     
     // Refresh history
@@ -1726,6 +1879,323 @@ function displayEmailHeadersResult(data) {
     window.emailHeadersData = parsed;
 }
 
+function analyzeFile() {
+    const fileInput = $('#fileInput')[0];
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showAlert('Please select a file', 'warning');
+        return;
+    }
+    
+    const createIocs = $('#createIocsCheckbox').is(':checked');
+    const $btn = $('#analyzeFileBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Analyzing...');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('create_iocs', createIocs);
+    
+    $.ajax({
+        url: '/api/tools/file-analysis',
+        method: 'POST',
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function(response) {
+            currentScanResult = response;
+            displayFileAnalysisResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'File analysis failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze File');
+            fileInput.value = '';
+        }
+    });
+}
+
+function displayFileAnalysisResult(data) {
+    $('#fileAnalysisResultCard').show();
+    
+    // Ensure currentScanResult is updated with complete data
+    currentScanResult = data;
+    
+    // Format file size
+    const formatBytes = (bytes) => {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    };
+    
+    // Support both direct data and data from history (in result field)
+    const fileData = data.result || data;
+    
+    // Populate file info
+    $('#file-filename').text(fileData.filename || 'Unknown');
+    $('#file-size').text(formatBytes(fileData.size || 0));
+    $('#file-mime').text(fileData.mime_type || 'Unknown');
+    $('#file-type').text((fileData.extension || 'unknown').substring(1) || 'no extension');
+    
+    // Populate hashes
+    const hashes = fileData.hashes || {};
+    $('#file-hash-md5').val(hashes.md5 || 'N/A');
+    $('#file-hash-sha1').val(hashes.sha1 || 'N/A');
+    $('#file-hash-sha256').val(hashes.sha256 || 'N/A');
+    
+    // Display metadata if available
+    const metadata = fileData.metadata || {};
+    if (Object.keys(metadata).length > 0) {
+        let metadataHtml = '';
+        
+        // File entropy and sections
+        if (metadata.file_entropy !== undefined) {
+            metadataHtml += `<li class="mb-2"><strong>Entropy:</strong> <span class="font-monospace">${metadata.file_entropy}</span></li>`;
+        }
+        
+        if (metadata.sections) {
+            if (metadata.sections.size_readable) {
+                metadataHtml += `<li class="mb-2"><strong>Size (readable):</strong> ${metadata.sections.size_readable}</li>`;
+            }
+            if (metadata.sections.type) {
+                metadataHtml += `<li class="mb-2"><strong>File Type:</strong> ${metadata.sections.type}</li>`;
+            }
+            if (metadata.sections.pe_type) {
+                metadataHtml += `<li class="mb-2"><strong>PE Type:</strong> ${metadata.sections.pe_type}</li>`;
+            }
+            if (metadata.sections.architecture) {
+                metadataHtml += `<li class="mb-2"><strong>Architecture:</strong> ${metadata.sections.architecture}</li>`;
+            }
+            if (metadata.sections.pe_signature) {
+                metadataHtml += `<li class="mb-2"><strong>PE Signature:</strong> ${metadata.sections.pe_signature}</li>`;
+            }
+        }
+        
+        // Document properties
+        if (metadata.properties && Object.keys(metadata.properties).length > 0) {
+            metadataHtml += '<li class="mb-2"><strong>Document Properties:</strong><ul class="small">';
+            for (const [key, value] of Object.entries(metadata.properties)) {
+                if (value) {
+                    const displayKey = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+                    metadataHtml += `<li>${displayKey}: ${value}</li>`;
+                }
+            }
+            metadataHtml += '</ul></li>';
+        }
+        
+        if (metadataHtml) {
+            $('#metadataList').html(metadataHtml);
+            $('#metadataSection').show();
+        }
+    } else {
+        $('#metadataSection').hide();
+    }
+    
+    // Display created IOCs if any
+    if (fileData.created_iocs && fileData.created_iocs.length > 0) {
+        let iocsHtml = '<div class="list-group">';
+        for (const ioc of fileData.created_iocs) {
+            const badgeColor = ioc.is_new ? 'bg-success' : 'bg-info';
+            const badgeText = ioc.is_new ? 'New' : 'Existing';
+            iocsHtml += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${ioc.type.toUpperCase()}</strong>
+                            <small class="text-muted d-block">${ioc.value.substring(0, 50)}</small>
+                        </div>
+                        <span class="badge ${badgeColor}">${badgeText}</span>
+                    </div>
+                </div>
+            `;
+        }
+        iocsHtml += '</div>';
+        
+        $('#createdIocsList').html(iocsHtml);
+        $('#createdIocsSection').show();
+    } else {
+        $('#createdIocsSection').hide();
+    }
+    
+    $('#fileAnalysisParsed').show();
+}
+
+function createIocsFromFileHashes(data) {
+    if (!data) return;
+    
+    // Normalize data - handle both direct and nested (result field) structures
+    const fileData = data.result || data;
+    const hashes = fileData.hashes;
+    
+    if (!hashes) {
+        showAlert('No hashes found in scan result', 'warning');
+        return;
+    }
+    
+    const hashIds = {};
+    let processed = 0;
+    const totalHashes = Object.keys(hashes).length;
+    let newIocsCount = 0;
+    let existingIocsCount = 0;
+    
+    // First create all IOCs
+    for (const [hashType, hashValue] of Object.entries(hashes)) {
+        if (!hashValue) {
+            processed++;
+            continue;
+        }
+        
+        const iocData = {
+            type: hashType,
+            value: hashValue,
+            labels: ['file-hash', 'file-analysis', fileData.extension || 'unknown'],
+            source: 'file-analysis',
+            name: `File hash from ${fileData.filename}`,
+            description: `${hashType.toUpperCase()} hash of ${fileData.filename}`,
+            threat_level: 'unknown'
+        };
+        
+        $.ajax({
+            url: '/api/ioc',
+            method: 'POST',
+            contentType: 'application/json',
+            dataType: 'json',
+            data: JSON.stringify(iocData),
+            success: function(response) {
+                // Extract ID from response
+                const iocId = response.ioc?.id || response.id;
+                if (iocId) {
+                    hashIds[hashType] = iocId;
+                }
+                
+                // Track if IOC is new or existing
+                if (response.is_new) {
+                    newIocsCount++;
+                } else {
+                    existingIocsCount++;
+                }
+                
+                processed++;
+                
+                // When all IOCs are processed, create relationships
+                if (processed === totalHashes) {
+                    createHashRelationships(hashIds);
+                    
+                    // Show summary message
+                    let msg = '';
+                    if (newIocsCount > 0) {
+                        msg += `${newIocsCount} IOC(s) created`;
+                    }
+                    if (existingIocsCount > 0) {
+                        if (msg) msg += ', ';
+                        msg += `${existingIocsCount} already existing`;
+                    }
+                    
+                    if (msg) {
+                        // Use warning color (orange) if all IOCs are existing, success if any are new
+                        const alertType = (newIocsCount === 0 && existingIocsCount > 0) ? 'warning' : 'success';
+                        showAlert(`${msg}.`, alertType);
+                    }
+                    
+                    displayFileAnalysisResult(data);
+                }
+            },
+            error: function(xhr) {
+                const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+                showAlert(`${hashType}: ${msg}`, 'warning');
+                processed++;
+                if (processed === totalHashes) {
+                    displayFileAnalysisResult(data);
+                }
+            }
+        });
+    }
+}
+
+function createHashRelationships(hashIds) {
+    const hashTypesList = Object.keys(hashIds);
+    
+    // Create relationships between each hash pair (related)
+    for (let i = 0; i < hashTypesList.length; i++) {
+        for (let j = i + 1; j < hashTypesList.length; j++) {
+            const type1 = hashTypesList[i];
+            const type2 = hashTypesList[j];
+            const id1 = hashIds[type1];
+            const id2 = hashIds[type2];
+            
+            if (id1 && id2) {
+                // Create relationship from id1 to id2
+                $.ajax({
+                    url: `/api/ioc/${id1}/relations`,
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        related_ioc_ids: [id2],
+                        relation_type: 'related'
+                    }),
+                    error: function(xhr) {
+                        // Log error for debugging
+                        console.warn('Failed to create relation:', xhr);
+                    }
+                });
+            }
+        }
+    }
+}
+
+function createIocFromHash(hashType) {
+    const hashValue = $(`#file-hash-${hashType}`).val();
+    if (!hashValue) {
+        showAlert('No hash value found', 'warning');
+        return;
+    }
+    
+    const filename = $('#file-filename').text();
+    const iocData = {
+        type: hashType,
+        value: hashValue,
+        labels: ['file-hash', 'file-analysis'],
+        source: 'file-analysis',
+        name: `File hash from ${filename}`,
+        description: `${hashType.toUpperCase()} hash of ${filename}`,
+        threat_level: 'unknown'
+    };
+    
+    $.ajax({
+        url: '/api/ioc',
+        method: 'POST',
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify(iocData),
+        success: function(response) {
+            // Check if IOC is new or already existed
+            if (response.is_new) {
+                showAlert(`${hashType.toUpperCase()} IOC created successfully!`, 'success');
+            } else {
+                showAlert(`${hashType.toUpperCase()} IOC already exists in database.`, 'info');
+            }
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+            showAlert(`Error: ${msg}`, 'danger');
+        }
+    });
+}
+
+function openVirusTotal(hashType) {
+    const hashValue = $(`#file-hash-${hashType}`).val();
+    if (!hashValue) {
+        showAlert('No hash value found', 'warning');
+        return;
+    }
+    
+    const vtUrl = `https://www.virustotal.com/gui/search/${hashValue}`;
+    window.open(vtUrl, '_blank');
+}
+
 function loadScanHistory() {
     $.ajax({
         url: '/api/tools/scans',
@@ -1816,7 +2286,8 @@ function displayScanHistory(scans) {
         'traceroute': { icon: 'bi-diagram-3', color: 'warning' },
         'dig': { icon: 'bi-globe2', color: 'info' },
         'reverse-dns': { icon: 'bi-globe2', color: 'info' },
-        'email-headers': { icon: 'bi-envelope', color: 'danger' }
+        'email-headers': { icon: 'bi-envelope', color: 'danger' },
+        'file-analysis': { icon: 'bi-file-earmark', color: 'secondary' }
     };
     
     let html = '';
@@ -1895,6 +2366,13 @@ function loadScanDetails(scanId) {
                 $('.tool-panel').hide();
                 $('#email-headersPanel').show();
                 displayEmailHeadersResult(response);
+            } else if (tool === 'file-analysis') {
+                // File analysis doesn't have a 'target' field
+                $('.tool-card').removeClass('active');
+                $(`.tool-card[data-tool="file-analysis"]`).addClass('active');
+                $('.tool-panel').hide();
+                $('#file-analysisPanel').show();
+                displayFileAnalysisResult(response);
             }
         },
         error: function() {
