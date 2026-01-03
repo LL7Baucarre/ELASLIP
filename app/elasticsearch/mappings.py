@@ -165,6 +165,33 @@ USERS_MAPPING = {
 }
 
 
+# OAuth Accounts Index Mapping
+# NOTE: We intentionally do NOT store OAuth access/refresh tokens in Elasticsearch.
+# Only stable identifiers/metadata are stored here. Actual tokens must be kept in a
+# dedicated secrets store or short-TTL cache with stricter access controls and
+# retention policies to reduce the blast radius of any Elasticsearch compromise.
+OAUTH_ACCOUNTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            "id": {"type": "keyword"},
+            "user_id": {"type": "keyword"},
+            "provider": {"type": "keyword"},
+            "provider_user_id": {"type": "keyword"},
+            "email": {"type": "keyword"},
+            "token_reference_id": {"type": "keyword"},
+            "token_expires_at": {"type": "date"},
+            "profile_data": {"type": "object", "enabled": False},
+            "created_at": {"type": "date"},
+            "updated_at": {"type": "date"}
+        }
+    }
+}
+
+
 # API Keys Index Mapping
 API_KEYS_MAPPING = {
     "settings": {
@@ -454,6 +481,7 @@ INCIDENTS_MAPPING = {
         "properties": {
             "id": {"type": "keyword"},
             "case_id": {"type": "keyword"},  # Parent case
+            "checklist_ids": {"type": "keyword"},  # Linked checklist instances
             "title": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
             "description": {"type": "text"},
             "status": {"type": "keyword"},  # detected, analyzing, contained, eradicated, recovered, closed
@@ -753,6 +781,7 @@ IMAGES_MAPPING = {
 INDICES = {
     "elaslip_ioc": IOC_MAPPING,
     "elaslip_users": USERS_MAPPING,
+    "elaslip_oauth_accounts": OAUTH_ACCOUNTS_MAPPING,
     "elaslip_api_keys": API_KEYS_MAPPING,
     "elaslip_api_configs": API_CONFIGS_MAPPING,
     "elaslip_webhooks": WEBHOOKS_MAPPING,

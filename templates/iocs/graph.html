@@ -556,8 +556,8 @@
     </div>
     
     <div class="control-group">
-        <label for="searchIOC">Search IOC:</label>
-        <input type="text" id="searchIOC" placeholder="Enter IOC value..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
+        <label for="searchIOC">Search Entities:</label>
+        <input type="text" id="searchIOC" placeholder="Search IOCs, Cases, Incidents..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
         <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
     </div>
 
@@ -649,7 +649,9 @@
 
 <!-- Legend -->
 <div class="legend" id="legendPanel">
-    <h6 style="margin-top: 0; margin-bottom: 10px;">IOC Types</h6>
+    <h6 style="margin-top: 0; margin-bottom: 10px;">Entity Types</h6>
+    
+    <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">IOCs</div>
     <div class="legend-item">
         <div class="legend-color" style="background-color: #FF6B6B;"></div>
         <span>IPv4</span>
@@ -710,6 +712,18 @@
         <div class="legend-color" style="background-color: #87CEEB;"></div>
         <span>Certificate Serial</span>
     </div>
+    
+    <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+    
+    <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">Investigations</div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #3498db; width: 20px; height: 20px; border-radius: 2px;"></div>
+        <span>Case</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #e74c3c; width: 20px; height: 20px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);"></div>
+        <span>Incident</span>
+    </div>
 </div>
 
 <!-- Info Panel -->
@@ -769,6 +783,24 @@ function initGraph(nodes, edges) {
                 style: {
                     'border-width': 3,
                     'border-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'node.case',
+                style: {
+                    'background-color': '#3498db',
+                    'shape': 'square',
+                    'width': 40,
+                    'height': 40
+                }
+            },
+            {
+                selector: 'node.incident',
+                style: {
+                    'background-color': '#e74c3c',
+                    'shape': 'diamond',
+                    'width': 40,
+                    'height': 40
                 }
             },
             {
@@ -840,6 +872,24 @@ function initGraph(nodes, edges) {
                 }
             },
             {
+                selector: 'edge.relation-found_in_case',
+                style: {
+                    'line-color': '#3498db',
+                    'target-arrow-color': '#3498db',
+                    'width': 2.5,
+                    'line-style': 'dashed'
+                }
+            },
+            {
+                selector: 'edge.relation-found_in_incident',
+                style: {
+                    'line-color': '#e74c3c',
+                    'target-arrow-color': '#e74c3c',
+                    'width': 2.5,
+                    'line-style': 'dashed'
+                }
+            },
+            {
                 selector: 'edge:selected',
                 style: {
                     'line-color': '#FFD700',
@@ -890,12 +940,20 @@ function initGraph(nodes, edges) {
         }
     });
 
-    // Double-click to navigate to IOC
+    // Double-click to navigate to entity based on type
     cy.on('dblclick', 'node', function(e) {
         e.stopPropagation();
         e.preventDefault();
         const nodeId = e.target.id();
-        window.location.href = `/iocs/${nodeId}`;
+        const entityType = e.target.data('entity_type') || 'ioc';
+        
+        if (entityType === 'case') {
+            window.location.href = `/cases/${nodeId}`;
+        } else if (entityType === 'incident') {
+            window.location.href = `/incidents/${nodeId}`;
+        } else {
+            window.location.href = `/iocs/${nodeId}`;
+        }
     });
 
     fitGraph();
@@ -915,8 +973,17 @@ function loadGraph() {
             
             // Add color based on type
             nodes.forEach(node => {
-                const type = node.data.type.replace('-', '_');
-                node.data.color = getColorForType(type);
+                // Skip coloring for non-IOC entities (cases, incidents already have colors)
+                if (node.data.type) {
+                    const type = node.data.type.replace('-', '_');
+                    node.data.color = getColorForType(type);
+                } else if (node.data.entity_type === 'case') {
+                    node.data.color = '#3498db';  // Blue for cases
+                } else if (node.data.entity_type === 'incident') {
+                    node.data.color = '#e74c3c';  // Red for incidents
+                } else {
+                    node.data.color = '#95a5a6';  // Gray for unknown
+                }
             });
 
             // Add color to edges
@@ -1189,62 +1256,101 @@ function showNodeInfo(node) {
     const data = node.data();
     const infoPanel = document.getElementById('infoPanel');
     const nodeInfo = document.getElementById('nodeInfo');
+    const entityType = data.entity_type || 'ioc';
     
-    // Safe value extraction with defaults
     const label = data.label || data.id || 'Unknown';
-    const type = data.type || 'unknown';
-    const threatLevel = data.threat_level || 'unknown';
-    const confidence = data.confidence || '';
-    const tlp = data.tlp || '';
     
-    let html = `
-        <div class="info-item">
-            <strong>Value:</strong>
-            <code>${escapeHtml(label)}</code>
-        </div>
-        <div class="info-item">
-            <strong>Type:</strong>
-            <span class="badge badge-primary">${escapeHtml(type)}</span>
-        </div>
-    `;
-
-    if (threatLevel && threatLevel !== 'unknown') {
-        const threatColor = {
-            'critical': 'danger',
-            'high': 'warning',
-            'medium': 'info',
-            'low': 'secondary'
-        }[threatLevel] || 'secondary';
+    let html = `<div class="info-item"><strong>Label:</strong> <code>${escapeHtml(label)}</code></div>`;
+    
+    // Display different information based on entity type
+    if (entityType === 'case') {
         html += `
             <div class="info-item">
-                <strong>Threat:</strong>
-                <span class="badge bg-${threatColor}">${escapeHtml(threatLevel.toUpperCase())}</span>
+                <strong>Type:</strong>
+                <span class="badge bg-info">Case</span>
             </div>
         `;
-    }
-
-    if (confidence) {
+        if (data.status) {
+            html += `
+                <div class="info-item">
+                    <strong>Status:</strong>
+                    <span class="badge bg-secondary">${escapeHtml(data.status)}</span>
+                </div>
+            `;
+        }
+    } else if (entityType === 'incident') {
         html += `
             <div class="info-item">
-                <strong>Confidence:</strong>
-                <span class="badge badge-success">${escapeHtml(confidence)}</span>
+                <strong>Type:</strong>
+                <span class="badge bg-danger">Incident</span>
             </div>
         `;
-    }
-
-    if (tlp) {
-        const tlpColor = {
-            'white': 'light',
-            'green': 'success',
-            'amber': 'warning',
-            'red': 'danger'
-        }[tlp] || 'secondary';
+        if (data.severity) {
+            const severityColor = {
+                'critical': 'danger',
+                'high': 'warning',
+                'medium': 'info',
+                'low': 'secondary'
+            }[data.severity] || 'secondary';
+            html += `
+                <div class="info-item">
+                    <strong>Severity:</strong>
+                    <span class="badge bg-${severityColor}">${escapeHtml(data.severity.toUpperCase())}</span>
+                </div>
+            `;
+        }
+    } else {
+        // IOC entity
+        const type = data.type || 'unknown';
+        const threatLevel = data.threat_level || 'unknown';
+        const confidence = data.confidence || '';
+        const tlp = data.tlp || '';
+        
         html += `
             <div class="info-item">
-                <strong>TLP:</strong>
-                <span class="badge bg-${tlpColor}">${escapeHtml(tlp.toUpperCase())}</span>
+                <strong>Type:</strong>
+                <span class="badge badge-primary">${escapeHtml(type)}</span>
             </div>
         `;
+
+        if (threatLevel && threatLevel !== 'unknown') {
+            const threatColor = {
+                'critical': 'danger',
+                'high': 'warning',
+                'medium': 'info',
+                'low': 'secondary'
+            }[threatLevel] || 'secondary';
+            html += `
+                <div class="info-item">
+                    <strong>Threat:</strong>
+                    <span class="badge bg-${threatColor}">${escapeHtml(threatLevel.toUpperCase())}</span>
+                </div>
+            `;
+        }
+
+        if (confidence) {
+            html += `
+                <div class="info-item">
+                    <strong>Confidence:</strong>
+                    <span class="badge badge-success">${escapeHtml(confidence)}</span>
+                </div>
+            `;
+        }
+
+        if (tlp) {
+            const tlpColor = {
+                'white': 'light',
+                'green': 'success',
+                'amber': 'warning',
+                'red': 'danger'
+            }[tlp] || 'secondary';
+            html += `
+                <div class="info-item">
+                    <strong>TLP:</strong>
+                    <span class="badge bg-${tlpColor}">${escapeHtml(tlp.toUpperCase())}</span>
+                </div>
+            `;
+        }
     }
 
     // Show relations
@@ -1264,10 +1370,25 @@ function showNodeInfo(node) {
         html += `</ul></div>`;
     }
 
+    // Add view button based on entity type
+    let viewUrl = '#';
+    let viewText = 'View Entity';
+    
+    if (entityType === 'case') {
+        viewUrl = `/cases/${data.id}`;
+        viewText = 'View Case';
+    } else if (entityType === 'incident') {
+        viewUrl = `/incidents/${data.id}`;
+        viewText = 'View Incident';
+    } else {
+        viewUrl = `/iocs/${data.id}`;
+        viewText = 'View IOC';
+    }
+    
     html += `
         <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-            <a href="/iocs/${data.id}" class="btn btn-sm btn-primary w-100">
-                <i class="bi bi-eye me-1"></i> View IOC
+            <a href="${viewUrl}" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-eye me-1"></i> ${viewText}
             </a>
         </div>
     `;
@@ -1320,9 +1441,9 @@ function debouncedSearch() {
 }
 
 function showShowAllOption() {
-    // Display "Show All IOCs" immediately when input is focused
+    // Display "Show All Entities" immediately when input is focused
     const dropdown = document.getElementById('searchResultsDropdown');
-    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All Entities</div>';
     dropdown.style.display = 'block';
 }
 
@@ -1348,26 +1469,42 @@ function searchIOC() {
                 per_page: 10
             },
             success: function(response) {
-                const iocs = response.items || response.results || response.iocs || [];
+                const items = response.items || response.results || response.iocs || [];
                 
-                if (iocs.length === 0) {
+                if (items.length === 0) {
                     dropdown.innerHTML = '<div class="search-result-item text-muted text-center">No results found</div>';
                     dropdown.style.display = 'block';
                     return;
                 }
                 
                 // Build dropdown HTML with "Show All" option at the top
-                let html = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All IOCs</div>';
+                let html = '<div class="search-result-item" onclick="showAllIOCs(event)" style="background-color: #f8f9fa; font-weight: bold; border-bottom: 1px solid #ddd;"><i class="bi bi-collection me-2"></i>Show All Entities</div>';
                 
-                for (const ioc of iocs) {
-                    const iocValue = ioc.value || ioc.ioc_value || '';
-                    const iocType = ioc.type || ioc.ioc_type || 'unknown';
-                    const iocId = ioc.id;
+                for (const item of items) {
+                    const entityType = item.entity_type || item.type || 'ioc';
+                    const itemId = item.id;
+                    let displayLabel = '';
+                    let displayType = '';
+                    
+                    if (entityType === 'case') {
+                        displayLabel = item.title || item.name || 'Unknown Case';
+                        displayType = 'Case';
+                    } else if (entityType === 'incident') {
+                        displayLabel = item.title || item.name || 'Unknown Incident';
+                        displayType = 'Incident';
+                    } else if (entityType === 'user') {
+                        displayLabel = item.username || item.name || 'Unknown User';
+                        displayType = 'User';
+                    } else {
+                        // IOC
+                        displayLabel = item.ioc_value || item.value || '';
+                        displayType = (item.ioc_type || item.type || 'unknown').toUpperCase();
+                    }
                     
                     html += `
-                        <div class="search-result-item" onclick="selectFromSearch('${iocId}', '${iocValue.replace(/'/g, "\\'")}', event)">
-                            <strong>${escapeHtml(iocValue)}</strong>
-                            <small class="text-muted">${escapeHtml(iocType.toUpperCase())}</small>
+                        <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)">
+                            <strong>${escapeHtml(displayLabel)}</strong>
+                            <small class="text-muted">${escapeHtml(displayType)}</small>
                         </div>
                     `;
                 }
@@ -1375,8 +1512,8 @@ function searchIOC() {
                 dropdown.innerHTML = html;
                 dropdown.style.display = 'block';
                 
-                // Highlight and filter the graph for the first result
-                const matchingIds = iocs.map(ioc => ioc.id);
+                // Highlight and filter the graph for the matching results
+                const matchingIds = items.map(item => item.id);
                 filterGraphByIds(matchingIds);
             },
             error: function() {
