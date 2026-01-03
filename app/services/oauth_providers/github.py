@@ -9,6 +9,7 @@ class GitHubOAuthProvider(BaseOAuthProvider):
     GitHub OAuth 2.0 provider implementation.
     
     Note: GitHub OAuth is OAuth 2.0 but NOT OpenID Connect.
+    GitHub does not support PKCE, so we disable it.
     User information requires a separate API call to /user endpoint.
     """
     
@@ -19,8 +20,9 @@ class GitHubOAuthProvider(BaseOAuthProvider):
     TOKEN_ENDPOINT = 'https://github.com/login/oauth/access_token'
     USERINFO_ENDPOINT = 'https://api.github.com/user'
     
-    # GitHub doesn't support 'openid' scope
+    # GitHub doesn't support 'openid' scope or PKCE
     DEFAULT_SCOPES = ['read:user', 'user:email']
+    PKCE_ENABLED = False
     
     def _normalize_user_info(self, raw_profile: Dict) -> Dict:
         email = raw_profile.get('email')
@@ -61,7 +63,6 @@ class GitHubOAuthProvider(BaseOAuthProvider):
             client_id=self.client_id,
             client_secret=self.client_secret,
             redirect_uri=redirect_uri,
-            code_verifier=code_verifier,
         )
         
         token = session.fetch_token(
@@ -72,3 +73,6 @@ class GitHubOAuthProvider(BaseOAuthProvider):
         )
         
         return token
+    
+    def get_display_name(self) -> str:
+        return 'GitHub'
