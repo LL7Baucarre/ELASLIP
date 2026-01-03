@@ -98,7 +98,8 @@ class OAuthService:
         code_verifier = session.get(f'oauth_{provider_name}_code_verifier')
         redirect_uri = session.get(f'oauth_{provider_name}_redirect_uri')
         
-        if not code_verifier or not redirect_uri:
+        # redirect_uri is always required, code_verifier may be None if PKCE is disabled
+        if not redirect_uri:
             return None, 'OAuth session expired. Please try again.'
         
         # Exchange code for token

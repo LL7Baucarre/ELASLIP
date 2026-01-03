@@ -16,7 +16,7 @@ class BaseOAuthProvider(ABC):
     Abstract base class for OAuth 2.0 / OpenID Connect providers.
     
     Implements common OAuth flow logic with provider-specific customization points.
-    Uses PKCE (Proof Key for Code Exchange) for enhanced security.
+    Uses PKCE (Proof Key for Code Exchange) for enhanced security when supported.
     """
     
     # Provider-specific constants (override in subclasses)
@@ -25,6 +25,7 @@ class BaseOAuthProvider(ABC):
     TOKEN_ENDPOINT = ''
     USERINFO_ENDPOINT = ''
     DEFAULT_SCOPES = ['openid', 'profile', 'email']
+    PKCE_ENABLED = True  # Override to False for providers that don't support PKCE
     
     def __init__(self):
         """Initialize provider with configuration from Flask app config."""
@@ -46,18 +47,21 @@ class BaseOAuthProvider(ABC):
         if scopes is None:
             scopes = self.DEFAULT_SCOPES
         
-        code_verifier = secrets.token_urlsafe(64)
-        code_challenge = create_s256_code_challenge(code_verifier)
-        
+        code_verifier = None
         params = {
             'client_id': self.client_id,
             'redirect_uri': redirect_uri,
             'response_type': 'code',
             'scope': ' '.join(scopes),
             'state': state,
-            'code_challenge': code_challenge,
-            'code_challenge_method': 'S256',
         }
+        
+        # Only use PKCE if provider supports it
+        if self.PKCE_ENABLED:
+            code_verifier = secrets.token_urlsafe(64)
+            code_challenge = create_s256_code_challenge(code_verifier)
+            params['code_challenge'] = code_challenge
+            params['code_challenge_method'] = 'S256'
         
         params.update(self._get_additional_auth_params())
         
@@ -73,12 +77,16 @@ class BaseOAuthProvider(ABC):
             redirect_uri=redirect_uri,
         )
         
-        token = session.fetch_token(
-            self.TOKEN_ENDPOINT,
-            authorization_response=None,
-            code=code,
-            code_verifier=code_verifier,
-        )
+        token_params = {
+            'authorization_response': None,
+            'code': code,
+        }
+        
+        # Only include code_verifier if PKCE is enabled
+        if self.PKCE_ENABLED and code_verifier:
+            token_params['code_verifier'] = code_verifier
+        
+        token = session.fetch_token(self.TOKEN_ENDPOINT, **token_params)
         
         return token
     
@@ -92,6 +100,8 @@ class BaseOAuthProvider(ABC):
     
     @abstractmethod
     def _normalize_user_info(self, raw_profile: Dict) -> Dict:
+        """Normalize provider-specific user info to standard format."""
+        pass
     
     def _get_additional_auth_params(self) -> Dict:
         return {}
