@@ -218,6 +218,42 @@ This generates realistic test data useful for exploring features and understandi
 
 Variables: `{type}`, `{value}`, `{severity}`, `{description}`, `{relations}`, `{name}`, `{status}`, etc.
 
+### OAuth Configuration
+
+ELASLIP supports OAuth (Google, GitHub, and generic OIDC providers) for user authentication.
+
+Key points:
+
+- Enable OAuth via environment variables or the Admin UI.
+- Admins can configure provider credentials (Client ID / Secret) and enable/disable providers.
+- Admins can choose the **default role** assigned to newly created OAuth users using the Settings UI or by setting `OAUTH_DEFAULT_ROLE` in `.env`.
+- OAuth global settings are available in the app at **Settings → OAuth Configuration** (admin only). The page provides toggles and credential forms for Google, GitHub, and OIDC, and a **Default Role** dropdown that is populated from available roles in the system.
+- Changes made in the Settings UI update the running configuration; to persist changes across restarts, add/update the corresponding variables in your `.env` file.
+
+Important environment variables (see `.env.example` / `.env.oauth.example` for full examples):
+
+- `OAUTH_ENABLED` — Set to `true` to enable OAuth
+- `OAUTH_ENCRYPTION_KEY` — **Required** when OAuth is enabled. Generate with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+- `OAUTH_AUTO_CREATE_USER` — Automatically create users on first OAuth login (default `true`)
+- `OAUTH_AUTO_LINK_BY_EMAIL` — Link OAuth accounts to existing users by email (default `false`)
+- `OAUTH_DEFAULT_ROLE` — Default role for new OAuth users (e.g., `viewer`, `analyst`, `admin`)
+- `OAUTH_GOOGLE_ENABLED`, `OAUTH_GOOGLE_CLIENT_ID`, `OAUTH_GOOGLE_CLIENT_SECRET` — Google credentials; authorized redirect URI: `http://localhost:5000/oauth/callback/google`
+- `OAUTH_GITHUB_ENABLED`, `OAUTH_GITHUB_CLIENT_ID`, `OAUTH_GITHUB_CLIENT_SECRET` — GitHub credentials; callback: `http://localhost:5000/oauth/callback/github`
+- `OAUTH_OIDC_ENABLED`, `OAUTH_OIDC_CLIENT_ID`, `OAUTH_OIDC_CLIENT_SECRET`, `OAUTH_OIDC_DISCOVERY_URL`, `OAUTH_OIDC_PROVIDER_NAME` — Generic OIDC provider settings
+
+Admin REST endpoints:
+
+- `GET /api/settings/oauth` — Read current OAuth settings
+- `PUT /api/settings/oauth` — Update runtime OAuth settings (note: not persisted to `.env`)
+- `GET /api/settings/oauth/roles` — Retrieve available roles to populate the Default Role dropdown
+
+---
+
 ### Enrichment Tools
 
 #### GeoIP Tool
