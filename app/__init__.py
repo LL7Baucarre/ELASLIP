@@ -46,7 +46,11 @@ def create_app(config_name=None):
     
     # Load configuration
     app.config.from_object(config.get(config_name, config['default']))
-
+    
+    # Ensure MAX_CONTENT_LENGTH is set (for file uploads)
+    if 'MAX_CONTENT_LENGTH' not in app.config or app.config['MAX_CONTENT_LENGTH'] is None:
+        app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB default
+    
     # Initialize logging from central config
     from app.logging_config import init_logging
     init_logging(app.config)
@@ -77,21 +81,93 @@ def create_app(config_name=None):
         "swagger": "2.0",
         "info": {
             "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
-            "description": "API for managing Indicators of Compromise with authentication",
-            "version": "1.0.0"
+            "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
+            "version": "1.0.0",
+            "contact": {
+                "name": "ELASLIP Support",
+                "url": "https://github.com/LL7Baucarre/ELASLIP"
+            },
+            "license": {
+                "name": "MIT",
+                "url": "https://opensource.org/licenses/MIT"
+            }
         },
         "basePath": "/api",
         "schemes": ["http", "https"],
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
         "securityDefinitions": {
             "api_key": {
                 "type": "apiKey",
                 "name": "X-API-Key",
                 "in": "header",
-                "description": "API Key for authentication. Generate one in Settings > API Keys"
+                "description": "API Key for authentication. Generate one in API Keys settings."
+            },
+            "session": {
+                "type": "basic",
+                "description": "Session-based authentication via login"
             }
         },
         "security": [
             {"api_key": []}
+        ],
+        "tags": [
+            {
+                "name": "IOCs",
+                "description": "Indicator of Compromise management"
+            },
+            {
+                "name": "Search",
+                "description": "IOC search and filtering"
+            },
+            {
+                "name": "Relations",
+                "description": "IOC relationship management"
+            },
+            {
+                "name": "Cases",
+                "description": "Investigation case management"
+            },
+            {
+                "name": "Incidents",
+                "description": "Security incident management"
+            },
+            {
+                "name": "Checklists",
+                "description": "Security checklist management"
+            },
+            {
+                "name": "Reports",
+                "description": "Report generation with LLM support"
+            },
+            {
+                "name": "Tools",
+                "description": "Security tools integration (nmap, ping, whois, etc.)"
+            },
+            {
+                "name": "Webhooks",
+                "description": "Event webhooks and integrations"
+            },
+            {
+                "name": "API Keys",
+                "description": "API key management"
+            },
+            {
+                "name": "Submissions",
+                "description": "Public IOC submissions"
+            },
+            {
+                "name": "Notifications",
+                "description": "User notifications"
+            },
+            {
+                "name": "RBAC",
+                "description": "Role-based access control"
+            },
+            {
+                "name": "FinOps",
+                "description": "LLM token usage tracking"
+            }
         ]
     }
     
