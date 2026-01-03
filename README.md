@@ -287,6 +287,32 @@ Admin REST endpoints:
 - Supports large headers (up to 100KB)
 - Email tags automatically applied to created IOCs
 
+#### Shodan Device Search Tool
+- **Internet Device Reconnaissance** - Search for internet-facing devices, servers, and IoT systems
+- **IP Lookup** - Query specific IP addresses for ports, services, and vulnerabilities
+- **Service Search** - Find devices running specific services (Apache, Nginx, OpenSSL, etc.)
+- **Port-Based Search** - Discover systems with specific ports open (SSH, RDP, HTTP, etc.)
+- **Geographic Filtering** - Filter results by country or region
+- **Vulnerability Search** - Find systems with known vulnerabilities (premium API required)
+- **Organization Search** - Search for devices owned by specific organizations
+- **Result Caching** - Query results saved to scan history for reference
+
+**Access**: Tools menu → Shodan Device Search
+
+**Configuration**: 
+- Admin users can configure the Shodan API key via **Settings → Shodan Configuration**
+- API key can be set via environment variable `SHODAN_API_KEY`
+- Integration can be enabled/disabled via `SHODAN_ENABLED`
+- Test connection button verifies API key validity
+
+**Features**:
+- Real-time internet-facing device discovery
+- Detailed host information including open ports, services, and banners
+- Service enumeration with version detection
+- Vulnerability information when available
+- Results stored in scan history for audit trail
+- One-click IOC creation from discovered devices
+
 #### File Analysis Tool
 - **Hash Extraction** - Calculate MD5, SHA1, and SHA256 hashes from uploaded files
 - **File Metadata** - Extract comprehensive file properties and document metadata
@@ -391,6 +417,13 @@ If you prefer not to use this service, disable enrichment via:
 | `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow submissions without account login
 | `ENRICHMENT_CACHE_TTL` | `3600` | Enrichment cache time-to-live in seconds (GeoIP results)
 | `GEOIP_ENABLED` | `true` | Enable IP-API.com GeoIP enrichment for IP indicators
+| `SHODAN_API_KEY` | `` | Shodan API key for internet-facing device search
+| `SHODAN_ENABLED` | `false` | Enable Shodan device search tool
+| `OAUTH_ENABLED` | `false` | Enable OAuth authentication (Google, GitHub, OIDC)
+| `OAUTH_ENCRYPTION_KEY` | `` | Encryption key for OAuth credentials (required when OAuth enabled)
+| `OAUTH_AUTO_CREATE_USER` | `true` | Automatically create users on first OAuth login
+| `OAUTH_AUTO_LINK_BY_EMAIL` | `false` | Link OAuth accounts to existing users by email
+| `OAUTH_DEFAULT_ROLE` | `viewer` | Default role for new OAuth users
 
 See `.env.example` for the canonical defaults and examples.
 

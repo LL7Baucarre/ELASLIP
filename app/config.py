@@ -126,6 +126,10 @@ class Config:
     # OAuth Token Encryption Key (must be 32 url-safe base64-encoded bytes)
     # Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     OAUTH_ENCRYPTION_KEY = os.getenv('OAUTH_ENCRYPTION_KEY', None)
+    
+    # Shodan API Configuration
+    SHODAN_API_KEY = os.getenv('SHODAN_API_KEY', '')
+    SHODAN_ENABLED = env_bool('SHODAN_ENABLED', default=False) if os.getenv('SHODAN_API_KEY') else False
 
 
 class DevelopmentConfig(Config):

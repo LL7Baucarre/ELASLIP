@@ -986,6 +986,45 @@ def api_oauth_roles():
     })
 
 
+@main_bp.route('/api/settings/shodan', methods=['POST', 'DELETE'])
+@login_required
+@admin_required
+def api_shodan_settings():
+    """Manage Shodan API configuration."""
+    if request.method == 'POST':
+        data = request.get_json()
+        api_key = data.get('api_key', '').strip()
+        enabled = data.get('enabled', False)
+        
+        if not api_key:
+            return jsonify({'message': 'API key is required', 'success': False}), 400
+        
+        # Update application config (temporary, until server restart)
+        current_app.config['SHODAN_API_KEY'] = api_key
+        current_app.config['SHODAN_ENABLED'] = enabled
+        
+        # In a real application, you would save this to:
+        # 1. Database (encrypted)
+        # 2. .env file (with appropriate file permissions)
+        # 3. Secret management system (e.g., Vault, AWS Secrets Manager)
+        
+        return jsonify({
+            'message': 'Shodan configuration saved successfully',
+            'success': True,
+            'enabled': enabled
+        })
+    
+    elif request.method == 'DELETE':
+        # Clear Shodan configuration
+        current_app.config['SHODAN_API_KEY'] = ''
+        current_app.config['SHODAN_ENABLED'] = False
+        
+        return jsonify({
+            'message': 'Shodan configuration cleared',
+            'success': True
+        })
+
+
 @main_bp.route('/settings/oauth')
 @login_required
 @admin_required
@@ -1046,6 +1085,15 @@ def settings_llm():
 def settings_backup():
     """Backup and restore settings page (admin only)."""
     return render_template('settings/backup.html')
+
+
+@main_bp.route('/settings/shodan')
+@login_required
+@admin_required
+def settings_shodan():
+    """Shodan API settings page (admin only)."""
+    from app.config import Config
+    return render_template('settings/shodan.html', shodan_enabled=Config.SHODAN_ENABLED)
 
 
 @main_bp.route('/api/backups/available-indices', methods=['GET'])

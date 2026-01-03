@@ -1,0 +1,467 @@
+{% extends "base.html" %}
+
+{% block title %}Shodan Settings - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .api-key-input {
+        font-family: monospace;
+        letter-spacing: 2px;
+    }
+    
+    .api-status {
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+    
+    .api-status.enabled {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .api-status.disabled {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .info-card {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+    
+    .query-example {
+        background: #f0f0f0;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 5px 0;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="bi bi-search me-2"></i>Shodan Configuration</h2>
+            <p class="text-muted">Manage Shodan API settings for internet-facing device reconnaissance</p>
+        </div>
+    </div>
+    
+    <!-- API Key Configuration -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-key me-2"></i>API Key Configuration</h6>
+                </div>
+                <div class="card-body">
+                    <!-- Status Alert -->
+                    <div id="statusAlert" class="api-status enabled" style="display: none;">
+                        <i class="bi bi-check-circle me-2"></i> <strong>API Key Configured</strong>
+                        <small class="d-block mt-1">Your Shodan API key is active</small>
+                    </div>
+                    
+                    <div id="statusAlertDisabled" class="api-status disabled">
+                        <i class="bi bi-exclamation-circle me-2"></i> <strong>API Key Not Configured</strong>
+                        <small class="d-block mt-1">Please add your Shodan API key to enable this feature</small>
+                    </div>
+                    
+                    <form id="shodanConfigForm">
+                        <div class="mb-3">
+                            <label for="shodanApiKey" class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control api-key-input" id="shodanApiKey" 
+                                       placeholder="Enter your Shodan API key" autocomplete="off">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleApiKey" title="Show/Hide">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted d-block mt-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Get your free API key from <a href="https://account.shodan.io" target="_blank" rel="noopener">account.shodan.io</a>
+                            </small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="shodanEnabled" class="form-check-label">
+                                <input type="checkbox" class="form-check-input" id="shodanEnabled">
+                                Enable Shodan integration
+                            </label>
+                            <small class="text-muted d-block">When enabled, the Shodan search tool will be available</small>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="saveShodanConfig">
+                                <i class="bi bi-save me-1"></i> Save Configuration
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="testShodanConnection">
+                                <i class="bi bi-lightning me-1"></i> Test Connection
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" id="clearShodanConfig">
+                                <i class="bi bi-trash me-1"></i> Clear
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Test Results -->
+            <div class="card mt-4" id="testResultsCard" style="display: none;">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-check2-circle me-2"></i>Connection Test Results</h6>
+                </div>
+                <div class="card-body">
+                    <div id="testResultsContent"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-question-circle me-2"></i>Quick Help</h6>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">What is Shodan?</h6>
+                    <p class="small mb-3">Shodan is a search engine for internet-connected devices. It scans the internet and catalogs information about servers, IoT devices, and other connected systems.</p>
+                    
+                    <h6 class="mb-3">Getting an API Key</h6>
+                    <ol class="small mb-3">
+                        <li>Visit <a href="https://account.shodan.io" target="_blank">account.shodan.io</a></li>
+                        <li>Create a free account or sign in</li>
+                        <li>Your API key will be available on the account page</li>
+                        <li>Free accounts have limited query credits</li>
+                    </ol>
+                    
+                    <h6 class="mb-3">Query Tips</h6>
+                    <ul class="small">
+                        <li><strong>IP lookup:</strong> <code>192.168.1.1</code></li>
+                        <li><strong>Service search:</strong> <code>Apache 2.4</code></li>
+                        <li><strong>Port search:</strong> <code>port:22</code></li>
+                        <li><strong>Country filter:</strong> <code>country:US</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Usage Examples -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Query Examples</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>IP Address Lookup</h6>
+                            <div class="query-example">192.168.1.1</div>
+                            <p class="small text-muted">Get all information about a specific IP address</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Web Server Search</h6>
+                            <div class="query-example">Apache/2.4.41</div>
+                            <p class="small text-muted">Find all systems running a specific Apache version</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Port-Based Search</h6>
+                            <div class="query-example">port:3389</div>
+                            <p class="small text-muted">Find all systems with RDP port (3389) open</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Geographic Filter</h6>
+                            <div class="query-example">country:FR port:22</div>
+                            <p class="small text-muted">Find SSH servers in France</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <h6>Organization Search</h6>
+                            <div class="query-example">org:"Google"</div>
+                            <p class="small text-muted">Find devices owned by a specific organization</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Vulnerability Search</h6>
+                            <div class="query-example">vuln:CVE-2021-44228</div>
+                            <p class="small text-muted">Find vulnerable systems (requires premium)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Helper to wait for jQuery to be available
+function waitForJQuery(callback, attempts = 0) {
+    if (typeof jQuery !== 'undefined' && typeof $ !== 'undefined') {
+        // jQuery is available - call the callback
+        callback();
+    } else if (attempts < 50) {
+        // Keep checking for jQuery (up to 5 seconds with 100ms intervals)
+        setTimeout(function() {
+            waitForJQuery(callback, attempts + 1);
+        }, 100);
+    } else {
+        console.error('jQuery failed to load after 5 seconds');
+    }
+}
+
+// Initialize Shodan settings when jQuery is available
+waitForJQuery(function() {
+    console.log('jQuery is now available, initializing Shodan settings');
+    
+    function loadShodanConfig() {
+        console.log('loadShodanConfig called');
+        const apiKey = localStorage.getItem('shodan_api_key');
+        const enabled = localStorage.getItem('shodan_enabled') === 'true';
+        
+        console.log('Found API key:', !!apiKey, 'Enabled:', enabled);
+        
+        if (apiKey) {
+            $('#shodanApiKey').val(apiKey);
+            $('#shodanEnabled').prop('checked', enabled);
+            $('#statusAlert').show();
+            $('#statusAlertDisabled').hide();
+        } else {
+            $('#shodanEnabled').prop('checked', false);
+            $('#statusAlert').hide();
+            $('#statusAlertDisabled').show();
+        }
+    }
+
+    function saveShodanConfig() {
+        console.log('saveShodanConfig called');
+        const apiKey = $('#shodanApiKey').val().trim();
+        const enabled = $('#shodanEnabled').is(':checked');
+        
+        console.log('API Key:', apiKey.substring(0, 5) + '...', 'Enabled:', enabled);
+        
+        if (!apiKey) {
+            const msg = 'Please enter your Shodan API key';
+            console.warn(msg);
+            if (typeof showAlert === 'function') {
+                showAlert(msg, 'warning');
+            } else {
+                alert(msg);
+            }
+            return;
+        }
+        
+        localStorage.setItem('shodan_api_key', apiKey);
+        localStorage.setItem('shodan_enabled', enabled);
+        console.log('Saved to localStorage');
+        
+        $.ajax({
+            url: '/api/settings/shodan',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                api_key: apiKey,
+                enabled: enabled
+            }),
+            success: function(response) {
+                console.log('Server response:', response);
+                const msg = 'Shodan configuration saved successfully';
+                if (typeof showAlert === 'function') {
+                    showAlert(msg, 'success');
+                } else {
+                    alert(msg);
+                }
+                $('#statusAlert').show();
+                $('#statusAlertDisabled').hide();
+            },
+            error: function(xhr) {
+                console.error('Error saving to server:', xhr);
+                const msg = xhr.responseJSON?.message || 'Failed to save configuration';
+                if (typeof showAlert === 'function') {
+                    showAlert(msg, 'danger');
+                } else {
+                    alert(msg);
+                }
+                $('#statusAlert').show();
+                $('#statusAlertDisabled').hide();
+            }
+        });
+    }
+
+    function testShodanConnection() {
+        console.log('testShodanConnection called');
+        const apiKey = $('#shodanApiKey').val().trim();
+        
+        if (!apiKey) {
+            const msg = 'Please enter your Shodan API key first';
+            console.warn(msg);
+            if (typeof showAlert === 'function') {
+                showAlert(msg, 'warning');
+            } else {
+                alert(msg);
+            }
+            return;
+        }
+        
+        const $btn = $('#testShodanConnection');
+        const originalText = $btn.html();
+        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Testing...');
+        
+        console.log('Testing Shodan connection...');
+        
+        $.ajax({
+            url: '/api/settings/shodan',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                api_key: apiKey,
+                enabled: true
+            }),
+            success: function(saveResponse) {
+                console.log('API key saved for testing');
+                
+                $.ajax({
+                    url: '/api/tools/shodan',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        query: '8.8.8.8'
+                    }),
+                    success: function(response) {
+                        console.log('Test response:', response);
+                        let resultHtml = '';
+                        if (response.success) {
+                            resultHtml = `
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i> <strong>Connection Successful!</strong>
+                                    <p class="mb-0 mt-2">Your Shodan API key is valid and working correctly.</p>
+                                </div>
+                                <div class="info-card">
+                                    <strong>Test Result:</strong>
+                                    <p class="mb-0 small">Organization: ${response.data?.org || 'N/A'}</p>
+                                    <p class="mb-0 small">Country: ${response.data?.country || 'N/A'}</p>
+                                    <p class="mb-0 small">Open Ports: ${response.data?.ports?.length || 0}</p>
+                                </div>
+                            `;
+                        } else {
+                            resultHtml = `
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-circle me-2"></i> <strong>Connection Failed</strong>
+                                    <p class="mb-0 mt-2">${response.error || 'Unknown error'}</p>
+                                </div>
+                            `;
+                        }
+                        $('#testResultsContent').html(resultHtml);
+                        $('#testResultsCard').show();
+                        $btn.prop('disabled', false).html(originalText);
+                    },
+                    error: function(xhr) {
+                        console.error('Test error:', xhr);
+                        const msg = xhr.responseJSON?.error || 'Connection test failed';
+                        let resultHtml = `
+                            <div class="alert alert-danger">
+                                <i class="bi bi-x-circle me-2"></i> <strong>Connection Failed</strong>
+                                <p class="mb-0 mt-2">${msg}</p>
+                            </div>
+                        `;
+                        $('#testResultsContent').html(resultHtml);
+                        $('#testResultsCard').show();
+                        $btn.prop('disabled', false).html(originalText);
+                    }
+                });
+            },
+            error: function(xhr) {
+                console.error('Error saving API key:', xhr);
+                const msg = 'Failed to save API key for testing';
+                if (typeof showAlert === 'function') {
+                    showAlert(msg, 'danger');
+                } else {
+                    alert(msg);
+                }
+                $btn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+
+    function clearShodanConfig() {
+        console.log('clearShodanConfig called');
+        localStorage.removeItem('shodan_api_key');
+        localStorage.removeItem('shodan_enabled');
+        $('#shodanApiKey').val('');
+        $('#shodanEnabled').prop('checked', false);
+        $('#statusAlert').hide();
+        $('#statusAlertDisabled').show();
+        $('#testResultsCard').hide();
+        
+        $.ajax({
+            url: '/api/settings/shodan',
+            method: 'DELETE',
+            success: function() {
+                console.log('Server cleared config');
+                const msg = 'Shodan configuration cleared';
+                if (typeof showAlert === 'function') {
+                    showAlert(msg, 'info');
+                } else {
+                    alert(msg);
+                }
+            },
+            error: function(xhr) {
+                console.error('Error clearing server config:', xhr);
+            }
+        });
+    }
+
+    // DOM is ready, initialize everything
+    $(function() {
+        console.log('DOM ready - attaching event handlers');
+        
+        // Load existing config
+        loadShodanConfig();
+        
+        // Attach event handlers
+        $('#toggleApiKey').click(function() {
+            console.log('Toggle API key visibility');
+            const input = $('#shodanApiKey');
+            const icon = $(this).find('i');
+            if (input.attr('type') === 'password') {
+                input.attr('type', 'text');
+                icon.removeClass('bi-eye').addClass('bi-eye-slash');
+            } else {
+                input.attr('type', 'password');
+                icon.removeClass('bi-eye-slash').addClass('bi-eye');
+            }
+        });
+        
+        $('#shodanConfigForm').submit(function(e) {
+            console.log('Form submit event');
+            e.preventDefault();
+            saveShodanConfig();
+        });
+        
+        $('#testShodanConnection').click(function() {
+            console.log('Test connection button clicked');
+            testShodanConnection();
+        });
+        
+        $('#clearShodanConfig').click(function() {
+            console.log('Clear config button clicked');
+            if (confirm('Are you sure? This will disable Shodan integration.')) {
+                clearShodanConfig();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
