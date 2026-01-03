@@ -322,6 +322,12 @@ def create_app(config_name=None):
     app.register_blueprint(public_bp)
     app.register_blueprint(notifications_bp)
 
+    # Make app version available to all templates
+    @app.context_processor
+    def inject_app_version():
+        return {
+            'APP_VERSION': app.config.get('APP_VERSION', '1.0.0')
+        }
     
     # Health check endpoint
     @app.route('/health')
