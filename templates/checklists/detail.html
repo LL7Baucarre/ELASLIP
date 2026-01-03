@@ -273,12 +273,16 @@
                     {% endif %}
                     
                     <!-- Related Incidents -->
-                    {% if checklist.get('related_incidents') and checklist['related_incidents']|length > 0 %}
+                    {% if checklist.get('_related_incidents_enriched') and checklist['_related_incidents_enriched']|length > 0 %}
                     <div class="mb-3">
                         <strong>Related Incidents:</strong><br>
-                        {% for incident in checklist['related_incidents'] %}
+                        {% for incident in checklist['_related_incidents_enriched'] %}
                         <div class="text-muted small mb-1">
-                            • <a href="#" class="link-incident-name" data-incident-name="{{ incident }}" style="text-decoration: none; color: inherit;">{{ incident }}</a>
+                            {% if incident.get('id') or incident['id'] %}
+                            • <a href="/incidents/{{ incident['id'] }}" class="link-incident-name" style="text-decoration: none; color: inherit;">{{ incident.get('title', incident['id']) }}</a>
+                            {% else %}
+                            • {{ incident }}
+                            {% endif %}
                         </div>
                         {% endfor %}
                     </div>
@@ -685,7 +689,16 @@ function initEditForm() {
     selectedAssignTo = null;
     
     const existingCases = '{{ checklist.get("related_cases", [])|tojson }}';
-    const existingIncidents = '{{ checklist.get("related_incidents", [])|tojson }}';
+    
+    // Use enriched incidents if available, otherwise extract IDs from related_incidents
+    let existingIncidents = [];
+    if ('{{ checklist.get("_related_incidents_enriched", []) }}' !== '[]') {
+        const enriched = {{ checklist.get("_related_incidents_enriched", [])|tojson }};
+        existingIncidents = enriched.map(inc => inc.id);
+    } else {
+        existingIncidents = {{ checklist.get("related_incidents", [])|tojson }};
+    }
+    
     const existingAssignee = '{{ checklist.get("assigned_to_name", "") }}';
     
     if (existingCases && existingCases !== '[]') {
@@ -789,27 +802,6 @@ document.querySelectorAll('.link-case-name').forEach(link => {
                 }
             })
             .catch(err => alert('Error finding case'));
-    });
-});
-
-document.querySelectorAll('.link-incident-name').forEach(link => {
-    link.addEventListener('click', function(e) {
-        e.preventDefault();
-        const incidentName = this.dataset.incidentName;
-        
-        // Search for the incident by name
-        fetch(`/api/search?q=${encodeURIComponent(incidentName)}&per_page=1`)
-            .then(r => r.json())
-            .then(data => {
-                const items = data.items || [];
-                const incidentItem = items.find(item => item.entity_type === 'incident' && item.name === incidentName);
-                if (incidentItem && incidentItem.id) {
-                    window.location.href = `/incidents/${incidentItem.id}`;
-                } else {
-                    alert('Incident not found');
-                }
-            })
-            .catch(err => alert('Error finding incident'));
     });
 });
 

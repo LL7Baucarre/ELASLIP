@@ -66,6 +66,7 @@ def api_create():
         description=description,
         created_by=current_user.username,
         created_by_id=current_user.id,
+        items=data.get('items', []),
         tags=data.get('tags', []),
         campaigns=data.get('campaigns', []),
         related_cases=data.get('related_cases', []),

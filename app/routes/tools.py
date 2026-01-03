@@ -1309,3 +1309,107 @@ def geoip_bulk_lookup():
     except Exception as e:
         current_app.logger.exception(f"Bulk GeoIP lookup error: {str(e)}")
         return jsonify({'error': 'Bulk GeoIP lookup failed'}), 500
+
+
+@tools_bp.route('/file-analysis', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def analyze_file():
+    """
+    Analyze an uploaded file and extract hashes, metadata, and properties.
+    
+    Calculates MD5, SHA1, and SHA256 hashes. Extracts comprehensive file metadata including:
+    file type detection, architecture detection, document metadata (PDF, Office), image EXIF data,
+    and file entropy analysis. Scan results are automatically saved to history.
+    
+    ---
+    tags:
+      - Tools
+    summary: File Analysis
+    operationId: analyzeFile
+    requestBody:
+      description: File to analyze
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - file
+            properties:
+              file:
+                type: string
+                format: binary
+                description: File to analyze
+    responses:
+      200:
+        description: File analysis result with hashes and metadata
+        schema:
+          type: object
+          properties:
+            success:
+              type: boolean
+            filename:
+              type: string
+            size:
+              type: integer
+            mime_type:
+              type: string
+            extension:
+              type: string
+            is_binary:
+              type: boolean
+            magic_signature:
+              type: string
+            hashes:
+              type: object
+              properties:
+                md5:
+                  type: string
+                sha1:
+                  type: string
+                sha256:
+                  type: string
+            metadata:
+              type: object
+              properties:
+                file_entropy:
+                  type: number
+                sections:
+                  type: object
+                properties:
+                  type: object
+            scan_id:
+              type: string
+      400:
+        description: Invalid input or file too large
+      401:
+        description: Unauthorized
+      403:
+        description: Forbidden
+    """
+    # Check if file is in request
+    if 'file' not in request.files:
+        return jsonify({'error': 'File is required'}), 400
+    
+    file_obj = request.files['file']
+    
+    # Analyze the file
+    service = ToolsService()
+    result = service.analyze_file(file_obj)
+    
+    if not result.get('success'):
+        return jsonify(result), 400
+    
+    # Save analysis result to Elasticsearch
+    scan_id = _save_scan_result(
+        'file-analysis',
+        result.get('filename'),
+        result,
+        {'file_size': result.get('size')}
+    )
+    
+    result['scan_id'] = scan_id
+    
+    return jsonify(result), 200
+
