@@ -2,6 +2,7 @@ import os
 from flask import Flask
 from flask_login import LoginManager, current_user
 from flask_jwt_extended import JWTManager
+from flask_session import Session
 from celery import Celery
 from redis import Redis
 from flasgger import Flasgger
@@ -54,6 +55,23 @@ def create_app(config_name=None):
     # Initialize logging from central config
     from app.logging_config import init_logging
     init_logging(app.config)
+    
+    # Validate OAuth encryption key if OAuth is enabled
+    if app.config.get('OAUTH_ENABLED', False):
+        providers_enabled = [
+            app.config.get('OAUTH_GOOGLE_ENABLED', False),
+            app.config.get('OAUTH_GITHUB_ENABLED', False),
+            app.config.get('OAUTH_OIDC_ENABLED', False)
+        ]
+        
+        if any(providers_enabled):
+            encryption_key = app.config.get('OAUTH_ENCRYPTION_KEY')
+            if not encryption_key:
+                raise ValueError(
+                    'OAUTH_ENCRYPTION_KEY is required when OAuth providers are enabled. '
+                    'Generate one with: python -c "from cryptography.fernet import Fernet; '
+                    'print(Fernet.generate_key().decode())"'
+                )
     
     # Initialize extensions
     login_manager.init_app(app)
@@ -222,6 +240,30 @@ def create_app(config_name=None):
     global redis_client
     redis_client = Redis.from_url(app.config['REDIS_URL'])
     
+    # Initialize Flask-Session with Redis
+    # Use configurable DB for sessions to avoid conflicts with Celery (DB 1) and app data (DB 0)
+    # Priority: SESSION_REDIS_DB env var > DB index from REDIS_URL > default 2
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(app.config['REDIS_URL'])
+    
+    # Extract DB index from REDIS_URL path (e.g., /5 from redis://host:6379/5)
+    db_from_url = None
+    if parsed.path and parsed.path != '/':
+        try:
+            db_from_url = int(parsed.path.lstrip('/'))
+        except (ValueError, AttributeError):
+            pass
+    
+    # Determine session DB: explicit config > URL-derived > default 2
+    session_db = app.config.get('SESSION_REDIS_DB')
+    if session_db is None:
+        session_db = db_from_url if db_from_url is not None else 2
+    
+    session_redis_url = urlunparse((parsed.scheme, parsed.netloc, f'/{session_db}', parsed.params, parsed.query, parsed.fragment))
+    session_redis = Redis.from_url(session_redis_url, decode_responses=False)
+    app.config['SESSION_REDIS'] = session_redis
+    Session(app)
+    
     # Initialize Celery
     global celery
     celery = create_celery_app(app)
@@ -236,6 +278,7 @@ def create_app(config_name=None):
     
     # Register blueprints
     from app.routes.auth import auth_bp
+    from app.routes.oauth import oauth_bp
     from app.routes.ioc import ioc_bp
     from app.routes.ioc_relations import ioc_relations_bp
     from app.routes.search import search_bp
@@ -258,6 +301,7 @@ def create_app(config_name=None):
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(oauth_bp, url_prefix='/oauth')
     app.register_blueprint(ioc_bp, url_prefix='/api/ioc')
     app.register_blueprint(ioc_relations_bp, url_prefix='/api')
     app.register_blueprint(search_bp, url_prefix='/api/search')

@@ -1,5 +1,5 @@
 
-# ELASLIP
+# ELA(SLIP)
 
 **Elastic Lightweight Analytical Security & Incident Platform**
 
