@@ -298,6 +298,9 @@ function loadOAuthSettings() {
             $('#oidcClientId').val(data.oauth_oidc_client_id || '');
             $('#oidcClientSecret').val(data.oauth_oidc_client_secret || '');
             updateProviderBadge('oidc', data.oauth_oidc_enabled);
+
+            // Ensure roles are loaded and select the configured default role after settings load
+            loadRoles(data.oauth_default_role);
         },
         error: function(xhr) {
             showAlert('Failed to load OAuth settings', 'danger');
@@ -310,14 +313,13 @@ function updateProviderBadge(provider, enabled) {
     $(`#${provider}BadgeOff`).toggle(!enabled);
 }
 
-function loadRoles() {
+function loadRoles(selectedRole) {
     $.ajax({
         url: '/api/settings/oauth/roles',
         method: 'GET',
         success: function(data) {
-            const defaultRole = $('#defaultRole').val();
             $('#defaultRole').empty();
-            
+
             if (data.roles && data.roles.length > 0) {
                 data.roles.forEach(function(role) {
                     const option = $('<option>')
@@ -325,10 +327,10 @@ function loadRoles() {
                         .text(role.name + (role.description ? ' - ' + role.description : ''));
                     $('#defaultRole').append(option);
                 });
-                
-                // Restore previously selected role if it still exists
-                if (defaultRole) {
-                    $('#defaultRole').val(defaultRole);
+
+                // If a desired role was passed, select it; otherwise keep current selection
+                if (selectedRole) {
+                    $('#defaultRole').val(selectedRole);
                 }
             } else {
                 $('#defaultRole').html('<option value="">No roles available</option>');
@@ -343,7 +345,7 @@ function loadRoles() {
 
 // Load settings on page load
 $(function() {
-    loadRoles();
+    // Load OAuth settings first, then load roles and apply the configured default role
     loadOAuthSettings();
 
     // Toggle OAuth settings visibility
