@@ -36,6 +36,33 @@
                         </button>
                     </div>
                 </form>
+                
+                {% if config.OAUTH_ENABLED %}
+                <!-- OAuth Login Options -->
+                <div class="text-center my-3">
+                    <span class="text-muted">or</span>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    {% if config.OAUTH_GOOGLE_ENABLED %}
+                    <a href="{{ url_for('oauth.login', provider='google') }}" class="btn btn-outline-danger">
+                        <i class="bi bi-google me-2"></i> Sign in with Google
+                    </a>
+                    {% endif %}
+                    
+                    {% if config.OAUTH_GITHUB_ENABLED %}
+                    <a href="{{ url_for('oauth.login', provider='github') }}" class="btn btn-outline-dark">
+                        <i class="bi bi-github me-2"></i> Sign in with GitHub
+                    </a>
+                    {% endif %}
+                    
+                    {% if config.OAUTH_OIDC_ENABLED %}
+                    <a href="{{ url_for('oauth.login', provider='oidc') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-shield-lock me-2"></i> Sign in with {{ config.OAUTH_OIDC_PROVIDER_NAME }}
+                    </a>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
