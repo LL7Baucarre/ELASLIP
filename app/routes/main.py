@@ -898,6 +898,141 @@ def api_settings_public_submissions():
     })
 
 
+@main_bp.route('/api/settings/oauth', methods=['GET', 'PUT'])
+@login_required
+@admin_required
+def api_settings_oauth():
+    """Get or update OAuth settings (admin only)."""
+    if request.method == 'GET':
+        # Return current OAuth settings
+        from app.config import Config
+        return jsonify({
+            'oauth_enabled': current_app.config.get('OAUTH_ENABLED', False),
+            'oauth_encryption_key_set': current_app.config.get('OAUTH_ENCRYPTION_KEY') is not None,
+            'oauth_auto_create_user': current_app.config.get('OAUTH_AUTO_CREATE_USER', True),
+            'oauth_auto_link_by_email': current_app.config.get('OAUTH_AUTO_LINK_BY_EMAIL', False),
+            'oauth_default_role': current_app.config.get('OAUTH_DEFAULT_ROLE', 'viewer'),
+            'oauth_google_enabled': current_app.config.get('OAUTH_GOOGLE_ENABLED', False),
+            'oauth_google_client_id': current_app.config.get('OAUTH_GOOGLE_CLIENT_ID', ''),
+            'oauth_google_client_secret': current_app.config.get('OAUTH_GOOGLE_CLIENT_SECRET', ''),
+            'oauth_github_enabled': current_app.config.get('OAUTH_GITHUB_ENABLED', False),
+            'oauth_github_client_id': current_app.config.get('OAUTH_GITHUB_CLIENT_ID', ''),
+            'oauth_github_client_secret': current_app.config.get('OAUTH_GITHUB_CLIENT_SECRET', ''),
+            'oauth_oidc_enabled': current_app.config.get('OAUTH_OIDC_ENABLED', False),
+            'oauth_oidc_client_id': current_app.config.get('OAUTH_OIDC_CLIENT_ID', ''),
+            'oauth_oidc_client_secret': current_app.config.get('OAUTH_OIDC_CLIENT_SECRET', ''),
+            'oauth_oidc_discovery_url': current_app.config.get('OAUTH_OIDC_DISCOVERY_URL', ''),
+            'oauth_oidc_provider_name': current_app.config.get('OAUTH_OIDC_PROVIDER_NAME', 'OIDC'),
+        })
+    
+    # PUT - Update OAuth settings
+    data = request.get_json()
+    
+    # Update global settings
+    if 'oauth_enabled' in data:
+        current_app.config['OAUTH_ENABLED'] = data['oauth_enabled']
+    if 'oauth_auto_create_user' in data:
+        current_app.config['OAUTH_AUTO_CREATE_USER'] = data['oauth_auto_create_user']
+    if 'oauth_auto_link_by_email' in data:
+        current_app.config['OAUTH_AUTO_LINK_BY_EMAIL'] = data['oauth_auto_link_by_email']
+    if 'oauth_default_role' in data:
+        current_app.config['OAUTH_DEFAULT_ROLE'] = data['oauth_default_role']
+    
+    # Update Google OAuth settings
+    if 'oauth_google_enabled' in data:
+        current_app.config['OAUTH_GOOGLE_ENABLED'] = data['oauth_google_enabled']
+    if 'oauth_google_client_id' in data:
+        current_app.config['OAUTH_GOOGLE_CLIENT_ID'] = data['oauth_google_client_id']
+    if 'oauth_google_client_secret' in data:
+        current_app.config['OAUTH_GOOGLE_CLIENT_SECRET'] = data['oauth_google_client_secret']
+    
+    # Update GitHub OAuth settings
+    if 'oauth_github_enabled' in data:
+        current_app.config['OAUTH_GITHUB_ENABLED'] = data['oauth_github_enabled']
+    if 'oauth_github_client_id' in data:
+        current_app.config['OAUTH_GITHUB_CLIENT_ID'] = data['oauth_github_client_id']
+    if 'oauth_github_client_secret' in data:
+        current_app.config['OAUTH_GITHUB_CLIENT_SECRET'] = data['oauth_github_client_secret']
+    
+    # Update OIDC OAuth settings
+    if 'oauth_oidc_enabled' in data:
+        current_app.config['OAUTH_OIDC_ENABLED'] = data['oauth_oidc_enabled']
+    if 'oauth_oidc_client_id' in data:
+        current_app.config['OAUTH_OIDC_CLIENT_ID'] = data['oauth_oidc_client_id']
+    if 'oauth_oidc_client_secret' in data:
+        current_app.config['OAUTH_OIDC_CLIENT_SECRET'] = data['oauth_oidc_client_secret']
+    if 'oauth_oidc_discovery_url' in data:
+        current_app.config['OAUTH_OIDC_DISCOVERY_URL'] = data['oauth_oidc_discovery_url']
+    if 'oauth_oidc_provider_name' in data:
+        current_app.config['OAUTH_OIDC_PROVIDER_NAME'] = data['oauth_oidc_provider_name']
+    
+    return jsonify({
+        'message': 'OAuth settings updated successfully (note: these changes are temporary, add to .env for persistence)'
+    })
+
+
+@main_bp.route('/api/settings/oauth/roles', methods=['GET'])
+@login_required
+@admin_required
+def api_oauth_roles():
+    """Get available roles for OAuth default assignment."""
+    from app.services.rbac_service import RBACService
+    
+    rbac_service = RBACService()
+    roles = rbac_service.get_all_roles()
+    
+    return jsonify({
+        'roles': [{'name': role.get('name'), 'description': role.get('description', '')} for role in roles]
+    })
+
+
+@main_bp.route('/api/settings/shodan', methods=['POST', 'DELETE'])
+@login_required
+@admin_required
+def api_shodan_settings():
+    """Manage Shodan API configuration."""
+    if request.method == 'POST':
+        data = request.get_json()
+        api_key = data.get('api_key', '').strip()
+        enabled = data.get('enabled', False)
+        
+        if not api_key:
+            return jsonify({'message': 'API key is required', 'success': False}), 400
+        
+        # Update application config (temporary, until server restart)
+        current_app.config['SHODAN_API_KEY'] = api_key
+        current_app.config['SHODAN_ENABLED'] = enabled
+        
+        # In a real application, you would save this to:
+        # 1. Database (encrypted)
+        # 2. .env file (with appropriate file permissions)
+        # 3. Secret management system (e.g., Vault, AWS Secrets Manager)
+        
+        return jsonify({
+            'message': 'Shodan configuration saved successfully',
+            'success': True,
+            'enabled': enabled
+        })
+    
+    elif request.method == 'DELETE':
+        # Clear Shodan configuration
+        current_app.config['SHODAN_API_KEY'] = ''
+        current_app.config['SHODAN_ENABLED'] = False
+        
+        return jsonify({
+            'message': 'Shodan configuration cleared',
+            'success': True
+        })
+
+
+@main_bp.route('/settings/oauth')
+@login_required
+@admin_required
+def settings_oauth():
+    """OAuth configuration page (admin only)."""
+    return render_template('settings/oauth.html')
+
+
 @main_bp.route('/settings/api-keys')
 @login_required
 def settings_api_keys():
@@ -950,6 +1085,15 @@ def settings_llm():
 def settings_backup():
     """Backup and restore settings page (admin only)."""
     return render_template('settings/backup.html')
+
+
+@main_bp.route('/settings/shodan')
+@login_required
+@admin_required
+def settings_shodan():
+    """Shodan API settings page (admin only)."""
+    from app.config import Config
+    return render_template('settings/shodan.html', shodan_enabled=Config.SHODAN_ENABLED)
 
 
 @main_bp.route('/api/backups/available-indices', methods=['GET'])

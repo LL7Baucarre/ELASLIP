@@ -153,6 +153,13 @@
                         </div>
                     </div>
                     <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="dmarc-dkim">
+                            <i class="bi bi-shield-check tool-icon text-success"></i>
+                            <h6 class="mb-0">DMARC/DKIM</h6>
+                            <small class="text-muted">Email auth</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
                         <div class="card tool-card text-center p-3" data-tool="geoip">
                             <i class="bi bi-globe tool-icon text-primary"></i>
                             <h6 class="mb-0">GeoIP</h6>
@@ -164,6 +171,13 @@
                             <i class="bi bi-file-earmark tool-icon text-secondary"></i>
                             <h6 class="mb-0">File Analysis</h6>
                             <small class="text-muted">Hash & metadata</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="shodan">
+                            <i class="bi bi-search tool-icon text-danger"></i>
+                            <h6 class="mb-0">Shodan</h6>
+                            <small class="text-muted">Device search</small>
                         </div>
                     </div>
                 </div>
@@ -603,6 +617,86 @@
             </div>
         </div>
 
+        <!-- DMARC/DKIM Analyzer Panel -->
+        <div id="dmarc-dkimPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-shield-check me-2"></i>DMARC/DKIM/SPF Analyzer</h6>
+                </div>
+                <div class="card-body">
+                    <form id="dmarcDkimForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Domain</label>
+                                <input type="text" class="form-control" id="dmarcDkimTarget" 
+                                       placeholder="e.g., example.com" required pattern="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-success w-100" type="submit" id="dmarcDkimBtn">
+                                    <i class="bi bi-play-fill"></i> Analyze
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="dmarcDkimResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-shield-check me-2"></i>DMARC/DKIM Analysis Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawDmarcDkim">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="dmarcDkimParsed">
+                        <!-- Security Score -->
+                        <div class="alert mb-4" id="securityScoreAlert">
+                            <h6 class="mb-2"><i class="bi bi-percent me-2"></i>Security Score</h6>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="progress mb-2" style="height: 30px;">
+                                        <div id="scoreProgressBar" class="progress-bar" role="progressbar" style="width: 0%;">
+                                            <span id="scoreText" style="font-weight: bold; color: white;">0/100</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="scoreDetails" class="row g-2 mt-2"></div>
+                        </div>
+
+                        <!-- DMARC Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-shield me-2"></i>DMARC</h6>
+                            <div id="dmarcSection"></div>
+                        </div>
+
+                        <!-- SPF Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-diagram-3 me-2"></i>SPF</h6>
+                            <div id="spfSection"></div>
+                        </div>
+
+                        <!-- DKIM Section -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-key me-2"></i>DKIM</h6>
+                            <div id="dkimSection"></div>
+                        </div>
+
+                        <!-- Recommendations -->
+                        <div>
+                            <h6 class="border-bottom pb-2"><i class="bi bi-lightbulb me-2"></i>Recommendations</h6>
+                            <div id="recommendationsSection"></div>
+                        </div>
+                    </div>
+                    <div id="dmarcDkimRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- GeoIP Lookup Panel -->
         <div id="geoipPanel" class="tool-panel" style="display: none;">
             <div class="card mb-4">
@@ -813,6 +907,69 @@
                             <h6 class="mt-4 mb-3"><i class="bi bi-check-circle"></i> Created IOCs</h6>
                             <div id="createdIocsList"></div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shodan Search Panel -->
+        <div id="shodanPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-search me-2"></i>Shodan Device Search</h6>
+                </div>
+                <div class="card-body">
+                    <form id="shodanForm">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Query</label>
+                                <input type="text" class="form-control" id="shodanQuery" 
+                                       placeholder="IP address, hostname, or Shodan filter query" required>
+                                <small class="text-muted">Examples: 192.168.1.1, example.com, apache/2.4.1, port:22</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-danger w-100" type="submit" id="shodanBtn">
+                                    <i class="bi bi-play-fill"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="card" id="shodanResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-search me-2"></i>Shodan Results</h6>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRawShodan">
+                        <i class="bi bi-code"></i> Raw
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="shodanParsed">
+                        <!-- Host Info -->
+                        <div id="hostInfoSection"></div>
+                        
+                        <!-- Services -->
+                        <div class="mt-4" id="servicesSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-diagram-3 me-2"></i>Services</h6>
+                            <div id="servicesList"></div>
+                        </div>
+                        
+                        <!-- Vulnerabilities -->
+                        <div class="mt-4" id="vulnsSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Vulnerabilities</h6>
+                            <div id="vulnsList"></div>
+                        </div>
+                        
+                        <!-- Search Results (multiple matches) -->
+                        <div id="searchResultsSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-list me-2"></i>Results (<span id="resultCount"></span>)</h6>
+                            <div id="searchResultsList"></div>
+                        </div>
+                    </div>
+                    <div id="shodanRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
                     </div>
                 </div>
             </div>
@@ -2526,6 +2683,363 @@ function displayGeoipBulkResult(response) {
     $('#geoipParsed').html(html);
     $('#geoipParsed').show();
     $('#geoipRaw').hide();
+}
+
+// DMARC/DKIM Handler
+$('#dmarcDkimForm').submit(function(e) {
+    e.preventDefault();
+    analyzeDmarcDkim();
+});
+
+$('#toggleRawDmarcDkim').click(function() {
+    $('#dmarcDkimParsed').toggle();
+    $('#dmarcDkimRaw').toggle();
+});
+
+function analyzeDmarcDkim() {
+    const domain = $('#dmarcDkimTarget').val().trim();
+    
+    if (!domain) {
+        showAlert('Domain is required', 'warning');
+        return;
+    }
+    
+    const $btn = $('#dmarcDkimBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Analyzing...');
+    
+    $.ajax({
+        url: '/api/tools/dmarc-dkim',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ domain: domain }),
+        success: function(response) {
+            currentScanResult = response;
+            displayDmarcDkimResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const error = xhr.responseJSON?.error || 'Error analyzing domain';
+            showAlert(error, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
+        }
+    });
+}
+
+function displayDmarcDkimResult(data) {
+    $('#dmarcDkimResultCard').show();
+    
+    // Raw output
+    $('#dmarcDkimRaw pre').text(JSON.stringify(data, null, 2));
+    
+    // Security Score
+    const score = data.security_score || { total: 0, max: 100, details: {} };
+    const percentage = (score.total / score.max) * 100;
+    
+    let scoreColor = 'bg-danger';
+    if (percentage >= 80) scoreColor = 'bg-success';
+    else if (percentage >= 60) scoreColor = 'bg-info';
+    else if (percentage >= 40) scoreColor = 'bg-warning';
+    
+    $('#scoreProgressBar')
+        .css('width', percentage + '%')
+        .addClass(scoreColor)
+        .text(score.total + '/' + score.max);
+    
+    let scoreDetailsHtml = `
+        <div class="col-md-4">
+            <small class="text-muted">DMARC</small>
+            <div class="h6">${score.details.dmarc || 0} pts</div>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">DKIM</small>
+            <div class="h6">${score.details.dkim || 0} pts</div>
+        </div>
+        <div class="col-md-4">
+            <small class="text-muted">SPF</small>
+            <div class="h6">${score.details.spf || 0} pts</div>
+        </div>
+    `;
+    $('#scoreDetails').html(scoreDetailsHtml);
+    
+    // DMARC Section
+    let dmarcHtml = '';
+    if (data.dmarc && data.dmarc.found) {
+        dmarcHtml = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i> DMARC Policy: <strong>${data.dmarc.policy || 'N/A'}</strong>
+            </div>
+            <dl class="row small">
+                <dt class="col-md-4">Alignment (DKIM):</dt>
+                <dd class="col-md-8"><code>${data.dmarc.alignment?.dkim || 'N/A'}</code></dd>
+                <dt class="col-md-4">Alignment (SPF):</dt>
+                <dd class="col-md-8"><code>${data.dmarc.alignment?.spf || 'N/A'}</code></dd>
+                ${data.dmarc.reporting?.aggregate ? `
+                <dt class="col-md-4">Reporting (RUA):</dt>
+                <dd class="col-md-8"><code>${data.dmarc.reporting.aggregate}</code></dd>
+                ` : ''}
+            </dl>
+        `;
+    } else {
+        dmarcHtml = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i> No DMARC record found</div>';
+    }
+    $('#dmarcSection').html(dmarcHtml);
+    
+    // SPF Section
+    let spfHtml = '';
+    if (data.spf && data.spf.found) {
+        const mechanisms = data.spf.mechanisms || [];
+        let mechHtml = '<div class="small">';
+        for (const mech of mechanisms.slice(0, 5)) {
+            const qualColor = mech.qualifier === 'pass' ? 'success' : mech.qualifier === 'fail' ? 'danger' : 'warning';
+            mechHtml += `<span class="badge bg-${qualColor} me-1">${mech.qualifier}: ${mech.mechanism}</span>`;
+        }
+        if (mechanisms.length > 5) {
+            mechHtml += `<span class="badge bg-secondary">+${mechanisms.length - 5} more</span>`;
+        }
+        mechHtml += '</div>';
+        
+        spfHtml = `
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i> SPF Record Found
+            </div>
+            <p class="mb-2"><strong>Mechanisms (${mechanisms.length}):</strong></p>
+            ${mechHtml}
+        `;
+    } else {
+        spfHtml = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i> No SPF record found</div>';
+    }
+    $('#spfSection').html(spfHtml);
+    
+    // DKIM Section
+    let dkimHtml = '';
+    if (data.dkim && !data.dkim.found) {
+        dkimHtml = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i> No DKIM records found</div>';
+    } else if (data.dkim && typeof data.dkim === 'object') {
+        const selectors = Object.keys(data.dkim).filter(k => data.dkim[k].found);
+        if (selectors.length > 0) {
+            dkimHtml = `<div class="alert alert-success"><i class="bi bi-check-circle me-2"></i> Found ${selectors.length} DKIM selector(s)</div>`;
+            for (const selector of selectors) {
+                const parsed = data.dkim[selector].parsed || {};
+                dkimHtml += `
+                    <div class="card mb-2">
+                        <div class="card-body p-2">
+                            <strong>${selector}</strong>
+                            <div class="small text-muted">
+                                Algorithm: ${parsed.algorithm || 'N/A'} | Key: ${parsed.key_length || 0} bits
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        } else {
+            dkimHtml = '<div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i> No DKIM records found</div>';
+        }
+    }
+    $('#dkimSection').html(dkimHtml);
+    
+    // Recommendations
+    let recsHtml = '';
+    if (data.recommendations && data.recommendations.length > 0) {
+        for (const rec of data.recommendations) {
+            recsHtml += `<div class="alert alert-sm mb-2" style="padding: 0.5rem;">${rec}</div>`;
+        }
+    }
+    $('#recommendationsSection').html(recsHtml || '<div class="text-muted">No recommendations</div>');
+    
+    $('#dmarcDkimParsed').show();
+    $('#dmarcDkimRaw').hide();
+}
+
+// Shodan functions
+$('#shodanForm').on('submit', function(e) {
+    e.preventDefault();
+    queryShodan();
+});
+
+$('#toggleRawShodan').on('click', function() {
+    $('#shodanParsed').toggle();
+    $('#shodanRaw').toggle();
+});
+
+function queryShodan() {
+    const query = $('#shodanQuery').val().trim();
+    if (!query) {
+        showAlert('Please enter a search query', 'warning');
+        return;
+    }
+    
+    const $btn = $('#shodanBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Searching...');
+    
+    $.ajax({
+        url: '/api/tools/shodan',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ query: query }),
+        success: function(response) {
+            currentScanResult = response;
+            displayShodanResult(response);
+            loadScanHistory();
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Shodan search failed';
+            showAlert(msg, 'danger');
+        },
+        complete: function() {
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Search');
+        }
+    });
+}
+
+function displayShodanResult(data) {
+    if (!data.success) {
+        showAlert(data.error || 'Shodan query failed', 'danger');
+        return;
+    }
+    
+    // Show result card
+    $('#shodanResultCard').show();
+    
+    // Store raw data
+    $('#shodanRaw pre').text(JSON.stringify(data, null, 2));
+    
+    if (data.type === 'host') {
+        // Single host lookup
+        displayShodanHost(data.data || data);
+    } else if (data.type === 'search') {
+        // Search results
+        displayShodanSearchResults(data);
+    }
+    
+    $('#shodanParsed').show();
+    $('#shodanRaw').hide();
+}
+
+function displayShodanHost(hostData) {
+    let html = '';
+    
+    // Basic info
+    if (hostData.ip || hostData.ip_str) {
+        const ip = hostData.ip || hostData.ip_str;
+        html += `
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">IP Address</small>
+                    <div class="fw-bold font-monospace">${ip}</div>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">Organization</small>
+                    <div>${hostData.org || hostData['organization'] || 'N/A'}</div>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <small class="text-muted">Country</small>
+                    <div>${hostData.country_name || hostData.country || 'N/A'}</div>
+                </div>
+                <div class="col-md-6">
+                    <small class="text-muted">ASN</small>
+                    <div class="font-monospace">${hostData.asn || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Ports
+    if (hostData.ports && hostData.ports.length > 0) {
+        html += `
+            <div class="alert alert-info mb-3">
+                <strong><i class="bi bi-diagram-3 me-2"></i>Open Ports (${hostData.ports.length}):</strong>
+                <div class="mt-2">${hostData.ports.join(', ')}</div>
+            </div>
+        `;
+    }
+    
+    // Hostnames
+    if (hostData.hostnames && hostData.hostnames.length > 0) {
+        html += `
+            <div class="mb-3">
+                <strong><i class="bi bi-globe me-2"></i>Hostnames (${hostData.hostnames.length}):</strong>
+                <div class="mt-2">
+                    ${hostData.hostnames.map(h => `<div class="badge bg-primary">${h}</div>`).join(' ')}
+                </div>
+            </div>
+        `;
+    }
+    
+    $('#hostInfoSection').html(html);
+    
+    // Services
+    if (hostData.services && hostData.services.length > 0) {
+        let servicesHtml = '';
+        for (const svc of hostData.services) {
+            servicesHtml += `
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between">
+                            <strong>Port ${svc.port}/${svc.transport || 'tcp'}</strong>
+                            <small class="text-muted">${svc.protocol || 'unknown'}</small>
+                        </div>
+                        <small class="text-muted d-block mt-1">${svc.banner || 'No banner'}</small>
+                    </div>
+                </div>
+            `;
+        }
+        $('#servicesList').html(servicesHtml);
+        $('#servicesSection').show();
+    }
+    
+    // Vulnerabilities
+    if (hostData.vulns && hostData.vulns.length > 0) {
+        let vulnsHtml = '';
+        for (const vuln of hostData.vulns) {
+            vulnsHtml += `
+                <div class="alert alert-warning mb-2 p-2">
+                    <strong class="text-danger">${vuln}</strong>
+                </div>
+            `;
+        }
+        $('#vulnsList').html(vulnsHtml);
+        $('#vulnsSection').show();
+    }
+}
+
+function displayShodanSearchResults(data) {
+    const matches = data.matches || [];
+    let html = '';
+    
+    $('#resultCount').text(matches.length + (data.total ? ` of ${data.total}` : ''));
+    
+    if (matches.length === 0) {
+        html = '<div class="alert alert-info">No results found</div>';
+    } else {
+        for (const match of matches.slice(0, 50)) {  // Limit to 50 for display
+            const ip = match.ip || match.ip_str;
+            const org = match.org || match.organization || 'Unknown';
+            const ports = match.ports ? match.ports.join(', ') : 'N/A';
+            
+            html += `
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <div class="d-flex justify-content-between">
+                            <strong class="font-monospace">${ip}</strong>
+                            <small class="badge bg-secondary">${match.country_code || 'N/A'}</small>
+                        </div>
+                        <small class="text-muted d-block">${org}</small>
+                        <small class="text-muted d-block">Ports: ${ports}</small>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    $('#searchResultsList').html(html);
+    $('#searchResultsSection').show();
+    $('#hostInfoSection').html('');
+    $('#servicesSection').hide();
+    $('#vulnsSection').hide();
 }
 </script>
 {% endblock %}

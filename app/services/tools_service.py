@@ -1143,3 +1143,512 @@ class ToolsService:
                 return f'{size:.2f} {unit}'
             size /= 1024.0
         return f'{size:.2f} TB'
+
+    @staticmethod
+    def analyze_dmarc_dkim(domain: str) -> Dict:
+        """
+        Analyze DMARC and DKIM records for a domain.
+        
+        Args:
+            domain: Domain name to analyze
+            
+        Returns:
+            Dict with DMARC, DKIM, and SPF record analysis
+        """
+        try:
+            analysis = {
+                'success': True,
+                'target': domain,
+                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'dmarc': None,
+                'dkim': None,
+                'spf': None,
+                'raw_output': {}
+            }
+            
+            # Fetch DMARC record (_dmarc.domain)
+            dmarc_result = subprocess.run(
+                ['dig', f'_dmarc.{domain}', 'TXT', '+short', '@8.8.8.8'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if dmarc_result.stdout.strip():
+                dmarc_raw = dmarc_result.stdout.strip()
+                analysis['raw_output']['dmarc'] = dmarc_raw
+                analysis['dmarc'] = ToolsService._parse_dmarc_record(dmarc_raw)
+            else:
+                analysis['dmarc'] = {'found': False, 'message': 'No DMARC record found'}
+            
+            # Fetch SPF record (domain TXT)
+            spf_result = subprocess.run(
+                ['dig', domain, 'TXT', '+short', '@8.8.8.8'],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            
+            if spf_result.stdout.strip():
+                spf_raw = spf_result.stdout.strip()
+                analysis['raw_output']['spf'] = spf_raw
+                analysis['spf'] = ToolsService._parse_spf_record(spf_raw)
+            else:
+                analysis['spf'] = {'found': False, 'message': 'No SPF record found'}
+            
+            # Try to find DKIM records (check common selectors)
+            common_selectors = [
+                'default',
+                'selector1',
+                'selector2',
+                'k1',
+                'k2',
+                'google',
+                'amazon',
+                'mailgun',
+                'sendgrid',
+                'mandrill'
+            ]
+            
+            dkim_records = {}
+            for selector in common_selectors:
+                dkim_query = f'{selector}._domainkey.{domain}'
+                dkim_result = subprocess.run(
+                    ['dig', dkim_query, 'TXT', '+short', '@8.8.8.8'],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if dkim_result.stdout.strip():
+                    dkim_raw = dkim_result.stdout.strip()
+                    dkim_records[selector] = {
+                        'found': True,
+                        'raw': dkim_raw,
+                        'parsed': ToolsService._parse_dkim_record(dkim_raw, selector)
+                    }
+            
+            if dkim_records:
+                analysis['dkim'] = dkim_records
+            else:
+                analysis['dkim'] = {'found': False, 'message': 'No DKIM records found'}
+            
+            # Calculate security score
+            analysis['security_score'] = ToolsService._calculate_email_security_score(analysis)
+            
+            # Generate recommendations
+            analysis['recommendations'] = ToolsService._generate_dmarc_recommendations(analysis)
+            
+            return analysis
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'target': domain,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _parse_dmarc_record(raw_record: str) -> Dict:
+        """Parse DMARC record and extract policy settings."""
+        parsed = {
+            'found': True,
+            'raw': raw_record,
+            'policy': None,
+            'subdomain_policy': None,
+            'alignment': {},
+            'reporting': {},
+            'forensics': {},
+            'tags': {}
+        }
+        
+        # Remove quotes
+        clean_record = raw_record.replace('"', '')
+        
+        # Parse tags
+        for tag_pair in clean_record.split(';'):
+            tag_pair = tag_pair.strip()
+            if '=' in tag_pair:
+                key, value = tag_pair.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                parsed['tags'][key] = value
+                
+                # Extract specific fields
+                if key == 'p':
+                    parsed['policy'] = value
+                elif key == 'sp':
+                    parsed['subdomain_policy'] = value
+                elif key == 'adkim':
+                    parsed['alignment']['dkim'] = value
+                elif key == 'aspf':
+                    parsed['alignment']['spf'] = value
+                elif key == 'rua':
+                    parsed['reporting']['aggregate'] = value
+                elif key == 'ruf':
+                    parsed['reporting']['forensics'] = value
+                elif key == 'fo':
+                    parsed['forensics']['options'] = value
+                elif key == 'rf':
+                    parsed['forensics']['format'] = value
+                elif key == 'pct':
+                    parsed['forensics']['percentage'] = int(value) if value.isdigit() else value
+        
+        return parsed
+    
+    @staticmethod
+    def _parse_spf_record(raw_record: str) -> Dict:
+        """Parse SPF record and extract mechanisms."""
+        parsed = {
+            'found': True,
+            'raw': raw_record,
+            'version': None,
+            'mechanisms': [],
+            'qualifiers': {}
+        }
+        
+        # Remove quotes
+        clean_record = raw_record.replace('"', '')
+        
+        # Extract version
+        if clean_record.startswith('v=spf1'):
+            parsed['version'] = 'SPFv1'
+            mechanisms_str = clean_record[7:].strip()
+        else:
+            mechanisms_str = clean_record
+        
+        # Parse mechanisms
+        for mechanism in mechanisms_str.split():
+            mechanism = mechanism.strip()
+            if mechanism:
+                # Determine qualifier
+                if mechanism.startswith('-'):
+                    qualifier = 'fail'
+                    mech = mechanism[1:]
+                elif mechanism.startswith('+'):
+                    qualifier = 'pass'
+                    mech = mechanism[1:]
+                elif mechanism.startswith('~'):
+                    qualifier = 'softfail'
+                    mech = mechanism[1:]
+                elif mechanism.startswith('?'):
+                    qualifier = 'neutral'
+                    mech = mechanism[1:]
+                else:
+                    qualifier = 'pass'
+                    mech = mechanism
+                
+                parsed['mechanisms'].append({
+                    'mechanism': mech,
+                    'qualifier': qualifier
+                })
+        
+        return parsed
+    
+    @staticmethod
+    def _parse_dkim_record(raw_record: str, selector: str) -> Dict:
+        """Parse DKIM record and extract key information."""
+        parsed = {
+            'selector': selector,
+            'found': True,
+            'version': None,
+            'algorithm': None,
+            'key_type': None,
+            'key_length': 0,
+            'tags': {}
+        }
+        
+        # Remove quotes
+        clean_record = raw_record.replace('"', '')
+        
+        # Parse tags
+        for tag_pair in clean_record.split(';'):
+            tag_pair = tag_pair.strip()
+            if '=' in tag_pair:
+                key, value = tag_pair.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                parsed['tags'][key] = value
+                
+                # Extract specific fields
+                if key == 'v':
+                    parsed['version'] = value
+                elif key == 'k':
+                    parsed['key_type'] = value
+                elif key == 'a':
+                    parsed['algorithm'] = value
+                elif key == 'p':
+                    # Calculate key length
+                    try:
+                        # Remove whitespace and estimate key size
+                        key_data = value.replace(' ', '').replace('\n', '')
+                        # Base64 encoded key, 4 chars = 3 bytes
+                        parsed['key_length'] = (len(key_data) * 3) // 4
+                    except:
+                        pass
+        
+        return parsed
+    
+    @staticmethod
+    def _calculate_email_security_score(analysis: Dict) -> Dict:
+        """Calculate overall email security score."""
+        score = {
+            'total': 0,
+            'max': 100,
+            'details': {}
+        }
+        
+        # DMARC: 40 points
+        dmarc_score = 0
+        if analysis.get('dmarc') and analysis['dmarc'].get('found'):
+            policy = analysis['dmarc'].get('policy')
+            if policy == 'reject':
+                dmarc_score = 40
+            elif policy == 'quarantine':
+                dmarc_score = 30
+            elif policy == 'none':
+                dmarc_score = 10
+        score['details']['dmarc'] = dmarc_score
+        
+        # SPF: 30 points
+        spf_score = 0
+        if analysis.get('spf') and analysis['spf'].get('found'):
+            spf_score = 30
+        score['details']['spf'] = spf_score
+        
+        # DKIM: 30 points
+        dkim_score = 0
+        if analysis.get('dkim'):
+            if isinstance(analysis['dkim'], dict) and analysis['dkim'].get('found') is False:
+                dkim_score = 0
+            else:
+                # Count DKIM records (more selectors = better)
+                dkim_count = len([k for k, v in analysis['dkim'].items() if isinstance(v, dict) and v.get('found')])
+                if dkim_count >= 2:
+                    dkim_score = 30
+                elif dkim_count >= 1:
+                    dkim_score = 20
+        score['details']['dkim'] = dkim_score
+        
+        score['total'] = dmarc_score + spf_score + dkim_score
+        
+        return score
+    
+    @staticmethod
+    def _generate_dmarc_recommendations(analysis: Dict) -> List[str]:
+        """Generate security recommendations based on DMARC analysis."""
+        recommendations = []
+        
+        # DMARC recommendations
+        if analysis.get('dmarc'):
+            if not analysis['dmarc'].get('found'):
+                recommendations.append('⚠️  Implement DMARC record to prevent email spoofing')
+            else:
+                policy = analysis['dmarc'].get('policy')
+                if policy == 'none':
+                    recommendations.append('⚠️  Upgrade DMARC policy from "none" to "quarantine" or "reject"')
+                elif policy == 'quarantine':
+                    recommendations.append('💡 Consider upgrading DMARC policy from "quarantine" to "reject" once fully deployed')
+        
+        # SPF recommendations
+        if analysis.get('spf'):
+            if not analysis['spf'].get('found'):
+                recommendations.append('⚠️  Implement SPF record to prevent email spoofing')
+            else:
+                mechanisms = analysis['spf'].get('mechanisms', [])
+                has_all = any(m['mechanism'] in ['all', '-all'] for m in mechanisms)
+                if not has_all:
+                    recommendations.append('⚠️  Add "all" or "-all" mechanism at the end of SPF record')
+        
+        # DKIM recommendations
+        if analysis.get('dkim'):
+            if isinstance(analysis['dkim'], dict) and analysis['dkim'].get('found') is False:
+                recommendations.append('⚠️  Implement DKIM signing for email authentication')
+            else:
+                dkim_records = analysis['dkim']
+                for selector, record in dkim_records.items():
+                    if isinstance(record, dict) and record.get('parsed'):
+                        key_length = record['parsed'].get('key_length', 0)
+                        if key_length < 2048:
+                            recommendations.append(f'⚠️  DKIM key for selector "{selector}" should be at least 2048 bits')
+        
+        # Alignment recommendations
+        if analysis.get('dmarc') and analysis['dmarc'].get('found'):
+            dmarc = analysis['dmarc']
+            if dmarc.get('alignment', {}).get('dkim') != 'strict':
+                recommendations.append('💡 Consider using strict DKIM alignment (adkim=s)')
+            if dmarc.get('alignment', {}).get('spf') != 'strict':
+                recommendations.append('💡 Consider using strict SPF alignment (aspf=s)')
+        
+        if not recommendations:
+            recommendations.append('✅ Email authentication configuration looks good')
+        
+        return recommendations    
+    @staticmethod
+    def shodan_query(query: str, api_key: str = None) -> Dict:
+        """
+        Query Shodan for internet-facing devices.
+        
+        Args:
+            query: Search query (IP, hostname, etc)
+            api_key: Shodan API key (optional, can use config)
+            
+        Returns:
+            Dict with Shodan search results
+        """
+        try:
+            import requests
+            
+            if not api_key:
+                from app.config import Config
+                api_key = Config.SHODAN_API_KEY
+            
+            if not api_key:
+                return {
+                    'success': False,
+                    'error': 'Shodan API key not configured',
+                    'query': query
+                }
+            
+            # Check if query is an IP address for /host endpoint
+            is_ip = False
+            try:
+                ipaddress.ip_address(query)
+                is_ip = True
+            except ValueError:
+                pass
+            
+            if is_ip:
+                # Use /host endpoint for single IP
+                url = f'https://api.shodan.io/shodan/host/{query}'
+                params = {'key': api_key}
+            else:
+                # Use /search endpoint for general queries
+                url = 'https://api.shodan.io/shodan/host/search'
+                params = {
+                    'query': query,
+                    'key': api_key,
+                    'limit': 100
+                }
+            
+            response = requests.get(url, params=params, timeout=30)
+            
+            if response.status_code == 401:
+                return {
+                    'success': False,
+                    'error': 'Invalid Shodan API key',
+                    'query': query
+                }
+            elif response.status_code == 403:
+                return {
+                    'success': False,
+                    'error': 'Access denied - API plan may not support this endpoint',
+                    'query': query
+                }
+            elif response.status_code == 429:
+                return {
+                    'success': False,
+                    'error': 'Rate limit exceeded. Please try again later.',
+                    'query': query
+                }
+            elif response.status_code != 200:
+                return {
+                    'success': False,
+                    'error': f'HTTP {response.status_code}: {response.text}',
+                    'query': query
+                }
+            
+            data = response.json()
+            
+            if is_ip:
+                # Single host result
+                result = {
+                    'success': True,
+                    'query': query,
+                    'type': 'host',
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
+                    'data': ToolsService._parse_shodan_host(data)
+                }
+            else:
+                # Search results
+                result = {
+                    'success': True,
+                    'query': query,
+                    'type': 'search',
+                    'timestamp': datetime.utcnow().isoformat() + 'Z',
+                    'matches': [ToolsService._parse_shodan_host(item) for item in data.get('matches', [])],
+                    'total': data.get('total', 0),
+                    'page': data.get('page', 1)
+                }
+            
+            return result
+            
+        except ImportError:
+            return {
+                'success': False,
+                'error': 'requests library not installed. Install with: pip install requests',
+                'query': query
+            }
+        except requests.Timeout:
+            return {
+                'success': False,
+                'error': 'Shodan API request timed out',
+                'query': query
+            }
+        except requests.ConnectionError as e:
+            return {
+                'success': False,
+                'error': f'Connection error: {str(e)}',
+                'query': query
+            }
+        except Exception as e:
+            logger.exception(f'Shodan query error: {str(e)}')
+            return {
+                'success': False,
+                'error': str(e),
+                'query': query
+            }
+    
+    @staticmethod
+    def _parse_shodan_host(data: Dict) -> Dict:
+        """
+        Parse Shodan host data to extract key information.
+        
+        Args:
+            data: Raw Shodan host data
+            
+        Returns:
+            Dict with parsed host information
+        """
+        parsed = {
+            'ip': data.get('ip_str') or data.get('ip'),
+            'ports': data.get('ports', []),
+            'hostnames': data.get('hostnames', []),
+            'org': data.get('org', 'Unknown'),
+            'country': data.get('country_name'),
+            'country_code': data.get('country_code'),
+            'isp': data.get('isp'),
+            'asn': data.get('asn'),
+            'latitude': data.get('latitude'),
+            'longitude': data.get('longitude'),
+            'last_update': data.get('last_update'),
+            'vulns': data.get('vulns', []),
+            'services': []
+        }
+        
+        # Parse services from data
+        if 'data' in data:
+            for item in data['data']:
+                service = {
+                    'port': item.get('port'),
+                    'protocol': item.get('_shodan', {}).get('module', 'unknown'),
+                    'transport': item.get('transport'),
+                    'timestamp': item.get('timestamp'),
+                    'banner': item.get('data', '')[:200]  # First 200 chars
+                }
+                parsed['services'].append(service)
+        
+        # Clean up empty values
+        parsed = {k: v for k, v in parsed.items() if v not in [None, '', []]}
+        
+        return parsed
