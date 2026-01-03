@@ -858,3 +858,288 @@ class ToolsService:
                     parsed['mdev'] = f"{mdev_match.group(1)}ms"
         
         return parsed
+    
+    @staticmethod
+    def analyze_file(file_obj) -> Dict:
+        """
+        Analyze an uploaded file and extract details and metadata.
+        
+        Args:
+            file_obj: Flask file object from request.files
+            
+        Returns:
+            Dict with file details (hash, type, size, metadata, etc.)
+        """
+        import hashlib
+        import mimetypes
+        from pathlib import Path
+        import struct
+        from datetime import datetime
+        
+        if not file_obj or file_obj.filename == '':
+            return {'success': False, 'error': 'No file provided'}
+        
+        try:
+            # Read file content
+            file_content = file_obj.read()
+            file_obj.seek(0)  # Reset file pointer
+            
+            # Get file name and extension
+            filename = file_obj.filename
+            file_path = Path(filename)
+            file_extension = file_path.suffix.lower()
+            
+            # Get MIME type
+            mime_type, _ = mimetypes.guess_type(filename)
+            if not mime_type:
+                mime_type = 'application/octet-stream'
+            
+            # Calculate hashes
+            md5_hash = hashlib.md5(file_content).hexdigest()
+            sha1_hash = hashlib.sha1(file_content).hexdigest()
+            sha256_hash = hashlib.sha256(file_content).hexdigest()
+            
+            # File size
+            file_size = len(file_content)
+            
+            # Get file magic signature (first bytes)
+            file_magic = file_content[:32].hex()
+            
+            # Additional analysis
+            is_binary = any(byte > 127 for byte in file_content[:512])
+            
+            # Extract metadata
+            metadata = {
+                'file_entropy': ToolsService._calculate_entropy(file_content),
+                'sections': ToolsService._analyze_sections(file_content, mime_type),
+                'properties': {}
+            }
+            
+            # Try to extract document metadata
+            if mime_type.startswith('application/pdf'):
+                metadata['properties'] = ToolsService._extract_pdf_metadata(file_content)
+            elif 'officedocument' in mime_type or 'ms-word' in mime_type or 'spreadsheet' in mime_type:
+                metadata['properties'] = ToolsService._extract_office_metadata(file_content)
+            elif mime_type.startswith('image/'):
+                metadata['properties'] = ToolsService._extract_image_metadata(file_content)
+            
+            return {
+                'success': True,
+                'filename': filename,
+                'extension': file_extension,
+                'size': file_size,
+                'mime_type': mime_type,
+                'is_binary': is_binary,
+                'hashes': {
+                    'md5': md5_hash,
+                    'sha1': sha1_hash,
+                    'sha256': sha256_hash
+                },
+                'magic_signature': file_magic,
+                'metadata': metadata
+            }
+            
+        except Exception as e:
+            logger.error(f'File analysis error: {str(e)}')
+            return {'success': False, 'error': f'File analysis failed: {str(e)}'}
+    
+    @staticmethod
+    def _calculate_entropy(data: bytes) -> float:
+        """Calculate Shannon entropy of file content."""
+        if not data:
+            return 0.0
+        
+        entropy = 0.0
+        for i in range(256):
+            freq = data.count(bytes([i]))
+            if freq > 0:
+                p = freq / len(data)
+                entropy -= p * (p and __import__('math').log2(p) or 0)
+        return round(entropy, 2)
+    
+    @staticmethod
+    def _analyze_sections(data: bytes, mime_type: str) -> Dict:
+        """Analyze file sections/structure."""
+        sections = {
+            'size_readable': ToolsService._format_size(len(data))
+        }
+        
+        # PE executable detection
+        if data.startswith(b'MZ'):
+            sections['type'] = 'PE Executable'
+            try:
+                e_lfanew = struct.unpack('<I', data[0x3c:0x40])[0]
+                if e_lfanew < len(data) and data[e_lfanew:e_lfanew+2] == b'PE':
+                    sections['pe_signature'] = 'Valid'
+                    
+                    # Determine specific PE type (DLL, EXE, SYS, etc.)
+                    # Characteristics field is at offset e_lfanew + 0x16 (2 bytes, little-endian)
+                    if e_lfanew + 0x18 < len(data):
+                        characteristics = struct.unpack('<H', data[e_lfanew+0x16:e_lfanew+0x18])[0]
+                        
+                        # Check DLL flag (0x2000)
+                        if characteristics & 0x2000:
+                            sections['pe_type'] = 'DLL (Dynamic Link Library)'
+                        # Check executable flag (0x0002)
+                        elif characteristics & 0x0002:
+                            sections['pe_type'] = 'EXE (Executable)'
+                        # Check driver flag (system driver)
+                        elif characteristics & 0x1000:
+                            sections['pe_type'] = 'SYS (System Driver)'
+                        else:
+                            sections['pe_type'] = 'PE Object File'
+                        
+                        # Get machine type (CPU architecture)
+                        if e_lfanew + 0x04 < len(data):
+                            machine = struct.unpack('<H', data[e_lfanew:e_lfanew+0x02])[0]
+                            machine_types = {
+                                0x014c: 'i386 (32-bit Intel)',
+                                0x8664: 'x64 (64-bit Intel)',
+                                0x01c0: 'ARM',
+                                0xaa64: 'ARM64',
+                                0x0200: 'MIPS',
+                                0x0ebc: '.NET Runtime'
+                            }
+                            sections['architecture'] = machine_types.get(machine, f'Unknown (0x{machine:04x})')
+            except:
+                pass
+        
+        # ELF detection
+        elif data.startswith(b'\x7fELF'):
+            sections['type'] = 'ELF Executable'
+        
+        # ZIP detection (DOCX, XLSX, JAR, etc.)
+        elif data.startswith(b'PK\x03\x04'):
+            sections['type'] = 'ZIP Archive'
+        
+        # PDF detection
+        elif data.startswith(b'%PDF'):
+            sections['type'] = 'PDF Document'
+        
+        return sections
+    
+    @staticmethod
+    def _extract_pdf_metadata(data: bytes) -> Dict:
+        """Extract metadata from PDF."""
+        metadata = {}
+        try:
+            # Look for /Info dictionary in PDF
+            info_start = data.find(b'/Info')
+            if info_start > -1:
+                info_section = data[info_start:info_start+500]
+                
+                # Extract common PDF metadata
+                fields = {
+                    '/Title': 'title',
+                    '/Author': 'author',
+                    '/Subject': 'subject',
+                    '/Creator': 'creator',
+                    '/Producer': 'producer',
+                    '/CreationDate': 'creation_date',
+                    '/ModDate': 'modification_date'
+                }
+                
+                for pdf_field, key in fields.items():
+                    pattern = pdf_field.encode() + b'[^)]*\\(([^)]*)\\)'
+                    import re
+                    match = re.search(pattern, info_section)
+                    if match:
+                        value = match.group(1).decode('utf-8', errors='ignore')
+                        metadata[key] = value
+        except:
+            pass
+        
+        return metadata
+    
+    @staticmethod
+    def _extract_office_metadata(data: bytes) -> Dict:
+        """Extract metadata from Office documents."""
+        metadata = {}
+        try:
+            import zipfile
+            from io import BytesIO
+            import xml.etree.ElementTree as ET
+            
+            # Office documents are ZIP files
+            with zipfile.ZipFile(BytesIO(data)) as zf:
+                # Try to read docProps/core.xml
+                try:
+                    with zf.open('docProps/core.xml') as f:
+                        root = ET.fromstring(f.read())
+                        ns = {
+                            'dc': 'http://purl.org/dc/elements/1.1/',
+                            'cp': 'http://schemas.openxmlformats.org/officeDocument/2006/custom-properties',
+                            'dcterms': 'http://purl.org/dc/terms/'
+                        }
+                        
+                        # Extract common properties
+                        for elem in root:
+                            if 'title' in elem.tag.lower():
+                                metadata['title'] = elem.text
+                            elif 'creator' in elem.tag.lower():
+                                metadata['creator'] = elem.text
+                            elif 'subject' in elem.tag.lower():
+                                metadata['subject'] = elem.text
+                            elif 'created' in elem.tag.lower():
+                                metadata['creation_date'] = elem.text
+                            elif 'modified' in elem.tag.lower():
+                                metadata['modification_date'] = elem.text
+                except:
+                    pass
+                
+                # Try docProps/app.xml for document statistics
+                try:
+                    with zf.open('docProps/app.xml') as f:
+                        root = ET.fromstring(f.read())
+                        for elem in root:
+                            tag_name = elem.tag.split('}')[-1] if '}' in elem.tag else elem.tag
+                            if tag_name in ['Pages', 'Words', 'Characters', 'Application']:
+                                metadata[tag_name.lower()] = elem.text
+                except:
+                    pass
+        except:
+            pass
+        
+        return metadata
+    
+    @staticmethod
+    def _extract_image_metadata(data: bytes) -> Dict:
+        """Extract metadata from images."""
+        metadata = {}
+        try:
+            from PIL import Image
+            from PIL.ExifTags import TAGS
+            from io import BytesIO
+            
+            img = Image.open(BytesIO(data))
+            
+            # Basic image info
+            metadata['format'] = img.format
+            metadata['width'] = img.width
+            metadata['height'] = img.height
+            
+            # Extract EXIF data if available
+            exif_data = img._getexif() if hasattr(img, '_getexif') else None
+            if exif_data:
+                for tag_id, value in exif_data.items():
+                    tag_name = TAGS.get(tag_id, tag_id)
+                    try:
+                        # Only include readable metadata
+                        if isinstance(value, bytes):
+                            value = value.decode('utf-8', errors='ignore')
+                        metadata[tag_name] = str(value)[:100]  # Limit to 100 chars
+                    except:
+                        pass
+        except:
+            pass
+        
+        return metadata
+    
+    @staticmethod
+    def _format_size(size: int) -> str:
+        """Format byte size to human-readable."""
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f'{size:.2f} {unit}'
+            size /= 1024.0
+        return f'{size:.2f} TB'
