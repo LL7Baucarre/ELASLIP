@@ -592,7 +592,8 @@ class IOCService(BaseListService):
             doc = self._enrich_with_metadata(doc)
             
             # Get count of STIX relationships for this IOC
-            source_ref = f"indicator--{hit['_id']}"
+            # Note: hit['_id'] already contains 'indicator--' prefix
+            source_ref = hit['_id']
             relations = self.es.search('stix_relationships', {
                 'query': {
                     'bool': {

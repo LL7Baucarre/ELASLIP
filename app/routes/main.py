@@ -659,8 +659,8 @@ def get_ioc_graph_data(ioc_id):
         })
         node_ids.add(ioc_id)
         
-        # Build STIX ref for this IOC
-        ioc_ref = f"indicator--{ioc_id}"
+        # Build STIX ref for this IOC (ioc_id already has indicator-- prefix)
+        ioc_ref = ioc_id
         
         # Get all STIX relationships for this IOC
         all_relations = ioc_service.es.search(
@@ -677,35 +677,36 @@ def get_ioc_graph_data(ioc_id):
             target_ref = rel_data.get('target_ref', '')
             relationship_type = rel_data.get('relationship_type', 'related-to')
             
-            # Extract raw IDs from STIX refs
-            source_id = source_ref.replace('indicator--', '') if source_ref.startswith('indicator--') else source_ref
-            target_id = target_ref.replace('indicator--', '') if target_ref.startswith('indicator--') else target_ref
+            # source_ref and target_ref are in indicator--uuid format
+            # ioc_id is also in indicator--uuid format
+            source_id = source_ref  # Keep full ID for node creation
+            target_id = target_ref  # Keep full ID for node creation
             
             # Check if this IOC is involved in the relationship
-            if source_id == ioc_id and target_id:
-                related_ioc_ids.add(target_id)
-                edge_id = f"{source_id}-{target_id}"
+            if source_ref == ioc_id and target_ref:
+                related_ioc_ids.add(target_ref)
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
+                            'source': source_ref,
+                            'target': target_ref,
                             'label': relationship_type
                         },
                         'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
-            elif target_id == ioc_id and source_id:
-                related_ioc_ids.add(source_id)
-                edge_id = f"{source_id}-{target_id}"
+            elif target_ref == ioc_id and source_ref:
+                related_ioc_ids.add(source_ref)
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
+                            'source': source_ref,
+                            'target': target_ref,
                             'label': relationship_type
                         },
                         'classes': f"relation-{relationship_type.replace('-', '_')}"

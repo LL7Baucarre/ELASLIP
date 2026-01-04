@@ -349,6 +349,28 @@
             </div>
         </div>
         
+        <!-- Related Cases -->
+        <div class="card mb-4" id="relatedCasesCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Related Cases</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="relatedCasesList">
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Related Incidents -->
+        <div class="card mb-4" id="relatedIncidentsCard" style="display: none;">
+            <div class="card-header bg-white">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Related Incidents</h6>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush" id="relatedIncidentsList">
+                </ul>
+            </div>
+        </div>
+        
         <!-- Edit Form -->
         {% if has_permission('ioc.edit') %}
         <div class="card mb-4">
@@ -1321,6 +1343,74 @@ function loadRelatedIOCs() {
     });
 }
 
+// Load related cases and incidents from graph data
+function loadRelatedCasesAndIncidents() {
+    $.ajax({
+        url: `/api/iocs/${iocId}/graph-data`,
+        method: 'GET',
+        success: function(response) {
+            const nodes = response.nodes || [];
+            
+            // Filter cases and incidents from nodes
+            const cases = nodes.filter(n => n.data.entity_type === 'case');
+            const incidents = nodes.filter(n => n.data.entity_type === 'incident');
+            
+            // Render related cases
+            if (cases.length > 0) {
+                const card = $('#relatedCasesCard');
+                const list = $('#relatedCasesList');
+                list.empty();
+                
+                cases.forEach(caseNode => {
+                    const statusClass = caseNode.data.status === 'open' ? 'bg-success' : 
+                                       caseNode.data.status === 'in-progress' ? 'bg-warning' : 'bg-secondary';
+                    list.append(`
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-folder2-open me-2 text-primary"></i>
+                                    <a href="/cases/${caseNode.data.id}">${caseNode.data.label}</a>
+                                </div>
+                                <span class="badge ${statusClass}">${caseNode.data.status || 'unknown'}</span>
+                            </div>
+                        </li>
+                    `);
+                });
+                
+                card.show();
+            }
+            
+            // Render related incidents
+            if (incidents.length > 0) {
+                const card = $('#relatedIncidentsCard');
+                const list = $('#relatedIncidentsList');
+                list.empty();
+                
+                incidents.forEach(incidentNode => {
+                    const severityClass = incidentNode.data.severity === 'critical' ? 'bg-danger' : 
+                                         incidentNode.data.severity === 'high' ? 'bg-warning' : 
+                                         incidentNode.data.severity === 'medium' ? 'bg-info' : 'bg-secondary';
+                    list.append(`
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="bi bi-exclamation-triangle me-2 text-danger"></i>
+                                    <a href="/incidents/${incidentNode.data.id}">${incidentNode.data.label}</a>
+                                </div>
+                                <span class="badge ${severityClass}">${incidentNode.data.severity || 'unknown'}</span>
+                            </div>
+                        </li>
+                    `);
+                });
+                
+                card.show();
+            }
+        },
+        error: function() {
+        }
+    });
+}
+
 function toggleEditValidUntil() {
     const checkbox = document.getElementById('editAddValidUntil');
     const wrapper = document.getElementById('editValidUntilWrapper');
@@ -1339,6 +1429,7 @@ function toggleEditValidUntil() {
 // Load related IOCs on page load
 $(document).ready(function() {
     loadRelatedIOCs();
+    loadRelatedCasesAndIncidents();
     
     // Edit form submission
     $('#editForm').submit(function(e) {

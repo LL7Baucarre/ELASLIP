@@ -517,6 +517,9 @@ def populate_demo_data():
             }
         
         try:
+            # Get the elasticsearch service from the IOC service
+            es = service.es
+            
             # Create multiple levels of STIX relationships for graph traversal testing
             if len(created_ids) >= 10:
                 # Level 1: Create a primary node with 3-4 direct connections
