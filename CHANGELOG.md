@@ -1,5 +1,7 @@
 # Changelog
 
+
+
 ## [1.1.0] - 2026-01-03
 
 ### Added
@@ -19,7 +21,7 @@
 
 ---
 
-## [1.1.0] - 2026-01-03
+## [1.2.0] - 2026-01-03
 
 ### Added
 - **Versioning system**: Application version now configurable via `APP_VERSION` environment variable and `__version__` in config
@@ -52,6 +54,6 @@ To update the version:
 
 1. Edit `__version__` in [app/config.py](app/config.py)
 2. Commit and push to `deploy` or create a `v*` tag to trigger the CI build and image publication
-3. Optionally create a Git tag: `git tag v1.1.0 && git push origin v1.1.0`
+3. Optionally create a Git tag: `git tag v1.2.0 && git push origin v1.2.0`
 
 See [VERSIONING.md](VERSIONING.md) for detailed information.

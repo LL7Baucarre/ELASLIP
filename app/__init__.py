@@ -100,7 +100,7 @@ def create_app(config_name=None):
         "info": {
             "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
             "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
-            "version": "1.1.0",
+            "version": "1.2.0",
             "contact": {
                 "name": "ELASLIP Support",
                 "url": "https://github.com/LL7Baucarre/ELASLIP"
@@ -324,7 +324,7 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_app_version():
         return {
-            'APP_VERSION': app.config.get('APP_VERSION', '1.1.0')
+            'APP_VERSION': app.config.get('APP_VERSION', '1.2.0')
         }
     
     # Health check endpoint

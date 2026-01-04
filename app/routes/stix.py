@@ -11,6 +11,7 @@ from flask_login import login_required, current_user
 from app.decorators import permission_required
 from app.services.stix_service import STIXService
 from app.services.audit_service import AuditService
+from app.services.elasticsearch_service import ElasticsearchService
 
 stix_bp = Blueprint('stix', __name__)
 
@@ -210,7 +211,7 @@ def delete_stix_object(stix_id):
 
 @stix_bp.route('/api/stix/objects/<stix_id>/bundle', methods=['GET'])
 @login_required
-@permission_required('iocs.view')
+@permission_required('ioc.view')
 def export_stix_bundle(stix_id):
     """Export a STIX object with all its relationships as a STIX 2.1 Bundle"""
     try:
@@ -331,6 +332,71 @@ def get_related_objects(stix_id):
         
     except Exception as e:
         return jsonify({"error": f"Failed to get related objects: {str(e)}"}), 500
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/linked-entities', methods=['GET'])
+@permission_required('ioc.view')
+def get_linked_entities(stix_id):
+    """Get all cases and incidents that contain this STIX object"""
+    try:
+        es = ElasticsearchService()
+        cases = []
+        incidents = []
+        
+        # Find cases containing this STIX object
+        try:
+            case_results = es.search('cases', {
+                'size': 100,
+                'query': {
+                    'bool': {
+                        'should': [
+                            {'term': {'ioc_ids': stix_id}}
+                        ]
+                    }
+                }
+            })
+            for hit in case_results.get('hits', {}).get('hits', []):
+                cases.append({
+                    'id': hit['_id'],
+                    'title': hit['_source'].get('title', 'Unknown Case'),
+                    'status': hit['_source'].get('status', 'unknown'),
+                    'entity_type': 'case'
+                })
+        except:
+            pass
+        
+        # Find incidents containing this STIX object
+        try:
+            incident_results = es.search('incidents', {
+                'size': 100,
+                'query': {
+                    'bool': {
+                        'should': [
+                            {'term': {'ioc_ids': stix_id}}
+                        ]
+                    }
+                }
+            })
+            for hit in incident_results.get('hits', {}).get('hits', []):
+                incidents.append({
+                    'id': hit['_id'],
+                    'title': hit['_source'].get('title', 'Unknown Incident'),
+                    'severity': hit['_source'].get('severity', 'unknown'),
+                    'entity_type': 'incident'
+                })
+        except:
+            pass
+        
+        return jsonify({
+            'stix_id': stix_id,
+            'cases': cases,
+            'incidents': incidents,
+            'total_cases': len(cases),
+            'total_incidents': len(incidents)
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to get linked entities: {str(e)}"}), 500
 
 
 @stix_bp.route('/api/stix/relationships/<rel_id>', methods=['DELETE'])

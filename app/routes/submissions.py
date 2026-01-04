@@ -610,6 +610,11 @@ def create_ioc_from_submission(submission_id):
         stix_service = STIXService()
         
         # Create STIX indicator using the service
+        # Map confidence string to STIX confidence integer (0-100)
+        confidence_map = {'low': 25, 'medium': 50, 'high': 75, 'very-high': 90}
+        confidence_str = data.get('confidence', submission.get('confidence', 'medium'))
+        confidence_int = confidence_map.get(confidence_str, 50) if isinstance(confidence_str, str) else 50
+        
         stix_obj = stix_service.create_sdo(
             sdo_type='indicator',
             data={
@@ -622,10 +627,11 @@ def create_ioc_from_submission(submission_id):
                     else f"[email-addr:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'email'
                     else f"[url:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'url'
                     else f"[network-traffic:dst_ref.value = '{submission['ioc_value']}']",
+                'pattern_type': 'stix',
                 'labels': data.get('labels', submission.get('tags', [])),
                 'name': data.get('name', f"{submission['ioc_type'].upper()}: {submission['ioc_value']}"),
                 'description': data.get('description', submission.get('description')),
-                'confidence': int(data.get('confidence', submission.get('confidence', 'medium')).split('-')[0]) if isinstance(data.get('confidence'), str) else 50,
+                'confidence': confidence_int,
                 'valid_from': datetime.utcnow().isoformat() + 'Z',
                 'x_ioc_type': submission['ioc_type'],
                 'x_ioc_value': submission['ioc_value'],

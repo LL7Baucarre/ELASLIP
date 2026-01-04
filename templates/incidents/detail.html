@@ -75,6 +75,34 @@
 [data-theme="dark"] #incidentGraphContainer {
     background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
 }
+
+/* Graph Legend */
+.graph-legend { background: rgba(0,0,0,0.02); }
+[data-theme="dark"] .graph-legend { background: rgba(255,255,255,0.02); }
+
+.legend-circle {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+.legend-square {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+}
+.legend-diamond {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    transform: rotate(45deg);
+}
+.current-node { box-shadow: 0 0 0 2px #fff; }
+
+/* Filter buttons */
+.filter-btn.active { opacity: 1; }
+.filter-btn:not(.active) { opacity: 0.5; }
 </style>
 {% endblock %}
 
@@ -377,26 +405,49 @@
             <h6 class="mb-0">
                 <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
             </h6>
-            <div class="btn-group btn-group-sm">
-                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('stix')" id="incFilterStix" title="Toggle STIX Objects">
-                    <i class="bi bi-shield-check"></i>
-                </button>
-                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('case')" id="incFilterCase" title="Toggle Cases">
-                    <i class="bi bi-folder"></i>
-                </button>
-                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('incident')" id="incFilterIncident" title="Toggle Incidents">
-                    <i class="bi bi-exclamation-triangle"></i>
-                </button>
-                <button class="btn btn-outline-secondary" onclick="fitIncidentGraph()" title="Fit to View">
-                    <i class="bi bi-arrows-fullscreen"></i>
-                </button>
-                <button class="btn btn-outline-secondary" onclick="resetIncidentLayout()" title="Reset Layout">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                </button>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="btn-group btn-group-sm me-2" role="group">
+                    <button type="button" class="btn btn-outline-info filter-btn active" data-filter="stix" onclick="toggleIncidentGraphFilter('stix', this)">
+                        <i class="bi bi-diagram-3 me-1"></i>STIX
+                    </button>
+                    <button type="button" class="btn btn-outline-primary filter-btn active" data-filter="case" onclick="toggleIncidentGraphFilter('case', this)">
+                        <i class="bi bi-folder me-1"></i>Cases
+                    </button>
+                    <button type="button" class="btn btn-outline-danger filter-btn active" data-filter="incident" onclick="toggleIncidentGraphFilter('incident', this)">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Incidents
+                    </button>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="fitIncidentGraph()" title="Fit to View">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetIncidentLayout()" title="Reset Layout">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </div>
             </div>
         </div>
         <div class="card-body p-0">
             <div id="incidentGraphContainer" style="width: 100%; height: 450px; border-radius: 0 0 6px 6px;"></div>
+            <!-- Legend -->
+            <div class="graph-legend d-flex flex-wrap gap-3 p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <span class="legend-circle me-2" style="background: #17a2b8;"></span>
+                    <small>STIX Objects</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-square me-2" style="background: #0d6efd;"></span>
+                    <small>Cases</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-diamond me-2" style="background: #dc3545;"></span>
+                    <small>Incidents</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-diamond me-2 current-node" style="background: #dc3545; border: 2px solid #333;"></span>
+                    <small>Current Incident</small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -1698,12 +1749,9 @@ function initIncidentGraph(nodes, edges, incidentId) {
 // Graph filter state for incident
 let incGraphFilters = { stix: true, case: true, incident: true };
 
-function toggleIncidentGraphFilter(type) {
+function toggleIncidentGraphFilter(type, btn) {
     incGraphFilters[type] = !incGraphFilters[type];
-    const btn = document.getElementById('incFilter' + type.charAt(0).toUpperCase() + type.slice(1));
     btn.classList.toggle('active', incGraphFilters[type]);
-    btn.classList.toggle('btn-primary', incGraphFilters[type]);
-    btn.classList.toggle('btn-outline-secondary', !incGraphFilters[type]);
     
     if (incidentCy) {
         incidentCy.nodes().forEach(node => {

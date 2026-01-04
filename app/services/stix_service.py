@@ -113,10 +113,75 @@ class STIXService:
     ]
     
     @classmethod
+    def _find_duplicate(cls, sdo_type: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Return existing STIX object if it appears to be a duplicate based on well-known keys."""
+        es = ElasticsearchService().client
+        try:
+            # Indicators: try pattern hash first, then x_ioc_type/value
+            if sdo_type == "indicator":
+                import hashlib
+                if "pattern" in data and data["pattern"]:
+                    pattern_hash = hashlib.sha256(data["pattern"].encode()).hexdigest()
+                    q = {
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {"term": {"x_pattern_hash": pattern_hash}},
+                                    {"term": {"type": "indicator"}}
+                                ]
+                            }
+                        }
+                    }
+                    res = es.search(index=cls.STIX_OBJECTS_INDEX, body=q, size=1)
+                    hits = res.get("hits", {}).get("hits", [])
+                    if hits:
+                        return hits[0]["_source"]
+
+                if "x_ioc_type" in data and "x_ioc_value" in data:
+                    q = {
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {"term": {"type": "indicator"}},
+                                    {"term": {"x_ioc_type": data["x_ioc_type"]}},
+                                    {"term": {"x_ioc_value.keyword": data["x_ioc_value"]}}
+                                ]
+                            }
+                        }
+                    }
+                    res = es.search(index=cls.STIX_OBJECTS_INDEX, body=q, size=1)
+                    hits = res.get("hits", {}).get("hits", [])
+                    if hits:
+                        return hits[0]["_source"]
+
+            # Other SDOs: match by exact name when available
+            if "name" in data and data["name"]:
+                name_val = data["name"].strip()
+                q = {
+                    "query": {
+                        "bool": {
+                            "must": [
+                                {"term": {"type": sdo_type}},
+                                {"term": {"name.keyword": name_val}}
+                            ]
+                        }
+                    }
+                }
+                res = es.search(index=cls.STIX_OBJECTS_INDEX, body=q, size=1)
+                hits = res.get("hits", {}).get("hits", [])
+                if hits:
+                    return hits[0]["_source"]
+        except Exception:
+            # On any ES error, conservatively return None so we don't block creation
+            return None
+
+        return None
+
+    @classmethod
     def create_sdo(cls, sdo_type: str, data: Dict[str, Any], 
                    user_id: Optional[str] = None, username: Optional[str] = None) -> Dict[str, Any]:
         """
-        Create a new STIX Domain Object
+        Create a new STIX Domain Object (or return/merge with an existing one to avoid duplicates)
         
         Args:
             sdo_type: The STIX object type (indicator, malware, threat-actor, etc.)
@@ -125,15 +190,57 @@ class STIXService:
             username: Optional username who created this object
             
         Returns:
-            The created STIX object with its generated ID
+            The created or existing STIX object
         """
         if sdo_type not in cls.SDO_TYPES:
             raise ValueError(f"Unsupported SDO type: {sdo_type}")
         
         now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+        # Check for an existing duplicate first
+        existing = cls._find_duplicate(sdo_type, data)
+        if existing:
+            # Merge some useful fields (labels, description, confidence) and update modified timestamp
+            updates: Dict[str, Any] = {"modified": now}
+
+            # Merge labels
+            existing_labels = set(existing.get("labels", []))
+            new_labels = set(data.get("labels", [])) if data.get("labels") else set()
+            merged_labels = list(existing_labels.union(new_labels))
+            if merged_labels and merged_labels != existing.get("labels", []):
+                updates["labels"] = merged_labels
+
+            # Prefer fuller description if provided
+            if data.get("description") and data.get("description") != existing.get("description"):
+                updates["description"] = data.get("description")
+
+            # Prefer higher confidence if provided
+            if data.get("confidence") and data.get("confidence") > existing.get("confidence", 0):
+                updates["confidence"] = data.get("confidence")
+
+            # Add pattern hash for indicators if missing
+            if sdo_type == "indicator" and "pattern" in data and "x_pattern_hash" not in existing:
+                import hashlib
+                updates["x_pattern_hash"] = hashlib.sha256(data["pattern"].encode()).hexdigest()
+
+            # Add ELASLIP metadata if missing
+            if user_id and not existing.get("x_elaslip_created_by_user_id"):
+                updates["x_elaslip_created_by_user_id"] = user_id
+            if username and not existing.get("x_elaslip_created_by_username"):
+                updates["x_elaslip_created_by_username"] = username
+
+            # Apply the update
+            try:
+                updated = cls.update_sdo(existing["id"], updates)
+                if updated:
+                    return updated
+                else:
+                    return existing
+            except Exception:
+                return existing
+
+        # No duplicate found — proceed to create a new object
         stix_id = f"{sdo_type}--{uuid.uuid4()}"
-        
-        # Build the STIX object
         stix_object = {
             "id": stix_id,
             "type": sdo_type,
@@ -141,32 +248,32 @@ class STIXService:
             "created": now,
             "modified": now,
         }
-        
+
         # Add common optional fields
         common_fields = ["name", "description", "labels", "confidence", "external_references",
                         "created_by_ref", "revoked", "lang", "object_marking_refs", "granular_markings"]
         for field in common_fields:
             if field in data and data[field] is not None:
                 stix_object[field] = data[field]
-        
+
         # Add type-specific fields
         type_spec = cls.SDO_TYPES[sdo_type]
         for field in type_spec["required"] + type_spec["optional"]:
             if field in data and data[field] is not None:
                 stix_object[field] = data[field]
-        
+
         # Add ELASLIP metadata
         if user_id:
             stix_object["x_elaslip_created_by_user_id"] = user_id
         if username:
             stix_object["x_elaslip_created_by_username"] = username
-            
+
         # For indicators, generate pattern hash for deduplication
-        if sdo_type == "indicator" and "pattern" in data:
+        if sdo_type == "indicator" and "pattern" in data and data["pattern"]:
             import hashlib
             pattern_hash = hashlib.sha256(data["pattern"].encode()).hexdigest()
             stix_object["x_pattern_hash"] = pattern_hash
-        
+
         # Index in Elasticsearch
         es = ElasticsearchService().client
         es.index(
@@ -175,7 +282,7 @@ class STIXService:
             document=stix_object,
             refresh=True
         )
-        
+
         return stix_object
     
     @classmethod
