@@ -33,12 +33,13 @@
                 </a>
             </li>
             {% endif %}
-            <li class="nav-section-title">IOCs</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
+                        
+            <li class="nav-section-title">INVESTIGATIONS</li>
             {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
@@ -46,8 +47,6 @@
                 </a>
             </li>
             {% endif %}
-            
-            <li class="nav-section-title">INVESTIGATIONS</li>
             {% if has_any_permission('case.view', 'case.create', 'case.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'cases' in request.endpoint %}active{% endif %}" href="{{ url_for('main.cases_list') }}">
@@ -76,15 +75,15 @@
                 </a>
             </li>
             {% endif %}
-                        {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
+                        
+            <li class="nav-section-title">TOOLS</li>
+            {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
                     <i class="bi bi-file-earmark-pdf"></i> LLM Reports
                 </a>
             </li>
             {% endif %}
-            
-            <li class="nav-section-title">TOOLS</li>
             {% if has_permission('ioc.import') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
@@ -107,7 +106,7 @@
             </li>
             {% endif %}
             
-            <li class="nav-section-title">CONFIG</li>
+            <li class="nav-section-title">MANAGEMENT</li>
             {% if has_any_permission('admin.users.view', 'admin.users.create', 'admin.users.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'users_management' in request.endpoint %}active{% endif %}" href="{{ url_for('main.users_management') }}">
