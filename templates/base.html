@@ -46,13 +46,6 @@
                 </a>
             </li>
             {% endif %}
-            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
-                    <i class="bi bi-diagram-3"></i> IOC Graph
-                </a>
-            </li>
-            {% endif %}
             
             <li class="nav-section-title">INVESTIGATIONS</li>
             {% if has_any_permission('case.view', 'case.create', 'case.edit') %}
