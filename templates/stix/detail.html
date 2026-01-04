@@ -1,0 +1,607 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stix_object.name or stix_object.x_ioc_value or stix_object.id }} - ELASLIP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .property-row { padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .property-label { font-weight: 500; color: #adb5bd; }
+    .relationship-card { transition: background 0.2s; }
+    .relationship-card:hover { background: rgba(255,255,255,0.05); }
+    .stix-id { font-family: monospace; font-size: 0.85rem; word-break: break-all; }
+    .pattern-display { background: #1e1e1e; padding: 1rem; border-radius: 0.5rem; font-family: monospace; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start flex-wrap">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('stix.list_stix_objects_page') }}">STIX Objects</a></li>
+                            <li class="breadcrumb-item active">{{ stix_object.type }}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-2">
+                        <span class="me-2">{{ {'indicator': '📊', 'malware': '🦠', 'threat-actor': '👤', 'attack-pattern': '⚔️', 'campaign': '🎯', 'tool': '🔧', 'vulnerability': '🔓', 'infrastructure': '🏗️', 'intrusion-set': '🕵️', 'identity': '🏢', 'location': '📍', 'course-of-action': '🛡️'}.get(stix_object.type, '📦') }}</span>
+                        {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
+                    </h1>
+                    <p class="stix-id text-muted">{{ stix_object.id }}</p>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('stix.list_stix_objects_page') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="exportBundle()">
+                        <i class="fas fa-download me-1"></i> Export Bundle
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteObject()">
+                        <i class="fas fa-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Description -->
+            {% if stix_object.description %}
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-align-left me-2"></i>Description</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ stix_object.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Type-specific Properties -->
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>{{ stix_object.type|title }} Properties</h5>
+                </div>
+                <div class="card-body">
+                    {% if stix_object.type == 'indicator' %}
+                        {% if stix_object.pattern %}
+                        <div class="mb-3">
+                            <label class="property-label">STIX Pattern</label>
+                            <div class="pattern-display">{{ stix_object.pattern }}</div>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.x_ioc_type and stix_object.x_ioc_value %}
+                        <div class="row">
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">IOC Type:</span>
+                                <span class="badge bg-info ms-2">{{ stix_object.x_ioc_type }}</span>
+                            </div>
+                            <div class="col-md-8 property-row">
+                                <span class="property-label">IOC Value:</span>
+                                <code class="ms-2">{{ stix_object.x_ioc_value }}</code>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="row">
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Valid From:</span>
+                                <span class="ms-2">{{ stix_object.valid_from or 'N/A' }}</span>
+                            </div>
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Valid Until:</span>
+                                <span class="ms-2">{{ stix_object.valid_until or 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% if stix_object.x_threat_level %}
+                        <div class="property-row">
+                            <span class="property-label">Threat Level:</span>
+                            <span class="badge bg-{{ {'low': 'success', 'medium': 'warning', 'high': 'danger', 'critical': 'danger'}.get(stix_object.x_threat_level, 'secondary') }} ms-2">
+                                {{ stix_object.x_threat_level }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'malware' %}
+                        <div class="property-row">
+                            <span class="property-label">Is Family:</span>
+                            <span class="ms-2">{{ 'Yes' if stix_object.is_family else 'No' }}</span>
+                        </div>
+                        {% if stix_object.malware_types %}
+                        <div class="property-row">
+                            <span class="property-label">Types:</span>
+                            {% for t in stix_object.malware_types %}
+                            <span class="badge bg-danger ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'threat-actor' %}
+                        {% if stix_object.threat_actor_types %}
+                        <div class="property-row">
+                            <span class="property-label">Types:</span>
+                            {% for t in stix_object.threat_actor_types %}
+                            <span class="badge bg-warning ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.sophistication %}
+                        <div class="property-row">
+                            <span class="property-label">Sophistication:</span>
+                            <span class="ms-2">{{ stix_object.sophistication }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.primary_motivation %}
+                        <div class="property-row">
+                            <span class="property-label">Primary Motivation:</span>
+                            <span class="ms-2">{{ stix_object.primary_motivation }}</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'attack-pattern' %}
+                        {% if stix_object.kill_chain_phases %}
+                        <div class="property-row">
+                            <span class="property-label">Kill Chain Phases:</span>
+                            {% for phase in stix_object.kill_chain_phases %}
+                            <span class="badge bg-primary ms-1">{{ phase.kill_chain_name }}: {{ phase.phase_name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'campaign' %}
+                        {% if stix_object.objective %}
+                        <div class="property-row">
+                            <span class="property-label">Objective:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.objective }}</p>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'vulnerability' %}
+                        {% if stix_object.external_references %}
+                        <div class="property-row">
+                            <span class="property-label">External IDs:</span>
+                            {% for ref in stix_object.external_references %}
+                                {% if ref.external_id %}
+                                <a href="{{ ref.url }}" target="_blank" class="badge bg-danger text-decoration-none ms-1">
+                                    {{ ref.external_id }} <i class="fas fa-external-link-alt ms-1"></i>
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'location' %}
+                        <div class="row">
+                            {% if stix_object.country %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">Country:</span>
+                                <span class="ms-2">{{ stix_object.country }}</span>
+                            </div>
+                            {% endif %}
+                            {% if stix_object.region %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">Region:</span>
+                                <span class="ms-2">{{ stix_object.region }}</span>
+                            </div>
+                            {% endif %}
+                            {% if stix_object.city %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">City:</span>
+                                <span class="ms-2">{{ stix_object.city }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if stix_object.latitude and stix_object.longitude %}
+                        <div class="property-row">
+                            <span class="property-label">Coordinates:</span>
+                            <span class="ms-2">{{ stix_object.latitude }}, {{ stix_object.longitude }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <!-- Generic properties display for other types -->
+                    {% if stix_object.aliases and stix_object.type not in ['malware'] %}
+                    <div class="property-row">
+                        <span class="property-label">Aliases:</span>
+                        {% for a in stix_object.aliases %}
+                        <span class="badge bg-secondary ms-1">{{ a }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if stix_object.first_seen %}
+                    <div class="property-row">
+                        <span class="property-label">First Seen:</span>
+                        <span class="ms-2">{{ stix_object.first_seen }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if stix_object.last_seen %}
+                    <div class="property-row">
+                        <span class="property-label">Last Seen:</span>
+                        <span class="ms-2">{{ stix_object.last_seen }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Relationships -->
+            <div class="card bg-dark mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Relationships</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addRelModal">
+                        <i class="fas fa-plus me-1"></i> Add
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if relationships %}
+                        {% for rel in relationships %}
+                        {% set other_id = rel.target_ref if rel.source_ref == stix_object.id else rel.source_ref %}
+                        {% set other_obj = related_objects | selectattr('id', 'equalto', other_id) | first %}
+                        {% set direction = 'outgoing' if rel.source_ref == stix_object.id else 'incoming' %}
+                        <div class="relationship-card p-2 rounded mb-2">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <i class="fas fa-{{ 'arrow-right text-success' if direction == 'outgoing' else 'arrow-left text-info' }} me-2"></i>
+                                    <span class="badge bg-secondary">{{ rel.relationship_type }}</span>
+                                    {% if other_obj %}
+                                    <a href="{{ url_for('stix.view_stix_object_page', stix_id=other_id) }}" class="ms-2">
+                                        {{ other_obj.name or other_obj.x_ioc_value or other_id[:30] }}
+                                    </a>
+                                    <span class="text-muted small">({{ other_obj.type }})</span>
+                                    {% else %}
+                                    <span class="ms-2 text-muted">{{ other_id }}</span>
+                                    {% endif %}
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRelationship('{{ rel.id }}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3 mb-0">
+                            <i class="fas fa-info-circle me-1"></i> No relationships defined
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Metadata -->
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Metadata</h5>
+                </div>
+                <div class="card-body">
+                    <div class="property-row">
+                        <span class="property-label">Type:</span>
+                        <span class="badge bg-primary ms-2">{{ stix_object.type }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Spec Version:</span>
+                        <span class="ms-2">{{ stix_object.spec_version }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Created:</span>
+                        <span class="ms-2">{{ stix_object.created }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Modified:</span>
+                        <span class="ms-2">{{ stix_object.modified }}</span>
+                    </div>
+                    {% if stix_object.confidence is defined %}
+                    <div class="property-row">
+                        <span class="property-label">Confidence:</span>
+                        <div class="progress ms-2" style="height: 20px; flex: 1;">
+                            <div class="progress-bar" style="width: {{ stix_object.confidence }}%;">
+                                {{ stix_object.confidence }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if stix_object.x_tlp %}
+                    <div class="property-row">
+                        <span class="property-label">TLP:</span>
+                        <span class="badge bg-secondary ms-2">{{ stix_object.x_tlp }}</span>
+                    </div>
+                    {% endif %}
+                    {% if stix_object.x_elaslip_created_by_username %}
+                    <div class="property-row">
+                        <span class="property-label">Created By:</span>
+                        <span class="ms-2">{{ stix_object.x_elaslip_created_by_username }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Labels -->
+            {% if stix_object.labels %}
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Labels</h5>
+                </div>
+                <div class="card-body">
+                    {% for label in stix_object.labels %}
+                    <span class="badge bg-info me-1 mb-1">{{ label }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- External References -->
+            {% if stix_object.external_references %}
+            <div class="card bg-dark mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-external-link-alt me-2"></i>External References</h5>
+                </div>
+                <div class="card-body">
+                    {% for ref in stix_object.external_references %}
+                    <div class="mb-2">
+                        <strong>{{ ref.source_name or 'Unknown Source' }}</strong>
+                        {% if ref.external_id %}
+                        <span class="badge bg-secondary ms-1">{{ ref.external_id }}</span>
+                        {% endif %}
+                        {% if ref.url %}
+                        <br><a href="{{ ref.url }}" target="_blank" class="small">
+                            {{ ref.url[:50] }}{% if ref.url|length > 50 %}...{% endif %}
+                            <i class="fas fa-external-link-alt ms-1"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Raw JSON -->
+            <div class="card bg-dark">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-code me-2"></i>Raw JSON</h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="showRawJson()">
+                        <i class="fas fa-eye me-1"></i> View Raw STIX JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Relationship Modal -->
+<div class="modal fade" id="addRelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Relationship</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Relationship Type</label>
+                        <select id="newRelType" class="form-select">
+                            {% for rt in relationship_types %}
+                            <option value="{{ rt }}">{{ rt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Search Objects</label>
+                        <input type="text" id="searchRelTarget" class="form-control" placeholder="Search...">
+                    </div>
+                </div>
+                <div id="availableTargets" style="max-height: 300px; overflow-y: auto;">
+                    <p class="text-center text-muted py-3">Loading...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAddRel" disabled onclick="confirmAddRelationship()">
+                    Add Relationship
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Raw JSON Modal -->
+<div class="modal fade" id="rawJsonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title">Raw STIX JSON</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="rawJsonContent" style="max-height: 500px; overflow: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="copyRawJson()">
+                    <i class="fas fa-copy me-1"></i> Copy
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const stixObject = {{ stix_object | tojson | safe }};
+const objectId = '{{ stix_object.id }}';
+let availableObjects = [];
+let selectedTarget = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadAvailableObjects();
+    
+    document.getElementById('searchRelTarget').addEventListener('input', function() {
+        filterTargets(this.value);
+    });
+});
+
+async function loadAvailableObjects() {
+    try {
+        const response = await fetch(`/api/stix/objects/available?exclude=${objectId}&size=100`);
+        availableObjects = await response.json();
+        renderTargets(availableObjects);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderTargets(objects) {
+    const container = document.getElementById('availableTargets');
+    if (objects.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center py-3">No objects available</p>';
+        return;
+    }
+    
+    container.innerHTML = objects.map(obj => {
+        const name = obj.name || obj.x_ioc_value || obj.id.substring(0, 30);
+        return `
+            <div class="p-2 border rounded mb-1 target-option" data-id="${obj.id}" 
+                 onclick="selectTarget(this)" style="cursor: pointer;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${escapeHtml(name)}</strong>
+                        <span class="badge bg-secondary ms-2">${obj.type}</span>
+                    </div>
+                    <i class="fas fa-check text-success d-none check-mark"></i>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function filterTargets(search) {
+    if (!search) {
+        renderTargets(availableObjects);
+        return;
+    }
+    const filtered = availableObjects.filter(o => 
+        (o.name && o.name.toLowerCase().includes(search.toLowerCase())) ||
+        (o.x_ioc_value && o.x_ioc_value.toLowerCase().includes(search.toLowerCase())) ||
+        o.type.toLowerCase().includes(search.toLowerCase())
+    );
+    renderTargets(filtered);
+}
+
+function selectTarget(el) {
+    document.querySelectorAll('.target-option').forEach(e => {
+        e.classList.remove('bg-primary');
+        e.querySelector('.check-mark').classList.add('d-none');
+    });
+    el.classList.add('bg-primary');
+    el.querySelector('.check-mark').classList.remove('d-none');
+    selectedTarget = el.dataset.id;
+    document.getElementById('confirmAddRel').disabled = false;
+}
+
+async function confirmAddRelationship() {
+    if (!selectedTarget) return;
+    
+    const relType = document.getElementById('newRelType').value;
+    
+    try {
+        const response = await fetch('/api/stix/relationships', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                source_ref: objectId,
+                target_ref: selectedTarget,
+                relationship_type: relType
+            })
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to create relationship');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteRelationship(relId) {
+    if (!confirm('Delete this relationship?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/relationships/${relId}`, { method: 'DELETE' });
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteObject() {
+    if (!confirm('Are you sure you want to delete this object and all its relationships?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}`, { method: 'DELETE' });
+        if (response.ok) {
+            window.location.href = '{{ url_for("stix.list_stix_objects_page") }}';
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function exportBundle() {
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}/bundle`);
+        const bundle = await response.json();
+        
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stix-bundle-${objectId.split('--')[1].substring(0, 8)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Export failed: ' + e.message);
+    }
+}
+
+function showRawJson() {
+    document.getElementById('rawJsonContent').textContent = JSON.stringify(stixObject, null, 2);
+    new bootstrap.Modal(document.getElementById('rawJsonModal')).show();
+}
+
+function copyRawJson() {
+    navigator.clipboard.writeText(JSON.stringify(stixObject, null, 2));
+    alert('Copied to clipboard!');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

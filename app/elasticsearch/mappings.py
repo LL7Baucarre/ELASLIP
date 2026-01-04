@@ -352,24 +352,33 @@ SCAN_RESULTS_MAPPING = {
 
 
 # STIX 2.1 Domain Objects (SDO) Index Mapping
-# For storing non-indicator STIX objects (malware, threat-actor, attack-pattern, etc.)
+# For storing ALL STIX objects (indicator, malware, threat-actor, attack-pattern, etc.)
 STIX_OBJECTS_MAPPING = {
     "settings": {
         "number_of_shards": 1,
-        "number_of_replicas": 0
+        "number_of_replicas": 0,
+        "analysis": {
+            "analyzer": {
+                "pattern_analyzer": {
+                    "type": "custom",
+                    "tokenizer": "standard",
+                    "filter": ["lowercase"]
+                }
+            }
+        }
     },
     "mappings": {
         "properties": {
             # STIX 2.1 Common Properties
             "id": {"type": "keyword"},  # <type>--<uuid>
-            "type": {"type": "keyword"},  # malware, threat-actor, attack-pattern, etc.
+            "type": {"type": "keyword"},  # indicator, malware, threat-actor, etc.
             "spec_version": {"type": "keyword"},  # "2.1"
             "created": {"type": "date"},
             "modified": {"type": "date"},
             "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
             "description": {"type": "text"},
             
-            # Optional STIX 2.1 Properties
+            # Optional STIX 2.1 Common Properties
             "created_by_ref": {"type": "keyword"},
             "revoked": {"type": "boolean"},
             "labels": {"type": "keyword"},
@@ -387,14 +396,53 @@ STIX_OBJECTS_MAPPING = {
             "object_marking_refs": {"type": "keyword"},
             "granular_markings": {"type": "object", "enabled": False},
             
-            # Type-specific Properties (stored as dynamic objects)
-            # Malware
+            # ============ INDICATOR Properties ============
+            "pattern": {
+                "type": "text",
+                "analyzer": "pattern_analyzer",
+                "fields": {"keyword": {"type": "keyword"}}
+            },
+            "pattern_type": {"type": "keyword"},
+            "pattern_version": {"type": "keyword"},
+            "valid_from": {"type": "date"},
+            "valid_until": {"type": "date"},
+            "indicator_types": {"type": "keyword"},
+            
+            # ELASLIP Indicator extensions
+            "x_ioc_type": {"type": "keyword"},  # md5, sha256, ipv4, domain, etc.
+            "x_ioc_value": {"type": "keyword"},  # The actual value
+            "x_pattern_hash": {"type": "keyword"},  # For deduplication
+            "x_threat_level": {"type": "keyword"},
+            "x_tlp": {"type": "keyword"},
+            "x_risk_score": {"type": "integer"},
+            "x_status": {"type": "keyword"},
+            "x_sources": {"type": "object", "enabled": False},
+            "x_enrichment": {"type": "object", "enabled": False},
+            "x_response_actions": {"type": "text"},
+            
+            # ============ MALWARE Properties ============
             "malware_types": {"type": "keyword"},
             "is_family": {"type": "boolean"},
             "aliases": {"type": "keyword"},
             "first_seen": {"type": "date"},
             "last_seen": {"type": "date"},
             "operating_system_refs": {"type": "keyword"},
+            "architecture_execution_envs": {"type": "keyword"},
+            "implementation_languages": {"type": "keyword"},
+            "capabilities": {"type": "keyword"},
+            "sample_refs": {"type": "keyword"},
+            
+            # ============ THREAT-ACTOR Properties ============
+            "threat_actor_types": {"type": "keyword"},
+            "roles": {"type": "keyword"},
+            "goals": {"type": "text"},
+            "sophistication": {"type": "keyword"},
+            "resource_level": {"type": "keyword"},
+            "primary_motivation": {"type": "keyword"},
+            "secondary_motivations": {"type": "keyword"},
+            "personal_motivations": {"type": "keyword"},
+            
+            # ============ ATTACK-PATTERN Properties ============
             "kill_chain_phases": {
                 "type": "nested",
                 "properties": {
@@ -403,29 +451,44 @@ STIX_OBJECTS_MAPPING = {
                 }
             },
             
-            # Threat Actor
-            "threat_actor_types": {"type": "keyword"},
-            "roles": {"type": "keyword"},
-            "goals": {"type": "text"},
-            "sophistication": {"type": "keyword"},
-            "resource_level": {"type": "keyword"},
-            "primary_motivation": {"type": "keyword"},
-            "secondary_motivations": {"type": "keyword"},
-            
-            # Attack Pattern
-            "attack_pattern_types": {"type": "keyword"},
-            
-            # Campaign
+            # ============ CAMPAIGN Properties ============
             "objective": {"type": "text"},
             
-            # Tool
+            # ============ TOOL Properties ============
             "tool_types": {"type": "keyword"},
             "tool_version": {"type": "keyword"},
             
-            # Vulnerability
-            "vulnerability_types": {"type": "keyword"},
+            # ============ VULNERABILITY Properties ============
+            # Uses external_references for CVE IDs
             
-            # Custom Properties (x_ prefix per STIX 2.1)
+            # ============ INFRASTRUCTURE Properties ============
+            "infrastructure_types": {"type": "keyword"},
+            
+            # ============ INTRUSION-SET Properties ============
+            "resource_level": {"type": "keyword"},
+            
+            # ============ IDENTITY Properties ============
+            "identity_class": {"type": "keyword"},
+            "sectors": {"type": "keyword"},
+            "contact_information": {"type": "text"},
+            
+            # ============ LOCATION Properties ============
+            "latitude": {"type": "float"},
+            "longitude": {"type": "float"},
+            "precision": {"type": "float"},
+            "region": {"type": "keyword"},
+            "country": {"type": "keyword"},
+            "administrative_area": {"type": "keyword"},
+            "city": {"type": "keyword"},
+            "street_address": {"type": "text"},
+            "postal_code": {"type": "keyword"},
+            
+            # ============ COURSE-OF-ACTION Properties ============
+            "action_type": {"type": "keyword"},
+            "os_execution_envs": {"type": "keyword"},
+            "action_bin": {"type": "keyword"},
+            
+            # ============ Custom ELASLIP Properties ============
             "x_elaslip_imported_from": {"type": "keyword"},
             "x_elaslip_import_job_id": {"type": "keyword"},
             "x_elaslip_created_by_user_id": {"type": "keyword"},

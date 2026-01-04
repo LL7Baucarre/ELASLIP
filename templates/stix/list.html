@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}STIX Objects - ELASLIP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .type-filter-btn { margin: 0.25rem; }
+    .type-filter-btn.active { box-shadow: 0 0 0 2px var(--bs-primary); }
+    .stix-object-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .stix-object-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .object-type-badge { font-size: 0.7rem; text-transform: uppercase; }
+    
+    /* Theme-aware cards */
+    html[data-theme="light"] .card {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6;
+    }
+    html[data-theme="dark"] .card {
+        background-color: #212529 !important;
+        border-color: #495057;
+    }
+    html[data-theme="light"] .card-header {
+        background-color: #e9ecef !important;
+        color: #212529;
+    }
+    html[data-theme="dark"] .card-header {
+        background-color: #495057 !important;
+        color: #fff;
+    }
+    html[data-theme="light"] .stix-object-card {
+        background-color: #fff !important;
+        border: 1px solid #dee2e6;
+    }
+    html[data-theme="light"] .stix-object-card .card-title {
+        color: #212529;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1"><i class="bi bi-boxes me-2"></i>STIX Objects</h1>
+                    <p class="text-muted mb-0">Browse and manage all STIX 2.1 Domain Objects</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('stix.stix_graph_page') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-diagram-3 me-1"></i> Graph View
+                    </a>
+                    <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Add STIX Object
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control" 
+                               placeholder="Search objects...">
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap justify-content-end">
+                        <button class="btn btn-sm btn-outline-secondary type-filter-btn active" data-type="">All</button>
+                        <button class="btn btn-sm btn-outline-info type-filter-btn" data-type="indicator">Indicators</button>
+                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="malware">Malware</button>
+                        <button class="btn btn-sm btn-outline-warning type-filter-btn" data-type="threat-actor">Threat Actors</button>
+                        <button class="btn btn-sm btn-outline-primary type-filter-btn" data-type="attack-pattern">Attack Patterns</button>
+                        <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="campaign">Campaigns</button>
+                        <button class="btn btn-sm btn-outline-secondary type-filter-btn" data-type="tool">Tools</button>
+                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="vulnerability">Vulnerabilities</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    <div id="resultsContainer">
+        <div class="text-center py-5">
+            <i class="fas fa-spinner fa-spin fa-2x"></i>
+            <p class="mt-2">Loading objects...</p>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    <nav id="pagination" class="mt-4" style="display: none;">
+        <ul class="pagination justify-content-center">
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentType = '';
+let currentSearch = '';
+const pageSize = 20;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadObjects();
+    
+    // Search input
+    let debounce;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+            currentSearch = this.value;
+            currentPage = 1;
+            loadObjects();
+        }, 300);
+    });
+    
+    // Type filters
+    document.querySelectorAll('.type-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.type-filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentType = this.dataset.type;
+            currentPage = 1;
+            loadObjects();
+        });
+    });
+});
+
+async function loadObjects() {
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+    
+    try {
+        let url = `/api/stix/objects?page=${currentPage}&size=${pageSize}`;
+        if (currentType) url += `&type=${currentType}`;
+        if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.items.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No STIX objects found</p>
+                    <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Create your first object
+                    </a>
+                </div>
+            `;
+            document.getElementById('pagination').style.display = 'none';
+            return;
+        }
+        
+        renderObjects(data.items);
+        renderPagination(data.total, data.pages);
+        
+    } catch (error) {
+        container.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Failed to load objects: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderObjects(items) {
+    const container = document.getElementById('resultsContainer');
+    
+    const html = `
+        <div class="row">
+            ${items.map(obj => renderObjectCard(obj)).join('')}
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+function renderObjectCard(obj) {
+    const icon = getTypeIcon(obj.type);
+    const name = obj.name || obj.x_ioc_value || obj.pattern?.substring(0, 40) || 'Unnamed';
+    const created = new Date(obj.created).toLocaleDateString();
+    
+    let badges = '';
+    if (obj.x_threat_level) {
+        const colors = { low: 'success', medium: 'warning', high: 'danger', critical: 'danger' };
+        badges += `<span class="badge bg-${colors[obj.x_threat_level] || 'secondary'} me-1">${obj.x_threat_level}</span>`;
+    }
+    if (obj.x_tlp) {
+        badges += `<span class="badge bg-secondary me-1">${obj.x_tlp}</span>`;
+    }
+    
+    return `
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="card stix-object-card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="object-type-badge badge bg-primary">${icon} ${obj.type}</span>
+                        <small class="text-muted">${created}</small>
+                    </div>
+                    <h5 class="card-title mb-2">${escapeHtml(name)}</h5>
+                    <p class="card-text text-muted small mb-2">
+                        ${obj.description ? escapeHtml(obj.description.substring(0, 100)) + '...' : 'No description'}
+                    </p>
+                    <div class="mb-2">${badges}</div>
+                    <a href="/stix/objects/${obj.id}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye me-1"></i> View Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderPagination(total, pages) {
+    const nav = document.getElementById('pagination');
+    if (pages <= 1) {
+        nav.style.display = 'none';
+        return;
+    }
+    
+    nav.style.display = 'block';
+    const ul = nav.querySelector('ul');
+    
+    let html = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage - 1}); return false;">Previous</a>
+        </li>
+    `;
+    
+    for (let i = 1; i <= Math.min(pages, 10); i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    html += `
+        <li class="page-item ${currentPage === pages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage + 1}); return false;">Next</a>
+        </li>
+    `;
+    
+    ul.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadObjects();
+}
+
+function getTypeIcon(type) {
+    const icons = {
+        'indicator': '<i class="bi bi-graph-up"></i>',
+        'malware': '<i class="bi bi-bug"></i>',
+        'threat-actor': '<i class="bi bi-person-x"></i>',
+        'attack-pattern': '<i class="bi bi-lightning"></i>',
+        'campaign': '<i class="bi bi-bullseye"></i>',
+        'tool': '<i class="bi bi-tools"></i>',
+        'vulnerability': '<i class="bi bi-unlock"></i>',
+        'infrastructure': '<i class="bi bi-hdd-network"></i>',
+        'intrusion-set': '<i class="bi bi-incognito"></i>',
+        'identity': '<i class="bi bi-building"></i>',
+        'location': '<i class="bi bi-geo-alt"></i>',
+        'course-of-action': '<i class="bi bi-shield-check"></i>'
+    };
+    return icons[type] || '<i class="bi bi-box"></i>';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

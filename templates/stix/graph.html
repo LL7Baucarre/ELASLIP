@@ -1,0 +1,960 @@
+{% extends "base.html" %}
+
+{% block title %}STIX Graph - {{ SITE_TITLE }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
+<style>
+    .graph-container {
+        position: relative;
+        width: 100%;
+        height: calc(100vh - 40px);
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    html[data-theme="dark"] .graph-container {
+        background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+    }
+
+    #cy {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    
+    html[data-theme="dark"] #cy {
+        background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+    }
+
+    .graph-controls {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        min-width: 250px;
+    }
+    
+    html[data-theme="dark"] .graph-controls {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .graph-controls h5 {
+        margin-bottom: 15px;
+        margin-top: 0;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+    
+    html[data-theme="dark"] .graph-controls h5 {
+        color: #e9ecef;
+        border-bottom-color: #3498db;
+    }
+
+    .graph-controls.collapsed {
+        min-width: auto;
+        width: auto;
+        padding: 10px;
+    }
+
+    .graph-controls.collapsed > *:not(h5):not(#toggleControlsIcon) {
+        display: none;
+    }
+
+    #searchResultsDropdown {
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    html[data-theme="dark"] #searchResultsDropdown {
+        background: #2d333b;
+        border-color: #3d4449;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .search-result-item {
+        padding: 8px 12px;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    html[data-theme="dark"] .search-result-item {
+        border-bottom-color: #3d4449;
+    }
+
+    .search-result-item:hover {
+        background-color: #f5f5f5;
+    }
+
+    html[data-theme="dark"] .search-result-item:hover {
+        background-color: #3d4449;
+    }
+
+    .search-result-item small {
+        display: block;
+        font-size: 0.8rem;
+        margin-top: 2px;
+    }
+
+    .control-group {
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    html[data-theme="dark"] .control-group label {
+        color: #e9ecef;
+    }
+
+    .control-group input,
+    .control-group select {
+        width: 100%;
+        padding: 6px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 0.85rem;
+    }
+    
+    html[data-theme="dark"] .control-group input,
+    html[data-theme="dark"] .control-group select {
+        background-color: #2d333b;
+        border-color: #3d4449;
+        color: #e9ecef;
+    }
+
+    .btn-control {
+        width: 100%;
+        padding: 8px;
+        margin: 5px 0;
+        font-size: 0.85rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-control:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .legend {
+        position: absolute;
+        top: 80px;
+        right: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 10;
+        font-size: 0.85rem;
+        max-height: calc(100vh - 140px);
+        overflow-y: auto;
+        min-width: 180px;
+        transition: opacity 0.3s ease, visibility 0.3s ease;
+    }
+    
+    .legend.collapsed {
+        opacity: 0;
+        visibility: hidden;
+    }
+    
+    html[data-theme="dark"] .legend {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .legend-item {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid #333;
+    }
+    
+    html[data-theme="dark"] .legend-color {
+        border-color: #e9ecef;
+    }
+
+    .legend-toggle-btn {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        border: 1px solid #ddd;
+        padding: 8px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        z-index: 11;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.2s;
+    }
+
+    .legend-toggle-btn:hover {
+        background-color: #f8f9fa;
+    }
+    
+    html[data-theme="dark"] .legend-toggle-btn {
+        background: #22262a;
+        border-color: #3d4449;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    html[data-theme="dark"] .legend-toggle-btn:hover {
+        background-color: #2d333b;
+    }
+
+    .info-panel {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        max-width: 300px;
+        max-height: 400px;
+        overflow-y: auto;
+        border: 2px solid #007bff;
+    }
+    
+    html[data-theme="dark"] .info-panel {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-panel h5 {
+        margin-top: 0;
+        margin-bottom: 10px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+    }
+
+    .info-item {
+        margin-bottom: 8px;
+        font-size: 0.85rem;
+    }
+
+    .info-item strong {
+        display: block;
+        color: #666;
+    }
+    
+    html[data-theme="dark"] .info-item strong {
+        color: #adb5bd;
+    }
+
+    .form-check-input {
+        width: 1rem !important;
+        height: 1rem !important;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
+
+    .form-check {
+        padding-left: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* STIX Type Colors */
+    .stix-indicator { background-color: #FF6B6B !important; }
+    .stix-malware { background-color: #e74c3c !important; }
+    .stix-attack_pattern { background-color: #9b59b6 !important; }
+    .stix-threat_actor { background-color: #2c3e50 !important; }
+    .stix-campaign { background-color: #f39c12 !important; }
+    .stix-infrastructure { background-color: #1abc9c !important; }
+    .stix-tool { background-color: #3498db !important; }
+    .stix-vulnerability { background-color: #e67e22 !important; }
+    .stix-identity { background-color: #27ae60 !important; }
+    .stix-location { background-color: #16a085 !important; }
+
+    #emptyGraphMessage {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #666;
+        font-size: 16px;
+        z-index: 10;
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    html[data-theme="dark"] #emptyGraphMessage {
+        background: #22262a;
+        color: #e9ecef;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="graph-container">
+    <div id="cy">
+        <div id="emptyGraphMessage">
+            <p><i class="bi bi-search" style="font-size: 32px; display: block; margin-bottom: 10px;"></i></p>
+            <p>Please perform a search to display STIX objects on the graph</p>
+        </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="graph-controls" id="graphControls">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h5 style="margin: 0;">Graph Controls</h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="toggleControlsPanel()" title="Hide/Show controls">
+                <i class="bi bi-chevron-left" id="toggleControlsIcon"></i>
+            </button>
+        </div>
+        
+        <div class="control-group">
+            <label for="searchSTIX">Search Entities:</label>
+            <input type="text" id="searchSTIX" placeholder="Search STIX Objects, Cases, Incidents..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
+            <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
+        </div>
+
+        <button class="btn-control btn-primary" onclick="loadGraph()">
+            <i class="bi bi-arrow-repeat me-1"></i> Reload Graph
+        </button>
+
+        <button class="btn-control btn-outline-secondary" onclick="fitGraph()">
+            <i class="bi bi-fullscreen me-1"></i> Fit to Screen
+        </button>
+
+        <div class="control-group">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="onlyWithRelations" onchange="toggleOnlyWithRelations()">
+                <label class="form-check-label" for="onlyWithRelations">
+                    Only Objects with Relations
+                </label>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label for="layoutSelect">Layout:</label>
+            <select id="layoutSelect" onchange="changeLayout()">
+                <option value="cose">COSE</option>
+                <option value="circle">Circle</option>
+                <option value="grid">Grid</option>
+                <option value="breadthfirst">Breadth-First</option>
+                <option value="concentric">Concentric</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label for="filterSTIXType">Filter by STIX Type:</label>
+            <select id="filterSTIXType" onchange="filterBySTIXType()">
+                <option value="">All Types</option>
+                <option value="indicator">Indicator</option>
+                <option value="malware">Malware</option>
+                <option value="attack-pattern">Attack Pattern</option>
+                <option value="threat-actor">Threat Actor</option>
+                <option value="campaign">Campaign</option>
+                <option value="infrastructure">Infrastructure</option>
+                <option value="tool">Tool</option>
+                <option value="vulnerability">Vulnerability</option>
+                <option value="identity">Identity</option>
+                <option value="location">Location</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="showLabels" checked onchange="toggleEdgeLabels()">
+                <label class="form-check-label" for="showLabels">
+                    Show Relation Labels
+                </label>
+            </div>
+        </div>
+
+        <button class="btn-control btn-outline-danger" onclick="clearSelection()">
+            <i class="bi bi-x-circle me-1"></i> Clear Selection
+        </button>
+    </div>
+
+    <!-- Legend Toggle Button -->
+    <button class="legend-toggle-btn" onclick="toggleLegend()" title="Toggle legend">
+        <i class="bi bi-list"></i>
+        <span id="legendToggleText">Hide</span>
+    </button>
+
+    <!-- Legend -->
+    <div class="legend" id="legendPanel">
+        <h6 style="margin-top: 0; margin-bottom: 10px;">Entity Types</h6>
+        
+        <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">STIX Objects</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #FF6B6B;"></div>
+            <span>Indicator</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #e74c3c;"></div>
+            <span>Malware</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #9b59b6;"></div>
+            <span>Attack Pattern</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #2c3e50;"></div>
+            <span>Threat Actor</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #f39c12;"></div>
+            <span>Campaign</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #1abc9c;"></div>
+            <span>Infrastructure</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #3498db;"></div>
+            <span>Tool</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #e67e22;"></div>
+            <span>Vulnerability</span>
+        </div>
+        
+        <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
+        
+        <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">Investigations</div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #3498db; width: 20px; height: 20px; border-radius: 2px;"></div>
+            <span>Case</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #e74c3c; width: 20px; height: 20px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);"></div>
+            <span>Incident</span>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel" id="infoPanel" style="display: none;">
+        <h5>Object Information</h5>
+        <div id="nodeInfo"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<script>
+let cy = null;
+let currentLayout = 'cose';
+let showEdgeLabels = true;
+let allNodes = [];
+let allEdges = [];
+let searchTimeout = null;
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function initGraph(nodes, edges) {
+    if (cy) {
+        cy.destroy();
+    }
+
+    cy = cytoscape({
+        container: document.getElementById('cy'),
+        elements: {
+            nodes: nodes,
+            edges: edges
+        },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'content': 'data(label)',
+                    'background-color': 'data(color)',
+                    'width': 35,
+                    'height': 35,
+                    'border-width': 2,
+                    'border-color': '#333',
+                    'font-size': 11,
+                    'color': 'white',
+                    'text-outline-width': 1,
+                    'text-outline-color': '#333',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'padding': 3,
+                    'cursor': 'pointer'
+                }
+            },
+            {
+                selector: 'node:selected',
+                style: {
+                    'border-width': 3,
+                    'border-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'node.case',
+                style: {
+                    'background-color': '#3498db',
+                    'shape': 'square',
+                    'width': 40,
+                    'height': 40
+                }
+            },
+            {
+                selector: 'node.incident',
+                style: {
+                    'background-color': '#e74c3c',
+                    'shape': 'diamond',
+                    'width': 40,
+                    'height': 40
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'line-color': '#999',
+                    'target-arrow-color': '#999',
+                    'target-arrow-shape': 'triangle',
+                    'curve-style': 'bezier',
+                    'width': 3,
+                    'opacity': 0.8,
+                    'font-size': 9,
+                    'color': '#333',
+                    'content': 'data(label)',
+                    'text-valign': 'center',
+                    'text-halign': 'center',
+                    'text-background-color': '#fff',
+                    'text-background-opacity': 0.8,
+                    'text-background-padding': '2px'
+                }
+            },
+            {
+                selector: 'edge:selected',
+                style: {
+                    'line-color': '#FFD700',
+                    'target-arrow-color': '#FFD700',
+                    'width': 4,
+                    'opacity': 1
+                }
+            }
+        ],
+        layout: {
+            name: currentLayout,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        },
+        wheelSensitivity: 0.1,
+        minZoom: 0.1,
+        maxZoom: 3,
+        userPanningEnabled: true,
+        userZoomingEnabled: true,
+        boxSelectionEnabled: false,
+        selectionType: 'single'
+    });
+
+    cy.on('tap', 'node', function(e) {
+        e.stopPropagation();
+        showNodeInfo(e.target);
+    });
+
+    cy.on('tap', function(e) {
+        if (e.target === cy) {
+            document.getElementById('infoPanel').style.display = 'none';
+        }
+    });
+
+    cy.on('dblclick', 'node', function(e) {
+        e.stopPropagation();
+        const nodeId = e.target.id();
+        const entityType = e.target.data('entity_type') || 'stix';
+        
+        if (entityType === 'case') {
+            window.location.href = `/cases/${nodeId}`;
+        } else if (entityType === 'incident') {
+            window.location.href = `/incidents/${nodeId}`;
+        } else {
+            window.location.href = `/stix/${nodeId}`;
+        }
+    });
+
+    fitGraph();
+}
+
+function loadGraph() {
+    $.ajax({
+        url: '/api/stix/graph-data',
+        method: 'GET',
+        success: function(response) {
+            const nodes = response.nodes;
+            const edges = response.edges;
+            
+            allNodes = nodes;
+            allEdges = edges;
+            
+            nodes.forEach(node => {
+                if (node.data.type) {
+                    const type = node.data.type.replace('-', '_');
+                    node.data.color = getColorForType(type);
+                } else if (node.data.entity_type === 'case') {
+                    node.data.color = '#3498db';
+                } else if (node.data.entity_type === 'incident') {
+                    node.data.color = '#e74c3c';
+                } else {
+                    node.data.color = '#95a5a6';
+                }
+            });
+
+            initGraph(nodes, edges);
+            
+            cy.nodes().hide();
+            cy.edges().hide();
+            document.getElementById('emptyGraphMessage').style.display = 'block';
+        },
+        error: function(xhr) {
+            console.error('Error loading graph data:', xhr);
+            alert('Failed to load graph data');
+        }
+    });
+}
+
+function fitGraph() {
+    if (cy) {
+        cy.fit(null, 50);
+    }
+}
+
+function changeLayout() {
+    const layoutName = document.getElementById('layoutSelect').value;
+    currentLayout = layoutName;
+    
+    if (cy) {
+        const layout = cy.layout({
+            name: layoutName,
+            animate: true,
+            animationDuration: 500,
+            randomize: false,
+            nodeSpacing: 50,
+            padding: 50
+        });
+        layout.run();
+    }
+}
+
+function clearSelection() {
+    if (cy) {
+        cy.elements().unselect();
+        document.getElementById('infoPanel').style.display = 'none';
+    }
+}
+
+function toggleLegend() {
+    const legendPanel = document.getElementById('legendPanel');
+    const toggleText = document.getElementById('legendToggleText');
+    
+    legendPanel.classList.toggle('collapsed');
+    toggleText.textContent = legendPanel.classList.contains('collapsed') ? 'Show' : 'Hide';
+}
+
+function toggleEdgeLabels() {
+    if (!cy) return;
+    
+    showEdgeLabels = document.getElementById('showLabels').checked;
+    cy.edges().style({
+        'opacity': showEdgeLabels ? 0.8 : 0.5,
+        'font-size': showEdgeLabels ? 9 : 0
+    });
+}
+
+function filterBySTIXType() {
+    if (!cy) return;
+    
+    const selectedType = document.getElementById('filterSTIXType').value;
+    
+    if (!selectedType) {
+        cy.nodes().show();
+        cy.edges().show();
+    } else {
+        cy.nodes().hide();
+        cy.edges().hide();
+        
+        const selectedNodes = cy.nodes().filter(n => n.data('type') === selectedType);
+        selectedNodes.show();
+        selectedNodes.connectedEdges().show();
+    }
+    
+    if (cy.elements(':visible').length > 0) {
+        cy.fit(cy.elements(':visible'), 50);
+    }
+}
+
+function showNodeInfo(node) {
+    const data = node.data();
+    const infoPanel = document.getElementById('infoPanel');
+    const nodeInfo = document.getElementById('nodeInfo');
+    const entityType = data.entity_type || 'stix';
+    
+    const label = data.label || data.id || 'Unknown';
+    
+    let html = `<div class="info-item"><strong>Name:</strong> <code>${escapeHtml(label)}</code></div>`;
+    html += `<div class="info-item"><strong>Type:</strong> <span class="badge bg-primary">${escapeHtml(data.type || entityType)}</span></div>`;
+
+    const edges = node.connectedEdges();
+    if (edges.length > 0) {
+        html += `
+            <div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                <strong>Relations (${edges.length}):</strong>
+                <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
+        `;
+        edges.forEach(edge => {
+            const relationLabel = edge.data('label') || 'related';
+            const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
+            const otherLabel = otherNode.data('label') || otherNode.id();
+            html += `<li>${escapeHtml(relationLabel)}: ${escapeHtml(otherLabel)}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    let viewUrl = entityType === 'case' ? `/cases/${data.id}` : 
+                  entityType === 'incident' ? `/incidents/${data.id}` : `/stix/${data.id}`;
+    let viewText = entityType === 'case' ? 'View Case' : 
+                   entityType === 'incident' ? 'View Incident' : 'View STIX Object';
+    
+    html += `
+        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+            <a href="${viewUrl}" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-eye me-1"></i> ${viewText}
+            </a>
+        </div>
+    `;
+    
+    nodeInfo.innerHTML = html;
+    infoPanel.style.display = 'block';
+}
+
+function getColorForType(type) {
+    const colors = {
+        'indicator': '#FF6B6B',
+        'malware': '#e74c3c',
+        'attack_pattern': '#9b59b6',
+        'threat_actor': '#2c3e50',
+        'campaign': '#f39c12',
+        'infrastructure': '#1abc9c',
+        'tool': '#3498db',
+        'vulnerability': '#e67e22',
+        'identity': '#27ae60',
+        'location': '#16a085',
+        'intrusion_set': '#8e44ad',
+        'course_of_action': '#2ecc71',
+        'report': '#34495e',
+        'grouping': '#7f8c8d',
+        'note': '#95a5a6',
+        'opinion': '#bdc3c7',
+        'observed_data': '#1abc9c'
+    };
+    return colors[type] || '#888';
+}
+
+function debouncedSearch() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchSTIX, 300);
+}
+
+function showShowAllOption() {
+    const dropdown = document.getElementById('searchResultsDropdown');
+    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
+    dropdown.style.display = 'block';
+}
+
+function searchSTIX() {
+    if (!cy) return;
+    
+    const searchTerm = document.getElementById('searchSTIX').value.trim().toLowerCase();
+    const dropdown = document.getElementById('searchResultsDropdown');
+    
+    if (!searchTerm) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    
+    if (searchTerm.length >= 2) {
+        $.ajax({
+            url: '/api/search',
+            method: 'GET',
+            data: { q: searchTerm, per_page: 10 },
+            success: function(response) {
+                const items = response.items || response.results || [];
+                
+                if (items.length === 0) {
+                    dropdown.innerHTML = '<div class="search-result-item text-muted text-center">No results found</div>';
+                    dropdown.style.display = 'block';
+                    return;
+                }
+                
+                let html = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
+                
+                for (const item of items) {
+                    const entityType = item.entity_type || item.type || 'stix';
+                    const itemId = item.id;
+                    let displayLabel = item.name || item.title || item.value || 'Unknown';
+                    let displayType = (item.type || entityType).toUpperCase();
+                    
+                    html += `
+                        <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)">
+                            <strong>${escapeHtml(displayLabel)}</strong>
+                            <small class="text-muted">${escapeHtml(displayType)}</small>
+                        </div>
+                    `;
+                }
+                
+                dropdown.innerHTML = html;
+                dropdown.style.display = 'block';
+                
+                const matchingIds = items.map(item => item.id);
+                filterGraphByIds(matchingIds);
+            },
+            error: function() {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+}
+
+function selectFromSearch(objId, objValue, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    document.getElementById('searchSTIX').value = objValue;
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    if (!cy) return;
+    
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    const node = cy.$id(objId);
+    if (node && node.length > 0) {
+        node.show();
+        node.neighborhood().show();
+        node.connectedEdges().show();
+        
+        cy.animate({
+            fit: { eles: cy.elements(':visible'), padding: 50 },
+            duration: 500
+        });
+    }
+    
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+}
+
+function showAllObjects(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    document.getElementById('searchSTIX').value = '';
+    document.getElementById('searchResultsDropdown').style.display = 'none';
+    
+    if (!cy) return;
+    
+    cy.nodes().show();
+    cy.edges().show();
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+    cy.fit(null, 50);
+}
+
+function filterGraphByIds(objIds) {
+    if (!cy) return;
+    
+    cy.nodes().hide();
+    cy.edges().hide();
+    
+    const matchingIds = new Set(objIds);
+    const matchingNodes = cy.nodes().filter(n => matchingIds.has(n.id()));
+    matchingNodes.show();
+    matchingNodes.connectedEdges().show();
+    matchingNodes.neighborhood().show();
+    
+    document.getElementById('emptyGraphMessage').style.display = 'none';
+}
+
+function toggleOnlyWithRelations() {
+    if (!cy) return;
+    
+    const filtered = document.getElementById('onlyWithRelations').checked;
+    
+    if (filtered) {
+        const nodesWithEdges = cy.edges().sources().union(cy.edges().targets());
+        const nodesWithoutEdges = cy.nodes().difference(nodesWithEdges);
+        nodesWithoutEdges.hide();
+    } else {
+        cy.nodes().show();
+        cy.edges().show();
+    }
+}
+
+function toggleControlsPanel() {
+    const controls = document.getElementById('graphControls');
+    const icon = document.getElementById('toggleControlsIcon');
+    
+    controls.classList.toggle('collapsed');
+    
+    if (controls.classList.contains('collapsed')) {
+        icon.classList.remove('bi-chevron-left');
+        icon.classList.add('bi-chevron-right');
+    } else {
+        icon.classList.remove('bi-chevron-right');
+        icon.classList.add('bi-chevron-left');
+    }
+}
+
+$(document).ready(function() {
+    loadGraph();
+    
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('searchResultsDropdown');
+        const searchInput = document.getElementById('searchSTIX');
+        
+        if (event.target !== searchInput && !dropdown.contains(event.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -10,7 +10,7 @@
         <a href="https://github.com/LL7Baucarre/ELASLIP" target="_blank" class="btn btn-outline-secondary btn-sm" title="View on GitHub">
             <i class="bi bi-github me-1"></i> GitHub
         </a>
-        <a href="{{ url_for('main.iocs_graph') }}" class="btn btn-outline-primary btn-sm">
+        <a href="{{ url_for('stix.stix_graph_page') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-diagram-3 me-1"></i> Graph
         </a>
         <!-- Create Dropdown -->
@@ -20,8 +20,8 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="createDropdown">
                 {% if has_permission('ioc.create') %}
-                <li><a class="dropdown-item" href="{{ url_for('main.iocs_add') }}">
-                    <i class="bi bi-shield-check me-2"></i> IOC
+                <li><a class="dropdown-item" href="{{ url_for('stix.add_stix_object_page') }}">
+                    <i class="bi bi-boxes me-2"></i> STIX Object
                 </a></li>
                 {% endif %}
                 {% if has_permission('case.create') %}
@@ -53,8 +53,8 @@
                     <i class="bi bi-shield-check"></i>
                 </div>
                 <div>
-                    <h3 class="mb-0">{{ total_iocs }}</h3>
-                    <small class="text-muted">Total IOCs</small>
+                    <h3 class="mb-0">{{ total_stix|default(total_iocs) }}</h3>
+                    <small class="text-muted">STIX Objects</small>
                 </div>
             </div>
         </div>
@@ -102,24 +102,24 @@
 
 <!-- Secondary Stats -->
 <div class="row g-4 mb-4">
-    <!-- IOC Threat Levels -->
+    <!-- STIX Objects by Type -->
     <div class="col-md-3">
         <div class="card h-100">
             <div class="card-header bg-white">
-                <h6 class="mb-0">IOCs by Threat Level</h6>
+                <h6 class="mb-0">STIX by Type</h6>
             </div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
-                    {% set threat_order = ['critical', 'high', 'medium', 'low', 'unknown'] %}
-                    {% for level in threat_order %}
-                        {% if iocs_threat_stats.get(level, 0) > 0 %}
+                    {% set type_order = ['indicator', 'malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool', 'vulnerability'] %}
+                    {% for stype in type_order %}
+                        {% if stix_type_stats.get(stype, 0) > 0 %}
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                            <span class="badge bg-{% if level == 'critical' %}danger{% elif level == 'high' %}warning{% elif level == 'medium' %}info{% else %}secondary{% endif %}">{{ level|capitalize }}</span>
-                            <span class="badge bg-secondary">{{ iocs_threat_stats.get(level, 0) }}</span>
+                            <span class="badge bg-primary">{{ stype|replace('-', ' ')|title }}</span>
+                            <span class="badge bg-secondary">{{ stix_type_stats.get(stype, 0) }}</span>
                         </li>
                         {% endif %}
                     {% endfor %}
-                    {% if not iocs_threat_stats %}
+                    {% if not stix_type_stats %}
                     <li class="list-group-item text-muted px-0"><small>No data</small></li>
                     {% endif %}
                 </ul>
@@ -186,12 +186,12 @@
             <div class="card-body">
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted small">Avg Risk Score</span>
-                        <strong>{{ "%.1f"|format(stats.avg_risk_score) }}</strong>
+                        <span class="text-muted small">Total STIX Objects</span>
+                        <strong>{{ total_stix|default(0) }}</strong>
                     </li>
                     <li class="list-group-item d-flex justify-content-between px-0">
-                        <span class="text-muted small">Critical IOCs</span>
-                        <strong class="text-danger">{{ iocs_threat_stats.get('critical', 0) }}</strong>
+                        <span class="text-muted small">Indicators</span>
+                        <strong class="text-danger">{{ stix_type_stats.get('indicator', 0) }}</strong>
                     </li>
                     <li class="list-group-item d-flex justify-content-between px-0">
                         <span class="text-muted small">Open Cases</span>
@@ -208,21 +208,21 @@
 </div>
 
 <div class="row g-4">
-    <!-- IOCs by Type Chart -->
+    <!-- STIX Objects by Type Chart -->
     <div class="col-md-4">
         <div class="card h-100">
             <div class="card-header bg-white">
-                <h6 class="mb-0">IOCs by Type</h6>
+                <h6 class="mb-0">STIX Objects by Type</h6>
             </div>
             <div class="card-body">
                 <ul class="list-group list-group-flush">
-                    {% for type, count in stats.by_type.items() %}
+                    {% for stype, count in stix_type_stats.items() %}
                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                        <span class="ioc-type-badge ioc-type-{{ type }}">{{ type.upper() }}</span>
+                        <span class="badge bg-primary">{{ stype|replace('-', ' ')|title }}</span>
                         <span class="badge bg-secondary">{{ count }}</span>
                     </li>
                     {% else %}
-                    <li class="list-group-item text-muted px-0">No IOCs yet</li>
+                    <li class="list-group-item text-muted px-0">No STIX Objects yet</li>
                     {% endfor %}
                 </ul>
             </div>
@@ -260,17 +260,17 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     {% if has_permission('ioc.create') %}
-                    <a href="{{ url_for('main.iocs_add') }}" class="btn btn-outline-primary">
-                        <i class="bi bi-plus-lg me-2"></i> Add IOC
+                    <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-plus-lg me-2"></i> Add STIX Object
                     </a>
                     {% endif %}
                     {% if has_permission('ioc.import') %}
                     <a href="{{ url_for('main.import_page') }}" class="btn btn-outline-success">
-                        <i class="bi bi-upload me-2"></i> Import IOCs
+                        <i class="bi bi-upload me-2"></i> Import Data
                     </a>
                     {% endif %}
                     <a href="{{ url_for('main.search_page') }}" class="btn btn-outline-info">
-                        <i class="bi bi-search me-2"></i> Search IOCs
+                        <i class="bi bi-search me-2"></i> Search
                     </a>
                     <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
                         <i class="bi bi-plug me-2"></i> Configure APIs
@@ -341,8 +341,8 @@
                 <tbody>
                     {% for entry in all_recent %}
                     <tr style="cursor: pointer" onclick="
-                        {% if entry.entity_type == 'ioc' %}
-                        window.location='{{ url_for('main.iocs_detail', ioc_id=entry.id) }}'
+                        {% if entry.entity_type == 'stix' %}
+                        window.location='{{ url_for('stix.view_stix_object_page', stix_id=entry.id) }}'
                         {% elif entry.entity_type == 'case' %}
                         window.location='{{ url_for('main.cases_detail', case_id=entry.id) }}'
                         {% elif entry.entity_type == 'incident' %}
@@ -352,8 +352,8 @@
                         {% endif %}
                     ">
                         <td>
-                            {% if entry.entity_type == 'ioc' %}
-                            <span class="badge bg-primary">IOC</span>
+                            {% if entry.entity_type == 'stix' %}
+                            <span class="badge bg-primary">STIX</span>
                             {% elif entry.entity_type == 'case' %}
                             <span class="badge bg-success">Case</span>
                             {% elif entry.entity_type == 'incident' %}
@@ -367,8 +367,8 @@
                             {% if entry.name|length > 60 %}...{% endif %}
                         </td>
                         <td>
-                            {% if entry.entity_type == 'ioc' %}
-                            <span class="ioc-type-badge ioc-type-{{ entry.ioc_type }}">{{ entry.ioc_type|upper }}</span>
+                            {% if entry.entity_type == 'stix' %}
+                            <span class="badge bg-info">{{ entry.stix_type|default('unknown')|replace('-', ' ')|title }}</span>
                             {% elif entry.entity_type == 'case' %}
                             <span class="badge bg-light text-dark">{{ entry.status|capitalize }}</span>
                             {% elif entry.entity_type == 'incident' %}

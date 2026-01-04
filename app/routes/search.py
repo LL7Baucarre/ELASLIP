@@ -6,7 +6,7 @@ import logging
 from app.auth import login_or_api_key_required
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.enrichment_service import EnrichmentService
-from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.utils.pattern_generator import PatternGenerator
 from app.utils.request_helpers import get_pagination_params, parse_comma_separated_list
 
@@ -114,26 +114,26 @@ def search_iocs():
     
     logger.debug(f"Search query: {query_text}")
     
-    # Search in IOCs
-    ioc_query = {"bool": {"must": [], "filter": []}}
+    # Search in STIX Objects
+    stix_query = {"bool": {"must": [], "filter": []}}
     if query_text:
-        ioc_query["bool"]["must"].append({
+        stix_query["bool"]["must"].append({
             "multi_match": {
                 "query": query_text,
-                "fields": ["pattern", "pattern.keyword", "x_metadata.ioc_value", "name", "description"],
+                "fields": ["name", "description", "pattern", "value", "type"],
                 "type": "best_fields"
             }
         })
     if ioc_type:
-        ioc_query["bool"]["filter"].append({"term": {"x_metadata.ioc_type": ioc_type.lower()}})
+        stix_query["bool"]["filter"].append({"term": {"type": ioc_type.lower()}})
     if labels:
         for label in labels:
-            ioc_query["bool"]["filter"].append({"term": {"labels": label}})
+            stix_query["bool"]["filter"].append({"term": {"labels": label}})
     if source:
-        ioc_query["bool"]["filter"].append({
+        stix_query["bool"]["filter"].append({
             "nested": {
-                "path": "sources",
-                "query": {"term": {"sources.name": source}}
+                "path": "external_references",
+                "query": {"term": {"external_references.source_name": source}}
             }
         })
     if from_date or to_date:
@@ -142,33 +142,31 @@ def search_iocs():
             date_range["range"]["created"]["gte"] = from_date
         if to_date:
             date_range["range"]["created"]["lte"] = to_date
-        ioc_query["bool"]["filter"].append(date_range)
+        stix_query["bool"]["filter"].append(date_range)
     
-    if not ioc_query["bool"]["must"] and not ioc_query["bool"]["filter"]:
-        ioc_query = {"match_all": {}}
+    if not stix_query["bool"]["must"] and not stix_query["bool"]["filter"]:
+        stix_query = {"match_all": {}}
     
     try:
-        ioc_result = es.search('ioc', {
-            "query": ioc_query,
+        stix_result = es.search('stix_objects', {
+            "query": stix_query,
             "from": from_idx,
             "size": per_page,
             "sort": [{"created": {"order": "desc"}}]
         })
         
-        ioc_service = IOCService()
-        for hit in ioc_result['hits']['hits']:
-            doc_id = hit['_id']
-            doc = ioc_service.get(doc_id)
-            if doc:
-                doc['entity_type'] = 'ioc'
-                items.append(doc)
+        for hit in stix_result['hits']['hits']:
+            doc = hit['_source']
+            doc['id'] = hit['_id']
+            doc['entity_type'] = 'stix'
+            items.append(doc)
         
-        ioc_total = ioc_result['hits']['total']['value']
-        total += ioc_total
-        logger.debug(f"IOC search found {ioc_total} results")
+        stix_total = stix_result['hits']['total']['value']
+        total += stix_total
+        logger.debug(f"STIX search found {stix_total} results")
     except Exception as e:
-        logger.error(f"IOC search error: {str(e)}")
-        ioc_total = 0
+        logger.error(f"STIX search error: {str(e)}")
+        stix_total = 0
     
     # Search in Cases
     if query_text:
@@ -325,7 +323,9 @@ def quick_search():
     es = ElasticsearchService()
     
     search_queries = [
-        {"term": {"ioc_value": query.lower() if detected_type in ['md5', 'sha1', 'sha256'] else query}}
+        {"match": {"pattern": query}},
+        {"match": {"name": query}},
+        {"match": {"value": query}}
     ]
     
     # Also generate and search by pattern if type is detected
@@ -336,7 +336,7 @@ def quick_search():
         except ValueError:
             pass
     
-    es_result = es.search('ioc', {
+    es_result = es.search('stix_objects', {
         "query": {
             "bool": {
                 "should": search_queries,
@@ -347,12 +347,9 @@ def quick_search():
     })
     
     for hit in es_result['hits']['hits']:
-        doc_id = hit['_id']
-        # Use IOCService to get enriched document with metadata
-        ioc_service = IOCService()
-        doc = ioc_service.get(doc_id)
-        if doc:
-            result['items'].append(doc)
+        doc = hit['_source']
+        doc['id'] = hit['_id']
+        result['items'].append(doc)
     
     result['total'] = es_result['hits']['total']['value']
     
@@ -395,7 +392,7 @@ def advanced_search():
     es = ElasticsearchService()
     
     try:
-        result = es.search('ioc', data)
+        result = es.search('stix_objects', data)
         
         items = []
         for hit in result['hits']['hits']:
@@ -415,19 +412,20 @@ def advanced_search():
 
 
 @search_bp.route('/iocs', methods=['GET'])
+@search_bp.route('/stix', methods=['GET'])
 @login_or_api_key_required
-def search_iocs_api():
+def search_stix_api():
     """
-    Search for IOCs - for linking/autocomplete.
+    Search for STIX objects - for linking/autocomplete.
     
     Query parameters:
     - q: Query string to search
     - size: Number of results (default: 10)
-    - type: IOC type filter (optional)
+    - type: STIX type filter (optional)
     """
     query = request.args.get('q', '').strip()
     size = request.args.get('size', 10, type=int)
-    ioc_type = request.args.get('type', '').strip()
+    stix_type = request.args.get('type', '').strip()
     
     if not query:
         return jsonify({'items': [], 'total': 0}), 200
@@ -439,39 +437,27 @@ def search_iocs_api():
         es_query["bool"]["must"].append({
             "multi_match": {
                 "query": query,
-                "fields": ["pattern", "pattern.keyword", "ioc_value", "name", "value"],
+                "fields": ["name", "pattern", "value", "description"],
                 "type": "best_fields"
             }
         })
         
-        if ioc_type:
-            es_query["bool"]["filter"].append({"term": {"ioc_type": ioc_type.lower()}})
+        if stix_type:
+            es_query["bool"]["filter"].append({"term": {"type": stix_type.lower()}})
         
         if not es_query["bool"]["must"] and not es_query["bool"]["filter"]:
             es_query = {"match_all": {}}
         
-        es_result = es_service.search('ioc', {
+        es_result = es_service.search('stix_objects', {
             "query": es_query,
             "size": min(size, 100),
-            "_source": ["ioc_value", "value", "ioc_type", "type", "pattern", "name", "source", "sources", "x_metadata.ioc_value", "x_metadata.ioc_type"]
+            "_source": ["name", "type", "pattern", "value", "description", "labels"]
         })
         
         items = []
         for doc in es_result['hits']['hits']:
             item = doc['_source']
             item['id'] = doc['_id']
-            
-            # Add compatibility fields from x_metadata if not at root level
-            x_meta = item.get('x_metadata', {})
-            if 'ioc_value' not in item and x_meta.get('ioc_value'):
-                item['ioc_value'] = x_meta['ioc_value']
-            if 'ioc_type' not in item and x_meta.get('ioc_type'):
-                item['ioc_type'] = x_meta['ioc_type']
-            if 'ioc_value' in item and 'value' not in item:
-                item['value'] = item['ioc_value']
-            if 'ioc_type' in item and 'type' not in item:
-                item['type'] = item['ioc_type']
-            
             items.append(item)
         
         return jsonify({

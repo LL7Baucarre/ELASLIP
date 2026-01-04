@@ -34,8 +34,8 @@
             <li class="nav-section-title">INVESTIGATIONS</li>
             {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
-                <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
-                    <i class="bi bi-list-ul"></i> IOCs
+                <a class="nav-link {% if 'stix' in request.endpoint %}active{% endif %}" href="{{ url_for('stix.list_stix_objects_page') }}">
+                    <i class="bi bi-boxes"></i> STIX Objects
                 </a>
             </li>
             {% endif %}
