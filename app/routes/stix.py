@@ -496,6 +496,37 @@ def get_sdo_types():
     })
 
 
+@stix_bp.route('/api/stix/graph-data', methods=['GET'])
+@permission_required('ioc.view')
+def get_graph_data():
+    """
+    Get graph data for STIX visualization with depth control
+    
+    Query params:
+    - start_id: Optional STIX object ID to start graph from
+    - depth: Relationship depth level (1-5, default 1)
+    - max_nodes: Maximum nodes to include (default 500)
+    """
+    try:
+        start_id = request.args.get('start_id')
+        depth = int(request.args.get('depth', 1))
+        max_nodes = int(request.args.get('max_nodes', 500))
+        
+        # Validate depth
+        depth = max(1, min(5, depth))
+        
+        graph_data = STIXService.get_graph_data(
+            start_id=start_id,
+            depth=depth,
+            max_nodes=max_nodes
+        )
+        
+        return jsonify(graph_data)
+        
+    except Exception as e:
+        return jsonify({"error": f"Failed to get graph data: {str(e)}"}), 500
+
+
 # ============================================================================
 # WEB PAGES
 # ============================================================================
@@ -557,4 +588,299 @@ def edit_stix_object_page(stix_id):
                           stix_object=stix_object,
                           sdo_types=STIXService.SDO_TYPES,
                           relationship_types=STIXService.RELATIONSHIP_TYPES)
+
+
+# ============================================================================
+# STIX ENRICHMENT API ENDPOINTS
+# ============================================================================
+
+@stix_bp.route('/api/stix/objects/<stix_id>/enrich', methods=['POST'])
+@permission_required('ioc.enrich')
+def enrich_stix_object(stix_id):
+    """
+    Enrich a STIX object using external APIs.
+    
+    For indicators, extracts the IOC value from the pattern and queries
+    configured external APIs for enrichment data.
+    
+    Expected JSON body:
+    {
+        "api_ids": ["optional", "list", "of", "api", "ids"]  // If omitted, uses all enabled APIs
+    }
+    
+    Response: Raw API results formatted for field selection
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    from app.services.enrichment_service import EnrichmentService
+    
+    data = request.get_json() or {}
+    
+    logger.info(f'[STIX Enrich] Request for {stix_id}, user: {current_user.id}')
+    
+    # Get the STIX object
+    stix_object = STIXService.get_sdo(stix_id)
+    
+    if not stix_object:
+        return jsonify({'error': f'STIX object {stix_id} not found'}), 404
+    
+    # Extract IOC value and type
+    value = None
+    ioc_type = None
+    
+    # For indicators, extract from pattern or x_ioc_value
+    if stix_object.get('type') == 'indicator':
+        # Try x_ioc_value first
+        value = stix_object.get('x_ioc_value')
+        ioc_type = stix_object.get('x_ioc_type')
+        
+        # Fallback to pattern extraction
+        if not value and stix_object.get('pattern'):
+            ioc_type, value = STIXService.extract_value_from_pattern(stix_object['pattern'])
+    
+    # For other types, try to use name as searchable value
+    if not value:
+        value = stix_object.get('name')
+        if not ioc_type and stix_object.get('type') in ['malware', 'tool', 'threat-actor']:
+            ioc_type = stix_object.get('type')
+    
+    if not value:
+        return jsonify({'error': 'Could not extract enrichable value from STIX object'}), 400
+    
+    logger.info(f'[STIX Enrich] Extracted value: {value}, type: {ioc_type}')
+    
+    # Enrich using external APIs
+    enrichment_service = EnrichmentService()
+    
+    try:
+        api_ids = data.get('api_ids', [])
+        
+        if api_ids:
+            logger.info(f'[STIX Enrich] Enriching with specific APIs: {api_ids}')
+            results = enrichment_service.enrich_value_with_apis(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(current_user.id),
+                api_ids=api_ids
+            )
+        else:
+            logger.info(f'[STIX Enrich] Enriching with all enabled APIs')
+            results = enrichment_service.enrich_value(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(current_user.id)
+            )
+        
+        logger.info(f'[STIX Enrich] Enrichment completed with {len(results)} results')
+        
+        return jsonify({
+            'stix_id': stix_id,
+            'stix_type': stix_object.get('type'),
+            'value': value,
+            'ioc_type': ioc_type,
+            'results': results
+        }), 200
+    
+    except Exception as e:
+        logger.error(f'[STIX Enrich] Enrichment error: {str(e)}', exc_info=True)
+        return jsonify({'error': f'Enrichment failed: {str(e)}'}), 400
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/enrich/auto', methods=['POST'])
+@permission_required('ioc.enrich')
+def auto_enrich_stix_object(stix_id):
+    """
+    Automatically enrich a STIX object and store all results.
+    
+    This endpoint enriches the object and immediately stores all successful
+    results into x_elaslip_enrichment.
+    
+    Expected JSON body:
+    {
+        "api_ids": ["optional", "list", "of", "api", "ids"]
+    }
+    
+    Response: Updated STIX object with enrichment data
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    from app.services.enrichment_service import EnrichmentService
+    
+    data = request.get_json() or {}
+    
+    logger.info(f'[STIX Auto-Enrich] Request for {stix_id}, user: {current_user.id}')
+    
+    # Get the STIX object
+    stix_object = STIXService.get_sdo(stix_id)
+    
+    if not stix_object:
+        return jsonify({'error': f'STIX object {stix_id} not found'}), 404
+    
+    # Extract IOC value and type
+    value = None
+    ioc_type = None
+    
+    if stix_object.get('type') == 'indicator':
+        value = stix_object.get('x_ioc_value')
+        ioc_type = stix_object.get('x_ioc_type')
+        
+        if not value and stix_object.get('pattern'):
+            ioc_type, value = STIXService.extract_value_from_pattern(stix_object['pattern'])
+    
+    if not value:
+        value = stix_object.get('name')
+    
+    if not value:
+        return jsonify({'error': 'Could not extract enrichable value from STIX object'}), 400
+    
+    logger.info(f'[STIX Auto-Enrich] Extracted value: {value}, type: {ioc_type}')
+    
+    # Enrich
+    enrichment_service = EnrichmentService()
+    
+    try:
+        api_ids = data.get('api_ids', [])
+        
+        if api_ids:
+            results = enrichment_service.enrich_value_with_apis(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(current_user.id),
+                api_ids=api_ids
+            )
+        else:
+            results = enrichment_service.enrich_value(
+                value=value,
+                ioc_type=ioc_type,
+                user_id=str(current_user.id)
+            )
+        
+        # Store results
+        updated_object = STIXService.enrich_sdo(
+            stix_id=stix_id,
+            enrichment_results=results,
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        if not updated_object:
+            return jsonify({'error': 'Failed to store enrichment data'}), 500
+        
+        # Audit log
+        AuditService().log(
+            action="enrich",
+            entity_type="stix_object",
+            entity_id=stix_id,
+            entity_name=stix_object.get('name', stix_id),
+            user_id=str(current_user.id),
+            username=current_user.username,
+            changes={"api_count": len([r for r in results if r.get('success')])}
+        )
+        
+        logger.info(f'[STIX Auto-Enrich] Stored enrichment for {stix_id}')
+        
+        return jsonify({
+            'message': 'Enrichment completed and stored',
+            'stix_object': updated_object,
+            'enrichment_count': len([r for r in results if r.get('success')])
+        }), 200
+    
+    except Exception as e:
+        logger.error(f'[STIX Auto-Enrich] Error: {str(e)}', exc_info=True)
+        return jsonify({'error': f'Enrichment failed: {str(e)}'}), 400
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/store-enrichment', methods=['POST'])
+@permission_required('ioc.enrich')
+def store_stix_enrichment(stix_id):
+    """
+    Store selected enrichment fields into a STIX object.
+    
+    This endpoint allows users to review enrichment results and select
+    specific fields to store.
+    
+    Expected JSON body:
+    {
+        "api_name": "API name",
+        "api_id": "api_id",
+        "selected_fields": {
+            "field1": "value1",
+            "field2": "value2"
+        }
+    }
+    
+    Response: Updated STIX object
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    data = request.get_json()
+    
+    if not data or 'selected_fields' not in data:
+        return jsonify({'error': 'selected_fields is required'}), 400
+    
+    api_name = data.get('api_name', 'Unknown API')
+    api_id = data.get('api_id', '')
+    selected_fields = data['selected_fields']
+    
+    logger.info(f'[STIX Store Enrichment] Storing fields for {stix_id} from {api_name}')
+    
+    # Verify object exists
+    stix_object = STIXService.get_sdo(stix_id)
+    if not stix_object:
+        return jsonify({'error': f'STIX object {stix_id} not found'}), 404
+    
+    # Store the selected enrichment
+    updated_object = STIXService.store_selected_enrichment(
+        stix_id=stix_id,
+        api_name=api_name,
+        api_id=api_id,
+        selected_fields=selected_fields,
+        user_id=str(current_user.id),
+        username=current_user.username
+    )
+    
+    if not updated_object:
+        return jsonify({'error': 'Failed to store enrichment data'}), 500
+    
+    # Audit log
+    AuditService().log(
+        action="store_enrichment",
+        entity_type="stix_object",
+        entity_id=stix_id,
+        entity_name=stix_object.get('name', stix_id),
+        user_id=str(current_user.id),
+        username=current_user.username,
+        changes={"api_name": api_name, "fields": list(selected_fields.keys())}
+    )
+    
+    logger.info(f'[STIX Store Enrichment] Stored enrichment from {api_name} for {stix_id}')
+    
+    return jsonify({
+        'message': f'Enrichment from {api_name} stored successfully',
+        'stix_object': updated_object
+    }), 200
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/enrichment', methods=['GET'])
+@permission_required('ioc.view')
+def get_stix_enrichment(stix_id):
+    """
+    Get enrichment data for a STIX object.
+    
+    Response: x_elaslip_enrichment object or empty object
+    """
+    stix_object = STIXService.get_sdo(stix_id)
+    
+    if not stix_object:
+        return jsonify({'error': f'STIX object {stix_id} not found'}), 404
+    
+    enrichment = stix_object.get('x_elaslip_enrichment', {})
+    
+    return jsonify({
+        'stix_id': stix_id,
+        'enrichment': enrichment
+    })
 

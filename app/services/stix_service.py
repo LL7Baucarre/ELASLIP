@@ -561,7 +561,9 @@ class STIXService:
     def search_sdos(cls, query_string: str, sdo_types: Optional[List[str]] = None,
                     size: int = 50) -> List[Dict[str, Any]]:
         """
-        Search STIX objects by query string
+        Search STIX objects by query string with intelligent matching
+        
+        Prioritizes exact name matches, then partial matches.
         
         Args:
             query_string: Search string
@@ -569,20 +571,39 @@ class STIXService:
             size: Maximum results
             
         Returns:
-            List of matching objects
+            List of matching objects sorted by relevance
         """
         es = ElasticsearchService().client
         
+        # Build query that prioritizes exact matches for name
         query = {
             "bool": {
-                "must": [
+                "should": [
+                    # Exact match on name (highest priority)
+                    {
+                        "match": {
+                            "name": {
+                                "query": query_string,
+                                "operator": "and"
+                            }
+                        }
+                    },
+                    # Term match on name (exact phrase)
+                    {
+                        "term": {
+                            "name.keyword": query_string
+                        }
+                    },
+                    # Partial matches with lower priority
                     {
                         "multi_match": {
                             "query": query_string,
-                            "fields": ["name^3", "description", "pattern", "x_ioc_value", "labels"]
+                            "fields": ["name^2", "description", "pattern", "x_ioc_value", "labels"],
+                            "operator": "or"
                         }
                     }
-                ]
+                ],
+                "minimum_should_match": 1
             }
         }
         
@@ -592,7 +613,14 @@ class STIXService:
         try:
             result = es.search(
                 index=cls.STIX_OBJECTS_INDEX,
-                body={"query": query, "size": size}
+                body={
+                    "query": query, 
+                    "size": size,
+                    "sort": [
+                        {"_score": {"order": "desc"}},
+                        {"name.keyword": {"order": "asc"}}
+                    ]
+                }
             )
             return [hit["_source"] for hit in result["hits"]["hits"]]
         except Exception as e:
@@ -644,3 +672,408 @@ class STIXService:
             return [hit["_source"] for hit in result["hits"]["hits"]]
         except Exception:
             return []
+    
+    @classmethod
+    def get_graph_data(cls, start_id: Optional[str] = None, depth: int = 1, 
+                       max_nodes: int = 500) -> Dict[str, Any]:
+        """
+        Get graph data for visualization with relationship depth control
+        
+        Args:
+            start_id: Optional starting STIX object ID. If None, returns all objects and relationships
+            depth: Relationship depth level (1-5). Controls how many levels of relationships to fetch
+            max_nodes: Maximum number of nodes to return
+            
+        Returns:
+            Dictionary with nodes and edges for graph visualization
+        """
+        es = ElasticsearchService().client
+        nodes = []
+        edges = []
+        visited_ids = set()
+        
+        try:
+            if start_id:
+                # Build graph starting from specific object with depth control
+                nodes, edges = cls._build_relationship_graph(
+                    start_id, depth, max_nodes, es
+                )
+            else:
+                # Get all STIX objects and relationships
+                try:
+                    # Fetch all STIX objects
+                    objects_result = es.search(
+                        index=cls.STIX_OBJECTS_INDEX,
+                        body={"query": {"match_all": {}}, "size": max_nodes}
+                    )
+                    
+                    for hit in objects_result.get("hits", {}).get("hits", []):
+                        obj = hit["_source"]
+                        node_id = obj["id"]
+                        visited_ids.add(node_id)
+                        
+                        nodes.append({
+                            "data": {
+                                "id": node_id,
+                                "label": obj.get("name", node_id.split("--")[0]),
+                                "type": obj.get("type"),
+                                "entity_type": "stix"
+                            }
+                        })
+                    
+                    # Fetch all relationships
+                    rels_result = es.search(
+                        index=cls.STIX_RELATIONSHIPS_INDEX,
+                        body={"query": {"match_all": {}}, "size": max_nodes * 2}
+                    )
+                    
+                    for hit in rels_result.get("hits", {}).get("hits", []):
+                        rel = hit["_source"]
+                        edge_id = rel["id"]
+                        source_id = rel["source_ref"]
+                        target_id = rel["target_ref"]
+                        
+                        # Only add edge if both nodes exist
+                        if source_id in visited_ids and target_id in visited_ids:
+                            edges.append({
+                                "data": {
+                                    "id": edge_id,
+                                    "source": source_id,
+                                    "target": target_id,
+                                    "label": rel.get("relationship_type", "related")
+                                }
+                            })
+                except Exception as e:
+                    current_app.logger.error(f"Error fetching graph data: {e}")
+            
+            return {
+                "nodes": nodes,
+                "edges": edges
+            }
+        except Exception as e:
+            current_app.logger.error(f"Error building graph data: {e}")
+            return {"nodes": [], "edges": []}
+    
+    @classmethod
+    def _build_relationship_graph(cls, start_id: str, depth: int, max_nodes: int,
+                                   es_client) -> Tuple[List[Dict], List[Dict]]:
+        """
+        Build a relationship graph starting from a specific STIX object with depth control
+        
+        Args:
+            start_id: Starting STIX object ID
+            depth: Maximum relationship depth (1-5)
+            max_nodes: Maximum nodes to include
+            es_client: Elasticsearch client
+            
+        Returns:
+            Tuple of (nodes, edges)
+        """
+        nodes = []
+        edges = []
+        visited_ids = set()
+        current_level = {start_id}
+        next_level = set()
+        
+        # Limit depth to 1-5
+        depth = max(1, min(5, depth))
+        
+        try:
+            # Add starting node
+            start_obj = cls.get_sdo(start_id)
+            if start_obj:
+                visited_ids.add(start_id)
+                nodes.append({
+                    "data": {
+                        "id": start_id,
+                        "label": start_obj.get("name", start_id.split("--")[0]),
+                        "type": start_obj.get("type"),
+                        "entity_type": "stix"
+                    }
+                })
+            
+            # BFS to build relationship graph up to specified depth
+            for current_depth in range(depth):
+                if len(visited_ids) >= max_nodes:
+                    break
+                
+                next_level = set()
+                
+                for obj_id in current_level:
+                    # Get relationships for this object
+                    relationships = cls.get_relationships(obj_id, "both")
+                    
+                    for rel in relationships:
+                        rel_id = rel["id"]
+                        source_id = rel["source_ref"]
+                        target_id = rel["target_ref"]
+                        rel_type = rel.get("relationship_type", "related")
+                        
+                        # Add edge
+                        edges.append({
+                            "data": {
+                                "id": rel_id,
+                                "source": source_id,
+                                "target": target_id,
+                                "label": rel_type
+                            }
+                        })
+                        
+                        # Track nodes to fetch in next level
+                        if source_id not in visited_ids and len(visited_ids) < max_nodes:
+                            next_level.add(source_id)
+                        if target_id not in visited_ids and len(visited_ids) < max_nodes:
+                            next_level.add(target_id)
+                
+                # Fetch and add next level nodes
+                for node_id in next_level:
+                    if len(visited_ids) >= max_nodes:
+                        break
+                    
+                    if node_id not in visited_ids:
+                        node_obj = cls.get_sdo(node_id)
+                        if node_obj:
+                            visited_ids.add(node_id)
+                            nodes.append({
+                                "data": {
+                                    "id": node_id,
+                                    "label": node_obj.get("name", node_id.split("--")[0]),
+                                    "type": node_obj.get("type"),
+                                    "entity_type": "stix"
+                                }
+                            })
+                
+                current_level = next_level
+            
+            return nodes, edges
+        except Exception as e:
+            current_app.logger.error(f"Error building relationship graph: {e}")
+            return nodes, edges
+
+    # ============================================================
+    # STIX 2.1 ENRICHMENT SUPPORT
+    # ============================================================
+    
+    @classmethod
+    def extract_value_from_pattern(cls, pattern: str) -> Tuple[Optional[str], Optional[str]]:
+        """
+        Extract IOC type and value from a STIX 2.1 pattern.
+        
+        Args:
+            pattern: STIX pattern string, e.g. "[ipv4-addr:value = '8.8.8.8']"
+        
+        Returns:
+            Tuple of (ioc_type, value) or (None, None) if not extractable
+        """
+        import re
+        
+        pattern_extractors = {
+            'ipv4': re.compile(r"\[ipv4-addr:value\s*=\s*'([^']+)'\]"),
+            'ipv6': re.compile(r"\[ipv6-addr:value\s*=\s*'([^']+)'\]"),
+            'domain': re.compile(r"\[domain-name:value\s*=\s*'([^']+)'\]"),
+            'url': re.compile(r"\[url:value\s*=\s*'([^']+)'\]"),
+            'email': re.compile(r"\[email-addr:value\s*=\s*'([^']+)'\]"),
+            'md5': re.compile(r"\[file:hashes\.'MD5'\s*=\s*'([^']+)'\]"),
+            'sha1': re.compile(r"\[file:hashes\.'SHA-1'\s*=\s*'([^']+)'\]"),
+            'sha256': re.compile(r"\[file:hashes\.'SHA-256'\s*=\s*'([^']+)'\]"),
+            'asn': re.compile(r"\[autonomous-system:(?:number|value)\s*=\s*'?(AS?\d+)'?\]"),
+            'file': re.compile(r"\[file:name\s*=\s*'([^']+)'\]"),
+            'registry': re.compile(r"\[windows-registry-key:key\s*=\s*'([^']+)'\]"),
+            'mutex': re.compile(r"\[mutex:name\s*=\s*'([^']+)'\]"),
+        }
+        
+        for ioc_type, regex in pattern_extractors.items():
+            match = regex.search(pattern)
+            if match:
+                return ioc_type, match.group(1)
+        
+        return None, None
+    
+    @classmethod
+    def enrich_sdo(cls, stix_id: str, enrichment_results: List[Dict[str, Any]], 
+                   user_id: Optional[str] = None, 
+                   username: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Store enrichment results in a STIX object's x_elaslip_enrichment extension.
+        
+        STIX 2.1 allows custom properties with x_ prefix for extensions.
+        We store enrichment data in x_elaslip_enrichment to maintain compliance.
+        
+        Args:
+            stix_id: The STIX object ID to enrich
+            enrichment_results: List of enrichment results from EnrichmentService
+            user_id: User who triggered the enrichment
+            username: Username who triggered the enrichment
+        
+        Returns:
+            Updated STIX object or None if not found
+        """
+        current = cls.get_sdo(stix_id)
+        if not current:
+            return None
+        
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        
+        # Get or initialize x_elaslip_enrichment
+        x_enrichment = current.get("x_elaslip_enrichment", {})
+        if not isinstance(x_enrichment, dict):
+            x_enrichment = {}
+        
+        # Ensure api_results array exists
+        if "api_results" not in x_enrichment:
+            x_enrichment["api_results"] = []
+        
+        # Process each enrichment result
+        for result in enrichment_results:
+            if not result.get("success"):
+                continue
+            
+            api_result = {
+                "api_name": result.get("api_name", "Unknown"),
+                "api_id": result.get("api_id", ""),
+                "enriched_at": now,
+                "from_cache": result.get("from_cache", False),
+            }
+            
+            # Add enrichment user info
+            if user_id:
+                api_result["enriched_by_user_id"] = user_id
+            if username:
+                api_result["enriched_by_username"] = username
+            
+            # Extract transformed data
+            transformed = result.get("transformed", {})
+            if transformed:
+                # Map common enrichment fields to STIX-compatible extensions
+                enrichment_fields = {}
+                
+                # Standard enrichment fields
+                field_mappings = [
+                    "threat_level", "confidence", "tlp", "risk_score", "severity",
+                    "reputation", "malware_family", "country", "asn", "registrar",
+                    "last_seen", "first_seen", "detection_ratio", "isp", "usage",
+                    "labels", "name", "description"
+                ]
+                
+                for field in field_mappings:
+                    if field in transformed and transformed[field] is not None:
+                        enrichment_fields[field] = transformed[field]
+                
+                # Add any extra/custom fields
+                for key, value in transformed.items():
+                    if key not in enrichment_fields and key not in ["ioc_type", "value", "__api_response__"]:
+                        if value is not None:
+                            enrichment_fields[key] = value
+                
+                api_result["data"] = enrichment_fields
+            
+            # Check if we already have a result from this API and update it
+            existing_idx = None
+            for idx, existing in enumerate(x_enrichment["api_results"]):
+                if existing.get("api_id") == api_result["api_id"]:
+                    existing_idx = idx
+                    break
+            
+            if existing_idx is not None:
+                x_enrichment["api_results"][existing_idx] = api_result
+            else:
+                x_enrichment["api_results"].append(api_result)
+        
+        # Update last enriched timestamp
+        x_enrichment["last_enriched"] = now
+        x_enrichment["enrichment_count"] = len(x_enrichment["api_results"])
+        
+        # Update the STIX object
+        updates = {
+            "x_elaslip_enrichment": x_enrichment,
+            "modified": now
+        }
+        
+        return cls.update_sdo(stix_id, updates)
+    
+    @classmethod
+    def store_selected_enrichment(cls, stix_id: str, api_name: str, api_id: str,
+                                   selected_fields: Dict[str, Any],
+                                   user_id: Optional[str] = None,
+                                   username: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """
+        Store user-selected enrichment fields into a STIX object.
+        
+        This is for when a user reviews enrichment results and selects
+        specific fields to store.
+        
+        Args:
+            stix_id: The STIX object ID
+            api_name: Name of the API that provided the data
+            api_id: ID of the API configuration
+            selected_fields: Dict of field names to values selected by user
+            user_id: User who stored the enrichment
+            username: Username who stored the enrichment
+        
+        Returns:
+            Updated STIX object or None if not found
+        """
+        current = cls.get_sdo(stix_id)
+        if not current:
+            return None
+        
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        
+        # Get or initialize x_elaslip_enrichment
+        x_enrichment = current.get("x_elaslip_enrichment", {})
+        if not isinstance(x_enrichment, dict):
+            x_enrichment = {}
+        
+        if "api_results" not in x_enrichment:
+            x_enrichment["api_results"] = []
+        
+        # Create result object
+        api_result = {
+            "api_name": api_name,
+            "api_id": api_id,
+            "enriched_at": now,
+            "data": selected_fields,
+            "manually_selected": True
+        }
+        
+        if user_id:
+            api_result["enriched_by_user_id"] = user_id
+        if username:
+            api_result["enriched_by_username"] = username
+        
+        # Find existing or append
+        existing_idx = None
+        for idx, existing in enumerate(x_enrichment["api_results"]):
+            if existing.get("api_id") == api_id:
+                existing_idx = idx
+                break
+        
+        if existing_idx is not None:
+            x_enrichment["api_results"][existing_idx] = api_result
+        else:
+            x_enrichment["api_results"].append(api_result)
+        
+        x_enrichment["last_enriched"] = now
+        x_enrichment["enrichment_count"] = len(x_enrichment["api_results"])
+        
+        # Update the STIX object
+        updates = {
+            "x_elaslip_enrichment": x_enrichment,
+            "modified": now
+        }
+        
+        return cls.update_sdo(stix_id, updates)
+    
+    @classmethod
+    def get_enrichment(cls, stix_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get enrichment data for a STIX object.
+        
+        Returns:
+            x_elaslip_enrichment dict or None
+        """
+        obj = cls.get_sdo(stix_id)
+        if not obj:
+            return None
+        
+        return obj.get("x_elaslip_enrichment")

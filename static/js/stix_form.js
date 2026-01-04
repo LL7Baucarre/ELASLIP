@@ -71,14 +71,47 @@ function setupEventListeners() {
         confidence.addEventListener('input', updateConfidenceDisplay);
     }
     
-    // Search objects in modal
-    const searchInput = document.getElementById('searchObjects');
+    // Search objects in modal using API search (like detail.html)
+    const searchInput = document.getElementById('searchRelTarget');
     if (searchInput) {
-        let debounceTimer;
-        searchInput.addEventListener('input', function() {
-            clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => filterAvailableObjects(this.value), 300);
-        });
+        searchInput.addEventListener('input', debounce(function() {
+            const query = this.value.trim();
+            if (query.length < 2) {
+                document.getElementById('availableTargets').innerHTML = '<p class="text-center text-muted py-3">Type to search for STIX objects...</p>';
+                return;
+            }
+            
+            fetch(`/api/stix/search?q=${encodeURIComponent(query)}&size=10`)
+                .then(r => r.json())
+                .then(data => {
+                    const container = document.getElementById('availableTargets');
+                    const items = data.items || data.results || [];
+                    if (items.length === 0) {
+                        container.innerHTML = '<p class="text-center text-muted py-3">No STIX objects found</p>';
+                        return;
+                    }
+                    
+                    container.innerHTML = items.map(obj => {
+                        const name = obj.name || obj.pattern || obj.x_ioc_value || obj.type;
+                        return `
+                            <div class="p-2 border rounded mb-1 target-option" data-id="${obj.id}" 
+                                 onclick="selectTargetForFormRelationship(this)" style="cursor: pointer;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>${escapeHtml(name)}</strong>
+                                        <span class="badge bg-secondary ms-2">${obj.type}</span>
+                                    </div>
+                                    <i class="bi bi-check text-success d-none check-mark"></i>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                })
+                .catch(e => {
+                    console.error('Search error:', e);
+                    document.getElementById('availableTargets').innerHTML = '<p class="text-center text-danger py-3">Search error</p>';
+                });
+        }, 300));
     }
     
     // Form submission
@@ -302,6 +335,29 @@ function selectObjectForRelation(element) {
     document.getElementById('confirmRelBtn').disabled = false;
 }
 
+function selectTargetForFormRelationship(element) {
+    // Deselect previous targets
+    document.querySelectorAll('.target-option').forEach(el => {
+        el.classList.remove('selected');
+        const checkMark = el.querySelector('.check-mark');
+        if (checkMark) checkMark.classList.add('d-none');
+    });
+    
+    // Select this target
+    element.classList.add('selected');
+    const checkMark = element.querySelector('.check-mark');
+    if (checkMark) checkMark.classList.remove('d-none');
+    
+    // Store the target data from the element
+    selectedObjectForRelation = {
+        id: element.dataset.id,
+        name: element.querySelector('strong').textContent,
+        type: element.querySelector('.badge').textContent
+    };
+    
+    document.getElementById('confirmRelBtn').disabled = false;
+}
+
 function confirmAddRelationship() {
     if (!selectedObjectForRelation) return;
     
@@ -323,6 +379,37 @@ function confirmAddRelationship() {
     document.querySelectorAll('.object-option').forEach(el => {
         el.classList.remove('selected');
         el.querySelector('.check-icon').classList.add('d-none');
+    });
+    
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('addRelationshipModal'));
+    modal.hide();
+}
+
+function confirmAddRelationshipFromForm() {
+    if (!selectedObjectForRelation) return;
+    
+    const relationType = document.getElementById('relationType').value;
+    
+    // Add to pending relationships
+    pendingRelationships.push({
+        target_ref: selectedObjectForRelation.id,
+        target_name: selectedObjectForRelation.name || selectedObjectForRelation.id,
+        target_type: selectedObjectForRelation.type,
+        relationship_type: relationType
+    });
+    
+    updateRelationshipsList();
+    
+    // Reset modal state
+    selectedObjectForRelation = null;
+    document.getElementById('confirmRelBtn').disabled = true;
+    document.getElementById('searchRelTarget').value = '';
+    document.getElementById('availableTargets').innerHTML = '<p class="text-center text-muted py-3">Type to search for STIX objects...</p>';
+    document.querySelectorAll('.target-option').forEach(el => {
+        el.classList.remove('selected');
+        const checkMark = el.querySelector('.check-mark');
+        if (checkMark) checkMark.classList.add('d-none');
     });
     
     // Close modal
@@ -682,4 +769,16 @@ function resetForm() {
         updateRelationshipsList();
         handleTypeChange();
     }
+}
+// Debounce utility function (like in detail.html)
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
 }

@@ -107,6 +107,34 @@
         font-size: 0.8rem;
         margin-top: 2px;
     }
+    
+    /* Search result category headers */
+    .search-category-header {
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        border-bottom: 1px solid #c8e6c9;
+    }
+    
+    .search-category-exact {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .search-category-partial {
+        background-color: #e3f2fd;
+        color: #1565c0;
+    }
+    
+    html[data-theme="dark"] .search-category-exact {
+        background-color: #1b5e20;
+        color: #81c784;
+    }
+    
+    html[data-theme="dark"] .search-category-partial {
+        background-color: #0d47a1;
+        color: #64b5f6;
+    }
 
     .control-group {
         position: relative;
@@ -283,6 +311,14 @@
         margin-top: 0.25rem;
     }
 
+    input[type="range"] {
+        accent-color: #007bff;
+    }
+    
+    html[data-theme="dark"] input[type="range"] {
+        accent-color: #3498db;
+    }
+
     .form-check {
         padding-left: 1.5rem;
         display: flex;
@@ -347,6 +383,14 @@
             <label for="searchSTIX">Search Entities:</label>
             <input type="text" id="searchSTIX" placeholder="Search STIX Objects, Cases, Incidents..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
             <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
+        </div>
+
+        <div class="control-group">
+            <label for="relationshipDepth">Relationship Depth: <span id="depthValue">1</span></label>
+            <input type="range" id="relationshipDepth" min="1" max="5" value="1" onchange="updateDepthValue()" style="width: 100%; cursor: pointer;">
+            <small style="display: block; margin-top: 5px; color: #666;">
+                <span id="depthDescription">Direct relations only</span>
+            </small>
         </div>
 
         <button class="btn-control btn-primary" onclick="loadGraph()">
@@ -482,6 +526,7 @@ let showEdgeLabels = true;
 let allNodes = [];
 let allEdges = [];
 let searchTimeout = null;
+let currentFocusNodeId = null;  // Track the currently focused node
 
 function escapeHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -592,11 +637,14 @@ function initGraph(nodes, edges) {
 
     cy.on('tap', 'node', function(e) {
         e.stopPropagation();
-        showNodeInfo(e.target);
+        const selectedNode = e.target;
+        currentFocusNodeId = selectedNode.id();  // Update focused node
+        showNodeInfo(selectedNode);
     });
 
     cy.on('tap', function(e) {
         if (e.target === cy) {
+            currentFocusNodeId = null;  // Clear focus when clicking empty space
             document.getElementById('infoPanel').style.display = 'none';
         }
     });
@@ -618,10 +666,24 @@ function initGraph(nodes, edges) {
     fitGraph();
 }
 
-function loadGraph() {
+function loadGraph(focusNodeId) {
+    // If no focus node specified but we have one, use it
+    if (!focusNodeId && currentFocusNodeId) {
+        focusNodeId = currentFocusNodeId;
+    }
+    
+    const depth = parseInt(document.getElementById('relationshipDepth').value) || 1;
+    const params = { depth: depth };
+    
+    // If focusing on a specific node, add it to the request
+    if (focusNodeId) {
+        params.start_id = focusNodeId;
+    }
+    
     $.ajax({
         url: '/api/stix/graph-data',
         method: 'GET',
+        data: params,
         success: function(response) {
             const nodes = response.nodes;
             const edges = response.edges;
@@ -649,7 +711,22 @@ function loadGraph() {
                 cy.nodes().show();
                 cy.edges().show();
                 document.getElementById('emptyGraphMessage').style.display = 'none';
-                cy.fit(null, 50);
+                
+                // If focusing on a node, center on it
+                if (focusNodeId) {
+                    const focusNode = cy.$id(focusNodeId);
+                    if (focusNode && focusNode.length > 0) {
+                        focusNode.select();
+                        cy.animate({
+                            fit: { eles: focusNode.union(focusNode.neighborhood()), padding: 50 },
+                            duration: 300
+                        });
+                    } else {
+                        cy.fit(null, 50);
+                    }
+                } else {
+                    cy.fit(null, 50);
+                }
             } else {
                 cy.nodes().hide();
                 cy.edges().hide();
@@ -814,7 +891,8 @@ function showShowAllOption() {
 function searchSTIX() {
     if (!cy) return;
     
-    const searchTerm = document.getElementById('searchSTIX').value.trim().toLowerCase();
+    const searchTerm = document.getElementById('searchSTIX').value.trim();
+    const searchTermLower = searchTerm.toLowerCase();
     const dropdown = document.getElementById('searchResultsDropdown');
     
     if (!searchTerm) {
@@ -826,7 +904,7 @@ function searchSTIX() {
         $.ajax({
             url: '/api/search',
             method: 'GET',
-            data: { q: searchTerm, per_page: 10 },
+            data: { q: searchTerm, per_page: 20 },
             success: function(response) {
                 const items = response.items || response.results || [];
                 
@@ -836,27 +914,63 @@ function searchSTIX() {
                     return;
                 }
                 
-                let html = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
+                // Separate exact matches from partial matches
+                const exactMatches = [];
+                const partialMatches = [];
                 
                 for (const item of items) {
-                    const entityType = item.entity_type || item.type || 'stix';
-                    const itemId = item.id;
-                    let displayLabel = item.name || item.title || item.value || 'Unknown';
-                    let displayType = (item.type || entityType).toUpperCase();
+                    const itemName = (item.name || item.title || item.value || 'Unknown').toLowerCase();
                     
-                    html += `
-                        <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)">
-                            <strong>${escapeHtml(displayLabel)}</strong>
-                            <small class="text-muted">${escapeHtml(displayType)}</small>
-                        </div>
-                    `;
+                    // Check for exact match (case-insensitive)
+                    if (itemName === searchTermLower || itemName === searchTermLower.replace(/\s+/g, ' ')) {
+                        exactMatches.push(item);
+                    } else {
+                        partialMatches.push(item);
+                    }
+                }
+                
+                let html = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
+                
+                // Show exact matches first
+                if (exactMatches.length > 0) {
+                    html += '<div style="padding: 8px 12px; background-color: #e8f5e9; font-size: 0.75rem; font-weight: bold; color: #2e7d32; border-bottom: 1px solid #c8e6c9;">EXACT MATCHES</div>';
+                    for (const item of exactMatches) {
+                        const entityType = item.entity_type || item.type || 'stix';
+                        const itemId = item.id;
+                        let displayLabel = item.name || item.title || item.value || 'Unknown';
+                        let displayType = (item.type || entityType).toUpperCase();
+                        
+                        html += `
+                            <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)" style="background-color: #f1f8e9;">
+                                <strong>${escapeHtml(displayLabel)}</strong>
+                                <small class="text-muted">${escapeHtml(displayType)}</small>
+                            </div>
+                        `;
+                    }
+                }
+                
+                // Show partial matches
+                if (partialMatches.length > 0) {
+                    if (exactMatches.length > 0) {
+                        html += '<div style="padding: 8px 12px; background-color: #e3f2fd; font-size: 0.75rem; font-weight: bold; color: #1565c0; border-bottom: 1px solid #bbdefb;">PARTIAL MATCHES</div>';
+                    }
+                    for (const item of partialMatches) {
+                        const entityType = item.entity_type || item.type || 'stix';
+                        const itemId = item.id;
+                        let displayLabel = item.name || item.title || item.value || 'Unknown';
+                        let displayType = (item.type || entityType).toUpperCase();
+                        
+                        html += `
+                            <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)">
+                                <strong>${escapeHtml(displayLabel)}</strong>
+                                <small class="text-muted">${escapeHtml(displayType)}</small>
+                            </div>
+                        `;
+                    }
                 }
                 
                 dropdown.innerHTML = html;
                 dropdown.style.display = 'block';
-                
-                const matchingIds = items.map(item => item.id);
-                filterGraphByIds(matchingIds);
             },
             error: function() {
                 dropdown.style.display = 'none';
@@ -872,24 +986,9 @@ function selectFromSearch(objId, objValue, event) {
     document.getElementById('searchSTIX').value = objValue;
     document.getElementById('searchResultsDropdown').style.display = 'none';
     
-    if (!cy) return;
-    
-    cy.nodes().hide();
-    cy.edges().hide();
-    
-    const node = cy.$id(objId);
-    if (node && node.length > 0) {
-        node.show();
-        node.neighborhood().show();
-        node.connectedEdges().show();
-        
-        cy.animate({
-            fit: { eles: cy.elements(':visible'), padding: 50 },
-            duration: 500
-        });
-    }
-    
-    document.getElementById('emptyGraphMessage').style.display = 'none';
+    // Set the focus node and reload the graph
+    currentFocusNodeId = objId;
+    loadGraph(objId);
 }
 
 function showAllObjects(event) {
@@ -950,6 +1049,27 @@ function toggleControlsPanel() {
         icon.classList.remove('bi-chevron-right');
         icon.classList.add('bi-chevron-left');
     }
+}
+
+function updateDepthValue() {
+    const depth = document.getElementById('relationshipDepth').value;
+    const depthValue = document.getElementById('depthValue');
+    const depthDescription = document.getElementById('depthDescription');
+    
+    depthValue.textContent = depth;
+    
+    const descriptions = {
+        '1': 'Direct relations only',
+        '2': 'Up to 2 levels of relations',
+        '3': 'Up to 3 levels of relations',
+        '4': 'Up to 4 levels of relations',
+        '5': 'Up to 5 levels of relations (maximum)'
+    };
+    
+    depthDescription.textContent = descriptions[depth] || 'Direct relations only';
+    
+    // Reload the graph while keeping the currently focused node
+    loadGraph(currentFocusNodeId);
 }
 
 $(document).ready(function() {

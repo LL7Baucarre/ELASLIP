@@ -90,6 +90,61 @@
     /* Filter buttons */
     .filter-btn.active { opacity: 1; }
     .filter-btn:not(.active) { opacity: 0.5; }
+    
+    /* JSON Tree Styling - Enhanced */
+    .json-tree { margin: 0.5rem 0; }
+    .json-field {
+        padding: 0.75rem 0.5rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+    html[data-theme="light"] .json-field {
+        background: rgba(0,0,0,0.01);
+        border-left: 3px solid #0d6efd;
+    }
+    html[data-theme="dark"] .json-field {
+        background: rgba(255,255,255,0.02);
+        border-left: 3px solid #0d6efd;
+    }
+    .json-field:hover {
+        background: rgba(13,110,253,0.08);
+    }
+    
+    .json-field-label {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+    }
+    
+    .json-key {
+        font-weight: 600;
+        color: #0d6efd;
+    }
+    .json-colon {
+        color: #6c757d;
+        margin: 0 0.25rem;
+    }
+    
+    .json-value-container {
+        font-size: 0.9rem;
+        font-family: 'Courier New', monospace;
+        margin-top: 0.25rem;
+        padding-left: 1.5rem;
+    }
+    
+    .json-string { color: #28a745; }
+    .json-string-long { color: #28a745; font-style: italic; }
+    .json-number { color: #fd7e14; font-weight: 500; }
+    .json-bool { color: #0d6efd; font-weight: 600; }
+    .json-null { color: #6c757d; font-style: italic; }
+    .json-array { color: #6c757d; }
+    .json-object { color: #6c757d; }
+    .json-unknown { color: #495057; }
+    .json-length { color: #6c757d; font-size: 0.8rem; }
+    .json-more { color: #6c757d; font-weight: 500; }
+    .json-comma { color: #6c757d; }
+    
+    .cursor-pointer { cursor: pointer; }
 </style>
 <script src="https://unpkg.com/cytoscape@3.25.0/dist/cytoscape.min.js"></script>
 {% endblock %}
@@ -121,6 +176,17 @@
                     <a href="{{ url_for('stix.edit_stix_object_page', stix_id=stix_object.id) }}" class="btn btn-outline-warning">
                         <i class="bi bi-pencil me-1"></i> Edit
                     </a>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-info" onclick="enrichObject()" id="enrichBtn">
+                            <i class="bi bi-cloud-download me-1"></i> Enrich All
+                        </button>
+                        <button type="button" class="btn btn-outline-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" id="enrichDropdown">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="enrichApiList">
+                            <li><span class="dropdown-item text-muted"><i class="spinner-border spinner-border-sm me-1"></i> Loading APIs...</span></li>
+                        </ul>
+                    </div>
                     <button class="btn btn-outline-primary" onclick="exportBundle()">
                         <i class="bi bi-download me-1"></i> Export Bundle
                     </button>
@@ -474,6 +540,60 @@
             </div>
             {% endif %}
             
+            <!-- Enrichment Data -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-cloud-download me-2"></i>Enrichment</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-outline-info" onclick="enrichObject()" title="Enrich with all APIs">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="enrichApiListSidebar">
+                            <li><span class="dropdown-item text-muted small">Loading...</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body" id="enrichmentData">
+                    {% if stix_object.x_elaslip_enrichment and stix_object.x_elaslip_enrichment.api_results %}
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                Last enriched: {{ stix_object.x_elaslip_enrichment.last_enriched or 'N/A' }}
+                            </small>
+                        </div>
+                        {% for result in stix_object.x_elaslip_enrichment.api_results %}
+                        <div class="border rounded p-2 mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small">{{ result.api_name }}</strong>
+                                <span class="badge bg-success">OK</span>
+                            </div>
+                            {% if result.data %}
+                                {% for key, value in result.data.items() %}
+                                <div class="property-row small py-1">
+                                    <span class="property-label">{{ key }}:</span>
+                                    <span class="ms-1">
+                                        {% if value is iterable and value is not string %}
+                                            {{ value | join(', ') }}
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center mb-0 small">
+                            <i class="bi bi-info-circle me-1"></i>No enrichment data
+                            <br><a href="#" onclick="enrichObject(); return false;">Enrich now</a>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            
             <!-- External References -->
             {% if stix_object.external_references %}
             <div class="card mb-4">
@@ -571,6 +691,27 @@
         </div>
     </div>
 </div>
+
+<!-- Enrichment Modal -->
+<div class="modal fade" id="enrichmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-download me-2"></i>Enrichment Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="enrichmentResults">
+                <div class="text-center py-4">
+                    <span class="spinner-border"></span>
+                    <p class="mt-2">Loading enrichment data...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -602,9 +743,13 @@ const typeColors = {
     'course-of-action': '#198754'
 };
 
+// Available enrichment APIs
+let enrichmentApis = [];
+
 document.addEventListener('DOMContentLoaded', function() {
     loadLinkedEntities();
     initRelationshipGraph();
+    loadEnrichmentApis();
     
     // Handle search in Add Relationship modal
     document.getElementById('searchRelTarget').addEventListener('input', debounce(function() {
@@ -995,5 +1140,305 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// ============================================================
+// ENRICHMENT FUNCTIONS
+// ============================================================
+
+// Load available enrichment APIs for dropdown
+async function loadEnrichmentApis() {
+    try {
+        const response = await fetch('/api/external-apis');
+        const data = await response.json();
+        enrichmentApis = data.configs || data.apis || [];
+        
+        const dropdownHtml = buildEnrichmentDropdown(enrichmentApis);
+        document.getElementById('enrichApiList').innerHTML = dropdownHtml;
+        document.getElementById('enrichApiListSidebar').innerHTML = dropdownHtml;
+    } catch (e) {
+        console.error('Failed to load enrichment APIs:', e);
+        const errorHtml = '<li><span class="dropdown-item text-danger small">Failed to load APIs</span></li>';
+        document.getElementById('enrichApiList').innerHTML = errorHtml;
+        document.getElementById('enrichApiListSidebar').innerHTML = errorHtml;
+    }
+}
+
+function buildEnrichmentDropdown(apis) {
+    if (!apis || apis.length === 0) {
+        return `
+            <li><span class="dropdown-item text-muted small">No APIs configured</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item small" href="/settings/external-apis"><i class="bi bi-gear me-1"></i>Configure APIs</a></li>
+        `;
+    }
+    
+    let html = '<li><a class="dropdown-item" href="#" onclick="enrichObject(); return false;"><i class="bi bi-cloud-download me-1"></i><strong>All APIs</strong></a></li>';
+    html += '<li><hr class="dropdown-divider"></li>';
+    
+    apis.forEach(api => {
+        const enabled = api.enabled !== false;
+        const icon = enabled ? 'bi-check-circle text-success' : 'bi-x-circle text-muted';
+        const apiName = api.name || 'Unknown API';
+        html += `
+            <li>
+                <a class="dropdown-item d-flex justify-content-between align-items-center ${!enabled ? 'text-muted' : ''}" 
+                   href="#" onclick="enrichObject('${api.id}'); return false;" ${!enabled ? 'disabled' : ''}>
+                    <span><i class="${icon} me-1"></i>${escapeHtml(apiName)}</span>
+                </a>
+            </li>
+        `;
+    });
+    
+    html += '<li><hr class="dropdown-divider"></li>';
+    html += '<li><a class="dropdown-item small text-muted" href="/settings/external-apis"><i class="bi bi-gear me-1"></i>Manage APIs</a></li>';
+    
+    return html;
+}
+
+async function enrichObject(apiId = null) {
+    const btn = document.getElementById('enrichBtn');
+    const originalHtml = btn.innerHTML;
+    const apiName = apiId ? enrichmentApis.find(a => a.id === apiId)?.name : 'All APIs';
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Enriching${apiId ? ' (' + apiName + ')' : ''}...`;
+    btn.disabled = true;
+    
+    try {
+        // Build request body with optional api_id filter
+        const requestBody = {};
+        if (apiId) {
+            requestBody.api_ids = [apiId];
+        }
+        
+        const response = await fetch(`/api/stix/objects/${objectId}/enrich`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Enrichment failed');
+        }
+        
+        // Show enrichment results modal
+        showEnrichmentModal(data);
+        
+    } catch (e) {
+        alert('Enrichment error: ' + e.message);
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+function showEnrichmentModal(data) {
+    const modal = document.getElementById('enrichmentModal');
+    const resultsContainer = document.getElementById('enrichmentResults');
+    
+    if (!data.results || data.results.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No external APIs configured or no results returned.
+                <a href="/settings/external-apis">Configure APIs</a>
+            </div>
+        `;
+    } else {
+        let html = `
+            <div class="mb-3">
+                <small class="text-muted">Value: <code>${escapeHtml(data.value || '')}</code> (${data.ioc_type || 'auto'})</small>
+            </div>
+        `;
+        
+        data.results.forEach((result, idx) => {
+            const success = result.success;
+            const statusBadge = success 
+                ? '<span class="badge bg-success">Success</span>'
+                : '<span class="badge bg-danger">Failed</span>';
+            
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <div>
+                            <strong>${escapeHtml(result.api_name || 'Unknown API')}</strong>
+                            ${statusBadge}
+                            ${result.from_cache ? '<span class="badge bg-secondary ms-1">Cached</span>' : ''}
+                        </div>
+                        ${success ? `
+                        <button class="btn btn-sm btn-outline-primary" onclick="storeEnrichmentResult(${idx})">
+                            <i class="bi bi-save me-1"></i>Store
+                        </button>
+                        ` : ''}
+                    </div>
+                    <div class="card-body">
+                        ${!success ? `<div class="text-danger small">${escapeHtml(result.error || 'Unknown error')}</div>` : ''}
+                        ${success && result.raw_response ? renderEnrichmentFields(result.raw_response, idx) : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        resultsContainer.innerHTML = html;
+        
+        // Store results for later use
+        window.enrichmentResults = data.results;
+    }
+    
+    new bootstrap.Modal(modal).show();
+}
+
+function renderEnrichmentFields(transformed, resultIdx) {
+    if (!transformed) return '<span class="text-muted">No data</span>';
+    
+    const skipFields = ['__api_response__', 'ioc_type', 'value'];
+    
+    // Build a tree structure of the JSON
+    return buildJsonTree(transformed, `result_${resultIdx}`, skipFields);
+}
+
+function buildJsonTree(obj, parentId, skipFields = []) {
+    let html = '<div class="json-tree">';
+    
+    for (const [key, value] of Object.entries(obj)) {
+        if (skipFields.includes(key) || value === null || value === undefined) continue;
+        
+        const fieldId = `${parentId}_${key}`;
+        const valueHtml = renderJsonValue(value, fieldId);
+        
+        html += `
+            <div class="json-field">
+                <div class="d-flex gap-2">
+                    <input type="checkbox" class="form-check-input enrichment-field flex-shrink-0" 
+                           id="checkbox_${fieldId}" data-field="${key}" data-parent-id="${parentId}">
+                    <div class="flex-grow-1">
+                        <label for="checkbox_${fieldId}" class="form-check-label json-field-label cursor-pointer">
+                            <span class="json-key">${escapeHtml(key)}</span>
+                            <span class="json-colon">:</span>
+                        </label>
+                        <div class="json-value-container">${valueHtml}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function renderJsonValue(value, fieldId) {
+    if (value === null || value === undefined) {
+        return '<span class="json-null">null</span>';
+    }
+    
+    if (typeof value === 'boolean') {
+        return `<span class="json-bool">${value}</span>`;
+    }
+    
+    if (typeof value === 'number') {
+        return `<span class="json-number">${value}</span>`;
+    }
+    
+    if (typeof value === 'string') {
+        // Truncate long strings but allow expansion
+        if (value.length > 200) {
+            return `<span class="json-string-long" title="${escapeHtml(value)}">
+                        "${escapeHtml(value.substring(0, 200))}..."
+                        <small class="json-length">(${value.length} chars)</small>
+                    </span>`;
+        }
+        return `<span class="json-string">"${escapeHtml(value)}"</span>`;
+    }
+    
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            return '<span class="json-array">[]</span>';
+        }
+        const preview = value.slice(0, 3).map(v => {
+            if (typeof v === 'string') return `<span class="json-string">"${escapeHtml(v)}"</span>`;
+            if (typeof v === 'number') return `<span class="json-number">${v}</span>`;
+            if (typeof v === 'boolean') return `<span class="json-bool">${v}</span>`;
+            return `<span>${escapeHtml(String(v))}</span>`;
+        }).join('<span class="json-comma">, </span>');
+        const hasMore = value.length > 3 ? `<span class="json-more"> +${value.length - 3}</span>` : '';
+        return `<span class="json-array">[<span class="json-comma"> </span>${preview}${hasMore}<span class="json-comma"> </span>]</span>`;
+    }
+    
+    if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) {
+            return '<span class="json-object">{}</span>';
+        }
+        const preview = keys.slice(0, 2).map(k => {
+            const v = value[k];
+            const vStr = typeof v === 'string' ? `"${v}"` : String(v);
+            const truncated = vStr.length > 30 ? vStr.substring(0, 30) + '...' : vStr;
+            return `<span class="json-key">${escapeHtml(k)}</span><span class="json-colon">:</span> <span class="json-number">${escapeHtml(truncated)}</span>`;
+        }).join('<span class="json-comma">, </span>');
+        const hasMore = keys.length > 2 ? `<span class="json-more"> ... (${keys.length} properties)</span>` : '';
+        return `<span class="json-object">{<span class="json-comma"> </span>${preview}${hasMore}<span class="json-comma"> </span>}</span>`;
+    }
+    
+    return `<span class="json-unknown">${escapeHtml(String(value))}</span>`;
+}
+
+async function storeEnrichmentResult(resultIdx) {
+    const result = window.enrichmentResults[resultIdx];
+    if (!result || !result.success) return;
+    
+    // Collect selected fields from the new JSON tree structure
+    // Use raw_response for complete API data
+    const dataSource = result.raw_response || result.transformed || {};
+    const selectedFields = {};
+    document.querySelectorAll(`input.enrichment-field[data-parent-id="result_${resultIdx}"]:checked`).forEach(checkbox => {
+        const field = checkbox.dataset.field;
+        if (dataSource && dataSource[field] !== undefined) {
+            selectedFields[field] = dataSource[field];
+        }
+    });
+    
+    if (Object.keys(selectedFields).length === 0) {
+        alert('Please select at least one field to store');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}/store-enrichment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                api_name: result.api_name,
+                api_id: result.api_id,
+                selected_fields: selectedFields
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to store enrichment');
+        }
+        
+        // Refresh the page to show updated enrichment
+        location.reload();
+        
+    } catch (e) {
+        alert('Error storing enrichment: ' + e.message);
+    }
+}
+
+        // Refresh the page
+        location.reload();
+        
+    } catch (e) {
+        alert('Auto-enrichment error: ' + e.message);
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+// Auto-enrichment function removed - use Store buttons instead
+
 </script>
 {% endblock %}
