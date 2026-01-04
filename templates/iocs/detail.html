@@ -447,11 +447,11 @@
         </div>
         {% endif %}
 
-        <!-- Create Relation -->
+        <!-- Create STIX 2.1 Relationship -->
         {% if has_permission('ioc.relations.create') %}
         <div class="card">
             <div class="card-header bg-white">
-                <h6 class="mb-0">Create Relation</h6>
+                <h6 class="mb-0">Create STIX Relationship</h6>
             </div>
             <div class="card-body">
                 <form id="createRelationForm">
@@ -464,23 +464,30 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label for="relationType" class="form-label">Relation Type</label>
+                        <label for="relationType" class="form-label">Relationship Type (STIX 2.1)</label>
                         <select class="form-select" id="relationType" required>
-                            <option value="">-- Select relation type --</option>
-                            <option value="related-to">Related To</option>
+                            <option value="">-- Select STIX relationship type --</option>
                             <option value="indicates">Indicates</option>
-                            <option value="resolves-to">Resolves To</option>
-                            <option value="located-at">Located At</option>
-                            <option value="communicates-with">Communicates With</option>
                             <option value="uses">Uses</option>
-                            <option value="attributed-to">Attributed To</option>
-                            <option value="exploits">Exploits</option>
+                            <option value="related-to">Related To</option>
+                            <option value="derived-from">Derived From</option>
+                            <option value="duplicate-of">Duplicate Of</option>
                             <option value="based-on">Based On</option>
-                            <option value="created-by">Created By</option>
+                            <option value="targets">Targets</option>
+                            <option value="attributed-to">Attributed To</option>
+                            <option value="mitigates">Mitigates</option>
+                            <option value="compromises">Compromises</option>
+                            <option value="communicates-with">Communicates With</option>
+                            <option value="delivers">Delivers</option>
+                            <option value="drops">Drops</option>
+                            <option value="exploits">Exploits</option>
+                            <option value="controls">Controls</option>
+                            <option value="originates-from">Originates From</option>
                         </select>
+                        <div class="form-text">Standard STIX 2.1 relationship types</div>
                     </div>
                     <button type="submit" class="btn btn-success">
-                        <i class="bi bi-link-45deg me-1"></i> Create Relation
+                        <i class="bi bi-link-45deg me-1"></i> Create Relationship
                     </button>
                 </form>
             </div>
@@ -1298,7 +1305,7 @@ function loadRelatedIOCs() {
                                     <br>
                                     <small class="text-muted">
                                         <span class="ioc-type-badge ioc-type-${ioc.ioc_type}">${(ioc.ioc_type || '').toUpperCase()}</span>
-                                        ${ioc.relation_type ? ` • ${ioc.relation_type}` : ''}
+                                        ${ioc.relationship_type ? ` • ${ioc.relationship_type}` : ''}
                                     </small>
                                 </div>
                             </div>
@@ -1411,7 +1418,7 @@ $(document).ready(function() {
         $('#iocSearchDropdown').hide();
     });
     
-    // Create relation form submission
+    // Create STIX relationship form submission
     $('#createRelationForm').submit(function(e) {
         e.preventDefault();
         
@@ -1424,7 +1431,7 @@ $(document).ready(function() {
         }
         
         if (!relationType) {
-            showAlert('Please select a relation type', 'warning');
+            showAlert('Please select a STIX relationship type', 'warning');
             return;
         }
         
@@ -1433,10 +1440,10 @@ $(document).ready(function() {
             method: 'POST',
             data: JSON.stringify({
                 related_ioc_id: selectedId,
-                relation_type: relationType
+                relationship_type: relationType
             }),
             success: function() {
-                showAlert('Relation created successfully', 'success');
+                showAlert('STIX Relationship created successfully', 'success');
                 document.getElementById('createRelationForm').reset();
                 $('#relationIOC').removeData('selected-id');
                 loadRelatedIOCs();

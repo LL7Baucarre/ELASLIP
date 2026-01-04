@@ -591,14 +591,16 @@ class IOCService(BaseListService):
             # Add metadata fields to root level for frontend compatibility
             doc = self._enrich_with_metadata(doc)
             
-            # Get count of relations for this IOC
-            relations = self.es.search('ioc_relations', {
+            # Get count of STIX relationships for this IOC
+            source_ref = f"indicator--{hit['_id']}"
+            relations = self.es.search('stix_relationships', {
                 'query': {
                     'bool': {
                         'should': [
-                            {'term': {'source_id': hit['_id']}},
-                            {'term': {'target_id': hit['_id']}}
-                        ]
+                            {'term': {'source_ref': source_ref}},
+                            {'term': {'target_ref': source_ref}}
+                        ],
+                        'minimum_should_match': 1
                     }
                 },
                 'size': 0  # Only get count, no results

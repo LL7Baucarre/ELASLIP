@@ -491,29 +491,45 @@ def populate_demo_data():
         
         print(f"   ✓ Created {len(created_ids)} IOCs successfully")
         
-        # Create multi-level IOC relationships for graph testing
-        print("\n1b. Creating multi-level IOC relationships...")
-        from app.routes.ioc_relations import ioc_relations_bp
+        # Create multi-level STIX 2.1 relationships for graph testing
+        print("\n1b. Creating multi-level STIX 2.1 relationships...")
+        from app.models.stix_schema import STIX_RELATIONSHIP_TYPES
         
-        relation_types = ['related', 'caused_by', 'used_by', 'implements', 'variant_of']
+        # Use STIX 2.1 standard relationship types
+        stix_relationship_types = ['indicates', 'uses', 'related-to', 'derived-from', 'based-on', 
+                                    'targets', 'attributed-to', 'communicates-with', 'exploits', 'drops']
         relations_created = 0
         
+        def create_stix_relationship(source_id, target_id, relationship_type):
+            """Create a STIX 2.1 Relationship object."""
+            rel_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat() + 'Z'
+            # source_id and target_id already have indicator-- prefix
+            return {
+                'id': f'relationship--{rel_id}',
+                'type': 'relationship',
+                'spec_version': '2.1',
+                'created': now,
+                'modified': now,
+                'relationship_type': relationship_type,
+                'source_ref': source_id,
+                'target_ref': target_id
+            }
+        
         try:
-            # Create multiple levels of relationships for graph traversal testing
+            # Create multiple levels of STIX relationships for graph traversal testing
             if len(created_ids) >= 10:
                 # Level 1: Create a primary node with 3-4 direct connections
                 primary_node = created_ids[0]
                 level1_nodes = created_ids[1:4]  # 3 nodes at level 1
                 
                 for target_id in level1_nodes:
-                    relation = {
-                        'source_id': primary_node,
-                        'target_id': target_id,
-                        'relation_type': random.choice(relation_types),
-                        'created_at': datetime.utcnow().isoformat()
-                    }
-                    relation_id = str(uuid.uuid4())
-                    es.index('ioc_relations', relation_id, relation)
+                    rel_doc = create_stix_relationship(
+                        primary_node, target_id, 
+                        random.choice(stix_relationship_types)
+                    )
+                    doc_id = rel_doc['id'].replace('relationship--', '')
+                    es.index('stix_relationships', doc_id, rel_doc)
                     relations_created += 1
                 
                 # Level 2: Create relationships from level 1 nodes to level 2 nodes
@@ -521,14 +537,12 @@ def populate_demo_data():
                 
                 for level1_id in level1_nodes:
                     for level2_id in random.sample(level2_nodes, random.randint(1, 2)):
-                        relation = {
-                            'source_id': level1_id,
-                            'target_id': level2_id,
-                            'relation_type': random.choice(relation_types),
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                        relation_id = str(uuid.uuid4())
-                        es.index('ioc_relations', relation_id, relation)
+                        rel_doc = create_stix_relationship(
+                            level1_id, level2_id,
+                            random.choice(stix_relationship_types)
+                        )
+                        doc_id = rel_doc['id'].replace('relationship--', '')
+                        es.index('stix_relationships', doc_id, rel_doc)
                         relations_created += 1
                 
                 # Level 3: Create relationships from level 2 nodes to level 3 nodes
@@ -537,14 +551,12 @@ def populate_demo_data():
                     
                     for level2_id in level2_nodes:
                         for level3_id in random.sample(level3_nodes, random.randint(1, 2)):
-                            relation = {
-                                'source_id': level2_id,
-                                'target_id': level3_id,
-                                'relation_type': random.choice(relation_types),
-                                'created_at': datetime.utcnow().isoformat()
-                            }
-                            relation_id = str(uuid.uuid4())
-                            es.index('ioc_relations', relation_id, relation)
+                            rel_doc = create_stix_relationship(
+                                level2_id, level3_id,
+                                random.choice(stix_relationship_types)
+                            )
+                            doc_id = rel_doc['id'].replace('relationship--', '')
+                            es.index('stix_relationships', doc_id, rel_doc)
                             relations_created += 1
                 
                 # Level 4: Create relationships from level 3 nodes to level 4 nodes
@@ -553,14 +565,12 @@ def populate_demo_data():
                     
                     for level3_id in level3_nodes:
                         for level4_id in random.sample(level4_nodes, random.randint(1, 2)):
-                            relation = {
-                                'source_id': level3_id,
-                                'target_id': level4_id,
-                                'relation_type': random.choice(relation_types),
-                                'created_at': datetime.utcnow().isoformat()
-                            }
-                            relation_id = str(uuid.uuid4())
-                            es.index('ioc_relations', relation_id, relation)
+                            rel_doc = create_stix_relationship(
+                                level3_id, level4_id,
+                                random.choice(stix_relationship_types)
+                            )
+                            doc_id = rel_doc['id'].replace('relationship--', '')
+                            es.index('stix_relationships', doc_id, rel_doc)
                             relations_created += 1
                 
                 # Add some cross-level relationships for complexity
@@ -569,20 +579,18 @@ def populate_demo_data():
                         source_id = random.choice(created_ids[1:10])
                         target_id = random.choice(created_ids[10:20])
                         
-                        relation = {
-                            'source_id': source_id,
-                            'target_id': target_id,
-                            'relation_type': random.choice(relation_types),
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                        relation_id = str(uuid.uuid4())
-                        es.index('ioc_relations', relation_id, relation)
+                        rel_doc = create_stix_relationship(
+                            source_id, target_id,
+                            random.choice(stix_relationship_types)
+                        )
+                        doc_id = rel_doc['id'].replace('relationship--', '')
+                        es.index('stix_relationships', doc_id, rel_doc)
                         relations_created += 1
             
-            print(f"   ✓ Created {relations_created} multi-level IOC relationships (4+ levels deep)")
+            print(f"   ✓ Created {relations_created} multi-level STIX 2.1 relationships (4+ levels deep)")
             
         except Exception as e:
-            print(f"   Warning: Failed to create IOC relationships: {str(e)}")
+            print(f"   Warning: Failed to create STIX relationships: {str(e)}")
         
         # Create cases and incidents with IOC links
         print("\n2. Creating cases with related incidents...")
@@ -983,10 +991,11 @@ def populate_demo_data():
             print(f"      Warning: Failed to create incident-to-incident relationships: {str(e)}")
         
         print(f"   ✓ Created {incident_to_incident_relations} incident-to-incident relationships")
-                # Create random relationships between IOCs
+                # Create random STIX 2.1 relationships between IOCs
         if len(created_ids) > 1:
-            print("\n11. Creating random IOC relationships...")
-            relation_types = [
+            print("\n11. Creating random STIX 2.1 relationships...")
+            # Use STIX 2.1 standard relationship types
+            stix_rel_types = [
                 'communicates-with',
                 'exploits',
                 'targets',
@@ -994,35 +1003,42 @@ def populate_demo_data():
                 'based-on',
                 'attributed-to',
                 'drops',
-                'downloads'
+                'delivers',
+                'uses',
+                'related-to'
             ]
             
             es = ElasticsearchService()
             created_relations = 0
             failed_relations = 0
             
-            # Create random number of relationships between 10-50 per IOC
+            # Create random number of relationships between 20-100
             num_relations = random.randint(20, 100)
             
             for attempt in range(num_relations):
                 try:
                     source_id = random.choice(created_ids)
                     target_id = random.choice([id for id in created_ids if id != source_id])
-                    relation_type = random.choice(relation_types)
+                    relationship_type = random.choice(stix_rel_types)
                     
-                    relation_doc = {
-                        'source_id': source_id,
-                        'target_id': target_id,
-                        'relation_type': relation_type,
-                        'created': datetime.utcnow().isoformat(),
-                        'strength': random.randint(1, 10)
+                    # Create STIX 2.1 compliant relationship
+                    rel_id = str(uuid.uuid4())
+                    now = datetime.utcnow().isoformat() + 'Z'
+                    
+                    # source_id and target_id already have indicator-- prefix
+                    stix_rel_doc = {
+                        'id': f'relationship--{rel_id}',
+                        'type': 'relationship',
+                        'spec_version': '2.1',
+                        'created': now,
+                        'modified': now,
+                        'relationship_type': relationship_type,
+                        'source_ref': source_id,
+                        'target_ref': target_id
                     }
                     
-                    # Generate unique ID for this relation
-                    relation_id = str(uuid.uuid4())
-                    
-                    # Index the relation with proper arguments: (index, doc_id, document)
-                    response = es.index('ioc_relations', relation_id, relation_doc)
+                    # Index the STIX relationship
+                    response = es.index('stix_relationships', rel_id, stix_rel_doc)
                     
                     if response:
                         created_relations += 1
@@ -1031,9 +1047,9 @@ def populate_demo_data():
                         
                 except Exception as e:
                     failed_relations += 1
-                    print(f"      Warning: Failed to create relation {attempt + 1}: {str(e)}")
+                    print(f"      Warning: Failed to create STIX relationship {attempt + 1}: {str(e)}")
             
-            print(f"   ✓ Created {created_relations} relationships (out of {num_relations} attempts)")
+            print(f"   ✓ Created {created_relations} STIX relationships (out of {num_relations} attempts)")
             if failed_relations > 0:
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         

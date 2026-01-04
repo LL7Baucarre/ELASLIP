@@ -886,19 +886,23 @@ Do NOT wrap the response in code blocks."""
         return regeneration_context
 
     def _get_ioc_relations(self, ioc_id: str) -> List[Dict]:
-        """Get relations for an IOC."""
+        """Get STIX 2.1 relationships for an IOC."""
+        # Build source_ref (indicator--uuid format)
+        source_ref = f"indicator--{ioc_id}" if not ioc_id.startswith('indicator--') else ioc_id
+        
         query = {
             'query': {
                 'bool': {
                     'should': [
-                        {'term': {'source_id': ioc_id}},
-                        {'term': {'target_id': ioc_id}}
-                    ]
+                        {'term': {'source_ref': source_ref}},
+                        {'term': {'target_ref': source_ref}}
+                    ],
+                    'minimum_should_match': 1
                 }
             },
             'size': 100
         }
-        result = self.es.search('ioc_relations', query)
+        result = self.es.search('stix_relationships', query)
         items = []
         for hit in result.get('hits', {}).get('hits', []):
             doc = hit['_source']
@@ -925,19 +929,23 @@ Do NOT wrap the response in code blocks."""
             'incidents': []
         }
         
-        # 1. Get direct IOC-to-IOC relations
+        # 1. Get direct IOC-to-IOC relations (STIX 2.1 format)
+        source_ref = f"indicator--{ioc_id}" if not ioc_id.startswith('indicator--') else ioc_id
         direct_ioc_relations = self._get_ioc_relations(ioc_id)
         for relation in direct_ioc_relations:
-            source_id = relation.get('source_id')
-            target_id = relation.get('target_id')
-            related_ioc_id = target_id if source_id == ioc_id else source_id
+            rel_source_ref = relation.get('source_ref', '')
+            rel_target_ref = relation.get('target_ref', '')
+            # Get the OTHER IOC ref
+            other_ref = rel_target_ref if rel_source_ref == source_ref else rel_source_ref
+            # Extract raw ID from indicator--uuid format
+            related_ioc_id = other_ref.replace('indicator--', '') if other_ref.startswith('indicator--') else other_ref
             
             # Fetch the related IOC details
             try:
                 related_ioc = self.ioc_service.get(related_ioc_id)
                 if related_ioc:
                     related_ioc['id'] = related_ioc_id
-                    related_ioc['_relation_type'] = relation.get('relation_type', 'related-to')
+                    related_ioc['_relation_type'] = relation.get('relationship_type', 'related-to')
                     relations['iocs'].append(related_ioc)
             except Exception:
                 pass
@@ -1198,14 +1206,16 @@ Do NOT wrap the response in code blocks."""
                     detailed_relations.append(relation_entry)
                     continue
                 
-                # Handle IOC-to-IOC relations
-                # Determine the target IOC ID
-                source_id = relation.get('source_id')
-                target_id = relation.get('target_id')
+                # Handle IOC-to-IOC relations (STIX 2.1 format)
+                # Determine the target IOC ref
+                rel_source_ref = relation.get('source_ref', '')
+                rel_target_ref = relation.get('target_ref', '')
                 ioc_id = ioc.get('id')
+                ioc_ref = f"indicator--{ioc_id}" if not ioc_id.startswith('indicator--') else ioc_id
                 
                 # Get the OTHER IOC (the one that's not the main one)
-                other_id = target_id if source_id == ioc_id else source_id
+                other_ref = rel_target_ref if rel_source_ref == ioc_ref else rel_source_ref
+                other_id = other_ref.replace('indicator--', '') if other_ref.startswith('indicator--') else other_ref
                 
                 # Fetch the related IOC to get its details
                 related_ioc = self.ioc_service.get(other_id)
@@ -1218,7 +1228,7 @@ Do NOT wrap the response in code blocks."""
                     related_value = related_value.split("'")[1] if "'" in related_value else related_value
                 
                 # Extract metadata
-                relation_type = relation.get('relation_type', 'related')
+                relation_type = relation.get('relationship_type', 'related-to')
                 related_type = related_ioc.get('type', 'unknown')
                 related_threat = related_ioc.get('x_metadata', {}).get('threat_level', related_ioc.get('severity', 'unknown'))
                 related_description = related_ioc.get('description', 'No description available')
@@ -1242,20 +1252,23 @@ Do NOT wrap the response in code blocks."""
                 # Get relations of the related IOC itself to show threat chain
                 related_ioc_relations = self._get_ioc_relations(other_id)
                 related_ioc_context = ""
+                other_ref_for_secondary = f"indicator--{other_id}" if not other_id.startswith('indicator--') else other_id
+                ioc_ref_for_secondary = f"indicator--{ioc.get('id')}" if not ioc.get('id', '').startswith('indicator--') else ioc.get('id')
                 
                 if related_ioc_relations:
                     # Filter out back-references to the main IOC
                     secondary_relations = []
                     for rel in related_ioc_relations[:3]:  # Limit to 3 secondary relations
-                        rel_source = rel.get('source_id')
-                        rel_target = rel.get('target_id')
+                        rel_source_ref = rel.get('source_ref', '')
+                        rel_target_ref = rel.get('target_ref', '')
                         
                         # Skip if this relation just points back to main IOC
-                        if rel_source == ioc.get('id') or rel_target == ioc.get('id'):
+                        if rel_source_ref == ioc_ref_for_secondary or rel_target_ref == ioc_ref_for_secondary:
                             continue
                         
                         # Get the OTHER IOC in this secondary relation
-                        sec_other_id = rel_target if rel_source == other_id else rel_source
+                        sec_other_ref = rel_target_ref if rel_source_ref == other_ref_for_secondary else rel_source_ref
+                        sec_other_id = sec_other_ref.replace('indicator--', '') if sec_other_ref.startswith('indicator--') else sec_other_ref
                         secondary_ioc = self.ioc_service.get(sec_other_id)
                         
                         if secondary_ioc:
@@ -1264,7 +1277,7 @@ Do NOT wrap the response in code blocks."""
                                 sec_value = sec_value.split("'")[1] if "'" in sec_value else sec_value
                             
                             sec_threat = secondary_ioc.get('x_metadata', {}).get('threat_level', secondary_ioc.get('severity', 'unknown'))
-                            rel_type_display = rel.get('relation_type', 'related').replace('_', ' ').title()
+                            rel_type_display = rel.get('relationship_type', 'related-to').replace('_', ' ').replace('-', ' ').title()
                             secondary_relations.append(f"- This indicator **{rel_type_display}** {sec_value} (Threat: {sec_threat})")
                     
                     if secondary_relations:

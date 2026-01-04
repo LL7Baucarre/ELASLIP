@@ -351,20 +351,45 @@ SCAN_RESULTS_MAPPING = {
 }
 
 
-# IOC Relations Index Mapping
-IOC_RELATIONS_MAPPING = {
+# STIX 2.1 Relationships Index Mapping
+# Following STIX 2.1 Relationship Object (SRO) specification
+STIX_RELATIONSHIPS_MAPPING = {
     "settings": {
         "number_of_shards": 1,
         "number_of_replicas": 0
     },
     "mappings": {
         "properties": {
-            "source_id": {"type": "keyword"},
-            "target_id": {"type": "keyword"},
-            "relation_type": {"type": "keyword"},
-            "bidirectional": {"type": "boolean"},
-            "created_by": {"type": "keyword"},
-            "created_at": {"type": "date"}
+            # STIX 2.1 Common Properties
+            "id": {"type": "keyword"},  # relationship--<uuid>
+            "type": {"type": "keyword"},  # Always "relationship"
+            "spec_version": {"type": "keyword"},  # "2.1"
+            "created": {"type": "date"},
+            "modified": {"type": "date"},
+            
+            # STIX 2.1 Relationship Specific Properties
+            "relationship_type": {"type": "keyword"},  # indicates, uses, related-to, etc.
+            "source_ref": {"type": "keyword"},  # indicator--<uuid>
+            "target_ref": {"type": "keyword"},  # indicator--<uuid>
+            "description": {"type": "text"},
+            "start_time": {"type": "date"},
+            "stop_time": {"type": "date"},
+            
+            # Optional STIX 2.1 Properties
+            "created_by_ref": {"type": "keyword"},  # identity--<uuid>
+            "external_references": {
+                "type": "nested",
+                "properties": {
+                    "source_name": {"type": "keyword"},
+                    "url": {"type": "keyword"},
+                    "external_id": {"type": "keyword"}
+                }
+            },
+            "object_marking_refs": {"type": "keyword"},
+            
+            # Custom Properties (x_ prefix per STIX 2.1)
+            "x_elaslip_created_by_user_id": {"type": "keyword"},
+            "x_elaslip_created_by_username": {"type": "keyword"}
         }
     }
 }
@@ -791,7 +816,7 @@ INDICES = {
     "elaslip_enrichment_cache": ENRICHMENT_CACHE_MAPPING,
     "elaslip_import_jobs": IMPORT_JOBS_MAPPING,
     "elaslip_scan_results": SCAN_RESULTS_MAPPING,
-    "elaslip_ioc_relations": IOC_RELATIONS_MAPPING,
+    "elaslip_stix_relationships": STIX_RELATIONSHIPS_MAPPING,
     "elaslip_audit_logs": AUDIT_LOGS_MAPPING,
     "elaslip_ioc_versions": IOC_VERSIONS_MAPPING,
     "elaslip_roles": ROLES_MAPPING,

@@ -2275,7 +2275,7 @@ function createIocsFromFileHashes(data) {
 function createHashRelationships(hashIds) {
     const hashTypesList = Object.keys(hashIds);
     
-    // Create relationships between each hash pair (related)
+    // Create STIX 2.1 relationships between each hash pair
     for (let i = 0; i < hashTypesList.length; i++) {
         for (let j = i + 1; j < hashTypesList.length; j++) {
             const type1 = hashTypesList[i];
@@ -2284,18 +2284,18 @@ function createHashRelationships(hashIds) {
             const id2 = hashIds[type2];
             
             if (id1 && id2) {
-                // Create relationship from id1 to id2
+                // Create STIX relationship from id1 to id2
                 $.ajax({
                     url: `/api/ioc/${id1}/relations`,
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({
                         related_ioc_ids: [id2],
-                        relation_type: 'related'
+                        relationship_type: 'related-to'
                     }),
                     error: function(xhr) {
                         // Log error for debugging
-                        console.warn('Failed to create relation:', xhr);
+                        console.warn('Failed to create STIX relationship:', xhr);
                     }
                 });
             }

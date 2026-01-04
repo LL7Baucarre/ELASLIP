@@ -494,11 +494,11 @@ def get_graph_data():
     except Exception as e:
         current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
     
-    # Get relationships from Elasticsearch
+    # Get STIX 2.1 relationships from Elasticsearch
     try:
-        # Get IOC-IOC relations
+        # Get IOC-IOC relations (STIX 2.1 format)
         all_relations = ioc_service.es.search(
-            'ioc_relations',
+            'stix_relationships',
             {
                 'size': 10000,
                 'query': {'match_all': {}}
@@ -506,16 +506,19 @@ def get_graph_data():
         )
         
         total_relations = all_relations.get('hits', {}).get('total', {}).get('value', 0)
-        current_app.logger.info(f"Total IOC relations found: {total_relations}")
+        current_app.logger.info(f"Total STIX relationships found: {total_relations}")
         
-        # Create edges from IOC relationships
+        # Create edges from STIX relationships
         for rel in all_relations.get('hits', {}).get('hits', []):
             rel_data = rel.get('_source', {})
             rel_id = rel.get('_id', '')
             
-            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
-            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
-            relation_type = rel_data.get('relation_type', 'related-to')
+            # Extract IDs from STIX source_ref/target_ref (indicator--uuid format)
+            source_ref = rel_data.get('source_ref', '')
+            target_ref = rel_data.get('target_ref', '')
+            source_id = source_ref.replace('indicator--', '') if source_ref.startswith('indicator--') else source_ref
+            target_id = target_ref.replace('indicator--', '') if target_ref.startswith('indicator--') else target_ref
+            relationship_type = rel_data.get('relationship_type', 'related-to')
             
             # Only add edge if both nodes exist
             if source_id and target_id and source_id in node_ids and target_id in node_ids:
@@ -527,12 +530,12 @@ def get_graph_data():
                             'id': edge_id,
                             'source': source_id,
                             'target': target_id,
-                            'label': relation_type
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
     except Exception as e:
-        current_app.logger.warning(f"Could not fetch IOC relations: {str(e)}")
+        current_app.logger.warning(f"Could not fetch STIX relationships: {str(e)}")
     
     # Get IOC-Case relations from case ioc_ids
     try:
@@ -593,12 +596,12 @@ def get_graph_data():
 @main_bp.route('/api/debug/relations')
 @login_required
 def debug_relations():
-    """Debug endpoint to check relations in Elasticsearch."""
+    """Debug endpoint to check STIX 2.1 relationships in Elasticsearch."""
     service = IOCService()
     
     try:
         all_relations = service.es.search(
-            'ioc_relations',
+            'stix_relationships',
             {'size': 100, 'query': {'match_all': {}}}
         )
         
@@ -656,22 +659,29 @@ def get_ioc_graph_data(ioc_id):
         })
         node_ids.add(ioc_id)
         
-        # Get all relations for this IOC
+        # Build STIX ref for this IOC
+        ioc_ref = f"indicator--{ioc_id}"
+        
+        # Get all STIX relationships for this IOC
         all_relations = ioc_service.es.search(
-            'ioc_relations',
+            'stix_relationships',
             {'size': 10000, 'query': {'match_all': {}}}
         )
         
         related_ioc_ids = set()
         
-        # Find relations where this IOC is source or target
+        # Find STIX relationships where this IOC is source or target
         for rel in all_relations.get('hits', {}).get('hits', []):
             rel_data = rel.get('_source', {})
-            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
-            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
-            relation_type = rel_data.get('relation_type', 'related-to')
+            source_ref = rel_data.get('source_ref', '')
+            target_ref = rel_data.get('target_ref', '')
+            relationship_type = rel_data.get('relationship_type', 'related-to')
             
-            # Check if this IOC is involved in the relation
+            # Extract raw IDs from STIX refs
+            source_id = source_ref.replace('indicator--', '') if source_ref.startswith('indicator--') else source_ref
+            target_id = target_ref.replace('indicator--', '') if target_ref.startswith('indicator--') else target_ref
+            
+            # Check if this IOC is involved in the relationship
             if source_id == ioc_id and target_id:
                 related_ioc_ids.add(target_id)
                 edge_id = f"{source_id}-{target_id}"
@@ -682,9 +692,9 @@ def get_ioc_graph_data(ioc_id):
                             'id': edge_id,
                             'source': source_id,
                             'target': target_id,
-                            'label': relation_type
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
             elif target_id == ioc_id and source_id:
                 related_ioc_ids.add(source_id)
@@ -696,9 +706,9 @@ def get_ioc_graph_data(ioc_id):
                             'id': edge_id,
                             'source': source_id,
                             'target': target_id,
-                            'label': relation_type
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
         
         # Load related IOCs
