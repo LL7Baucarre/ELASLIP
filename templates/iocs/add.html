@@ -312,33 +312,40 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header bg-white">
-                        <h6 class="mb-0">STIX 2.1 Indicator Format</h6>
+                        <h6 class="mb-0">STIX 2.1 Formats Supportés</h6>
                     </div>
                     <div class="card-body">
-                        <p class="small text-muted">Required fields:</p>
+                        <p class="small text-muted"><strong>Single Indicator:</strong></p>
                         <ul class="small">
                             <li><code>type</code>: "indicator"</li>
-                            <li><code>spec_version</code>: "2.1"</li>
                             <li><code>pattern</code>: STIX pattern</li>
                             <li><code>pattern_type</code>: "stix"</li>
-                            <li><code>valid_from</code>: ISO timestamp</li>
                         </ul>
                         
-                        <p class="small text-muted mt-3">Optional fields:</p>
+                        <hr>
+                        <p class="small text-muted"><strong>Full Bundle:</strong></p>
                         <ul class="small">
-                            <li><code>id</code>: Auto-generated if missing</li>
-                            <li><code>name</code>: Indicator name</li>
-                            <li><code>description</code>: Description</li>
-                            <li><code>labels</code>: Array of labels</li>
-                            <li><code>indicator_types</code>: Type array</li>
-                            <li><code>kill_chain_phases</code>: Kill chain</li>
+                            <li><code>type</code>: "bundle"</li>
+                            <li><code>objects</code>: Array containing:
+                                <ul>
+                                    <li>indicators</li>
+                                    <li>malware</li>
+                                    <li>threat-actor</li>
+                                    <li>relationships</li>
+                                    <li>attack-pattern</li>
+                                    <li>etc.</li>
+                                </ul>
+                            </li>
                         </ul>
                     </div>
                 </div>
                 
                 <div class="card mt-4">
-                    <div class="card-header bg-white">
-                        <h6 class="mb-0">Pattern Examples</h6>
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Samples</h6>
+                        <button class="btn btn-sm btn-outline-secondary" id="loadBundleSampleBtn">
+                            <i class="bi bi-box"></i> Bundle
+                        </button>
                     </div>
                     <div class="card-body">
                         <table class="table table-sm small">
@@ -498,6 +505,56 @@ $('#loadSampleBtn').click(function() {
     validateStixJson();
 });
 
+// Sample STIX Bundle with indicator, malware and relationship
+const sampleBundle = {
+    "type": "bundle",
+    "id": "bundle--" + crypto.randomUUID(),
+    "objects": [
+        {
+            "type": "indicator",
+            "spec_version": "2.1",
+            "id": "indicator--" + crypto.randomUUID(),
+            "created": new Date().toISOString(),
+            "modified": new Date().toISOString(),
+            "name": "C2 IP Address",
+            "description": "IP address associated with malware 'ExampleRAT'.",
+            "indicator_types": ["malicious-activity"],
+            "pattern": "[ipv4-addr:value = '192.0.2.15']",
+            "pattern_type": "stix",
+            "pattern_version": "2.1",
+            "valid_from": new Date().toISOString()
+        },
+        {
+            "type": "malware",
+            "spec_version": "2.1",
+            "id": "malware--" + crypto.randomUUID(),
+            "created": new Date().toISOString(),
+            "modified": new Date().toISOString(),
+            "name": "ExampleRAT",
+            "is_family": false,
+            "malware_types": ["remote-access-trojan"],
+            "description": "A remote access trojan used for testing."
+        }
+    ]
+};
+
+// Add relationship linking indicator to malware
+sampleBundle.objects.push({
+    "type": "relationship",
+    "spec_version": "2.1",
+    "id": "relationship--" + crypto.randomUUID(),
+    "created": new Date().toISOString(),
+    "modified": new Date().toISOString(),
+    "relationship_type": "indicates",
+    "source_ref": sampleBundle.objects[0].id,
+    "target_ref": sampleBundle.objects[1].id
+});
+
+$('#loadBundleSampleBtn').click(function() {
+    $('#stixJsonInput').val(JSON.stringify(sampleBundle, null, 2));
+    validateStixJson();
+});
+
 $('#formatJsonBtn').click(function() {
     try {
         const json = JSON.parse($('#stixJsonInput').val());
@@ -518,32 +575,64 @@ function validateStixJson() {
     
     if (!input) {
         validation.html('').removeClass('text-success text-danger');
-        return false;
+        return { valid: false };
     }
     
     try {
         const json = JSON.parse(input);
-        const indicators = Array.isArray(json) ? json : [json];
         
-        for (const indicator of indicators) {
-            if (indicator.type !== 'indicator') {
-                throw new Error('Object type must be "indicator"');
+        // Check if it's a STIX bundle
+        if (json.type === 'bundle' && Array.isArray(json.objects)) {
+            const objects = json.objects;
+            const indicators = objects.filter(o => o.type === 'indicator');
+            const relationships = objects.filter(o => o.type === 'relationship');
+            const otherObjects = objects.filter(o => o.type !== 'indicator' && o.type !== 'relationship');
+            
+            // Validate indicators have required fields
+            for (const indicator of indicators) {
+                if (!indicator.pattern) {
+                    throw new Error('Indicator missing required field: pattern');
+                }
             }
-            if (!indicator.pattern) {
-                throw new Error('Missing required field: pattern');
+            
+            // Validate relationships have required fields
+            for (const rel of relationships) {
+                if (!rel.source_ref || !rel.target_ref || !rel.relationship_type) {
+                    throw new Error('Relationship missing required fields');
+                }
             }
-            if (!indicator.pattern_type) {
-                throw new Error('Missing required field: pattern_type');
+            
+            let summary = [];
+            if (indicators.length) summary.push(`${indicators.length} indicator${indicators.length > 1 ? 's' : ''}`);
+            if (relationships.length) summary.push(`${relationships.length} relationship${relationships.length > 1 ? 's' : ''}`);
+            if (otherObjects.length) summary.push(`${otherObjects.length} other object${otherObjects.length > 1 ? 's' : ''}`);
+            
+            validation.html(`<i class="bi bi-check-circle"></i> Valid STIX Bundle (${summary.join(', ')})`)
+                .removeClass('text-danger').addClass('text-success');
+            return { valid: true, isBundle: true, json: json };
+        }
+        
+        // Check if it's an array of indicators
+        const items = Array.isArray(json) ? json : [json];
+        
+        for (const item of items) {
+            if (item.type === 'indicator') {
+                if (!item.pattern) {
+                    throw new Error('Missing required field: pattern');
+                }
+            } else if (item.type !== 'relationship' && !item.type) {
+                throw new Error('Missing object type');
             }
         }
         
-        validation.html(`<i class="bi bi-check-circle"></i> Valid STIX JSON (${indicators.length} indicator${indicators.length > 1 ? 's' : ''})`)
+        const indicatorCount = items.filter(i => i.type === 'indicator').length;
+        validation.html(`<i class="bi bi-check-circle"></i> Valid STIX JSON (${indicatorCount} indicator${indicatorCount !== 1 ? 's' : ''})`)
             .removeClass('text-danger').addClass('text-success');
-        return true;
+        return { valid: true, isBundle: false, json: items };
     } catch (e) {
         validation.html('<i class="bi bi-x-circle"></i> ' + escapeHtml(e.message))
             .removeClass('text-success').addClass('text-danger');
-        return false;
+        return { valid: false };
     }
 }
 
@@ -556,14 +645,49 @@ $('#stixJsonInput').on('input', function() {
 $('#stixJsonForm').submit(function(e) {
     e.preventDefault();
     
-    if (!validateStixJson()) {
+    const result = validateStixJson();
+    if (!result.valid) {
         showAlert('Please fix JSON validation errors', 'warning');
         return;
     }
     
     const input = $('#stixJsonInput').val().trim();
     const json = JSON.parse(input);
-    const indicators = Array.isArray(json) ? json : [json];
+    
+    // Check if it's a STIX bundle with multiple object types
+    if (json.type === 'bundle' && Array.isArray(json.objects)) {
+        // Use the bundle import endpoint
+        $.ajax({
+            url: '/api/ioc/stix/bundle',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(json),
+            success: function(response) {
+                let msg = [];
+                if (response.indicators_added) msg.push(`${response.indicators_added} IOC(s)`);
+                if (response.relationships_added) msg.push(`${response.relationships_added} relationship(s)`);
+                if (response.objects_added) msg.push(`${response.objects_added} object(s)`);
+                showAlert(`Successfully imported: ${msg.join(', ')}!`, 'success');
+                setTimeout(() => {
+                    window.location.href = '/iocs';
+                }, 1500);
+            },
+            error: function(xhr) {
+                const error = xhr.responseJSON?.error || 'Import failed';
+                showAlert(error, 'danger');
+            }
+        });
+        return;
+    }
+    
+    // Handle single indicators or array
+    const indicators = Array.isArray(json) ? json.filter(i => i.type === 'indicator') : 
+                       (json.type === 'indicator' ? [json] : []);
+    
+    if (indicators.length === 0) {
+        showAlert('No indicators found in input', 'warning');
+        return;
+    }
     
     let successCount = 0;
     let errorCount = 0;
@@ -573,6 +697,7 @@ $('#stixJsonForm').submit(function(e) {
         return $.ajax({
             url: '/api/ioc/stix',
             method: 'POST',
+            contentType: 'application/json',
             data: JSON.stringify(indicator),
             success: function() {
                 successCount++;

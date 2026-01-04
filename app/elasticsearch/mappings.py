@@ -351,6 +351,90 @@ SCAN_RESULTS_MAPPING = {
 }
 
 
+# STIX 2.1 Domain Objects (SDO) Index Mapping
+# For storing non-indicator STIX objects (malware, threat-actor, attack-pattern, etc.)
+STIX_OBJECTS_MAPPING = {
+    "settings": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+    },
+    "mappings": {
+        "properties": {
+            # STIX 2.1 Common Properties
+            "id": {"type": "keyword"},  # <type>--<uuid>
+            "type": {"type": "keyword"},  # malware, threat-actor, attack-pattern, etc.
+            "spec_version": {"type": "keyword"},  # "2.1"
+            "created": {"type": "date"},
+            "modified": {"type": "date"},
+            "name": {"type": "text", "fields": {"keyword": {"type": "keyword"}}},
+            "description": {"type": "text"},
+            
+            # Optional STIX 2.1 Properties
+            "created_by_ref": {"type": "keyword"},
+            "revoked": {"type": "boolean"},
+            "labels": {"type": "keyword"},
+            "confidence": {"type": "integer"},
+            "lang": {"type": "keyword"},
+            "external_references": {
+                "type": "nested",
+                "properties": {
+                    "source_name": {"type": "keyword"},
+                    "url": {"type": "keyword"},
+                    "external_id": {"type": "keyword"},
+                    "description": {"type": "text"}
+                }
+            },
+            "object_marking_refs": {"type": "keyword"},
+            "granular_markings": {"type": "object", "enabled": False},
+            
+            # Type-specific Properties (stored as dynamic objects)
+            # Malware
+            "malware_types": {"type": "keyword"},
+            "is_family": {"type": "boolean"},
+            "aliases": {"type": "keyword"},
+            "first_seen": {"type": "date"},
+            "last_seen": {"type": "date"},
+            "operating_system_refs": {"type": "keyword"},
+            "kill_chain_phases": {
+                "type": "nested",
+                "properties": {
+                    "kill_chain_name": {"type": "keyword"},
+                    "phase_name": {"type": "keyword"}
+                }
+            },
+            
+            # Threat Actor
+            "threat_actor_types": {"type": "keyword"},
+            "roles": {"type": "keyword"},
+            "goals": {"type": "text"},
+            "sophistication": {"type": "keyword"},
+            "resource_level": {"type": "keyword"},
+            "primary_motivation": {"type": "keyword"},
+            "secondary_motivations": {"type": "keyword"},
+            
+            # Attack Pattern
+            "attack_pattern_types": {"type": "keyword"},
+            
+            # Campaign
+            "objective": {"type": "text"},
+            
+            # Tool
+            "tool_types": {"type": "keyword"},
+            "tool_version": {"type": "keyword"},
+            
+            # Vulnerability
+            "vulnerability_types": {"type": "keyword"},
+            
+            # Custom Properties (x_ prefix per STIX 2.1)
+            "x_elaslip_imported_from": {"type": "keyword"},
+            "x_elaslip_import_job_id": {"type": "keyword"},
+            "x_elaslip_created_by_user_id": {"type": "keyword"},
+            "x_elaslip_created_by_username": {"type": "keyword"}
+        }
+    }
+}
+
+
 # STIX 2.1 Relationships Index Mapping
 # Following STIX 2.1 Relationship Object (SRO) specification
 STIX_RELATIONSHIPS_MAPPING = {
@@ -816,6 +900,7 @@ INDICES = {
     "elaslip_enrichment_cache": ENRICHMENT_CACHE_MAPPING,
     "elaslip_import_jobs": IMPORT_JOBS_MAPPING,
     "elaslip_scan_results": SCAN_RESULTS_MAPPING,
+    "elaslip_stix_objects": STIX_OBJECTS_MAPPING,
     "elaslip_stix_relationships": STIX_RELATIONSHIPS_MAPPING,
     "elaslip_audit_logs": AUDIT_LOGS_MAPPING,
     "elaslip_ioc_versions": IOC_VERSIONS_MAPPING,

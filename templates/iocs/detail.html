@@ -184,6 +184,9 @@
                 </li>
             </ul>
         </div>
+        <button class="btn btn-outline-primary" id="exportBundleBtn" title="Export as STIX Bundle">
+            <i class="bi bi-box-arrow-up me-1"></i> Export Bundle
+        </button>
         <button class="btn btn-outline-danger" id="deleteBtn">
             <i class="bi bi-trash me-1"></i> Delete
         </button>
@@ -1015,6 +1018,38 @@ $(document).ready(function() {
             error: function(xhr) {
                 showAlert('Failed to delete IOC: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
                 btn.prop('disabled', false).html('<i class="bi bi-trash me-1"></i> Delete');
+            }
+        });
+    });
+    
+    // Export Bundle button handler
+    $('#exportBundleBtn').click(function(e) {
+        e.preventDefault();
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Exporting...');
+        
+        $.ajax({
+            url: `/api/ioc/${iocId}/export/bundle`,
+            method: 'GET',
+            success: function(bundle) {
+                // Create and download the JSON file
+                const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `stix_bundle_${iocId.replace('indicator--', '')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showAlert(`Bundle exported with ${bundle.objects.length} object(s)`, 'success');
+                btn.prop('disabled', false).html('<i class="bi bi-box-arrow-up me-1"></i> Export Bundle');
+            },
+            error: function(xhr) {
+                showAlert('Failed to export bundle: ' + (xhr.responseJSON?.error || 'Unknown error'), 'danger');
+                btn.prop('disabled', false).html('<i class="bi bi-box-arrow-up me-1"></i> Export Bundle');
             }
         });
     });

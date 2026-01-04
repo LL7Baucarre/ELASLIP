@@ -527,6 +527,28 @@ class STIXIndicator:
 class STIXBundle:
     """Wrapper for STIX 2.1 Bundle objects."""
     
+    # Supported STIX Domain Objects (SDO) types
+    SUPPORTED_SDO_TYPES = [
+        'indicator',      # IOCs (handled separately)
+        'malware',        # Malware information
+        'threat-actor',   # Threat actor profiles
+        'attack-pattern', # Attack patterns (MITRE ATT&CK)
+        'campaign',       # Campaigns
+        'tool',           # Tools used by threat actors
+        'vulnerability',  # Vulnerabilities
+        'infrastructure', # Infrastructure
+        'intrusion-set',  # Intrusion sets
+        'identity',       # Identity objects
+        'location',       # Geographic locations
+        'malware-analysis', # Malware analysis results
+        'note',           # Notes
+        'observed-data',  # Observed data
+        'opinion',        # Opinions
+        'report',         # Reports
+        'course-of-action', # Mitigations
+        'grouping',       # Groupings
+    ]
+    
     @classmethod
     def parse(cls, data: str) -> List['STIXIndicator']:
         """
@@ -575,6 +597,97 @@ class STIXBundle:
             raise ValueError("No valid indicators found in STIX data")
         
         return indicators
+    
+    @classmethod
+    def parse_full(cls, data: str) -> Dict[str, List]:
+        """
+        Parse ALL STIX objects from JSON string (indicators, relationships, malware, etc.).
+        
+        Args:
+            data: JSON string of STIX Indicator, Bundle, or other SDO
+        
+        Returns:
+            Dictionary with keys:
+                - 'indicators': List of STIXIndicator objects
+                - 'relationships': List of relationship dicts
+                - 'objects': List of other SDO dicts (malware, threat-actor, etc.)
+        """
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            stix_dict = json.loads(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {str(e)}")
+        
+        result = {
+            'indicators': [],
+            'relationships': [],
+            'objects': []
+        }
+        
+        stix_type = stix_dict.get('type')
+        
+        if stix_type == 'bundle':
+            # Handle STIX Bundle with multiple objects
+            objects = stix_dict.get('objects', [])
+            for obj in objects:
+                obj_type = obj.get('type')
+                
+                if obj_type == 'indicator':
+                    try:
+                        indicator = STIXIndicator.from_stix_dict(obj)
+                        result['indicators'].append(indicator)
+                    except ValueError as e:
+                        logger.warning("Skipping invalid indicator: %s", e)
+                
+                elif obj_type == 'relationship':
+                    # Validate and store relationship
+                    if cls._validate_relationship(obj):
+                        result['relationships'].append(obj)
+                    else:
+                        logger.warning("Skipping invalid relationship: missing required fields")
+                
+                elif obj_type in cls.SUPPORTED_SDO_TYPES:
+                    # Store other SDO types (malware, threat-actor, etc.)
+                    result['objects'].append(obj)
+                
+                else:
+                    logger.info("Skipping unsupported STIX object type: %s", obj_type)
+        
+        elif stix_type == 'indicator':
+            # Handle single STIX Indicator
+            try:
+                indicator = STIXIndicator.from_stix_dict(stix_dict)
+                result['indicators'].append(indicator)
+            except ValueError as e:
+                raise ValueError(f"Failed to parse STIX Indicator: {str(e)}")
+        
+        elif stix_type == 'relationship':
+            # Handle single relationship
+            if cls._validate_relationship(stix_dict):
+                result['relationships'].append(stix_dict)
+            else:
+                raise ValueError("Invalid relationship: missing required fields (source_ref, target_ref, relationship_type)")
+        
+        elif stix_type in cls.SUPPORTED_SDO_TYPES:
+            # Handle single SDO
+            result['objects'].append(stix_dict)
+        
+        else:
+            raise ValueError(f"Unsupported STIX object type: {stix_type}")
+        
+        return result
+    
+    @classmethod
+    def _validate_relationship(cls, rel: Dict) -> bool:
+        """Validate that a relationship has required fields."""
+        return all([
+            rel.get('source_ref'),
+            rel.get('target_ref'),
+            rel.get('relationship_type')
+        ])
     
     @classmethod
     def create(cls, indicators: List['STIXIndicator']) -> Bundle:
