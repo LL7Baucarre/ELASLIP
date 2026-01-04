@@ -504,9 +504,9 @@ def populate_demo_data():
     app = create_app()
     
     with app.app_context():
-        # Generate and insert STIX objects
-        print("\n1. Generating 100 random STIX 2.1 objects with diverse types...")
-        stix_objects = generate_random_stix_objects(100)
+        # Generate and insert STIX objects (increase total to ~200)
+        print("\n1. Generating 200 random STIX 2.1 objects with diverse types...")
+        stix_objects = generate_random_stix_objects(200)
         
         created_ids = []
         for i, obj_data in enumerate(stix_objects, 1):
@@ -520,7 +520,7 @@ def populate_demo_data():
                 )
                 created_ids.append(stix_object['id'])
                 if i % 10 == 0:
-                    print(f"   Created {i}/100 STIX objects...")
+                    print(f"   Created {i}/200 STIX objects...")
             except Exception as e:
                 print(f"   Error creating STIX object {i}: {str(e)}")
         
@@ -595,11 +595,11 @@ def populate_demo_data():
                             )
                             relations_created += 1
                 
-                # Add some cross-level relationships for complexity
-                for _ in range(5):
-                    if len(created_ids) > 20:
-                        source_id = random.choice(created_ids[1:10])
-                        target_id = random.choice(created_ids[10:20])
+                # Add many cross-level relationships for complexity
+                for _ in range(25):
+                    if len(created_ids) > 1:
+                        source_id = random.choice(created_ids)
+                        target_id = random.choice([cid for cid in created_ids if cid != source_id])
                         
                         STIXService.create_relationship(
                             source_ref=source_id,
@@ -1035,8 +1035,8 @@ def populate_demo_data():
             created_relations = 0
             failed_relations = 0
             
-            # Create random number of relationships between 20-100
-            num_relations = random.randint(20, 100)
+            # Create random number of relationships between 100-200 (increase for demo density)
+            num_relations = random.randint(100, 200)
             
             for attempt in range(num_relations):
                 try:
