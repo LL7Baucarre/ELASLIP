@@ -6,9 +6,6 @@
 <style>
     .type-filter-btn { margin: 0.25rem; }
     .type-filter-btn.active { box-shadow: 0 0 0 2px var(--bs-primary); }
-    .stix-object-card { transition: transform 0.2s, box-shadow 0.2s; }
-    .stix-object-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .object-type-badge { font-size: 0.7rem; text-transform: uppercase; }
     
     /* Theme-aware cards */
     html[data-theme="light"] .card {
@@ -27,13 +24,57 @@
         background-color: #495057 !important;
         color: #fff;
     }
-    html[data-theme="light"] .stix-object-card {
-        background-color: #fff !important;
-        border: 1px solid #dee2e6;
+    
+    /* Theme-aware table */
+    html[data-theme="light"] .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #212529;
     }
-    html[data-theme="light"] .stix-object-card .card-title {
-        color: #212529;
+    html[data-theme="dark"] .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #dee2e6;
     }
+    html[data-theme="dark"] .table-hover > tbody > tr:hover {
+        --bs-table-hover-bg: rgba(255,255,255,0.05);
+    }
+    html[data-theme="light"] .table-hover > tbody > tr:hover {
+        --bs-table-hover-bg: rgba(0,0,0,0.03);
+    }
+    
+    /* Bulk action bar */
+    .bulk-action-bar {
+        display: none;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    html[data-theme="light"] .bulk-action-bar {
+        background: #e7f1ff;
+        border: 1px solid #b6d4fe;
+    }
+    html[data-theme="dark"] .bulk-action-bar {
+        background: #1a3353;
+        border: 1px solid #3d6bb3;
+    }
+    .bulk-action-bar.active { display: flex; }
+    
+    /* Type badge colors */
+    .type-indicator { background: #17a2b8; }
+    .type-malware { background: #dc3545; }
+    .type-threat-actor { background: #ffc107; color: #212529; }
+    .type-attack-pattern { background: #0d6efd; }
+    .type-campaign { background: #198754; }
+    .type-tool { background: #6c757d; }
+    .type-vulnerability { background: #dc3545; }
+    .type-infrastructure { background: #6f42c1; }
+    .type-intrusion-set { background: #fd7e14; }
+    .type-identity { background: #20c997; }
+    .type-location { background: #0dcaf0; }
+    .type-course-of-action { background: #198754; }
+    
+    /* Clickable row */
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover td { background: inherit; }
 </style>
 {% endblock %}
 
@@ -85,11 +126,33 @@
         </div>
     </div>
     
-    <!-- Results -->
-    <div id="resultsContainer">
-        <div class="text-center py-5">
-            <i class="fas fa-spinner fa-spin fa-2x"></i>
-            <p class="mt-2">Loading objects...</p>
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-action-bar align-items-center justify-content-between" id="bulkActionBar">
+        <div>
+            <span id="selectedCount">0</span> object(s) selected
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-primary" onclick="bulkExport()">
+                <i class="bi bi-download me-1"></i> Export Bundle
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                <i class="bi bi-x me-1"></i> Clear Selection
+            </button>
+        </div>
+    </div>
+    
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div id="resultsContainer">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Loading objects...</p>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -106,7 +169,8 @@
 let currentPage = 1;
 let currentType = '';
 let currentSearch = '';
-const pageSize = 20;
+const pageSize = 25;
+let selectedObjects = new Set();
 
 document.addEventListener('DOMContentLoaded', function() {
     loadObjects();
@@ -149,8 +213,8 @@ async function loadObjects() {
         if (data.items.length === 0) {
             container.innerHTML = `
                 <div class="text-center py-5">
-                    <i class="bi bi-inbox fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">No STIX objects found</p>
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">No STIX objects found</p>
                     <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-primary">
                         <i class="bi bi-plus-circle me-1"></i> Create your first object
                     </a>
@@ -160,12 +224,12 @@ async function loadObjects() {
             return;
         }
         
-        renderObjects(data.items);
+        renderTable(data.items);
         renderPagination(data.total, data.pages);
         
     } catch (error) {
         container.innerHTML = `
-            <div class="alert alert-danger">
+            <div class="alert alert-danger m-3">
                 <i class="bi bi-exclamation-triangle me-2"></i>
                 Failed to load objects: ${error.message}
             </div>
@@ -173,52 +237,205 @@ async function loadObjects() {
     }
 }
 
-function renderObjects(items) {
+function renderTable(items) {
     const container = document.getElementById('resultsContainer');
     
     const html = `
-        <div class="row">
-            ${items.map(obj => renderObjectCard(obj)).join('')}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th>Type</th>
+                        <th>Name / Value</th>
+                        <th>Description</th>
+                        <th>Threat Level</th>
+                        <th>TLP</th>
+                        <th>Created</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(obj => renderTableRow(obj)).join('')}
+                </tbody>
+            </table>
         </div>
     `;
     
     container.innerHTML = html;
+    updateBulkActionBar();
 }
 
-function renderObjectCard(obj) {
-    const icon = getTypeIcon(obj.type);
-    const name = obj.name || obj.x_ioc_value || obj.pattern?.substring(0, 40) || 'Unnamed';
+function renderTableRow(obj) {
+    const name = escapeHtml(obj.name || obj.x_ioc_value || obj.pattern?.substring(0, 40) || 'Unnamed');
+    const description = obj.description ? escapeHtml(obj.description.substring(0, 60)) + (obj.description.length > 60 ? '...' : '') : '-';
     const created = new Date(obj.created).toLocaleDateString();
+    const typeClass = `type-${obj.type}`;
+    const isSelected = selectedObjects.has(obj.id);
     
-    let badges = '';
+    let threatBadge = '-';
     if (obj.x_threat_level) {
         const colors = { low: 'success', medium: 'warning', high: 'danger', critical: 'danger' };
-        badges += `<span class="badge bg-${colors[obj.x_threat_level] || 'secondary'} me-1">${obj.x_threat_level}</span>`;
+        threatBadge = `<span class="badge bg-${colors[obj.x_threat_level] || 'secondary'}">${obj.x_threat_level}</span>`;
     }
+    
+    let tlpBadge = '-';
     if (obj.x_tlp) {
-        badges += `<span class="badge bg-secondary me-1">${obj.x_tlp}</span>`;
+        tlpBadge = `<span class="badge bg-secondary">${obj.x_tlp}</span>`;
     }
     
     return `
-        <div class="col-md-6 col-lg-4 mb-3">
-            <div class="card stix-object-card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="object-type-badge badge bg-primary">${icon} ${obj.type}</span>
-                        <small class="text-muted">${created}</small>
-                    </div>
-                    <h5 class="card-title mb-2">${escapeHtml(name)}</h5>
-                    <p class="card-text text-muted small mb-2">
-                        ${obj.description ? escapeHtml(obj.description.substring(0, 100)) + '...' : 'No description'}
-                    </p>
-                    <div class="mb-2">${badges}</div>
-                    <a href="/stix/objects/${obj.id}" class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-eye me-1"></i> View Details
+        <tr class="${isSelected ? 'table-primary' : ''}">
+            <td onclick="event.stopPropagation();">
+                <input type="checkbox" class="form-check-input row-checkbox" 
+                       data-id="${obj.id}" ${isSelected ? 'checked' : ''} 
+                       onchange="toggleRowSelection('${obj.id}', this)">
+            </td>
+            <td>
+                <span class="badge ${typeClass}">${getTypeIcon(obj.type)} ${obj.type}</span>
+            </td>
+            <td>
+                <a href="/stix/objects/${obj.id}" class="text-decoration-none fw-medium">${name}</a>
+            </td>
+            <td class="text-muted small">${description}</td>
+            <td>${threatBadge}</td>
+            <td>${tlpBadge}</td>
+            <td class="text-muted small">${created}</td>
+            <td onclick="event.stopPropagation();">
+                <div class="btn-group btn-group-sm">
+                    <a href="/stix/objects/${obj.id}" class="btn btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
                     </a>
+                    <a href="/stix/objects/${obj.id}/edit" class="btn btn-outline-warning" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" onclick="deleteObject('${obj.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
                 </div>
-            </div>
-        </div>
+            </td>
+        </tr>
     `;
+}
+
+function toggleSelectAll(checkbox) {
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    rowCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedObjects.add(cb.dataset.id);
+        } else {
+            selectedObjects.delete(cb.dataset.id);
+        }
+        cb.closest('tr').classList.toggle('table-primary', checkbox.checked);
+    });
+    updateBulkActionBar();
+}
+
+function toggleRowSelection(id, checkbox) {
+    if (checkbox.checked) {
+        selectedObjects.add(id);
+    } else {
+        selectedObjects.delete(id);
+    }
+    checkbox.closest('tr').classList.toggle('table-primary', checkbox.checked);
+    updateBulkActionBar();
+    
+    // Update select all checkbox
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    const allChecked = [...allCheckboxes].every(cb => cb.checked);
+    document.getElementById('selectAll').checked = allChecked;
+}
+
+function updateBulkActionBar() {
+    const bar = document.getElementById('bulkActionBar');
+    const count = selectedObjects.size;
+    document.getElementById('selectedCount').textContent = count;
+    bar.classList.toggle('active', count > 0);
+}
+
+function clearSelection() {
+    selectedObjects.clear();
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('table-primary');
+    });
+    document.getElementById('selectAll').checked = false;
+    updateBulkActionBar();
+}
+
+async function bulkExport() {
+    if (selectedObjects.size === 0) return;
+    
+    try {
+        // Create a STIX bundle with all selected objects
+        const bundle = {
+            type: 'bundle',
+            id: `bundle--${crypto.randomUUID()}`,
+            objects: []
+        };
+        
+        for (const id of selectedObjects) {
+            const response = await fetch(`/api/stix/objects/${id}`);
+            if (response.ok) {
+                const obj = await response.json();
+                bundle.objects.push(obj);
+            }
+        }
+        
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stix-bundle-${selectedObjects.size}-objects.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+    } catch (e) {
+        alert('Export failed: ' + e.message);
+    }
+}
+
+async function bulkDelete() {
+    if (selectedObjects.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedObjects.size} object(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        let deleted = 0;
+        for (const id of selectedObjects) {
+            const response = await fetch(`/api/stix/objects/${id}`, { method: 'DELETE' });
+            if (response.ok) deleted++;
+        }
+        
+        alert(`Deleted ${deleted} object(s)`);
+        selectedObjects.clear();
+        loadObjects();
+        
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+        loadObjects();
+    }
+}
+
+async function deleteObject(id) {
+    if (!confirm('Are you sure you want to delete this object?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            loadObjects();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
 }
 
 function renderPagination(total, pages) {
@@ -237,12 +454,30 @@ function renderPagination(total, pages) {
         </li>
     `;
     
-    for (let i = 1; i <= Math.min(pages, 10); i++) {
+    // Show pages around current
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(pages, currentPage + 2);
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
         html += `
             <li class="page-item ${i === currentPage ? 'active' : ''}">
                 <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
             </li>
         `;
+    }
+    
+    if (endPage < pages) {
+        if (endPage < pages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${pages}); return false;">${pages}</a></li>`;
     }
     
     html += `
@@ -257,6 +492,7 @@ function renderPagination(total, pages) {
 function goToPage(page) {
     currentPage = page;
     loadObjects();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function getTypeIcon(type) {

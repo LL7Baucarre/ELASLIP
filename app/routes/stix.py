@@ -476,3 +476,19 @@ def view_stix_object_page(stix_id):
                           relationships=relationships,
                           relationship_types=STIXService.RELATIONSHIP_TYPES)
 
+
+@stix_bp.route('/stix/objects/<stix_id>/edit')
+@login_required
+def edit_stix_object_page(stix_id):
+    """Render the STIX object edit page"""
+    stix_object = STIXService.get_sdo(stix_id)
+    
+    if not stix_object:
+        flash('STIX object not found', 'error')
+        return redirect(url_for('stix.list_stix_objects_page'))
+    
+    return render_template('stix/edit.html',
+                          stix_object=stix_object,
+                          sdo_types=STIXService.SDO_TYPES,
+                          relationship_types=STIXService.RELATIONSHIP_TYPES)
+

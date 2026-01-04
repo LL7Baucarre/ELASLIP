@@ -88,22 +88,22 @@
                             <select id="sdoType" name="type" class="form-select form-select-lg" required>
                                 <option value="">-- Select Object Type --</option>
                                 <optgroup label="Threat Intelligence">
-                                    <option value="indicator">📊 Indicator (IOC)</option>
-                                    <option value="malware">🦠 Malware</option>
-                                    <option value="threat-actor">👤 Threat Actor</option>
-                                    <option value="attack-pattern">⚔️ Attack Pattern</option>
-                                    <option value="campaign">🎯 Campaign</option>
-                                    <option value="intrusion-set">🕵️ Intrusion Set</option>
+                                    <option value="indicator">Indicator (IOC)</option>
+                                    <option value="malware">Malware</option>
+                                    <option value="threat-actor">Threat Actor</option>
+                                    <option value="attack-pattern">Attack Pattern</option>
+                                    <option value="campaign">Campaign</option>
+                                    <option value="intrusion-set">Intrusion Set</option>
                                 </optgroup>
                                 <optgroup label="Tools & Vulnerabilities">
-                                    <option value="tool">🔧 Tool</option>
-                                    <option value="vulnerability">🔓 Vulnerability</option>
-                                    <option value="infrastructure">🏗️ Infrastructure</option>
+                                    <option value="tool">Tool</option>
+                                    <option value="vulnerability">Vulnerability</option>
+                                    <option value="infrastructure">Infrastructure</option>
                                 </optgroup>
                                 <optgroup label="Context Objects">
-                                    <option value="identity">🏢 Identity</option>
-                                    <option value="location">📍 Location</option>
-                                    <option value="course-of-action">🛡️ Course of Action</option>
+                                    <option value="identity">Identity</option>
+                                    <option value="location">Location</option>
+                                    <option value="course-of-action">Course of Action</option>
                                 </optgroup>
                             </select>
                         </div>
@@ -238,10 +238,10 @@
 <!-- Add Relationship Modal -->
 <div class="modal fade" id="addRelationshipModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark">
+        <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title"><i class="bi bi-link me-2"></i>Add Relationship</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row mb-3">
@@ -271,7 +271,7 @@
                         <input type="text" id="searchObjects" class="form-control" placeholder="Search by name...">
                     </div>
                 </div>
-                <div id="availableObjectsList" class="border rounded p-2">
+                <div id="availableObjectsList" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
                     <p class="text-muted text-center py-3">Loading available objects...</p>
                 </div>
             </div>

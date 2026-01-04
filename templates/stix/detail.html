@@ -4,13 +4,66 @@
 
 {% block extra_css %}
 <style>
-    .property-row { padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .property-label { font-weight: 500; color: #adb5bd; }
+    /* Theme-aware property rows */
+    .property-row { padding: 0.5rem 0; }
+    html[data-theme="light"] .property-row { border-bottom: 1px solid rgba(0,0,0,0.1); }
+    html[data-theme="dark"] .property-row { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    
+    html[data-theme="light"] .property-label { font-weight: 500; color: #495057; }
+    html[data-theme="dark"] .property-label { font-weight: 500; color: #adb5bd; }
+    
+    /* Theme-aware relationship cards */
     .relationship-card { transition: background 0.2s; }
-    .relationship-card:hover { background: rgba(255,255,255,0.05); }
+    html[data-theme="light"] .relationship-card:hover { background: rgba(0,0,0,0.05); }
+    html[data-theme="dark"] .relationship-card:hover { background: rgba(255,255,255,0.05); }
+    
     .stix-id { font-family: monospace; font-size: 0.85rem; word-break: break-all; }
-    .pattern-display { background: #1e1e1e; padding: 1rem; border-radius: 0.5rem; font-family: monospace; }
+    
+    /* Theme-aware pattern display */
+    html[data-theme="light"] .pattern-display { 
+        background: #f8f9fa; 
+        padding: 1rem; 
+        border-radius: 0.5rem; 
+        font-family: monospace;
+        border: 1px solid #dee2e6;
+    }
+    html[data-theme="dark"] .pattern-display { 
+        background: #1e1e1e; 
+        padding: 1rem; 
+        border-radius: 0.5rem; 
+        font-family: monospace; 
+    }
+    
+    /* Theme-aware cards */
+    html[data-theme="light"] .card {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6;
+    }
+    html[data-theme="dark"] .card {
+        background-color: #212529 !important;
+        border-color: #495057;
+    }
+    html[data-theme="light"] .card-header {
+        background-color: #e9ecef !important;
+        border-color: #dee2e6;
+        color: #212529;
+    }
+    html[data-theme="dark"] .card-header {
+        background-color: #495057 !important;
+        border-color: #495057;
+        color: #fff;
+    }
+    
+    /* Relationship graph container */
+    #relationshipGraph {
+        width: 100%;
+        height: 400px;
+        border-radius: 0.5rem;
+    }
+    html[data-theme="light"] #relationshipGraph { background: #f8f9fa; }
+    html[data-theme="dark"] #relationshipGraph { background: #1a1a1a; }
 </style>
+<script src="https://unpkg.com/cytoscape@3.25.0/dist/cytoscape.min.js"></script>
 {% endblock %}
 
 {% block content %}
@@ -27,20 +80,24 @@
                         </ol>
                     </nav>
                     <h1 class="h3 mb-2">
-                        <span class="me-2">{{ {'indicator': '📊', 'malware': '🦠', 'threat-actor': '👤', 'attack-pattern': '⚔️', 'campaign': '🎯', 'tool': '🔧', 'vulnerability': '🔓', 'infrastructure': '🏗️', 'intrusion-set': '🕵️', 'identity': '🏢', 'location': '📍', 'course-of-action': '🛡️'}.get(stix_object.type, '📦') }}</span>
+                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check'} %}
+                        <i class="bi {{ type_icons.get(stix_object.type, 'bi-box') }} me-2"></i>
                         {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
                     </h1>
                     <p class="stix-id text-muted">{{ stix_object.id }}</p>
                 </div>
                 <div class="btn-group">
                     <a href="{{ url_for('stix.list_stix_objects_page') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-arrow-left me-1"></i> Back
+                        <i class="bi bi-arrow-left me-1"></i> Back
+                    </a>
+                    <a href="{{ url_for('stix.edit_stix_object_page', stix_id=stix_object.id) }}" class="btn btn-outline-warning">
+                        <i class="bi bi-pencil me-1"></i> Edit
                     </a>
                     <button class="btn btn-outline-primary" onclick="exportBundle()">
-                        <i class="fas fa-download me-1"></i> Export Bundle
+                        <i class="bi bi-download me-1"></i> Export Bundle
                     </button>
                     <button class="btn btn-outline-danger" onclick="deleteObject()">
-                        <i class="fas fa-trash me-1"></i> Delete
+                        <i class="bi bi-trash me-1"></i> Delete
                     </button>
                 </div>
             </div>
@@ -52,9 +109,9 @@
         <div class="col-lg-8">
             <!-- Description -->
             {% if stix_object.description %}
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-align-left me-2"></i>Description</h5>
+                    <h5 class="mb-0"><i class="bi bi-text-left me-2"></i>Description</h5>
                 </div>
                 <div class="card-body">
                     <p class="mb-0">{{ stix_object.description }}</p>
@@ -63,9 +120,9 @@
             {% endif %}
             
             <!-- Type-specific Properties -->
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>{{ stix_object.type|title }} Properties</h5>
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>{{ stix_object.type|title }} Properties</h5>
                 </div>
                 <div class="card-body">
                     {% if stix_object.type == 'indicator' %}
@@ -175,7 +232,7 @@
                             {% for ref in stix_object.external_references %}
                                 {% if ref.external_id %}
                                 <a href="{{ ref.url }}" target="_blank" class="badge bg-danger text-decoration-none ms-1">
-                                    {{ ref.external_id }} <i class="fas fa-external-link-alt ms-1"></i>
+                                    {{ ref.external_id }} <i class="bi bi-box-arrow-up-right ms-1"></i>
                                 </a>
                                 {% endif %}
                             {% endfor %}
@@ -238,11 +295,11 @@
             </div>
             
             <!-- Relationships -->
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-project-diagram me-2"></i>Relationships</h5>
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Relationships</h5>
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addRelModal">
-                        <i class="fas fa-plus me-1"></i> Add
+                        <i class="bi bi-plus me-1"></i> Add
                     </button>
                 </div>
                 <div class="card-body">
@@ -254,7 +311,7 @@
                         <div class="relationship-card p-2 rounded mb-2">
                             <div class="d-flex align-items-center justify-content-between">
                                 <div>
-                                    <i class="fas fa-{{ 'arrow-right text-success' if direction == 'outgoing' else 'arrow-left text-info' }} me-2"></i>
+                                    <i class="bi bi-{{ 'arrow-right text-success' if direction == 'outgoing' else 'arrow-left text-info' }} me-2"></i>
                                     <span class="badge bg-secondary">{{ rel.relationship_type }}</span>
                                     {% if other_obj %}
                                     <a href="{{ url_for('stix.view_stix_object_page', stix_id=other_id) }}" class="ms-2">
@@ -266,16 +323,30 @@
                                     {% endif %}
                                 </div>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteRelationship('{{ rel.id }}')">
-                                    <i class="fas fa-times"></i>
+                                    <i class="bi bi-x"></i>
                                 </button>
                             </div>
                         </div>
                         {% endfor %}
                     {% else %}
                         <p class="text-muted text-center py-3 mb-0">
-                            <i class="fas fa-info-circle me-1"></i> No relationships defined
+                            <i class="bi bi-info-circle me-1"></i> No relationships defined
                         </p>
                     {% endif %}
+                </div>
+            </div>
+            
+            <!-- Relationship Graph -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-share me-2"></i>Relationship Graph</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" onclick="fitGraph()"><i class="bi bi-arrows-fullscreen"></i></button>
+                        <button class="btn btn-outline-secondary" onclick="resetLayout()"><i class="bi bi-arrow-counterclockwise"></i></button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="relationshipGraph"></div>
                 </div>
             </div>
         </div>
@@ -283,9 +354,9 @@
         <!-- Sidebar -->
         <div class="col-lg-4">
             <!-- Metadata -->
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Metadata</h5>
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Metadata</h5>
                 </div>
                 <div class="card-body">
                     <div class="property-row">
@@ -331,9 +402,9 @@
             
             <!-- Labels -->
             {% if stix_object.labels %}
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Labels</h5>
+                    <h5 class="mb-0"><i class="bi bi-tags me-2"></i>Labels</h5>
                 </div>
                 <div class="card-body">
                     {% for label in stix_object.labels %}
@@ -345,9 +416,9 @@
             
             <!-- External References -->
             {% if stix_object.external_references %}
-            <div class="card bg-dark mb-4">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-external-link-alt me-2"></i>External References</h5>
+                    <h5 class="mb-0"><i class="bi bi-box-arrow-up-right me-2"></i>External References</h5>
                 </div>
                 <div class="card-body">
                     {% for ref in stix_object.external_references %}
@@ -359,7 +430,7 @@
                         {% if ref.url %}
                         <br><a href="{{ ref.url }}" target="_blank" class="small">
                             {{ ref.url[:50] }}{% if ref.url|length > 50 %}...{% endif %}
-                            <i class="fas fa-external-link-alt ms-1"></i>
+                            <i class="bi bi-box-arrow-up-right ms-1"></i>
                         </a>
                         {% endif %}
                     </div>
@@ -369,13 +440,13 @@
             {% endif %}
             
             <!-- Raw JSON -->
-            <div class="card bg-dark">
+            <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-code me-2"></i>Raw JSON</h5>
+                    <h5 class="mb-0"><i class="bi bi-code me-2"></i>Raw JSON</h5>
                 </div>
                 <div class="card-body">
                     <button class="btn btn-sm btn-outline-secondary w-100" onclick="showRawJson()">
-                        <i class="fas fa-eye me-1"></i> View Raw STIX JSON
+                        <i class="bi bi-eye me-1"></i> View Raw STIX JSON
                     </button>
                 </div>
             </div>
@@ -386,10 +457,10 @@
 <!-- Add Relationship Modal -->
 <div class="modal fade" id="addRelModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark">
+        <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Add Relationship</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title"><i class="bi bi-link me-2"></i>Add Relationship</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row mb-3">
@@ -406,14 +477,14 @@
                         <input type="text" id="searchRelTarget" class="form-control" placeholder="Search...">
                     </div>
                 </div>
-                <div id="availableTargets" style="max-height: 300px; overflow-y: auto;">
+                <div id="availableTargets" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
                     <p class="text-center text-muted py-3">Loading...</p>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirmAddRel" disabled onclick="confirmAddRelationship()">
-                    Add Relationship
+                    <i class="bi bi-plus-circle me-1"></i> Add Relationship
                 </button>
             </div>
         </div>
@@ -423,17 +494,17 @@
 <!-- Raw JSON Modal -->
 <div class="modal fade" id="rawJsonModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content bg-dark">
+        <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Raw STIX JSON</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title"><i class="bi bi-code-slash me-2"></i>Raw STIX JSON</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <pre id="rawJsonContent" style="max-height: 500px; overflow: auto;"></pre>
+                <pre id="rawJsonContent" class="p-3 rounded" style="max-height: 500px; overflow: auto;"></pre>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-primary" onclick="copyRawJson()">
-                    <i class="fas fa-copy me-1"></i> Copy
+                    <i class="bi bi-clipboard me-1"></i> Copy
                 </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
@@ -446,16 +517,155 @@
 <script>
 const stixObject = {{ stix_object | tojson | safe }};
 const objectId = '{{ stix_object.id }}';
+const relatedObjects = {{ related_objects | tojson | safe }};
+const relationships = {{ relationships | tojson | safe }};
 let availableObjects = [];
 let selectedTarget = null;
+let cy = null;
+
+// Color scheme for STIX types
+const typeColors = {
+    'indicator': '#17a2b8',
+    'malware': '#dc3545',
+    'threat-actor': '#ffc107',
+    'attack-pattern': '#0d6efd',
+    'campaign': '#198754',
+    'tool': '#6c757d',
+    'vulnerability': '#dc3545',
+    'infrastructure': '#6f42c1',
+    'intrusion-set': '#fd7e14',
+    'identity': '#20c997',
+    'location': '#0dcaf0',
+    'course-of-action': '#198754'
+};
 
 document.addEventListener('DOMContentLoaded', function() {
     loadAvailableObjects();
+    initRelationshipGraph();
     
     document.getElementById('searchRelTarget').addEventListener('input', function() {
         filterTargets(this.value);
     });
 });
+
+function initRelationshipGraph() {
+    const container = document.getElementById('relationshipGraph');
+    if (!container) return;
+    
+    // Build nodes - current object + related objects
+    const nodes = [{
+        data: {
+            id: stixObject.id,
+            label: stixObject.name || stixObject.x_ioc_value || stixObject.type,
+            type: stixObject.type,
+            color: typeColors[stixObject.type] || '#6c757d',
+            isCurrent: true
+        }
+    }];
+    
+    relatedObjects.forEach(obj => {
+        nodes.push({
+            data: {
+                id: obj.id,
+                label: obj.name || obj.x_ioc_value || obj.type,
+                type: obj.type,
+                color: typeColors[obj.type] || '#6c757d',
+                isCurrent: false
+            }
+        });
+    });
+    
+    // Build edges
+    const edges = relationships.map(rel => ({
+        data: {
+            id: rel.id,
+            source: rel.source_ref,
+            target: rel.target_ref,
+            label: rel.relationship_type
+        }
+    }));
+    
+    // Initialize Cytoscape
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    
+    cy = cytoscape({
+        container: container,
+        elements: { nodes, edges },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'label': 'data(label)',
+                    'background-color': 'data(color)',
+                    'color': isDark ? '#fff' : '#333',
+                    'text-valign': 'bottom',
+                    'text-halign': 'center',
+                    'font-size': '11px',
+                    'text-margin-y': 5,
+                    'width': 40,
+                    'height': 40,
+                    'border-width': 3,
+                    'border-color': 'data(color)'
+                }
+            },
+            {
+                selector: 'node[?isCurrent]',
+                style: {
+                    'width': 55,
+                    'height': 55,
+                    'border-width': 4,
+                    'font-weight': 'bold'
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'label': 'data(label)',
+                    'curve-style': 'bezier',
+                    'target-arrow-shape': 'triangle',
+                    'line-color': isDark ? '#666' : '#aaa',
+                    'target-arrow-color': isDark ? '#666' : '#aaa',
+                    'font-size': '9px',
+                    'color': isDark ? '#aaa' : '#666',
+                    'text-rotation': 'autorotate',
+                    'text-margin-y': -10
+                }
+            }
+        ],
+        layout: {
+            name: 'cose',
+            padding: 30,
+            nodeRepulsion: 5000,
+            idealEdgeLength: 100
+        },
+        minZoom: 0.3,
+        maxZoom: 3
+    });
+    
+    // Node click handler
+    cy.on('tap', 'node', function(evt) {
+        const nodeId = evt.target.id();
+        if (nodeId !== objectId) {
+            window.location.href = `/stix/objects/${nodeId}`;
+        }
+    });
+}
+
+function fitGraph() {
+    if (cy) cy.fit(50);
+}
+
+function resetLayout() {
+    if (cy) {
+        cy.layout({
+            name: 'cose',
+            padding: 30,
+            nodeRepulsion: 5000,
+            idealEdgeLength: 100,
+            animate: true
+        }).run();
+    }
+}
 
 async function loadAvailableObjects() {
     try {
@@ -484,7 +694,7 @@ function renderTargets(objects) {
                         <strong>${escapeHtml(name)}</strong>
                         <span class="badge bg-secondary ms-2">${obj.type}</span>
                     </div>
-                    <i class="fas fa-check text-success d-none check-mark"></i>
+                    <i class="bi bi-check text-success d-none check-mark"></i>
                 </div>
             </div>
         `;
