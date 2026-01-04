@@ -656,8 +656,8 @@ document.getElementById('iocSearch').addEventListener('input', debounce(function
             
             results.innerHTML = items.map(ioc => `
                 <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${ioc.id}')">
-                    <div class="fw-bold">${escapeHtml(ioc.value || ioc.ioc_value)}</div>
-                    <small class="text-muted">${ioc.type || ioc.ioc_type}</small>
+                    <div class="fw-bold">${escapeHtml(ioc.name || ioc.pattern || ioc.ioc_value || ioc.value || 'Unknown')}</div>
+                    <small class="text-muted">${ioc.type || ioc.ioc_type} - ${escapeHtml((ioc.ioc_value || ioc.value || '').substring(0, 50))}</small>
                 </button>
             `).join('');
         });

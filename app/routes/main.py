@@ -513,23 +513,21 @@ def get_graph_data():
             rel_data = rel.get('_source', {})
             rel_id = rel.get('_id', '')
             
-            # Extract IDs from STIX source_ref/target_ref (indicator--uuid format)
+            # source_ref/target_ref are in indicator--uuid format, same as node IDs
             source_ref = rel_data.get('source_ref', '')
             target_ref = rel_data.get('target_ref', '')
-            source_id = source_ref.replace('indicator--', '') if source_ref.startswith('indicator--') else source_ref
-            target_id = target_ref.replace('indicator--', '') if target_ref.startswith('indicator--') else target_ref
             relationship_type = rel_data.get('relationship_type', 'related-to')
             
-            # Only add edge if both nodes exist
-            if source_id and target_id and source_id in node_ids and target_id in node_ids:
-                edge_id = f"{source_id}-{target_id}"
+            # Only add edge if both nodes exist (use full indicator--uuid format)
+            if source_ref and target_ref and source_ref in node_ids and target_ref in node_ids:
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
+                            'source': source_ref,
+                            'target': target_ref,
                             'label': relationship_type
                         },
                         'classes': f"relation-{relationship_type.replace('-', '_')}"

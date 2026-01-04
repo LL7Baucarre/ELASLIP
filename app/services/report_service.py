@@ -935,10 +935,10 @@ Do NOT wrap the response in code blocks."""
         for relation in direct_ioc_relations:
             rel_source_ref = relation.get('source_ref', '')
             rel_target_ref = relation.get('target_ref', '')
-            # Get the OTHER IOC ref
+            # Get the OTHER IOC ref (already in indicator--uuid format)
             other_ref = rel_target_ref if rel_source_ref == source_ref else rel_source_ref
-            # Extract raw ID from indicator--uuid format
-            related_ioc_id = other_ref.replace('indicator--', '') if other_ref.startswith('indicator--') else other_ref
+            # Use full indicator--uuid format as that's how IOCs are stored
+            related_ioc_id = other_ref
             
             # Fetch the related IOC details
             try:
@@ -1215,7 +1215,8 @@ Do NOT wrap the response in code blocks."""
                 
                 # Get the OTHER IOC (the one that's not the main one)
                 other_ref = rel_target_ref if rel_source_ref == ioc_ref else rel_source_ref
-                other_id = other_ref.replace('indicator--', '') if other_ref.startswith('indicator--') else other_ref
+                # Use full indicator--uuid format as that's how IOCs are stored
+                other_id = other_ref
                 
                 # Fetch the related IOC to get its details
                 related_ioc = self.ioc_service.get(other_id)
@@ -1268,7 +1269,8 @@ Do NOT wrap the response in code blocks."""
                         
                         # Get the OTHER IOC in this secondary relation
                         sec_other_ref = rel_target_ref if rel_source_ref == other_ref_for_secondary else rel_source_ref
-                        sec_other_id = sec_other_ref.replace('indicator--', '') if sec_other_ref.startswith('indicator--') else sec_other_ref
+                        # Use full indicator--uuid format as that's how IOCs are stored
+                        sec_other_id = sec_other_ref
                         secondary_ioc = self.ioc_service.get(sec_other_id)
                         
                         if secondary_ioc:

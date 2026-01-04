@@ -453,7 +453,7 @@ def search_iocs_api():
         es_result = es_service.search('ioc', {
             "query": es_query,
             "size": min(size, 100),
-            "_source": ["ioc_value", "value", "ioc_type", "type", "pattern", "name", "source", "sources"]
+            "_source": ["ioc_value", "value", "ioc_type", "type", "pattern", "name", "source", "sources", "x_metadata.ioc_value", "x_metadata.ioc_type"]
         })
         
         items = []
@@ -461,7 +461,12 @@ def search_iocs_api():
             item = doc['_source']
             item['id'] = doc['_id']
             
-            # Add compatibility fields
+            # Add compatibility fields from x_metadata if not at root level
+            x_meta = item.get('x_metadata', {})
+            if 'ioc_value' not in item and x_meta.get('ioc_value'):
+                item['ioc_value'] = x_meta['ioc_value']
+            if 'ioc_type' not in item and x_meta.get('ioc_type'):
+                item['ioc_type'] = x_meta['ioc_type']
             if 'ioc_value' in item and 'value' not in item:
                 item['value'] = item['ioc_value']
             if 'ioc_type' in item and 'type' not in item:
