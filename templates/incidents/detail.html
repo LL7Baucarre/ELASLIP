@@ -355,13 +355,13 @@
             </div>
         </div>
 
-        <!-- IOCs Tab -->
+        <!-- STIX Objects Tab -->
         <div class="tab-pane fade" id="iocs">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked IOCs</h6>
+                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked STIX Objects</h6>
                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIocModal">
-                        <i class="bi bi-plus"></i> Link IOC
+                        <i class="bi bi-plus"></i> Link STIX Object
                     </button>
                 </div>
                 <div class="card-body">
@@ -373,13 +373,30 @@
     
     <!-- Graph Visualization -->
     <div class="card mb-4">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h6 class="mb-0">
                 <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
             </h6>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('stix')" id="incFilterStix" title="Toggle STIX Objects">
+                    <i class="bi bi-shield-check"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('case')" id="incFilterCase" title="Toggle Cases">
+                    <i class="bi bi-folder"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="toggleIncidentGraphFilter('incident')" id="incFilterIncident" title="Toggle Incidents">
+                    <i class="bi bi-exclamation-triangle"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="fitIncidentGraph()" title="Fit to View">
+                    <i class="bi bi-arrows-fullscreen"></i>
+                </button>
+                <button class="btn btn-outline-secondary" onclick="resetIncidentLayout()" title="Reset Layout">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            </div>
         </div>
-        <div class="card-body">
-            <div id="incidentGraphContainer" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px;"></div>
+        <div class="card-body p-0">
+            <div id="incidentGraphContainer" style="width: 100%; height: 450px; border-radius: 0 0 6px 6px;"></div>
         </div>
     </div>
 </div>
@@ -570,16 +587,16 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Link IOC to Incident</h5>
+                <h5 class="modal-title">Link STIX Object to Incident</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Search IOCs</label>
-                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by value...">
+                    <label class="form-label">Search STIX Objects</label>
+                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by name, pattern, or value...">
                 </div>
                 <div id="iocSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;">
-                    <div class="text-center text-muted py-3">Search for IOCs to link</div>
+                    <div class="text-center text-muted py-3">Search for STIX objects to link</div>
                 </div>
             </div>
         </div>
@@ -1033,27 +1050,27 @@ function loadIOCs() {
     
     const container = document.getElementById('iocsContainer');
     if (!iocIds || iocIds.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+        container.innerHTML = '<div class="text-center text-muted">No linked STIX objects</div>';
         return;
     }
     
-    Promise.all(iocIds.map(id => fetch(`/api/ioc/${id}`).then(r => r.json()).catch(() => null)))
-        .then(iocs => {
-            const valid = iocs.filter(i => i);
+    Promise.all(iocIds.map(id => fetch(`/api/stix/objects/${id}`).then(r => r.json()).catch(() => null)))
+        .then(objects => {
+            const valid = objects.filter(i => i);
             container.innerHTML = `
                 <table class="table table-sm">
-                    <thead><tr><th>Value</th><th>Type</th><th>Threat Level</th><th></th></tr></thead>
+                    <thead><tr><th>Name</th><th>Type</th><th>Threat Level</th><th></th></tr></thead>
                     <tbody>
-                        ${valid.map(ioc => {
-                            const value = ioc.ioc_value || ioc.value || (ioc.x_metadata && ioc.x_metadata.ioc_value);
-                            const type = (ioc.x_metadata && ioc.x_metadata.ioc_type) || ioc.ioc_type || 'unknown';
-                            const threat_level = (ioc.x_metadata && ioc.x_metadata.threat_level) || ioc.threat_level || '-';
+                        ${valid.map(obj => {
+                            const name = obj.name || obj.pattern || (obj.x_metadata && obj.x_metadata.ioc_value) || 'Unknown';
+                            const type = obj.type || 'unknown';
+                            const threat_level = (obj.x_metadata && obj.x_metadata.threat_level) || '-';
                             return `
                                 <tr>
-                                    <td><a href="/iocs/${ioc.id}">${escapeHtml(value)}</a></td>
+                                    <td><a href="/stix/objects/${obj.id}">${escapeHtml(name)}</a></td>
                                     <td><span class="badge bg-secondary">${type}</span></td>
                                     <td>${threat_level}</td>
-                                    <td><button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')"><i class="bi bi-x"></i></button></td>
+                                    <td><button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${obj.id}')"><i class="bi bi-x"></i></button></td>
                                 </tr>
                             `;
                         }).join('')}
@@ -1062,8 +1079,8 @@ function loadIOCs() {
             `;
         })
         .catch(err => {
-            console.error('Error loading IOCs:', err);
-            container.innerHTML = '<div class="alert alert-warning">Error loading IOCs</div>';
+            console.error('Error loading STIX objects:', err);
+            container.innerHTML = '<div class="alert alert-warning">Error loading STIX objects</div>';
         });
 }
 
@@ -1076,9 +1093,9 @@ function linkIOC(iocId) {
     .then(r => { if (r.ok) location.reload(); });
 }
 
-function unlinkIOC(iocId) {
-    if (!confirm('Unlink this IOC?')) return;
-    fetch(`/api/incidents/${incidentId}/iocs/${iocId}`, { method: 'DELETE' })
+function unlinkIOC(stixId) {
+    if (!confirm('Unlink this STIX object?')) return;
+    fetch(`/api/incidents/${incidentId}/iocs/${stixId}`, { method: 'DELETE' })
         .then(r => { if (r.ok) location.reload(); });
 }
 
@@ -1261,30 +1278,30 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // IOC Search
+    // STIX Object Search
     const iocSearch = document.getElementById('iocSearch');
     if (iocSearch) {
         iocSearch.addEventListener('input', debounce(function() {
             const query = this.value.trim();
             if (query.length < 2) {
-                document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for IOCs to link</div>';
+                document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for STIX objects to link</div>';
                 return;
             }
             
-            fetch(`/api/search/iocs?q=${encodeURIComponent(query)}&size=10`)
+            fetch(`/api/stix/search?q=${encodeURIComponent(query)}&size=10`)
                 .then(r => r.json())
                 .then(data => {
                     const results = document.getElementById('iocSearchResults');
                     const items = data.items || data.results || [];
                     if (items.length === 0) {
-                        results.innerHTML = '<div class="text-center text-muted py-3">No IOCs found</div>';
+                        results.innerHTML = '<div class="text-center text-muted py-3">No STIX objects found</div>';
                         return;
                     }
                     
-                    results.innerHTML = items.map(ioc => `
-                        <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${ioc.id}')">
-                            <div class="fw-bold">${escapeHtml(ioc.name || ioc.pattern || ioc.ioc_value || ioc.value || 'Unknown')}</div>
-                            <small class="text-muted">${ioc.type || ioc.ioc_type} - ${escapeHtml((ioc.ioc_value || ioc.value || '').substring(0, 50))}</small>
+                    results.innerHTML = items.map(obj => `
+                        <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${obj.id}')">
+                            <div class="fw-bold">${escapeHtml(obj.name || obj.pattern || 'Unknown')}</div>
+                            <small class="text-muted">${obj.type || 'unknown'}</small>
                         </button>
                     `).join('');
                 });
@@ -1608,6 +1625,16 @@ function initIncidentGraph(nodes, edges, incidentId) {
                 }
             },
             {
+                selector: 'node[entity_type="stix"]',
+                style: {
+                    'shape': 'ellipse',
+                    'background-color': '#17a2b8',
+                    'border-color': '#138496',
+                    'width': 40,
+                    'height': 40
+                }
+            },
+            {
                 selector: 'edge',
                 style: {
                     'line-color': '#999',
@@ -1661,11 +1688,51 @@ function initIncidentGraph(nodes, edges, incidentId) {
                 window.location.href = `/cases/${nodeId}`;
             } else if (entityType === 'incident') {
                 window.location.href = `/incidents/${nodeId}`;
-            } else if (entityType === 'ioc') {
-                window.location.href = `/iocs/${nodeId}`;
+            } else if (entityType === 'stix') {
+                window.location.href = `/stix/objects/${nodeId}`;
             }
         }
     });
+}
+
+// Graph filter state for incident
+let incGraphFilters = { stix: true, case: true, incident: true };
+
+function toggleIncidentGraphFilter(type) {
+    incGraphFilters[type] = !incGraphFilters[type];
+    const btn = document.getElementById('incFilter' + type.charAt(0).toUpperCase() + type.slice(1));
+    btn.classList.toggle('active', incGraphFilters[type]);
+    btn.classList.toggle('btn-primary', incGraphFilters[type]);
+    btn.classList.toggle('btn-outline-secondary', !incGraphFilters[type]);
+    
+    if (incidentCy) {
+        incidentCy.nodes().forEach(node => {
+            const entityType = node.data('entity_type');
+            if (entityType === type) {
+                if (incGraphFilters[type]) {
+                    node.style('display', 'element');
+                } else {
+                    node.style('display', 'none');
+                }
+            }
+        });
+    }
+}
+
+function fitIncidentGraph() {
+    if (incidentCy) incidentCy.fit(50);
+}
+
+function resetIncidentLayout() {
+    if (incidentCy) {
+        incidentCy.layout({
+            name: 'cose',
+            animate: true,
+            animationDuration: 400,
+            nodeSpacing: 30,
+            padding: 40
+        }).run();
+    }
 }
 
 function loadIncidentGraph() {
@@ -1690,6 +1757,7 @@ function loadIncidentGraph() {
             // Add colors for nodes
             const getColorForEntity = (type) => {
                 const colors = {
+                    'stix': '#17a2b8',
                     'ioc': '#0dcaf0',
                     'case': '#0d6efd',
                     'incident': '#dc3545',
@@ -1699,7 +1767,7 @@ function loadIncidentGraph() {
             };
             
             data.nodes.forEach(node => {
-                const type = node.data.entity_type || 'ioc';
+                const type = node.data.entity_type || 'stix';
                 node.data.color = getColorForEntity(type);
             });
             

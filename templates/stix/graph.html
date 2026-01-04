@@ -328,9 +328,9 @@
 {% block content %}
 <div class="graph-container">
     <div id="cy">
-        <div id="emptyGraphMessage">
-            <p><i class="bi bi-search" style="font-size: 32px; display: block; margin-bottom: 10px;"></i></p>
-            <p>Please perform a search to display STIX objects on the graph</p>
+        <div id="emptyGraphMessage" style="display: none;">
+            <p><i class="bi bi-diagram-3" style="font-size: 32px; display: block; margin-bottom: 10px;"></i></p>
+            <p>No STIX objects found. Create some objects to see them in the graph.</p>
         </div>
     </div>
 
@@ -611,7 +611,7 @@ function initGraph(nodes, edges) {
         } else if (entityType === 'incident') {
             window.location.href = `/incidents/${nodeId}`;
         } else {
-            window.location.href = `/stix/${nodeId}`;
+            window.location.href = `/stix/objects/${nodeId}`;
         }
     });
 
@@ -644,9 +644,17 @@ function loadGraph() {
 
             initGraph(nodes, edges);
             
-            cy.nodes().hide();
-            cy.edges().hide();
-            document.getElementById('emptyGraphMessage').style.display = 'block';
+            // Show all objects by default for general view
+            if (nodes.length > 0) {
+                cy.nodes().show();
+                cy.edges().show();
+                document.getElementById('emptyGraphMessage').style.display = 'none';
+                cy.fit(null, 50);
+            } else {
+                cy.nodes().hide();
+                cy.edges().hide();
+                document.getElementById('emptyGraphMessage').style.display = 'block';
+            }
         },
         error: function(xhr) {
             console.error('Error loading graph data:', xhr);
@@ -753,7 +761,7 @@ function showNodeInfo(node) {
     }
 
     let viewUrl = entityType === 'case' ? `/cases/${data.id}` : 
-                  entityType === 'incident' ? `/incidents/${data.id}` : `/stix/${data.id}`;
+                  entityType === 'incident' ? `/incidents/${data.id}` : `/stix/objects/${data.id}`;
     let viewText = entityType === 'case' ? 'View Case' : 
                    entityType === 'incident' ? 'View Incident' : 'View STIX Object';
     

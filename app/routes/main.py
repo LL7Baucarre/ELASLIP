@@ -217,6 +217,21 @@ def dashboard():
     except:
         stix_type_stats = {}
     
+    # Get STIX objects by labels
+    try:
+        stix_by_labels = es.aggregate('stix_objects', {
+            'by_labels': {'terms': {'field': 'labels', 'size': 50}}
+        })
+        labels_stats = {b['key']: b['doc_count'] 
+                        for b in stix_by_labels.get('aggregations', {}).get('by_labels', {}).get('buckets', [])}
+    except:
+        labels_stats = {}
+    
+    # Create stats object for template
+    stats = {
+        'by_label': labels_stats
+    }
+    
     # Get recent STIX objects
     try:
         recent_stix = stix_service.list(page=1, per_page=5)
@@ -324,6 +339,7 @@ def dashboard():
                           incidents_severity_stats=incidents_severity_stats,
                           stix_type_stats=stix_type_stats,
                           iocs_threat_stats=stix_type_stats,  # Backward compatibility
+                          stats=stats,
                           all_recent=all_recent,
                           unresolved_submissions=unresolved_submissions)
 
@@ -378,7 +394,7 @@ def get_graph_data():
     
     # Get all STIX objects with limit
     limit = request.args.get('limit', default=100, type=int)
-    all_stix = stix_service.list(page=1, per_page=limit)
+    all_stix = stix_service.list_sdos(page=1, size=limit)
     
     nodes = []
     edges = []

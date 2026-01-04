@@ -6,7 +6,7 @@ from flask_login import login_required, current_user
 
 from app.decorators import permission_required
 from app.services.submission_service import SubmissionService
-from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.services.audit_service import AuditService
 from app.services.notification_service import NotificationService
 from app.models.stix_schema import STIXIndicator
@@ -545,14 +545,14 @@ def view_submission(submission_id):
     if not submission:
         return render_template('error.html', error='Submission not found'), 404
     
-    # Get matched IOCs if any
+    # Get matched STIX objects if any
     matched_iocs = []
     if submission.get('matched_iocs'):
-        ioc_service = IOCService()
-        for ioc_id in submission['matched_iocs']:
-            ioc = ioc_service.get_ioc(ioc_id)
-            if ioc:
-                matched_iocs.append(ioc)
+        stix_service = STIXService()
+        for stix_id in submission['matched_iocs']:
+            stix_obj = stix_service.get_sdo(stix_id)
+            if stix_obj:
+                matched_iocs.append(stix_obj)
     
     return render_template('submissions/detail.html',
                          submission=submission,
@@ -596,7 +596,7 @@ def api_get_submission(submission_id):
 @login_required
 @permission_required('submission.create')
 def create_ioc_from_submission(submission_id):
-    """Create an IOC from a submission."""
+    """Create a STIX object from a submission."""
     try:
         submission_service = SubmissionService()
         submission = submission_service.get_submission(submission_id)
@@ -606,51 +606,46 @@ def create_ioc_from_submission(submission_id):
         
         data = request.get_json()
         
-        # Create IOC from submission data
-        ioc_service = IOCService()
+        # Create STIX object from submission data
+        stix_service = STIXService()
         
-        # Create STIX indicator
-        stix_indicator = STIXIndicator.create(
-            ioc_type=submission['ioc_type'],
-            value=submission['ioc_value'],
-            labels=data.get('labels', submission.get('tags', [])),
-            name=data.get('name', f"{submission['ioc_type'].upper()}: {submission['ioc_value']}"),
-            description=data.get('description', submission.get('description'))
-        )
-        
-        # Create IOC using the IOCService create method
-        ioc_dict, is_new = ioc_service.create(
-            ioc_type=submission['ioc_type'],
-            value=submission['ioc_value'],
-            labels=data.get('labels', submission.get('tags', [])),
-            name=data.get('name', f"{submission['ioc_type'].upper()}: {submission['ioc_value']}"),
-            description=data.get('description', submission.get('description')),
-            threat_level=data.get('threat_level', 'medium'),
-            tlp=data.get('tlp', 'amber'),
-            confidence=data.get('confidence', submission.get('confidence', 'medium')),
-            campaigns=data.get('campaigns', []),
+        # Create STIX indicator using the service
+        stix_obj = stix_service.create_sdo(
+            sdo_type='indicator',
+            data={
+                'pattern': f"[file:hashes.MD5 = '{submission['ioc_value']}']" if submission['ioc_type'] == 'md5' 
+                    else f"[file:hashes.SHA-1 = '{submission['ioc_value']}']" if submission['ioc_type'] == 'sha1'
+                    else f"[file:hashes.SHA-256 = '{submission['ioc_value']}']" if submission['ioc_type'] == 'sha256'
+                    else f"[ipv4-addr:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'ipv4'
+                    else f"[ipv6-addr:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'ipv6'
+                    else f"[domain-name:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'domain'
+                    else f"[email-addr:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'email'
+                    else f"[url:value = '{submission['ioc_value']}']" if submission['ioc_type'] == 'url'
+                    else f"[network-traffic:dst_ref.value = '{submission['ioc_value']}']",
+                'labels': data.get('labels', submission.get('tags', [])),
+                'name': data.get('name', f"{submission['ioc_type'].upper()}: {submission['ioc_value']}"),
+                'description': data.get('description', submission.get('description')),
+                'confidence': int(data.get('confidence', submission.get('confidence', 'medium')).split('-')[0]) if isinstance(data.get('confidence'), str) else 50,
+                'valid_from': datetime.utcnow().isoformat() + 'Z',
+                'x_ioc_type': submission['ioc_type'],
+                'x_ioc_value': submission['ioc_value'],
+                'x_threat_level': data.get('threat_level', 'medium'),
+                'x_tlp': data.get('tlp', 'amber'),
+                'x_metadata': {
+                    'source': 'submission',
+                    'submission_id': submission_id,
+                    'response_actions': data.get('response_actions')
+                }
+            },
             user_id=current_user.id,
             username=current_user.username
         )
         
-        # Update the created IOC with response_actions if provided
-        if data.get('response_actions'):
-            ioc_service.update(
-                ioc_dict['id'],
-                {
-                    'x_metadata': {
-                        'response_actions': data.get('response_actions')
-                    }
-                },
-                user_id=current_user.id,
-                username=current_user.username
-            )
-        
-        # Update submission to link created IOC
+        # Update submission to link created STIX object
         submission_service.update_submission(
             submission_id=submission_id,
             status='created_ioc',
-            created_ioc_id=ioc_dict.get('id'),
+            created_ioc_id=stix_obj.get('id'),
             analyst_user_id=current_user.id,
             analyst_username=current_user.username,
             response_actions=data.get('response_actions'),
@@ -661,21 +656,21 @@ def create_ioc_from_submission(submission_id):
         audit_service = AuditService()
         audit_service.log(
             action='create',
-            entity_type='ioc',
-            entity_id=ioc_dict.get('id'),
+            entity_type='stix',
+            entity_id=stix_obj.get('id'),
             user_id=current_user.id,
             username=current_user.username,
             changes={'from_submission': submission_id}
         )
         
         return jsonify({
-            'message': 'IOC created from submission',
-            'ioc_id': ioc_dict.get('id'),
+            'message': 'STIX object created from submission',
+            'stix_id': stix_obj.get('id'),
             'submission_id': submission_id
         }), 201
     
     except Exception as e:
-        current_app.logger.exception(f"Error creating IOC from submission {submission_id}: {str(e)}")
+        current_app.logger.exception(f"Error creating STIX object from submission {submission_id}: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 
