@@ -11,6 +11,11 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Default permissions for the workflow. 'packages: write' is required to push to GHCR.
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -60,6 +65,12 @@ jobs:
             # Latest tag only on default branch (main)
             type=raw,value=latest,enable={{is_default_branch}}
 
+      - name: Show computed tags
+        run: |
+          echo "Computed tags for image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          echo "TAGS=${{ steps.meta.outputs.tags }}"
+          echo "LABELS=${{ steps.meta.outputs.labels }}"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -72,6 +83,31 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Verify package pushed to GHCR
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -e
+          REPO_FULL="$GITHUB_REPOSITORY"
+          OWNER="${REPO_FULL%%/*}"
+          REPO="${REPO_FULL##*/}"
+
+          echo "Checking owner type for $OWNER"
+          OWNER_TYPE=$(curl -s -H "Authorization: token $GHCR_PAT" https://api.github.com/users/$OWNER | jq -r '.type')
+          echo "Owner type: $OWNER_TYPE"
+
+          if [ "$OWNER_TYPE" = "Organization" ]; then
+            PACKAGES_URL="https://api.github.com/orgs/$OWNER/packages/container/$REPO/versions"
+          else
+            PACKAGES_URL="https://api.github.com/user/packages/container/$REPO/versions"
+          fi
+
+          echo "Querying $PACKAGES_URL"
+          curl -s -H "Authorization: token $GHCR_PAT" "$PACKAGES_URL" | jq -r '.[] | {id: .id, name: .name, updated_at: .updated_at} | @json' || true
+          echo "If the output above is empty, the package was not found or the token lacks permission."
 
       - name: Create release (on tag)
         if: startsWith(github.ref, 'refs/tags/v')
