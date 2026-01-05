@@ -79,6 +79,10 @@
     /* Clickable row */
     .clickable-row { cursor: pointer; }
     .clickable-row:hover td { background: inherit; }
+    
+    /* Sortable headers */
+    .sortable-header { cursor: pointer; user-select: none; }
+    .sortable-header:hover { opacity: 0.8; }
 </style>
 {% endblock %}
 
@@ -177,6 +181,8 @@
 let currentPage = 1;
 let currentType = '';
 let currentSearch = '';
+let sortField = 'created';
+let sortOrder = 'desc';
 const pageSize = 25;
 let selectedObjects = new Set();
 
@@ -214,6 +220,7 @@ async function loadObjects() {
         let url = `/api/stix/objects?page=${currentPage}&size=${pageSize}`;
         if (currentType) url += `&type=${currentType}`;
         if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+        url += `&sort=${sortField}&order=${sortOrder}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -248,6 +255,20 @@ async function loadObjects() {
 function renderTable(items) {
     const container = document.getElementById('resultsContainer');
     
+    const getSortIcon = (field) => {
+        if (sortField !== field) return '<i class="bi bi-arrow-down-up text-muted ms-1"></i>';
+        return sortOrder === 'asc' 
+            ? '<i class="bi bi-sort-up text-primary ms-1"></i>'
+            : '<i class="bi bi-sort-down text-primary ms-1"></i>';
+    };
+    
+    const getSortLink = (field) => {
+        if (sortField === field) {
+            return `class="sortable-header" onclick="setSortOrder('${field}', '${sortOrder === 'asc' ? 'desc' : 'asc'}'); return false;"`;
+        }
+        return `class="sortable-header" onclick="setSortOrder('${field}', 'asc'); return false;"`;
+    };
+    
     const html = `
         <div class="table-responsive">
             <table class="table table-hover mb-0">
@@ -256,12 +277,12 @@ function renderTable(items) {
                         <th style="width: 40px;">
                             <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
                         </th>
-                        <th>Type</th>
+                        <th ${getSortLink('type')}>Type ${getSortIcon('type')}</th>
                         <th>Name / Value</th>
                         <th>Description</th>
-                        <th>Threat Level</th>
-                        <th>TLP</th>
-                        <th>Created</th>
+                        <th ${getSortLink('x_threat_level')}>Threat Level ${getSortIcon('x_threat_level')}</th>
+                        <th ${getSortLink('x_tlp')}>TLP ${getSortIcon('x_tlp')}</th>
+                        <th ${getSortLink('created')}>Created ${getSortIcon('created')}</th>
                         <th style="width: 100px;">Actions</th>
                     </tr>
                 </thead>
@@ -274,6 +295,13 @@ function renderTable(items) {
     
     container.innerHTML = html;
     updateBulkActionBar();
+}
+
+function setSortOrder(field, order) {
+    sortField = field;
+    sortOrder = order;
+    currentPage = 1;
+    loadObjects();
 }
 
 function renderTableRow(obj) {
