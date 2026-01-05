@@ -25,13 +25,13 @@
             <div class="card-body">
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <label class="form-label"><strong>IOC Type</strong></label>
+                        <label class="form-label"><strong>Indicator Type</strong></label>
                         <p class="text-monospace">
                             <span class="badge bg-info">{{ submission.ioc_type.upper() }}</span>
                         </p>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label"><strong>IOC Value</strong></label>
+                        <label class="form-label"><strong>Indicator Value</strong></label>
                         <p class="text-monospace" style="word-break: break-all;">
                             {{ submission.ioc_value }}
                         </p>
@@ -53,7 +53,7 @@
                             {% if submission.status == 'pending' %}
                                 <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending Review</span>
                             {% elif submission.status == 'created_ioc' %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> IOC Created</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> STIX Object Created</span>
                             {% elif submission.status == 'rejected' %}
                                 <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
                             {% else %}
@@ -125,22 +125,22 @@
             </div>
         </div>
         
-        <!-- Matched IOCs -->
+        <!-- Matched STIX Objects -->
         {% if matched_iocs %}
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0">Matching IOCs in Database</h5>
+                <h5 class="mb-0">Matching STIX Objects in Database</h5>
             </div>
             <div class="card-body">
                 <div class="list-group list-group-flush">
                     {% for ioc in matched_iocs %}
-                    <a href="{{ url_for('main.iocs_detail', ioc_id=ioc.id) }}" class="list-group-item list-group-item-action">
+                    <a href="{{ url_for('stix.view_stix_object_page', stix_id=ioc.id) }}" class="list-group-item list-group-item-action">
                         <div class="d-flex justify-content-between align-items-start">
                             <div>
-                                <h6 class="mb-1">{{ ioc.name or 'Unnamed IOC' }}</h6>
+                                <h6 class="mb-1">{{ ioc.name or 'Unnamed Object' }}</h6>
                                 <p class="text-muted small mb-0">
-                                    Type: <span class="badge bg-info">{{ ioc.x_metadata.ioc_type.upper() }}</span>
-                                    Threat Level: <span class="badge bg-{{ 'danger' if ioc.x_metadata.threat_level == 'critical' else 'warning' if ioc.x_metadata.threat_level in ['high', 'medium'] else 'success' }}">{{ ioc.x_metadata.threat_level.upper() }}</span>
+                                    Type: <span class="badge bg-info">{{ ioc.type.upper() if ioc.type else ioc.x_metadata.ioc_type.upper() }}</span>
+                                    Threat Level: <span class="badge bg-{{ 'danger' if (ioc.x_metadata.threat_level if ioc.x_metadata else 'low') == 'critical' else 'warning' if (ioc.x_metadata.threat_level if ioc.x_metadata else 'low') in ['high', 'medium'] else 'success' }}">{{ (ioc.x_metadata.threat_level.upper() if ioc.x_metadata else 'LOW') }}</span>
                                 </p>
                             </div>
                         </div>
@@ -185,7 +185,7 @@
                     <div class="d-flex gap-2">
                         {% if has_permission('submission.create') %}
                         <button type="button" class="btn btn-success" id="createIocBtn" data-bs-toggle="modal" data-bs-target="#createIocModal">
-                            <i class="bi bi-plus-circle"></i> Create IOC
+                            <i class="bi bi-plus-circle"></i> Create STIX Object
                         </button>
                         {% endif %}
                         
@@ -213,12 +213,12 @@
         {% if submission.created_ioc_id %}
         <div class="card mb-4 border-success">
             <div class="card-header bg-success text-white">
-                <h5 class="mb-0"><i class="bi bi-check-circle"></i> IOC Created</h5>
+                <h5 class="mb-0"><i class="bi bi-check-circle"></i> STIX Object Created</h5>
             </div>
             <div class="card-body">
-                <p class="mb-3">An IOC has been created from this submission.</p>
-                <a href="{{ url_for('main.iocs_detail', ioc_id=submission.created_ioc_id) }}" class="btn btn-success w-100">
-                    View Created IOC
+                <p class="mb-3">A STIX object has been created from this submission.</p>
+                <a href="{{ url_for('stix.view_stix_object_page', stix_id=submission.created_ioc_id) }}" class="btn btn-success w-100">
+                    View Created STIX Object
                 </a>
             </div>
         </div>
@@ -244,7 +244,7 @@
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <small class="text-muted d-block">Matched IOCs</small>
+                    <small class="text-muted d-block">Matched STIX Objects</small>
                     <h4 class="mb-0">{{ matched_iocs|length }}</h4>
                 </div>
                 <hr>
@@ -262,7 +262,7 @@
         <div class="modal-content">
 
             <div class="modal-header">
-                <h5 class="modal-title">Create IOC from Submission</h5>
+                <h5 class="modal-title">Create STIX Object from Submission</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -332,7 +332,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-success" id="confirmCreateIocBtn">
-                    <i class="bi bi-check-circle"></i> Create IOC
+                    <i class="bi bi-check-circle"></i> Create STIX Object
                 </button>
             </div>
         </div>

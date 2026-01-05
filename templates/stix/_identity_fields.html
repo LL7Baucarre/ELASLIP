@@ -1,0 +1,63 @@
+<!-- Identity Fields -->
+<div id="fields-identity" class="type-fields">
+    <div class="alert alert-primary mb-3">
+        <i class="fas fa-building me-1"></i>
+        Represent organizations, individuals, or groups.
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="identityClass" class="form-label">Identity Class</label>
+            <select id="identityClass" name="identity_class" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="individual">Individual</option>
+                <option value="group">Group</option>
+                <option value="system">System</option>
+                <option value="organization">Organization</option>
+                <option value="class">Class</option>
+                <option value="unknown">Unknown</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="sectors" class="form-label">Sectors</label>
+            <select id="sectors" name="sectors" class="form-select" multiple>
+                <option value="agriculture">Agriculture</option>
+                <option value="aerospace">Aerospace</option>
+                <option value="automotive">Automotive</option>
+                <option value="chemical">Chemical</option>
+                <option value="commercial">Commercial</option>
+                <option value="communications">Communications</option>
+                <option value="construction">Construction</option>
+                <option value="defense">Defense</option>
+                <option value="education">Education</option>
+                <option value="energy">Energy</option>
+                <option value="entertainment">Entertainment</option>
+                <option value="financial-services">Financial Services</option>
+                <option value="government">Government</option>
+                <option value="government-local">Government (Local)</option>
+                <option value="government-national">Government (National)</option>
+                <option value="government-public-services">Government (Public Services)</option>
+                <option value="government-regional">Government (Regional)</option>
+                <option value="healthcare">Healthcare</option>
+                <option value="hospitality-leisure">Hospitality/Leisure</option>
+                <option value="infrastructure">Infrastructure</option>
+                <option value="insurance">Insurance</option>
+                <option value="manufacturing">Manufacturing</option>
+                <option value="mining">Mining</option>
+                <option value="non-profit">Non-Profit</option>
+                <option value="pharmaceuticals">Pharmaceuticals</option>
+                <option value="retail">Retail</option>
+                <option value="technology">Technology</option>
+                <option value="telecommunications">Telecommunications</option>
+                <option value="transportation">Transportation</option>
+                <option value="utilities">Utilities</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="contactInformation" class="form-label">Contact Information</label>
+        <textarea id="contactInformation" name="contact_information" class="form-control" rows="2"
+                  placeholder="Contact details for this identity"></textarea>
+    </div>
+</div>

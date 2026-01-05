@@ -1,0 +1,106 @@
+<!-- Indicator Fields -->
+<div id="fields-indicator" class="type-fields">
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Indicators contain STIX patterns that identify malicious activity.
+    </div>
+    
+    <!-- IOC Quick Entry -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <label for="iocType" class="form-label required-field">IOC Type</label>
+            <select id="iocType" name="x_ioc_type" class="form-select">
+                <optgroup label="File Hashes">
+                    <option value="md5">MD5</option>
+                    <option value="sha1">SHA-1</option>
+                    <option value="sha256" selected>SHA-256</option>
+                    <option value="sha512">SHA-512</option>
+                    <option value="ssdeep">SSDEEP</option>
+                </optgroup>
+                <optgroup label="Network Indicators">
+                    <option value="ipv4">IPv4 Address</option>
+                    <option value="ipv6">IPv6 Address</option>
+                    <option value="domain">Domain Name</option>
+                    <option value="url">URL</option>
+                    <option value="email">Email Address</option>
+                </optgroup>
+                <optgroup label="Other">
+                    <option value="custom">Custom Pattern</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <label for="iocValue" class="form-label required-field">IOC Value</label>
+            <input type="text" id="iocValue" name="x_ioc_value" class="form-control" 
+                   placeholder="Enter the indicator value">
+        </div>
+    </div>
+    
+    <!-- Auto-generated Pattern (readonly) -->
+    <div class="field-group">
+        <label for="pattern" class="form-label">STIX Pattern</label>
+        <textarea id="pattern" name="pattern" class="form-control font-monospace" rows="2" readonly
+                  placeholder="Pattern will be auto-generated from IOC type and value"></textarea>
+        <small class="text-muted">Auto-generated from IOC type and value. Edit manually for custom patterns.</small>
+        <div class="form-check mt-1">
+            <input type="checkbox" id="customPatternToggle" class="form-check-input">
+            <label for="customPatternToggle" class="form-check-label">Edit pattern manually</label>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="patternType" class="form-label">Pattern Type</label>
+            <select id="patternType" name="pattern_type" class="form-select">
+                <option value="stix" selected>STIX</option>
+                <option value="pcre">PCRE</option>
+                <option value="sigma">Sigma</option>
+                <option value="snort">Snort</option>
+                <option value="suricata">Suricata</option>
+                <option value="yara">YARA</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="indicatorTypes" class="form-label">Indicator Types</label>
+            <select id="indicatorTypes" name="indicator_types" class="form-select" multiple>
+                <option value="anomalous-activity">Anomalous Activity</option>
+                <option value="anonymization">Anonymization</option>
+                <option value="benign">Benign</option>
+                <option value="compromised">Compromised</option>
+                <option value="malicious-activity" selected>Malicious Activity</option>
+                <option value="attribution">Attribution</option>
+                <option value="unknown">Unknown</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="validFrom" class="form-label required-field">Valid From</label>
+            <input type="datetime-local" id="validFrom" name="valid_from" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="validUntil" class="form-label">Valid Until</label>
+            <input type="datetime-local" id="validUntil" name="valid_until" class="form-control">
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="threatLevel" class="form-label">Threat Level</label>
+            <select id="threatLevel" name="x_threat_level" class="form-select">
+                <option value="unknown">Unknown</option>
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="responseActions" class="form-label">Response Actions</label>
+        <textarea id="responseActions" name="x_response_actions" class="form-control" rows="2"
+                  placeholder="Recommended actions when this indicator is detected"></textarea>
+    </div>
+</div>

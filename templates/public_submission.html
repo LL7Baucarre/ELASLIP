@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}IOC Submission Portal - {{ SITE_TITLE }}{% endblock %}
+{% block title %}Indicator Submission Portal - {{ SITE_TITLE }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-5">
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-5">
         <div>
-            <h1 class="mb-2"><i class="bi bi-upload"></i> IOC Submission Portal</h1>
+            <h1 class="mb-2"><i class="bi bi-upload"></i> Indicator Submission Portal</h1>
             <p class="text-muted">Search existing indicators. If not found, you can submit it to our intelligence database</p>
         </div>
         <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
@@ -23,12 +23,12 @@
                     <form id="searchForm">
                         <div class="row g-3 mb-4">
                             <div class="col-md-8">
-                                <label class="form-label">Search IOC Value</label>
+                                <label class="form-label">Search Indicator Value</label>
                                 <input type="text" class="form-control" id="searchIocValue" placeholder="MD5, SHA256, IP, Domain, Email, URL, ASN..." required>
                                 <small class="text-muted d-block mt-1">Type will be auto-detected. Leave empty to manually select type.</small>
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label">IOC Type (Optional)</label>
+                                <label class="form-label">Indicator Type (Optional)</label>
                                 <select class="form-select" id="searchIocType">
                                     <option value="">Auto-detect</option>
                                     <option value="md5">MD5 Hash</option>
@@ -90,9 +90,9 @@
                                     <!-- IOC Information -->
                                     <div class="row g-3 mb-4">
                                         <div class="col-md-6">
-                                            <label class="form-label">IOC Type <span class="text-danger">*</span></label>
+                                            <label class="form-label">Indicator Type <span class="text-danger">*</span></label>
                                             <select class="form-select" id="submitIocType" required>
-                                                <option value="">Select IOC Type...</option>
+                                                <option value="">Select Indicator Type...</option>
                                                 <option value="md5">MD5 Hash</option>
                                                 <option value="sha1">SHA1 Hash</option>
                                                 <option value="sha256">SHA256 Hash</option>

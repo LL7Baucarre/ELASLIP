@@ -982,6 +982,61 @@ def clear_scans():
         return jsonify({'error': str(e)}), 500
 
 
+@tools_bp.route('/task/<task_id>', methods=['GET'])
+@login_or_api_key_required
+def get_task_status(task_id):
+    """
+    Get the status of an async task (Celery task).
+    ---
+    tags:
+      - Tools
+    summary: Get Task Status
+    parameters:
+      - in: path
+        name: task_id
+        required: true
+        schema:
+          type: string
+        description: Celery task ID
+    responses:
+      200:
+        description: Task status
+        schema:
+          type: object
+          properties:
+            task_id:
+              type: string
+            state:
+              type: string
+              enum: [PENDING, RETRY, FAILURE, SUCCESS]
+            status:
+              type: string
+            result:
+              type: object
+      404:
+        description: Task not found
+    """
+    from app import celery
+    
+    result = celery.AsyncResult(task_id)
+    
+    response = {
+        'task_id': task_id,
+        'state': result.state,
+        'status': result.state
+    }
+    
+    # Only include result if task is ready and successful
+    if result.ready():
+        if result.successful():
+            response['result'] = result.result
+        else:
+            # For failed tasks, include error info
+            response['error'] = str(result.info)
+    
+    return jsonify(response)
+
+
 def _is_valid_target(target: str) -> bool:
     """Basic validation for scan targets."""
     import re
@@ -1055,7 +1110,7 @@ def get_scan_queue():
     for worker, tasks in active.items():
         for task in tasks:
             # Check if it's a scan task
-            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name']:
+            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name'] or 'analyze_dmarc_dkim_async' in task['name']:
                 task_id = task['id']
                 
                 # Try to get metadata from Redis
@@ -1090,7 +1145,7 @@ def get_scan_queue():
     reserved = inspect.reserved() or {}
     for worker, tasks in reserved.items():
         for task in tasks:
-            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name']:
+            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name'] or 'analyze_dmarc_dkim_async' in task['name']:
                 task_id = task['id']
                 
                 # Try to get metadata from Redis
@@ -1122,59 +1177,6 @@ def get_scan_queue():
     return jsonify({
         'queue': user_scans,
         'total': len(user_scans)
-    })
-
-
-@tools_bp.route('/task/<task_id>', methods=['GET'])
-@login_or_api_key_required
-def get_task_status(task_id):
-    """
-    Get status of a specific task.
-    ---
-    tags:
-      - Tools
-    summary: Get Task Status
-    parameters:
-      - in: path
-        name: task_id
-        schema:
-          type: string
-        required: true
-        description: Celery task ID
-    responses:
-      200:
-        description: Task status details
-        schema:
-          type: object
-          properties:
-            task_id:
-              type: string
-            status:
-              type: string
-              enum:
-                - PENDING
-                - STARTED
-                - SUCCESS
-                - FAILURE
-                - RETRY
-                - REVOKED
-            result:
-              type: object
-              description: Task result (if successful)
-            error:
-              type: string
-              description: Error message (if failed)
-    """
-    from app import celery as celery_app
-    from celery.result import AsyncResult
-    
-    result = AsyncResult(task_id, app=celery_app)
-    
-    return jsonify({
-        'task_id': task_id,
-        'status': result.status,
-        'result': result.result if result.successful() else None,
-        'error': str(result.info) if result.failed() else None
     })
 
 
@@ -1420,7 +1422,7 @@ def analyze_file():
 @permission_required('tools.execute')
 def analyze_dmarc_dkim():
     """
-    Analyze DMARC, DKIM, and SPF records for a domain.
+    Analyze DMARC, DKIM, and SPF records for a domain asynchronously.
     ---
     tags:
       - Tools
@@ -1439,54 +1441,23 @@ def analyze_dmarc_dkim():
                 type: string
                 description: Domain name to analyze
     responses:
-      200:
-        description: DMARC/DKIM/SPF analysis result
+      202:
+        description: Analysis started asynchronously
         schema:
           type: object
           properties:
-            success:
-              type: boolean
-            target:
+            task_id:
               type: string
-            dmarc:
-              type: object
-              properties:
-                found:
-                  type: boolean
-                policy:
-                  type: string
-                alignment:
-                  type: object
-                reporting:
-                  type: object
-            dkim:
-              type: object
-              properties:
-                found:
-                  type: boolean
-                selector1:
-                  type: object
-            spf:
-              type: object
-              properties:
-                found:
-                  type: boolean
-                mechanisms:
-                  type: array
-            security_score:
-              type: object
-              properties:
-                total:
-                  type: integer
-                max:
-                  type: integer
-            recommendations:
-              type: array
-              items:
-                type: string
+              description: Celery task ID for tracking progress
+            status:
+              type: string
+            message:
+              type: string
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import analyze_dmarc_dkim_async
+    
     data = request.get_json()
     domain = data.get('domain', '').strip()
     
@@ -1497,13 +1468,29 @@ def analyze_dmarc_dkim():
     if not re.match(r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$', domain):
         return jsonify({'error': 'Invalid domain format'}), 400
     
-    tools = ToolsService()
-    result = tools.analyze_dmarc_dkim(domain)
+    # Launch analysis asynchronously via Celery
+    task = analyze_dmarc_dkim_async.delay(
+        domain=domain,
+        user_id=g.current_user.id
+    )
     
-    scan_id = _save_scan_result('dmarc-dkim', domain, result)
-    result['scan_id'] = scan_id
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'dmarc-dkim',
+        'target': domain,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))  # Expire after 1 hour
     
-    return jsonify(result)
+    return jsonify({
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'DMARC/DKIM analysis queued for processing'
+    }), 202
 
 @tools_bp.route('/shodan', methods=['POST'])
 @login_or_api_key_required

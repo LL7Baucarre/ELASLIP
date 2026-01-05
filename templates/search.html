@@ -15,25 +15,12 @@
     <div class="card-body">
         <form id="searchForm">
             <div class="row g-3">
-                <div class="col-md-8">
+                <div class="col-md-10">
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                         <input type="text" class="form-control" id="searchQuery" 
                                placeholder="Search IOCs, cases, incidents, users..." autofocus>
                     </div>
-                </div>
-                <div class="col-md-2">
-                    <select class="form-select form-select-lg" id="searchType">
-                        <option value="">Auto-detect</option>
-                        <option value="md5">MD5</option>
-                        <option value="sha1">SHA1</option>
-                        <option value="sha256">SHA256</option>
-                        <option value="ipv4">IPv4</option>
-                        <option value="domain">Domain</option>
-                        <option value="email">Email</option>
-                        <option value="url">URL</option>
-                        <option value="asn">ASN</option>
-                    </select>
                 </div>
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary btn-lg w-100">
@@ -91,7 +78,6 @@
                             <th>Type</th>
                             <th>Value</th>
                             <th>Labels</th>
-                            <th>Sources</th>
                             <th>Created</th>
                             <th>Actions</th>
                         </tr>
@@ -211,7 +197,7 @@ function performSearch() {
     if (to) params.to = to;
     
     // Show loading
-    $('#resultsBody').html('<tr><td colspan="6" class="text-center py-4"><span class="spinner-border"></span></td></tr>');
+    $('#resultsBody').html('<tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr>');
     $('#emptyState').hide();
     $('#noResults').hide();
     $('#resultsSection').show();
@@ -263,7 +249,8 @@ function displayResults(data) {
         
         if (entityType === 'ioc') {
             displayValue = escapeHtml(item.ioc_value || item.pattern || '');
-            viewLink = `/iocs/${item.id}`;
+            // Use STIX route for indicators since they're stored as STIX objects
+            viewLink = `/stix/objects/${item.id}`;
             const labels = (item.labels || []).slice(0, 3)
                 .map(l => `<span class="badge bg-light text-dark me-1">${l}</span>`)
                 .join('');
@@ -280,17 +267,23 @@ function displayResults(data) {
         } else if (entityType === 'user') {
             displayValue = escapeHtml(item.name || item.username || '');
             viewLink = `/users/${item.id}`;
+        } else if (entityType === 'stix') {
+            // Generic STIX object - show name and type
+            displayValue = escapeHtml(item.name || item.pattern || item.id || '');
+            viewLink = `/stix/objects/${item.id}`;
+            // Use STIX type as subtitle
+            if (item.type) {
+                displayType = `STIX: ${item.type.toUpperCase()}`;
+            }
         }
         
         const created = item.created_at ? item.created_at.substring(0, 10) : (item.created ? item.created.substring(0, 10) : 'N/A');
-        const sources = (item.x_metadata?.sources || []).length || 0;
         
         const row = `
             <tr>
                 <td><span class="ioc-type-badge ioc-type-${entityType}">${displayType}</span></td>
                 <td><code class="pattern-text">${displayValue}</code></td>
                 <td>${labelBadges}</td>
-                <td><span class="badge bg-info">${sources}</span></td>
                 <td><small>${created}</small></td>
                 <td>
                     <a href="${viewLink}" class="btn btn-sm btn-outline-primary">View</a>

@@ -4,8 +4,204 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 import uuid
 
-from stix2 import Indicator, Bundle, parse
+from stix2 import Indicator, Bundle, Relationship, parse
 from stix2.exceptions import InvalidValueError, MissingPropertiesError
+
+
+# STIX 2.1 Standard Relationship Types
+# https://docs.oasis-open.org/cti/stix/v2.1/os/stix-v2.1-os.html#_cqhkqvhnpstf
+STIX_RELATIONSHIP_TYPES = [
+    'indicates',         # Indicator points to malicious activity
+    'uses',              # Uses a tool/technique
+    'related-to',        # Generic relationship
+    'derived-from',      # Derived from another object
+    'duplicate-of',      # Duplicate of another object
+    'based-on',          # Based on another object
+    'targets',           # Targets a victim
+    'attributed-to',     # Attributed to a threat actor
+    'mitigates',         # Mitigates a vulnerability/threat
+    'compromises',       # Compromises infrastructure
+    'originates-from',   # Originates from a location
+    'investigates',      # Investigates a threat
+    'remediates',        # Remediates a threat
+    'delivers',          # Delivers malware
+    'drops',             # Drops malware
+    'communicates-with', # Communicates with infrastructure
+    'controls',          # Controls infrastructure
+    'exploits',          # Exploits a vulnerability
+]
+
+
+class STIXRelationship:
+    """
+    Wrapper for STIX 2.1 Relationship objects (SRO).
+    
+    A STIX Relationship is used to link two STIX Domain Objects (SDOs) together.
+    This class provides methods to create, validate, and convert relationship objects
+    following the STIX 2.1 specification.
+    """
+    
+    def __init__(self, relationship: Relationship):
+        self.relationship = relationship
+    
+    @classmethod
+    def create(cls,
+               source_ref: str,
+               target_ref: str,
+               relationship_type: str,
+               description: str = None,
+               start_time: datetime = None,
+               stop_time: datetime = None,
+               created_by_ref: str = None,
+               external_references: List[Dict] = None) -> 'STIXRelationship':
+        """
+        Create a new STIX 2.1 Relationship.
+        
+        Args:
+            source_ref: STIX ID of the source object (e.g., indicator--uuid)
+            target_ref: STIX ID of the target object (e.g., indicator--uuid)
+            relationship_type: Type of relationship (must be STIX-standard)
+            description: Optional description of the relationship
+            start_time: Optional start time of the relationship
+            stop_time: Optional stop time of the relationship
+            created_by_ref: Optional STIX ID of the identity that created this
+            external_references: Optional list of external references
+        
+        Returns:
+            STIXRelationship instance
+        
+        Raises:
+            ValueError: If relationship_type is not a valid STIX relationship type
+        """
+        # Validate relationship type
+        if relationship_type not in STIX_RELATIONSHIP_TYPES:
+            raise ValueError(
+                f"Invalid relationship_type '{relationship_type}'. "
+                f"Must be one of: {', '.join(STIX_RELATIONSHIP_TYPES)}"
+            )
+        
+        # Generate STIX ID
+        relationship_id = f"relationship--{uuid.uuid4()}"
+        
+        # Build relationship kwargs
+        rel_kwargs = {
+            'id': relationship_id,
+            'source_ref': source_ref,
+            'target_ref': target_ref,
+            'relationship_type': relationship_type,
+        }
+        
+        if description:
+            rel_kwargs['description'] = description
+        
+        if start_time:
+            rel_kwargs['start_time'] = start_time
+        
+        if stop_time:
+            rel_kwargs['stop_time'] = stop_time
+        
+        if created_by_ref:
+            rel_kwargs['created_by_ref'] = created_by_ref
+        
+        if external_references:
+            rel_kwargs['external_references'] = external_references
+        
+        try:
+            relationship = Relationship(**rel_kwargs)
+        except (InvalidValueError, MissingPropertiesError) as e:
+            raise ValueError(f"Failed to create STIX Relationship: {str(e)}")
+        
+        return cls(relationship)
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> 'STIXRelationship':
+        """
+        Create STIXRelationship from a dictionary.
+        
+        Args:
+            data: STIX Relationship as dictionary
+        
+        Returns:
+            STIXRelationship instance
+        """
+        try:
+            relationship = parse(data, allow_custom=True)
+            if not isinstance(relationship, Relationship):
+                raise ValueError("Parsed object is not a STIX Relationship")
+            return cls(relationship)
+        except Exception as e:
+            raise ValueError(f"Failed to parse STIX Relationship: {str(e)}")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert to dictionary for storage.
+        Returns STIX 2.1 compliant format.
+        """
+        rel_dict = dict(self.relationship)
+        
+        # Convert datetime objects to ISO 8601 format with Z suffix (UTC)
+        for key in ['created', 'modified', 'start_time', 'stop_time']:
+            if key in rel_dict and rel_dict[key]:
+                if hasattr(rel_dict[key], 'isoformat'):
+                    iso_str = rel_dict[key].isoformat()
+                    # Ensure Z suffix for UTC timestamps
+                    if iso_str.endswith('+00:00'):
+                        iso_str = iso_str[:-6] + 'Z'
+                    elif not iso_str.endswith('Z') and '+' not in iso_str:
+                        iso_str = iso_str + 'Z'
+                    rel_dict[key] = iso_str
+        
+        return rel_dict
+    
+    def to_dict_with_metadata(self, user_id: str = None, username: str = None) -> Dict[str, Any]:
+        """
+        Convert to dictionary with custom metadata for ELASLIP storage.
+        
+        Args:
+            user_id: User ID who created this relationship
+            username: Username who created this relationship
+        
+        Returns:
+            Dictionary with STIX relationship and custom metadata
+        """
+        rel_dict = self.to_dict()
+        
+        # Add custom ELASLIP metadata (x_ prefix per STIX 2.1)
+        if user_id:
+            rel_dict['x_elaslip_created_by_user_id'] = user_id
+        if username:
+            rel_dict['x_elaslip_created_by_username'] = username
+        
+        return rel_dict
+    
+    def to_stix(self) -> Relationship:
+        """Return the underlying STIX Relationship."""
+        return self.relationship
+    
+    @property
+    def id(self) -> str:
+        """Get the relationship ID."""
+        return self.relationship.id
+    
+    @property
+    def source_ref(self) -> str:
+        """Get the source reference."""
+        return self.relationship.source_ref
+    
+    @property
+    def target_ref(self) -> str:
+        """Get the target reference."""
+        return self.relationship.target_ref
+    
+    @property
+    def relationship_type(self) -> str:
+        """Get the relationship type."""
+        return self.relationship.relationship_type
+    
+    @classmethod
+    def get_valid_types(cls) -> List[str]:
+        """Return list of valid STIX relationship types."""
+        return STIX_RELATIONSHIP_TYPES.copy()
 
 
 class STIXIndicator:
@@ -331,8 +527,30 @@ class STIXIndicator:
 class STIXBundle:
     """Wrapper for STIX 2.1 Bundle objects."""
     
+    # Supported STIX Domain Objects (SDO) types
+    SUPPORTED_SDO_TYPES = [
+        'indicator',      # IOCs (handled separately)
+        'malware',        # Malware information
+        'threat-actor',   # Threat actor profiles
+        'attack-pattern', # Attack patterns (MITRE ATT&CK)
+        'campaign',       # Campaigns
+        'tool',           # Tools used by threat actors
+        'vulnerability',  # Vulnerabilities
+        'infrastructure', # Infrastructure
+        'intrusion-set',  # Intrusion sets
+        'identity',       # Identity objects
+        'location',       # Geographic locations
+        'malware-analysis', # Malware analysis results
+        'note',           # Notes
+        'observed-data',  # Observed data
+        'opinion',        # Opinions
+        'report',         # Reports
+        'course-of-action', # Mitigations
+        'grouping',       # Groupings
+    ]
+    
     @classmethod
-    def parse(cls, data: str) -> List[STIXIndicator]:
+    def parse(cls, data: str) -> List['STIXIndicator']:
         """
         Parse STIX objects from JSON string.
         Handles both individual STIX Indicators and STIX Bundles.
@@ -381,7 +599,98 @@ class STIXBundle:
         return indicators
     
     @classmethod
-    def create(cls, indicators: List[STIXIndicator]) -> Bundle:
+    def parse_full(cls, data: str) -> Dict[str, List]:
+        """
+        Parse ALL STIX objects from JSON string (indicators, relationships, malware, etc.).
+        
+        Args:
+            data: JSON string of STIX Indicator, Bundle, or other SDO
+        
+        Returns:
+            Dictionary with keys:
+                - 'indicators': List of STIXIndicator objects
+                - 'relationships': List of relationship dicts
+                - 'objects': List of other SDO dicts (malware, threat-actor, etc.)
+        """
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            stix_dict = json.loads(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON: {str(e)}")
+        
+        result = {
+            'indicators': [],
+            'relationships': [],
+            'objects': []
+        }
+        
+        stix_type = stix_dict.get('type')
+        
+        if stix_type == 'bundle':
+            # Handle STIX Bundle with multiple objects
+            objects = stix_dict.get('objects', [])
+            for obj in objects:
+                obj_type = obj.get('type')
+                
+                if obj_type == 'indicator':
+                    try:
+                        indicator = STIXIndicator.from_stix_dict(obj)
+                        result['indicators'].append(indicator)
+                    except ValueError as e:
+                        logger.warning("Skipping invalid indicator: %s", e)
+                
+                elif obj_type == 'relationship':
+                    # Validate and store relationship
+                    if cls._validate_relationship(obj):
+                        result['relationships'].append(obj)
+                    else:
+                        logger.warning("Skipping invalid relationship: missing required fields")
+                
+                elif obj_type in cls.SUPPORTED_SDO_TYPES:
+                    # Store other SDO types (malware, threat-actor, etc.)
+                    result['objects'].append(obj)
+                
+                else:
+                    logger.info("Skipping unsupported STIX object type: %s", obj_type)
+        
+        elif stix_type == 'indicator':
+            # Handle single STIX Indicator
+            try:
+                indicator = STIXIndicator.from_stix_dict(stix_dict)
+                result['indicators'].append(indicator)
+            except ValueError as e:
+                raise ValueError(f"Failed to parse STIX Indicator: {str(e)}")
+        
+        elif stix_type == 'relationship':
+            # Handle single relationship
+            if cls._validate_relationship(stix_dict):
+                result['relationships'].append(stix_dict)
+            else:
+                raise ValueError("Invalid relationship: missing required fields (source_ref, target_ref, relationship_type)")
+        
+        elif stix_type in cls.SUPPORTED_SDO_TYPES:
+            # Handle single SDO
+            result['objects'].append(stix_dict)
+        
+        else:
+            raise ValueError(f"Unsupported STIX object type: {stix_type}")
+        
+        return result
+    
+    @classmethod
+    def _validate_relationship(cls, rel: Dict) -> bool:
+        """Validate that a relationship has required fields."""
+        return all([
+            rel.get('source_ref'),
+            rel.get('target_ref'),
+            rel.get('relationship_type')
+        ])
+    
+    @classmethod
+    def create(cls, indicators: List['STIXIndicator']) -> Bundle:
         """
         Create a STIX Bundle from indicators.
         

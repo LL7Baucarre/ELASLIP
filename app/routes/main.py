@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv, set_key
 
 from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.services.case_service import CaseService
 from app.services.checklist_service import ChecklistService
 from app.services.rbac_service import RBACService, DEFAULT_ROLES
@@ -157,19 +158,17 @@ def index():
 @login_required
 def dashboard():
     """Dashboard with statistics."""
-    ioc_service = IOCService()
+    from app.services.elasticsearch_service import ElasticsearchService
+    stix_service = STIXService()
     case_service = CaseService()
     checklist_service = ChecklistService()
-    es = ioc_service.es
+    es = ElasticsearchService()
     
-    # Get IOC stats
-    ioc_stats = ioc_service.get_stats()
-    
-    # Get entity counts
+    # Get entity counts - now counting STIX objects instead of legacy IOCs
     try:
-        total_iocs = es.count('ioc')
+        total_stix = es.count('stix_objects')
     except:
-        total_iocs = 0
+        total_stix = 0
     
     try:
         cases_result = es.search('cases', {'size': 0})
@@ -208,25 +207,38 @@ def dashboard():
     except:
         incidents_severity_stats = {}
     
+    # Get STIX objects by type
     try:
-        iocs_by_threat = es.aggregate('ioc', {
-            'by_threat_level': {'terms': {'field': 'x_metadata.threat_level', 'size': 10}}
+        stix_by_type = es.aggregate('stix_objects', {
+            'by_type': {'terms': {'field': 'type', 'size': 20}}
         })
-        iocs_threat_stats = {b['key']: b['doc_count'] 
-                            for b in iocs_by_threat.get('aggregations', {}).get('by_threat_level', {}).get('buckets', [])}
+        stix_type_stats = {b['key']: b['doc_count'] 
+                            for b in stix_by_type.get('aggregations', {}).get('by_type', {}).get('buckets', [])}
     except:
-        iocs_threat_stats = {}
+        stix_type_stats = {}
     
-    # Get recent IOCs
+    # Get STIX objects by labels
     try:
-        recent = ioc_service.list(page=1, per_page=5)
-        logger.debug("recent dict keys: %s", recent.keys())
-        logger.debug("recent total: %s", recent.get('total'))
-        logger.debug("recent items count: %d", len(recent.get('items', [])))
-        template_iocs = [make_ioc_template_friendly(ioc) for ioc in recent.get('items', [])]
+        stix_by_labels = es.aggregate('stix_objects', {
+            'by_labels': {'terms': {'field': 'labels', 'size': 50}}
+        })
+        labels_stats = {b['key']: b['doc_count'] 
+                        for b in stix_by_labels.get('aggregations', {}).get('by_labels', {}).get('buckets', [])}
+    except:
+        labels_stats = {}
+    
+    # Create stats object for template
+    stats = {
+        'by_label': labels_stats
+    }
+    
+    # Get recent STIX objects
+    try:
+        recent_stix = stix_service.list(page=1, per_page=5)
+        template_stix = recent_stix.get('items', [])
     except Exception as e:
-        logger.exception("Error fetching recent IOCs: %s", e)
-        template_iocs = []
+        logger.exception("Error fetching recent STIX objects: %s", e)
+        template_stix = []
     
     # Get recent cases
     try:
@@ -263,28 +275,19 @@ def dashboard():
     
     # Combine and sort recent entries
     all_recent = []
-    for ioc in template_iocs:
-        # For IOCs, try to get name from different possible locations
-        ioc_name = None
-        if isinstance(ioc, dict):
-            # Try x_metadata.ioc_value first
-            if 'x_metadata' in ioc and isinstance(ioc['x_metadata'], dict):
-                ioc_name = ioc['x_metadata'].get('ioc_value')
-            # Fallback to direct fields
-            if not ioc_name:
-                ioc_name = ioc.get('ioc_value')
-            # Final fallback to pattern
-            if not ioc_name:
-                ioc_name = ioc.get('pattern', '')
+    for stix in template_stix:
+        # For STIX objects, get name from the object
+        stix_name = None
+        if isinstance(stix, dict):
+            stix_name = stix.get('name') or stix.get('value') or stix.get('pattern', '')
         
         entry = {
-            'id': ioc.get('id'),
-            'entity_type': 'ioc',
-            'name': ioc_name or 'Unknown',
-            'ioc_type': ioc.get('ioc_type', 'unknown'),
-            'updated_at': ioc.get('modified', ioc.get('created', ''))
+            'id': stix.get('id'),
+            'entity_type': 'stix',
+            'name': stix_name or 'Unknown',
+            'stix_type': stix.get('type', 'unknown'),
+            'updated_at': stix.get('modified', stix.get('created', ''))
         }
-        import sys
         all_recent.append(entry)
     for case in recent_cases:
         all_recent.append({
@@ -326,69 +329,88 @@ def dashboard():
     except:
         unresolved_submissions = []
     
+    # Get assignments for current user
+    assigned_cases = []
+    assigned_incidents = []
+    assigned_checklists = []
+    
+    try:
+        # Get cases assigned to current user
+        cases_assigned_result = es.search('cases', {
+            'query': {'term': {'assignee_name': current_user.username}},
+            'size': 100
+        })
+        assigned_cases = [hit['_source'] | {'id': hit['_id']} 
+                         for hit in cases_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned cases: %s", e)
+    
+    try:
+        # Get incidents assigned to current user
+        incidents_assigned_result = es.search('incidents', {
+            'query': {'term': {'assignee_name': current_user.username}},
+            'size': 100
+        })
+        assigned_incidents = [hit['_source'] | {'id': hit['_id']} 
+                             for hit in incidents_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned incidents: %s", e)
+    
+    try:
+        # Get checklists assigned to current user
+        checklists_assigned_result = es.search('checklists', {
+            'query': {'term': {'assigned_to_name': current_user.username}},
+            'size': 100
+        })
+        assigned_checklists = [hit['_source'] | {'id': hit['_id']} 
+                              for hit in checklists_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned checklists: %s", e)
+    
     return render_template('dashboard.html', 
-                          stats=ioc_stats,
-                          total_iocs=total_iocs,
+                          total_stix=total_stix,
+                          total_iocs=total_stix,  # Backward compatibility
                           total_cases=total_cases,
                           total_incidents=total_incidents,
                           total_checklists=total_checklists,
                           cases_status_stats=cases_status_stats,
                           incidents_severity_stats=incidents_severity_stats,
-                          iocs_threat_stats=iocs_threat_stats,
+                          stix_type_stats=stix_type_stats,
+                          iocs_threat_stats=stix_type_stats,  # Backward compatibility
+                          stats=stats,
                           all_recent=all_recent,
-                          unresolved_submissions=unresolved_submissions)
+                          unresolved_submissions=unresolved_submissions,
+                          assigned_cases=assigned_cases,
+                          assigned_incidents=assigned_incidents,
+                          assigned_checklists=assigned_checklists)
 
 
 @main_bp.route('/iocs')
 @login_required
 def iocs_list():
-    """IOC listing page."""
-    return render_template('iocs/list.html')
+    """Redirect to STIX objects list (IOCs deprecated)."""
+    return redirect(url_for('stix.list_stix_objects_page'))
 
 
 @main_bp.route('/iocs/add')
 @login_required
 def iocs_add():
-    """Add IOC page."""
-    return render_template('iocs/add.html')
+    """Redirect to STIX object creation (IOCs deprecated)."""
+    return redirect(url_for('stix.add_stix_object_page'))
 
 
 @main_bp.route('/iocs/<ioc_id>')
 @login_required
 def iocs_detail(ioc_id):
-    """IOC detail page."""
-    service = IOCService()
-    ioc = service.get(ioc_id)
-    
-    if not ioc:
-        return render_template('errors/404.html'), 404
-    
-    # Make IOC template-friendly for HTML access
-    ioc_template = make_ioc_template_friendly(ioc)
-    
-    # Transform to STIX 2.1 compliant format for JSON display only
-    stix_json_display = transform_ioc_to_stix_compliant(ioc)
-    
-    # Extract enrichment data for template display
-    enrichment_data = None
-    if isinstance(ioc, dict) and 'x_enrichment' in ioc:
-        x_enrichment = ioc['x_enrichment']
-        if isinstance(x_enrichment, dict):
-            enrichment_data = {
-                'enriched_at': x_enrichment.get('enriched_at'),
-                'enriched_by': x_enrichment.get('enriched_by'),
-                'api_results': x_enrichment.get('api_results', [])
-            }
-    
-    # Pass both versions: ioc_template for HTML rendering, stix_json_display for the JSON view
-    return render_template('iocs/detail.html', ioc=ioc_template, stix_json_display=stix_json_display, enrichment_data=enrichment_data)
+    """Redirect to STIX object detail (IOCs deprecated)."""
+    return redirect(url_for('stix.stix_object_detail_page', object_id=ioc_id))
 
 
 @main_bp.route('/iocs/graph')
 @login_required
 def iocs_graph():
-    """IOC graph visualization page."""
-    return render_template('iocs/graph.html')
+    """IOC graph visualization page - now uses STIX objects."""
+    return render_template('stix/graph.html')
 
 
 @main_bp.route('/activity')
@@ -400,42 +422,41 @@ def activity_timeline():
 
 
 @main_bp.route('/api/iocs/graph-data')
+@main_bp.route('/api/stix/graph-data')
 @login_required
 def get_graph_data():
-    """Get IOCs and relationships for graph visualization, including cases and incidents."""
+    """Get STIX objects and relationships for graph visualization, including cases and incidents."""
     from app.services.case_service import CaseService
+    from app.services.elasticsearch_service import ElasticsearchService
     
-    ioc_service = IOCService()
+    stix_service = STIXService()
     case_service = CaseService()
+    es = ElasticsearchService()
     
-    # Get all IOCs with limit
+    # Get all STIX objects with limit
     limit = request.args.get('limit', default=100, type=int)
-    all_iocs = ioc_service.list(page=1, per_page=limit)
+    all_stix = stix_service.list_sdos(page=1, size=limit)
     
     nodes = []
     edges = []
     node_ids = {}
     edge_set = set()
     
-    # Create nodes from IOCs
-    for ioc in all_iocs.get('items', []):
-        node_id = ioc.get('id')
-        node_ids[node_id] = {'type': 'ioc', 'data': ioc}
+    # Create nodes from STIX objects
+    for obj in all_stix.get('items', []):
+        node_id = obj.get('id')
+        node_ids[node_id] = {'type': 'stix', 'data': obj}
         
-        # Build classes with IOC type and threat level
-        ioc_type = ioc.get('ioc_type', 'unknown').replace('-', '_')
-        threat_level = ioc.get('threat_level', 'unknown')
-        classes = f"ioc-{ioc_type} threat-{threat_level}"
+        # Build classes with STIX type
+        stix_type = obj.get('type', 'unknown').replace('-', '_')
+        classes = f"stix-{stix_type}"
         
         nodes.append({
             'data': {
                 'id': node_id,
-                'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
-                'type': str(ioc.get('ioc_type', 'unknown')),
-                'threat_level': str(threat_level),
-                'confidence': str(ioc.get('confidence', '')),
-                'tlp': str(ioc.get('tlp', '')),
-                'entity_type': 'ioc'
+                'label': str(obj.get('name', obj.get('value', obj.get('pattern', 'Unknown')))),
+                'type': str(obj.get('type', 'unknown')),
+                'entity_type': 'stix'
             },
             'classes': classes
         })
@@ -494,11 +515,11 @@ def get_graph_data():
     except Exception as e:
         current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
     
-    # Get relationships from Elasticsearch
+    # Get STIX 2.1 relationships from Elasticsearch
     try:
-        # Get IOC-IOC relations
-        all_relations = ioc_service.es.search(
-            'ioc_relations',
+        # Get STIX relationships
+        all_relations = es.search(
+            'stix_relationships',
             {
                 'size': 10000,
                 'query': {'match_all': {}}
@@ -506,79 +527,80 @@ def get_graph_data():
         )
         
         total_relations = all_relations.get('hits', {}).get('total', {}).get('value', 0)
-        current_app.logger.info(f"Total IOC relations found: {total_relations}")
+        current_app.logger.info(f"Total STIX relationships found: {total_relations}")
         
-        # Create edges from IOC relationships
+        # Create edges from STIX relationships
         for rel in all_relations.get('hits', {}).get('hits', []):
             rel_data = rel.get('_source', {})
             rel_id = rel.get('_id', '')
             
-            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
-            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
-            relation_type = rel_data.get('relation_type', 'related-to')
+            # source_ref/target_ref are in indicator--uuid format, same as node IDs
+            source_ref = rel_data.get('source_ref', '')
+            target_ref = rel_data.get('target_ref', '')
+            relationship_type = rel_data.get('relationship_type', 'related-to')
             
-            # Only add edge if both nodes exist
-            if source_id and target_id and source_id in node_ids and target_id in node_ids:
-                edge_id = f"{source_id}-{target_id}"
+            # Only add edge if both nodes exist (use full indicator--uuid format)
+            if source_ref and target_ref and source_ref in node_ids and target_ref in node_ids:
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
-                            'label': relation_type
+                            'source': source_ref,
+                            'target': target_ref,
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
     except Exception as e:
-        current_app.logger.warning(f"Could not fetch IOC relations: {str(e)}")
+        current_app.logger.warning(f"Could not fetch STIX relationships: {str(e)}")
     
-    # Get IOC-Case relations from case ioc_ids
+    # Get STIX-Case relations from case stix_ids or ioc_ids
     try:
         for case_id, node_info in node_ids.items():
             if node_info['type'] == 'case':
                 case_data = node_info['data']
-                ioc_ids = case_data.get('ioc_ids', [])
-                for ioc_id in ioc_ids:
-                    if ioc_id in node_ids and node_ids[ioc_id]['type'] == 'ioc':
-                        edge_id = f"{ioc_id}-{case_id}"
+                stix_ids = case_data.get('stix_ids', case_data.get('ioc_ids', []))
+                for stix_id in stix_ids:
+                    if stix_id in node_ids and node_ids[stix_id]['type'] == 'stix':
+                        edge_id = f"{stix_id}-{case_id}"
                         if edge_id not in edge_set:
                             edge_set.add(edge_id)
                             edges.append({
                                 'data': {
                                     'id': edge_id,
-                                    'source': ioc_id,
+                                    'source': stix_id,
                                     'target': case_id,
                                     'label': 'found-in-case'
                                 },
                                 'classes': 'relation-found_in_case'
                             })
     except Exception as e:
-        current_app.logger.warning(f"Could not process IOC-Case relations: {str(e)}")
+        current_app.logger.warning(f"Could not process STIX-Case relations: {str(e)}")
     
-    # Get IOC-Incident relations from incident ioc_ids
+    # Get STIX-Incident relations from incident stix_ids or ioc_ids
     try:
         for incident_id, node_info in node_ids.items():
             if node_info['type'] == 'incident':
                 incident_data = node_info['data']
-                ioc_ids = incident_data.get('ioc_ids', [])
-                for ioc_id in ioc_ids:
-                    if ioc_id in node_ids and node_ids[ioc_id]['type'] == 'ioc':
-                        edge_id = f"{ioc_id}-{incident_id}"
+                stix_ids = incident_data.get('stix_ids', incident_data.get('ioc_ids', []))
+                for stix_id in stix_ids:
+                    if stix_id in node_ids and node_ids[stix_id]['type'] == 'stix':
+                        edge_id = f"{stix_id}-{incident_id}"
                         if edge_id not in edge_set:
                             edge_set.add(edge_id)
                             edges.append({
                                 'data': {
                                     'id': edge_id,
-                                    'source': ioc_id,
+                                    'source': stix_id,
                                     'target': incident_id,
                                     'label': 'found-in-incident'
                                 },
                                 'classes': 'relation-found_in_incident'
                             })
     except Exception as e:
-        current_app.logger.warning(f"Could not process IOC-Incident relations: {str(e)}")
+        current_app.logger.warning(f"Could not process STIX-Incident relations: {str(e)}")
     
     current_app.logger.info(f"Final graph: {len(nodes)} nodes, {len(edges)} edges")
     
@@ -593,12 +615,13 @@ def get_graph_data():
 @main_bp.route('/api/debug/relations')
 @login_required
 def debug_relations():
-    """Debug endpoint to check relations in Elasticsearch."""
-    service = IOCService()
+    """Debug endpoint to check STIX 2.1 relationships in Elasticsearch."""
+    from app.services.elasticsearch_service import ElasticsearchService
+    es = ElasticsearchService()
     
     try:
-        all_relations = service.es.search(
-            'ioc_relations',
+        all_relations = es.search(
+            'stix_relationships',
             {'size': 100, 'query': {'match_all': {}}}
         )
         
@@ -656,49 +679,57 @@ def get_ioc_graph_data(ioc_id):
         })
         node_ids.add(ioc_id)
         
-        # Get all relations for this IOC
+        # Build STIX ref for this IOC (ioc_id already has indicator-- prefix)
+        ioc_ref = ioc_id
+        
+        # Get all STIX relationships for this IOC
         all_relations = ioc_service.es.search(
-            'ioc_relations',
+            'stix_relationships',
             {'size': 10000, 'query': {'match_all': {}}}
         )
         
         related_ioc_ids = set()
         
-        # Find relations where this IOC is source or target
+        # Find STIX relationships where this IOC is source or target
         for rel in all_relations.get('hits', {}).get('hits', []):
             rel_data = rel.get('_source', {})
-            source_id = rel_data.get('source_id') or rel_data.get('ioc_id')
-            target_id = rel_data.get('target_id') or rel_data.get('related_ioc_id')
-            relation_type = rel_data.get('relation_type', 'related-to')
+            source_ref = rel_data.get('source_ref', '')
+            target_ref = rel_data.get('target_ref', '')
+            relationship_type = rel_data.get('relationship_type', 'related-to')
             
-            # Check if this IOC is involved in the relation
-            if source_id == ioc_id and target_id:
-                related_ioc_ids.add(target_id)
-                edge_id = f"{source_id}-{target_id}"
+            # source_ref and target_ref are in indicator--uuid format
+            # ioc_id is also in indicator--uuid format
+            source_id = source_ref  # Keep full ID for node creation
+            target_id = target_ref  # Keep full ID for node creation
+            
+            # Check if this IOC is involved in the relationship
+            if source_ref == ioc_id and target_ref:
+                related_ioc_ids.add(target_ref)
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
-                            'label': relation_type
+                            'source': source_ref,
+                            'target': target_ref,
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
-            elif target_id == ioc_id and source_id:
-                related_ioc_ids.add(source_id)
-                edge_id = f"{source_id}-{target_id}"
+            elif target_ref == ioc_id and source_ref:
+                related_ioc_ids.add(source_ref)
+                edge_id = f"{source_ref}-{target_ref}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
-                            'source': source_id,
-                            'target': target_id,
-                            'label': relation_type
+                            'source': source_ref,
+                            'target': target_ref,
+                            'label': relationship_type
                         },
-                        'classes': f"relation-{relation_type.replace('-', '_')}"
+                        'classes': f"relation-{relationship_type.replace('-', '_')}"
                     })
         
         # Load related IOCs

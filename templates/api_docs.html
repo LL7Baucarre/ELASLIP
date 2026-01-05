@@ -923,6 +923,81 @@
             </div>
         </div>
 
+        <!-- STIX 2.1 Object Endpoints -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>STIX 2.1 Object Endpoints</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-3">Create STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/stix/objects</code>
+                </div>
+                <p>Create a new STIX Domain Object (indicator, malware, threat-actor, etc.)</p>
+
+                <h6 class="mt-4">List STIX Objects</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/stix/objects</code>
+                </div>
+                <p>List STIX objects with pagination and filtering. Query params: <code>type</code>, <code>page</code>, <code>size</code>, <code>search</code></p>
+
+                <h6 class="mt-4">Get STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/stix/objects/:stix_id</code>
+                </div>
+
+                <h6 class="mt-4">Update STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-warning">PUT</code> <code>/api/stix/objects/:stix_id</code>
+                </div>
+
+                <h6 class="mt-4">Delete STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-danger">DELETE</code> <code>/api/stix/objects/:stix_id</code>
+                </div>
+
+                <h6 class="mt-4">Enrich STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/stix/objects/:stix_id/enrich</code>
+                </div>
+                <p>Enrich a STIX object using configured external APIs. Returns raw results for user selection.</p>
+
+                <h6 class="mt-4">Auto-Enrich STIX Object</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/stix/objects/:stix_id/enrich/auto</code>
+                </div>
+                <p>Automatically enrich and store all results into <code>x_elaslip_enrichment</code></p>
+
+                <h6 class="mt-4">Store Selected Enrichment</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/stix/objects/:stix_id/store-enrichment</code>
+                </div>
+                <p>Store user-selected enrichment fields into the STIX object</p>
+
+                <h6 class="mt-4">Get Enrichment Data</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/stix/objects/:stix_id/enrichment</code>
+                </div>
+                <p>Get enrichment data (<code>x_elaslip_enrichment</code>) for a STIX object</p>
+
+                <h6 class="mt-4">Create Relationship</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-success">POST</code> <code>/api/stix/relationships</code>
+                </div>
+
+                <h6 class="mt-4">Get Related Objects</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/stix/objects/:stix_id/related</code>
+                </div>
+
+                <h6 class="mt-4">Export as Bundle</h6>
+                <div class="bg-light p-3 rounded mb-3">
+                    <code class="text-primary">GET</code> <code>/api/stix/objects/:stix_id/bundle</code>
+                </div>
+                <p>Export STIX object with relationships as a STIX 2.1 Bundle</p>
+            </div>
+        </div>
+
         <!-- Advanced Search Endpoints -->
         <div class="card mb-4">
             <div class="card-header bg-white">

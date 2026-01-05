@@ -685,6 +685,108 @@ def get_ioc(ioc_id):
     return jsonify(stix_compliant)
 
 
+@ioc_bp.route('/<ioc_id>/export/bundle', methods=['GET'])
+@permission_required('ioc.view')
+def export_ioc_bundle(ioc_id):
+    """
+    Export an IOC as a complete STIX 2.1 Bundle with related objects.
+    
+    Includes:
+    - The indicator itself
+    - All STIX relationships (where this IOC is source or target)
+    - Related STIX objects (malware, threat-actor, etc.)
+    """
+    import uuid as uuid_module
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    service = IOCService()
+    es = ElasticsearchService()
+    
+    # Normalize IOC ID
+    if not ioc_id.startswith('indicator--'):
+        ioc_id = f'indicator--{ioc_id}'
+    
+    ioc = service.get(ioc_id)
+    
+    if not ioc:
+        return jsonify({'error': 'IOC not found'}), 404
+    
+    # Build STIX indicator object
+    indicator = {
+        'type': 'indicator',
+        'spec_version': '2.1',
+        'id': ioc.get('id', ioc_id),
+        'created': ioc.get('created'),
+        'modified': ioc.get('modified'),
+        'name': ioc.get('name'),
+        'description': ioc.get('description'),
+        'indicator_types': ioc.get('labels', ['malicious-activity']),
+        'pattern': ioc.get('pattern'),
+        'pattern_type': 'stix',
+        'valid_from': ioc.get('valid_from', ioc.get('created'))
+    }
+    
+    # Remove None values
+    indicator = {k: v for k, v in indicator.items() if v is not None}
+    
+    bundle_objects = [indicator]
+    
+    # Get relationships where this IOC is source or target
+    try:
+        rel_query = {
+            'query': {
+                'bool': {
+                    'should': [
+                        {'term': {'source_ref': ioc_id}},
+                        {'term': {'target_ref': ioc_id}}
+                    ]
+                }
+            },
+            'size': 100
+        }
+        rel_result = es.search('stix_relationships', rel_query)
+        
+        related_object_ids = set()
+        for hit in rel_result.get('hits', {}).get('hits', []):
+            rel = hit['_source']
+            bundle_objects.append(rel)
+            
+            # Collect related object IDs
+            if rel.get('source_ref') != ioc_id:
+                related_object_ids.add(rel['source_ref'])
+            if rel.get('target_ref') != ioc_id:
+                related_object_ids.add(rel['target_ref'])
+        
+        # Get related STIX objects (malware, threat-actor, etc.)
+        for obj_id in related_object_ids:
+            if obj_id.startswith('indicator--'):
+                continue  # Skip other indicators for now
+            
+            try:
+                obj_result = es.get('stix_objects', obj_id)
+                if obj_result and obj_result.get('found'):
+                    obj_data = obj_result['_source']
+                    # Remove internal metadata
+                    obj_clean = {k: v for k, v in obj_data.items() 
+                                if not k.startswith('x_elaslip_')}
+                    bundle_objects.append(obj_clean)
+            except Exception:
+                pass
+                
+    except Exception:
+        # If relationships query fails, just return the indicator
+        pass
+    
+    # Build the bundle
+    bundle = {
+        'type': 'bundle',
+        'id': f"bundle--{uuid_module.uuid4()}",
+        'objects': bundle_objects
+    }
+    
+    return jsonify(bundle), 200
+
+
 @ioc_bp.route('/<ioc_id>', methods=['PUT', 'PATCH'])
 @permission_required('ioc.edit')
 def update_ioc(ioc_id):
@@ -987,6 +1089,181 @@ def create_from_stix():
         
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
+
+
+@ioc_bp.route('/stix/bundle', methods=['POST'])
+@login_or_api_key_required
+def create_from_stix_bundle():
+    """
+    Import a full STIX 2.1 Bundle with indicators, relationships, and other SDOs.
+    
+    Expected JSON body: A valid STIX 2.1 Bundle object.
+    Supports:
+    - indicators: Imported as IOCs
+    - relationships: Stored in stix_relationships index
+    - malware, threat-actor, attack-pattern, etc.: Stored in stix_objects index
+    """
+    import re
+    from datetime import datetime
+    from app.models.stix_schema import STIXBundle
+    from app.services.elasticsearch_service import ElasticsearchService
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'JSON body required'}), 400
+    
+    # Validate it's a bundle
+    if data.get('type') != 'bundle':
+        return jsonify({'error': 'Object type must be "bundle"'}), 400
+    
+    objects = data.get('objects', [])
+    if not objects:
+        return jsonify({'error': 'Bundle contains no objects'}), 400
+    
+    es = ElasticsearchService()
+    service = IOCService()
+    
+    result = {
+        'indicators_added': 0,
+        'indicators_duplicates': 0,
+        'relationships_added': 0,
+        'objects_added': 0,
+        'errors': []
+    }
+    
+    # Prepare source
+    source = {
+        'name': 'stix-bundle-import',
+        'metadata': {
+            'user_id': current_user.id,
+            'username': current_user.username,
+            'bundle_id': data.get('id')
+        }
+    }
+    
+    # Pattern extractors for indicators
+    pattern_extractors = {
+        'md5': re.compile(r"\[file:hashes\.MD5\s*=\s*'([^']+)'\]", re.IGNORECASE),
+        'sha1': re.compile(r"\[file:hashes\.SHA1\s*=\s*'([^']+)'\]", re.IGNORECASE),
+        'sha256': re.compile(r"\[file:hashes\.SHA256\s*=\s*'([^']+)'\]", re.IGNORECASE),
+        'ipv4': re.compile(r"\[ipv4-addr:value\s*=\s*'([^']+)'\]"),
+        'domain': re.compile(r"\[domain-name:value\s*=\s*'([^']+)'\]"),
+        'email': re.compile(r"\[email-addr:value\s*=\s*'([^']+)'\]"),
+        'url': re.compile(r"\[url:value\s*=\s*'([^']+)'\]"),
+        'asn': re.compile(r"\[autonomous-system:number\s*=\s*(\d+)\]")
+    }
+    
+    # Process each object in the bundle
+    for obj in objects:
+        obj_type = obj.get('type')
+        
+        if obj_type == 'indicator':
+            # Process indicator
+            pattern = obj.get('pattern')
+            if not pattern:
+                result['errors'].append({'type': 'indicator', 'error': 'Missing pattern'})
+                continue
+            
+            # Extract type and value from pattern
+            ioc_type = None
+            value = None
+            for t, regex in pattern_extractors.items():
+                match = regex.search(pattern)
+                if match:
+                    ioc_type = t
+                    value = match.group(1)
+                    if t == 'asn' and not value.upper().startswith('AS'):
+                        value = f'AS{value}'
+                    break
+            
+            if not ioc_type or not value:
+                result['errors'].append({
+                    'type': 'indicator',
+                    'error': 'Could not extract IOC from pattern',
+                    'pattern': pattern
+                })
+                continue
+            
+            try:
+                ioc, is_new = service.create(
+                    ioc_type=ioc_type,
+                    value=value,
+                    labels=obj.get('labels', []) or obj.get('indicator_types', []),
+                    source=source,
+                    name=obj.get('name'),
+                    description=obj.get('description')
+                )
+                if is_new:
+                    result['indicators_added'] += 1
+                else:
+                    result['indicators_duplicates'] += 1
+            except Exception as e:
+                result['errors'].append({
+                    'type': 'indicator',
+                    'error': str(e),
+                    'value': value
+                })
+        
+        elif obj_type == 'relationship':
+            # Process relationship
+            if not all([obj.get('source_ref'), obj.get('target_ref'), obj.get('relationship_type')]):
+                result['errors'].append({
+                    'type': 'relationship',
+                    'error': 'Missing required fields (source_ref, target_ref, relationship_type)'
+                })
+                continue
+            
+            try:
+                import uuid as uuid_module
+                rel_doc = {
+                    'id': obj.get('id', f"relationship--{uuid_module.uuid4()}"),
+                    'type': 'relationship',
+                    'spec_version': obj.get('spec_version', '2.1'),
+                    'created': obj.get('created', datetime.utcnow().isoformat()),
+                    'modified': obj.get('modified', datetime.utcnow().isoformat()),
+                    'relationship_type': obj['relationship_type'],
+                    'source_ref': obj['source_ref'],
+                    'target_ref': obj['target_ref'],
+                    'description': obj.get('description'),
+                    'x_elaslip_created_by_user_id': current_user.id,
+                    'x_elaslip_created_by_username': current_user.username
+                }
+                es.index('stix_relationships', rel_doc['id'], rel_doc)
+                result['relationships_added'] += 1
+            except Exception as e:
+                result['errors'].append({
+                    'type': 'relationship',
+                    'error': str(e)
+                })
+        
+        elif obj_type in STIXBundle.SUPPORTED_SDO_TYPES:
+            # Process other SDO types (malware, threat-actor, etc.)
+            try:
+                import uuid as uuid_module
+                obj_id = obj.get('id', f"{obj_type}--{uuid_module.uuid4()}")
+                
+                # Add metadata
+                obj['x_elaslip_created_by_user_id'] = current_user.id
+                obj['x_elaslip_created_by_username'] = current_user.username
+                
+                if 'spec_version' not in obj:
+                    obj['spec_version'] = '2.1'
+                if 'created' not in obj:
+                    obj['created'] = datetime.utcnow().isoformat()
+                if 'modified' not in obj:
+                    obj['modified'] = datetime.utcnow().isoformat()
+                
+                es.index('stix_objects', obj_id, obj)
+                result['objects_added'] += 1
+            except Exception as e:
+                result['errors'].append({
+                    'type': obj_type,
+                    'name': obj.get('name', 'unknown'),
+                    'error': str(e)
+                })
+    
+    return jsonify(result), 200
 
 
 # ============================================================

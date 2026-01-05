@@ -256,8 +256,8 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>WHOIS Results</h6>
                     <div>
-                        <button class="btn btn-sm btn-outline-success" id="createIocFromWhois" title="Create IOC">
-                            <i class="bi bi-plus-circle"></i> Create IOC
+                        <button class="btn btn-sm btn-outline-success" id="createIocFromWhois" title="Create STIX Object">
+                            <i class="bi bi-plus-circle"></i> Create STIX Object
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" id="toggleRawWhois">
                             <i class="bi bi-code"></i> Raw
@@ -534,8 +534,8 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="bi bi-file-text me-2"></i>Email Header Analysis Results</h6>
                     <div>
-                        <button class="btn btn-sm btn-outline-success" id="createIocFromEmailHeaders" title="Create IOC" style="display: none;">
-                            <i class="bi bi-plus-circle"></i> Create IOC
+                        <button class="btn btn-sm btn-outline-success" id="createIocFromEmailHeaders" title="Create STIX Object" style="display: none;">
+                            <i class="bi bi-plus-circle"></i> Create STIX Object
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" id="toggleRawEmailHeaders">
                             <i class="bi bi-code"></i> Raw
@@ -553,10 +553,10 @@
                                     <div class="d-flex justify-content-between align-items-center gap-1">
                                         <div id="email-from" class="mb-3 flex-grow-1"></div>
                                         <div class="btn-group btn-group-sm" role="group" style="display: none;" data-ioc-group="email-from">
-                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="domain" title="Create IOC from domain">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="domain" title="Create STIX Object from domain">
                                                 <i class="bi bi-globe"></i>
                                             </button>
-                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="email" title="Create IOC from email">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-from" data-ioc-value-type="email" title="Create STIX Object from email">
                                                 <i class="bi bi-envelope"></i>
                                             </button>
                                         </div>
@@ -571,10 +571,10 @@
                                     <div class="d-flex justify-content-between align-items-center gap-1">
                                         <div id="email-to" class="mb-3 flex-grow-1"></div>
                                         <div class="btn-group btn-group-sm" role="group" style="display: none;" data-ioc-group="email-to">
-                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="domain" title="Create IOC from domain">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="domain" title="Create STIX Object from domain">
                                                 <i class="bi bi-globe"></i>
                                             </button>
-                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="email" title="Create IOC from email">
+                                            <button class="btn btn-outline-primary ioc-btn" data-ioc-type="email-to" data-ioc-value-type="email" title="Create STIX Object from email">
                                                 <i class="bi bi-envelope"></i>
                                             </button>
                                         </div>
@@ -598,7 +598,7 @@
                                         <strong>Source IP:</strong> <code id="source-ip"></code>
                                     </div>
                                     <button class="btn btn-sm btn-warning" id="createIocFromSourceIp">
-                                        <i class="bi bi-plus-circle"></i> Create IOC
+                                        <i class="bi bi-plus-circle"></i> Create STIX Object
                                     </button>
                                 </div>
                             </div>
@@ -856,8 +856,8 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">MD5</label>
                                     <div>
-                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('md5')" title="Create MD5 IOC">
-                                            <i class="bi bi-plus"></i> IOC
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('md5')" title="Create MD5 STIX Object">
+                                            <i class="bi bi-plus"></i> STIX
                                         </button>
                                         <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('md5')" title="Search on VirusTotal">
                                             <i class="bi bi-search"></i> VT
@@ -870,8 +870,8 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">SHA1</label>
                                     <div>
-                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha1')" title="Create SHA1 IOC">
-                                            <i class="bi bi-plus"></i> IOC
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha1')" title="Create SHA1 STIX Object">
+                                            <i class="bi bi-plus"></i> STIX
                                         </button>
                                         <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('sha1')" title="Search on VirusTotal">
                                             <i class="bi bi-search"></i> VT
@@ -884,8 +884,8 @@
                                 <div class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label mb-0">SHA256</label>
                                     <div>
-                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha256')" title="Create SHA256 IOC">
-                                            <i class="bi bi-plus"></i> IOC
+                                        <button type="button" class="btn btn-xs btn-outline-primary" onclick="createIocFromHash('sha256')" title="Create SHA256 STIX Object">
+                                            <i class="bi bi-plus"></i> STIX
                                         </button>
                                         <button type="button" class="btn btn-xs btn-outline-info" onclick="openVirusTotal('sha256')" title="Search on VirusTotal">
                                             <i class="bi bi-search"></i> VT
@@ -902,9 +902,9 @@
                             <ul class="list-unstyled" id="metadataList"></ul>
                         </div>
 
-                        <!-- Created IOCs section -->
+                        <!-- Created STIX Objects section -->
                         <div id="createdIocsSection" style="display: none;">
-                            <h6 class="mt-4 mb-3"><i class="bi bi-check-circle"></i> Created IOCs</h6>
+                            <h6 class="mt-4 mb-3"><i class="bi bi-check-circle"></i> Created STIX Objects</h6>
                             <div id="createdIocsList"></div>
                         </div>
                     </div>
@@ -977,18 +977,18 @@
     </div>
 </div>
 
-<!-- Create IOC Modal -->
+<!-- Create STIX Object Modal -->
 <div class="modal fade" id="createIocModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Create IOC from Scan</h5>
+                <h5 class="modal-title">Create STIX Object from Scan</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <form id="createIocForm">
                     <div class="mb-3">
-                        <label class="form-label">IOC Type</label>
+                        <label class="form-label">Indicator Type</label>
                         <select class="form-select" id="iocType" required>
                             <option value="">Select type...</option>
                             <option value="domain">Domain</option>
@@ -1023,7 +1023,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="saveIocBtn">Create IOC</button>
+                <button type="button" class="btn btn-primary" id="saveIocBtn">Create STIX Object</button>
             </div>
         </div>
     </div>
@@ -1281,7 +1281,7 @@ $(document).ready(function() {
         }
     });
     
-    // Create IOC from WHOIS
+    // Create STIX Object from WHOIS
     $('#createIocFromWhois').click(function() {
         if (currentScanResult) {
             $('#iocValue').val(currentScanResult.target);
@@ -1303,43 +1303,72 @@ $(document).ready(function() {
         }
     });
     
-    // Save IOC
+    // Save STIX Object
     $('#saveIocBtn').click(function() {
-        const type = $('#iocType').val();
+        const iocType = $('#iocType').val();
         const value = $('#iocValue').val();
         
         // Validation: if user selected 'domain' but wrote a URL, suggest changing to 'url'
-        if (type === 'domain' && value.startsWith('http')) {
+        if (iocType === 'domain' && value.startsWith('http')) {
             showAlert('It looks like you entered a URL. Please change the type to "url" or remove the protocol (http/https) from the domain.', 'warning');
             return;
         }
         
+        // Convert IOC type to STIX pattern
+        const pattern = generateSTIXPattern(iocType, value);
+        if (!pattern) {
+            showAlert('Could not generate STIX pattern for this IOC type', 'danger');
+            return;
+        }
+        
         const data = {
-            type: type,
-            value: value,
-            threat_level: $('#iocThreatLevel').val(),
+            type: 'indicator',  // STIX type is always 'indicator'
+            pattern: pattern,
+            pattern_type: 'stix',
+            valid_from: new Date().toISOString(),
+            x_ioc_type: iocType,  // Store original IOC type in custom field
+            x_ioc_value: value,
+            name: `${iocType.toUpperCase()}: ${value}`,
             description: $('#iocDescription').val(),
             labels: $('#iocTags').val().split(',').map(t => t.trim()).filter(t => t),
-            source: 'scan-result'
+            x_threat_level: $('#iocThreatLevel').val(),
+            x_source: 'scan-result'
         };
         
         $.ajax({
-            url: '/api/ioc',
+            url: '/api/stix/objects',
             method: 'POST',
             contentType: 'application/json',
             dataType: 'json',
             data: JSON.stringify(data),
             success: function(response) {
-                showAlert('IOC created successfully!', 'success');
+                showAlert('STIX object created successfully!', 'success');
                 bootstrap.Modal.getInstance('#createIocModal').hide();
             },
             error: function(xhr) {
-                const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+                const msg = xhr.responseJSON?.error || 'Failed to create STIX object';
                 showAlert(msg, 'danger');
             }
         });
     });
 });
+
+// Generate STIX pattern from IOC type and value
+function generateSTIXPattern(iocType, value) {
+    const patterns = {
+        'md5': `[file:hashes.MD5 = '${value}']`,
+        'sha1': `[file:hashes.SHA1 = '${value}']`,
+        'sha256': `[file:hashes.SHA256 = '${value}']`,
+        'ipv4': `[ipv4-addr:value = '${value}']`,
+        'ipv6': `[ipv6-addr:value = '${value}']`,
+        'domain': `[domain-name:value = '${value}']`,
+        'email': `[email-addr:value = '${value}']`,
+        'url': `[url:value = '${value}']`,
+        'asn': `[autonomous-system:number = ${value.replace(/^AS/i, '')}]`
+    };
+    
+    return patterns[iocType] || null;
+}
 
 function runWhois() {
     const target = $('#whoisTarget').val().trim();
@@ -2198,37 +2227,48 @@ function createIocsFromFileHashes(data) {
     let newIocsCount = 0;
     let existingIocsCount = 0;
     
-    // First create all IOCs
+    // First create all STIX objects
     for (const [hashType, hashValue] of Object.entries(hashes)) {
         if (!hashValue) {
             processed++;
             continue;
         }
         
+        // Convert hash type to STIX pattern
+        const pattern = generateSTIXPattern(hashType, hashValue);
+        if (!pattern) {
+            processed++;
+            continue;
+        }
+        
         const iocData = {
-            type: hashType,
-            value: hashValue,
-            labels: ['file-hash', 'file-analysis', fileData.extension || 'unknown'],
-            source: 'file-analysis',
-            name: `File hash from ${fileData.filename}`,
+            type: 'indicator',  // STIX type is always 'indicator'
+            pattern: pattern,
+            pattern_type: 'stix',
+            valid_from: new Date().toISOString(),
+            x_ioc_type: hashType,  // Store original hash type
+            x_ioc_value: hashValue,
+            name: `${hashType.toUpperCase()}: ${hashValue}`,
             description: `${hashType.toUpperCase()} hash of ${fileData.filename}`,
-            threat_level: 'unknown'
+            labels: ['file-hash', 'file-analysis', fileData.extension || 'unknown'],
+            x_threat_level: 'unknown',
+            x_source: 'file-analysis'
         };
         
         $.ajax({
-            url: '/api/ioc',
+            url: '/api/stix/objects',
             method: 'POST',
             contentType: 'application/json',
             dataType: 'json',
             data: JSON.stringify(iocData),
             success: function(response) {
                 // Extract ID from response
-                const iocId = response.ioc?.id || response.id;
-                if (iocId) {
-                    hashIds[hashType] = iocId;
+                const stixId = response.stix?.id || response.ioc?.id || response.id;
+                if (stixId) {
+                    hashIds[hashType] = stixId;
                 }
                 
-                // Track if IOC is new or existing
+                // Track if object is new or existing
                 if (response.is_new) {
                     newIocsCount++;
                 } else {
@@ -2237,14 +2277,14 @@ function createIocsFromFileHashes(data) {
                 
                 processed++;
                 
-                // When all IOCs are processed, create relationships
+                // When all STIX objects are processed, create relationships
                 if (processed === totalHashes) {
                     createHashRelationships(hashIds);
                     
                     // Show summary message
                     let msg = '';
                     if (newIocsCount > 0) {
-                        msg += `${newIocsCount} IOC(s) created`;
+                        msg += `${newIocsCount} STIX object(s) created`;
                     }
                     if (existingIocsCount > 0) {
                         if (msg) msg += ', ';
@@ -2252,7 +2292,7 @@ function createIocsFromFileHashes(data) {
                     }
                     
                     if (msg) {
-                        // Use warning color (orange) if all IOCs are existing, success if any are new
+                        // Use warning color (orange) if all objects are existing, success if any are new
                         const alertType = (newIocsCount === 0 && existingIocsCount > 0) ? 'warning' : 'success';
                         showAlert(`${msg}.`, alertType);
                     }
@@ -2261,7 +2301,7 @@ function createIocsFromFileHashes(data) {
                 }
             },
             error: function(xhr) {
-                const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+                const msg = xhr.responseJSON?.error || 'Failed to create STIX object';
                 showAlert(`${hashType}: ${msg}`, 'warning');
                 processed++;
                 if (processed === totalHashes) {
@@ -2275,7 +2315,7 @@ function createIocsFromFileHashes(data) {
 function createHashRelationships(hashIds) {
     const hashTypesList = Object.keys(hashIds);
     
-    // Create relationships between each hash pair (related)
+    // Create STIX 2.1 relationships between each hash pair
     for (let i = 0; i < hashTypesList.length; i++) {
         for (let j = i + 1; j < hashTypesList.length; j++) {
             const type1 = hashTypesList[i];
@@ -2284,18 +2324,18 @@ function createHashRelationships(hashIds) {
             const id2 = hashIds[type2];
             
             if (id1 && id2) {
-                // Create relationship from id1 to id2
+                // Create STIX relationship from id1 to id2
                 $.ajax({
-                    url: `/api/ioc/${id1}/relations`,
+                    url: `/api/stix/${id1}/relationships`,
                     method: 'POST',
                     contentType: 'application/json',
                     data: JSON.stringify({
-                        related_ioc_ids: [id2],
-                        relation_type: 'related'
+                        target_ref: id2,
+                        relationship_type: 'related-to'
                     }),
                     error: function(xhr) {
                         // Log error for debugging
-                        console.warn('Failed to create relation:', xhr);
+                        console.warn('Failed to create STIX relationship:', xhr);
                     }
                 });
             }
@@ -2311,32 +2351,44 @@ function createIocFromHash(hashType) {
     }
     
     const filename = $('#file-filename').text();
+    
+    // Convert hash type to STIX pattern
+    const pattern = generateSTIXPattern(hashType, hashValue);
+    if (!pattern) {
+        showAlert('Could not generate STIX pattern for this hash type', 'danger');
+        return;
+    }
+    
     const iocData = {
-        type: hashType,
-        value: hashValue,
-        labels: ['file-hash', 'file-analysis'],
-        source: 'file-analysis',
-        name: `File hash from ${filename}`,
+        type: 'indicator',  // STIX type is always 'indicator'
+        pattern: pattern,
+        pattern_type: 'stix',
+        valid_from: new Date().toISOString(),
+        x_ioc_type: hashType,  // Store original hash type
+        x_ioc_value: hashValue,
+        name: `${hashType.toUpperCase()}: ${hashValue}`,
         description: `${hashType.toUpperCase()} hash of ${filename}`,
-        threat_level: 'unknown'
+        labels: ['file-hash', 'file-analysis'],
+        x_threat_level: 'unknown',
+        x_source: 'file-analysis'
     };
     
     $.ajax({
-        url: '/api/ioc',
+        url: '/api/stix/objects',
         method: 'POST',
         contentType: 'application/json',
         dataType: 'json',
         data: JSON.stringify(iocData),
         success: function(response) {
-            // Check if IOC is new or already existed
+            // Check if STIX object is new or already existed
             if (response.is_new) {
-                showAlert(`${hashType.toUpperCase()} IOC created successfully!`, 'success');
+                showAlert(`${hashType.toUpperCase()} STIX object created successfully!`, 'success');
             } else {
-                showAlert(`${hashType.toUpperCase()} IOC already exists in database.`, 'info');
+                showAlert(`${hashType.toUpperCase()} STIX object already exists in database.`, 'info');
             }
         },
         error: function(xhr) {
-            const msg = xhr.responseJSON?.error || 'Failed to create IOC';
+            const msg = xhr.responseJSON?.error || 'Failed to create STIX object';
             showAlert(`Error: ${msg}`, 'danger');
         }
     });
@@ -2712,19 +2764,72 @@ function analyzeDmarcDkim() {
         type: 'POST',
         contentType: 'application/json',
         data: JSON.stringify({ domain: domain }),
-        success: function(response) {
-            currentScanResult = response;
-            displayDmarcDkimResult(response);
-            loadScanHistory();
+        dataType: 'json',
+        timeout: 300000, // 5 min timeout
+        success: function(response, textStatus, xhr) {
+            // Check HTTP status code
+            if (xhr.status === 202) {
+                // Analysis queued - unlock button immediately and poll in background
+                showAlert('DMARC/DKIM analysis queued. Processing in background...', 'info');
+                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
+                const taskId = response.task_id;
+                pollDmarcDkimTask(taskId);
+            } else {
+                // Sync response (200)
+                currentScanResult = response;
+                displayDmarcDkimResult(response);
+                loadScanHistory();
+                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
+            }
         },
         error: function(xhr) {
             const error = xhr.responseJSON?.error || 'Error analyzing domain';
             showAlert(error, 'danger');
-        },
-        complete: function() {
             $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
         }
     });
+}
+
+function pollDmarcDkimTask(taskId) {
+    let attempts = 0;
+    const maxAttempts = 300; // 5 minutes with 1s polling
+    
+    function checkTask() {
+        $.ajax({
+            url: `/api/tools/task/${taskId}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                const status = response.status || response.state;
+                
+                if (status === 'SUCCESS') {
+                    // Show results in background (don't block UI)
+                    const result = response.result;
+                    if (result && result.dmarc) {
+                        // Show notification about completion
+                        showAlert('DMARC/DKIM analysis completed! Check history to view results.', 'success');
+                        loadScanHistory();
+                    }
+                } else if (status === 'FAILURE') {
+                    const errorMsg = response.result?.error || response.error || 'Unknown error';
+                    showAlert(`DMARC/DKIM analysis failed: ${errorMsg}`, 'danger');
+                } else if (status === 'PENDING' || status === 'RETRY') {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        // Continue polling
+                        setTimeout(checkTask, 1000);
+                    } else {
+                        showAlert('DMARC/DKIM analysis timed out', 'danger');
+                    }
+                }
+            },
+            error: function() {
+                // Task endpoint error - stop polling silently
+            }
+        });
+    }
+    
+    checkTask();
 }
 
 function displayDmarcDkimResult(data) {
