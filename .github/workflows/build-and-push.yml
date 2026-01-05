@@ -106,7 +106,28 @@ jobs:
           fi
 
           echo "Querying $PACKAGES_URL"
-          curl -s -H "Authorization: token $GHCR_PAT" "$PACKAGES_URL" | jq -r '.[] | {id: .id, name: .name, updated_at: .updated_at} | @json' || true
+          PACKAGES_JSON=$(curl -s -H "Authorization: token $GHCR_PAT" "$PACKAGES_URL" || true)
+          echo "$PACKAGES_JSON" | jq -r '.[] | {id: .id, name: .name, updated_at: .updated_at} | @json' || true
+          echo "\nNow querying repo-level packages endpoint to see if the package is associated with the repository..."
+          REPO_PACKAGES_URL="https://api.github.com/repos/$OWNER/$REPO/packages?package_type=container"
+          echo "Querying $REPO_PACKAGES_URL"
+          REPO_PACKAGES_JSON=$(curl -s -H "Authorization: token $GHCR_PAT" "$REPO_PACKAGES_URL" || true)
+          echo "Repo packages result:"
+          echo "$REPO_PACKAGES_JSON" | jq -r '.[] | {id: .id, name: .name, package_html_url: .package_html_url} | @json' || true
+
+          if [ -z "$(echo "$REPO_PACKAGES_JSON" | jq -r 'length')" ] || [ "$(echo "$REPO_PACKAGES_JSON" | jq -r 'length')" -eq 0 ]; then
+            echo "No repo-associated packages found. Will display metadata for the latest user package version (if any)."
+            LATEST_ID=$(echo "$PACKAGES_JSON" | jq -r '.[0].id' || true)
+            if [ -n "$LATEST_ID" ] && [ "$LATEST_ID" != "null" ]; then
+              echo "Fetching metadata for version id=$LATEST_ID"
+              curl -s -H "Authorization: token $GHCR_PAT" "https://api.github.com/user/packages/container/$REPO/versions/$LATEST_ID" | jq || true
+            else
+              echo "No package versions found for user package $REPO."
+            fi
+          else
+            echo "Package appears associated with the repository."
+          fi
+
           echo "If the output above is empty, the package was not found or the token lacks permission."
 
       - name: Create release (on tag)
