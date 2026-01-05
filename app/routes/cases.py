@@ -1337,8 +1337,8 @@ def import_snippet():
 @bp.route('/api/cases/<case_id>/graph-data')
 @login_required
 def get_case_graph_data(case_id):
-    """Get graph data for a specific case and its relations (IOCs, related cases/incidents)."""
-    from app.services.ioc_service import IOCService
+    """Get graph data for a specific case and its relations (STIX objects, related cases/incidents)."""
+    from app.services.stix_service import STIXService
     
     nodes = []
     edges = []
@@ -1362,48 +1362,50 @@ def get_case_graph_data(case_id):
     })
     node_ids.add(case_id)
     
-    # Get all IOCs in this case
-    ioc_ids = case.get('ioc_ids', [])
-    current_app.logger.info(f"Case {case_id} has {len(ioc_ids)} IOCs: {ioc_ids}")
+    # Get all STIX objects in this case (stored as ioc_ids for backward compatibility)
+    stix_ids = case.get('ioc_ids', [])
+    current_app.logger.info(f"Case {case_id} has {len(stix_ids)} STIX objects: {stix_ids}")
     
-    ioc_service = IOCService()
-    
-    # Load IOCs
-    for ioc_id in ioc_ids:
+    # Load STIX objects
+    for stix_id in stix_ids:
         try:
-            ioc = ioc_service.get(ioc_id)
-            if ioc:
+            stix_obj = STIXService.get_sdo(stix_id)
+            if stix_obj:
+                # Get label from STIX object
+                label = stix_obj.get('name') or stix_obj.get('pattern') or stix_obj.get('x_ioc_value') or 'Unknown'
+                stix_type = stix_obj.get('type', 'unknown')
+                
                 nodes.append({
                     'data': {
-                        'id': ioc['id'],
-                        'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
-                        'type': str(ioc.get('ioc_type', 'unknown')),
-                        'threat_level': str(ioc.get('threat_level', 'unknown')),
-                        'confidence': str(ioc.get('confidence', '')),
-                        'tlp': str(ioc.get('tlp', '')),
-                        'entity_type': 'ioc'
+                        'id': stix_obj['id'],
+                        'label': str(label),
+                        'type': str(stix_type),
+                        'threat_level': str(stix_obj.get('x_threat_level', stix_obj.get('x_metadata', {}).get('threat_level', 'unknown'))),
+                        'confidence': str(stix_obj.get('confidence', '')),
+                        'tlp': str(stix_obj.get('x_tlp', '')),
+                        'entity_type': 'stix'
                     },
-                    'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+                    'classes': f"stix-{stix_type.replace('-', '_')}"
                 })
-                node_ids.add(ioc_id)
+                node_ids.add(stix_id)
                 
-                # Add edge from case to IOC
-                edge_id = f"{case_id}-{ioc_id}"
+                # Add edge from case to STIX object
+                edge_id = f"{case_id}-{stix_id}"
                 if edge_id not in edge_set:
                     edge_set.add(edge_id)
                     edges.append({
                         'data': {
                             'id': edge_id,
                             'source': case_id,
-                            'target': ioc_id,
-                            'label': 'contains-ioc'
+                            'target': stix_id,
+                            'label': 'contains'
                         },
-                        'classes': 'relation-contains_ioc'
+                        'classes': 'relation-contains'
                     })
         except:
             pass
     
-    # Get other cases that share IOCs with this case
+    # Get other cases that share STIX objects with this case
     try:
         all_cases = case_service.es.search(
             'cases',
@@ -1416,11 +1418,11 @@ def get_case_graph_data(case_id):
                 continue
             
             other_case_data = hit.get('_source', {})
-            other_ioc_ids = other_case_data.get('ioc_ids', [])
+            other_stix_ids = other_case_data.get('ioc_ids', [])
             
-            # Check if they share any IOCs
-            shared_iocs = set(ioc_ids) & set(other_ioc_ids)
-            if shared_iocs:
+            # Check if they share any STIX objects
+            shared_stix = set(stix_ids) & set(other_stix_ids)
+            if shared_stix:
                 if other_case_id not in node_ids:
                     nodes.append({
                         'data': {
@@ -1441,14 +1443,14 @@ def get_case_graph_data(case_id):
                             'id': edge_id,
                             'source': case_id,
                             'target': other_case_id,
-                            'label': f'shares-{len(shared_iocs)}-iocs'
+                            'label': f'shares-{len(shared_stix)}-stix'
                         },
-                        'classes': 'relation-shares_iocs'
+                        'classes': 'relation-shares_stix'
                     })
     except Exception as e:
         current_app.logger.warning(f"Could not fetch related cases: {str(e)}")
     
-    # Get incidents that share IOCs with this case
+    # Get incidents that share STIX objects with this case
     try:
         all_incidents = case_service.es.search(
             'incidents',
@@ -1458,11 +1460,11 @@ def get_case_graph_data(case_id):
         for hit in all_incidents.get('hits', {}).get('hits', []):
             incident_id = hit.get('_id')
             incident_data = hit.get('_source', {})
-            incident_ioc_ids = incident_data.get('ioc_ids', [])
+            incident_stix_ids = incident_data.get('ioc_ids', [])
             
-            # Check if they share any IOCs
-            shared_iocs = set(ioc_ids) & set(incident_ioc_ids)
-            if shared_iocs:
+            # Check if they share any STIX objects
+            shared_stix = set(stix_ids) & set(incident_stix_ids)
+            if shared_stix:
                 if incident_id not in node_ids:
                     nodes.append({
                         'data': {
@@ -1483,9 +1485,9 @@ def get_case_graph_data(case_id):
                             'id': edge_id,
                             'source': case_id,
                             'target': incident_id,
-                            'label': f'shares-{len(shared_iocs)}-iocs'
+                            'label': f'shares-{len(shared_stix)}-stix'
                         },
-                        'classes': 'relation-shares_iocs'
+                        'classes': 'relation-shares_stix'
                     })
     except Exception as e:
         current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
@@ -1501,8 +1503,8 @@ def get_case_graph_data(case_id):
 @bp.route('/api/incidents/<incident_id>/graph-data')
 @login_required
 def get_incident_graph_data(incident_id):
-    """Get graph data for a specific incident and its relations (IOCs, related cases/incidents)."""
-    from app.services.ioc_service import IOCService
+    """Get graph data for a specific incident and its relations (STIX objects, related cases/incidents)."""
+    from app.services.stix_service import STIXService
     
     nodes = []
     edges = []
@@ -1526,47 +1528,49 @@ def get_incident_graph_data(incident_id):
     })
     node_ids.add(incident_id)
     
-    # Get all IOCs in this incident
-    ioc_ids = incident.get('ioc_ids', [])
-    ioc_service = IOCService()
+    # Get all STIX objects in this incident
+    stix_ids = incident.get('ioc_ids', [])
     
-    # Load IOCs - wrapped in try/except, but doesn't prevent returning at least the incident
+    # Load STIX objects
     try:
-        for ioc_id in ioc_ids:
+        for stix_id in stix_ids:
             try:
-                ioc = ioc_service.get(ioc_id)
-                if ioc:
+                stix_obj = STIXService.get_sdo(stix_id)
+                if stix_obj:
+                    label = stix_obj.get('name') or stix_obj.get('pattern') or stix_obj.get('x_ioc_value') or 'Unknown'
+                    stix_type = stix_obj.get('type', 'unknown')
+                    
                     nodes.append({
                         'data': {
-                            'id': ioc['id'],
-                            'label': str(ioc.get('ioc_value', ioc.get('value', 'Unknown'))),
-                            'type': str(ioc.get('ioc_type', 'unknown')),
-                            'threat_level': str(ioc.get('threat_level', 'unknown')),
-                            'confidence': str(ioc.get('confidence', '')),
-                            'tlp': str(ioc.get('tlp', '')),
-                            'entity_type': 'ioc'
+                            'id': stix_obj['id'],
+                            'label': str(label),
+                            'type': str(stix_type),
+                            'threat_level': str(stix_obj.get('x_threat_level', stix_obj.get('x_metadata', {}).get('threat_level', 'unknown'))),
+                            'confidence': str(stix_obj.get('confidence', '')),
+                            'tlp': str(stix_obj.get('x_tlp', '')),
+                            'entity_type': 'stix'
                         },
-                        'classes': f"ioc-{ioc.get('ioc_type', 'unknown').replace('-', '_')}"
+                        'classes': f"stix-{stix_type.replace('-', '_')}"
                     })
-                    node_ids.add(ioc_id)
+                    node_ids.add(stix_id)
                     
-                    # Add edge from incident to IOC
-                    edge_id = f"{incident_id}-{ioc_id}"
+                    # Add edge from incident to STIX object
+                    edge_id = f"{incident_id}-{stix_id}"
                     if edge_id not in edge_set:
                         edge_set.add(edge_id)
                         edges.append({
                             'data': {
                                 'id': edge_id,
                                 'source': incident_id,
-                                'target': ioc_id,
-                                'label': 'contains-ioc'
+                                'target': stix_id,
+                                'label': 'contains'
                             },
-                            'classes': 'relation-contains_ioc'
+                            'classes': 'relation-contains'
                         })
             except:
                 pass
         
-        # Get cases that share IOCs with this incident
+        # Get cases that share STIX objects with this incident
         all_cases = case_service.es.search(
             'cases',
             {'size': 1000, 'query': {'match_all': {}}}
@@ -1575,11 +1579,11 @@ def get_incident_graph_data(incident_id):
         for hit in all_cases.get('hits', {}).get('hits', []):
             case_id = hit.get('_id')
             case_data = hit.get('_source', {})
-            case_ioc_ids = case_data.get('ioc_ids', [])
+            case_stix_ids = case_data.get('ioc_ids', [])
             
-            # Check if they share any IOCs
-            shared_iocs = set(ioc_ids) & set(case_ioc_ids)
-            if shared_iocs:
+            # Check if they share any STIX objects
+            shared_stix = set(stix_ids) & set(case_stix_ids)
+            if shared_stix:
                 if case_id not in node_ids:
                     nodes.append({
                         'data': {
@@ -1600,14 +1604,14 @@ def get_incident_graph_data(incident_id):
                             'id': edge_id,
                             'source': incident_id,
                             'target': case_id,
-                            'label': f'shares-{len(shared_iocs)}-iocs'
+                            'label': f'shares-{len(shared_stix)}-stix'
                         },
-                        'classes': 'relation-shares_iocs'
+                        'classes': 'relation-shares_stix'
                     })
     except Exception as e:
         current_app.logger.warning(f"Could not fetch cases: {str(e)}")
     
-    # Get other incidents that share IOCs with this incident
+    # Get other incidents that share STIX objects with this incident
     try:
         all_incidents = case_service.es.search(
             'incidents',
@@ -1620,11 +1624,11 @@ def get_incident_graph_data(incident_id):
                 continue
             
             other_incident_data = hit.get('_source', {})
-            other_ioc_ids = other_incident_data.get('ioc_ids', [])
+            other_stix_ids = other_incident_data.get('ioc_ids', [])
             
-            # Check if they share any IOCs
-            shared_iocs = set(ioc_ids) & set(other_ioc_ids)
-            if shared_iocs:
+            # Check if they share any STIX objects
+            shared_stix = set(stix_ids) & set(other_stix_ids)
+            if shared_stix:
                 if other_incident_id not in node_ids:
                     nodes.append({
                         'data': {
@@ -1645,9 +1649,9 @@ def get_incident_graph_data(incident_id):
                             'id': edge_id,
                             'source': incident_id,
                             'target': other_incident_id,
-                            'label': f'shares-{len(shared_iocs)}-iocs'
+                            'label': f'shares-{len(shared_stix)}-stix'
                         },
-                        'classes': 'relation-shares_iocs'
+                        'classes': 'relation-shares_stix'
                     })
     except Exception as e:
         current_app.logger.warning(f"Could not fetch incidents: {str(e)}")

@@ -1,0 +1,59 @@
+<!-- Tool Fields -->
+<div id="fields-tool" class="type-fields">
+    <div class="alert alert-secondary mb-3">
+        <i class="fas fa-tools me-1"></i>
+        Tools are legitimate software that can be misused by threat actors.
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="toolTypes" class="form-label">Tool Types</label>
+            <select id="toolTypes" name="tool_types" class="form-select" multiple>
+                <option value="denial-of-service">Denial of Service</option>
+                <option value="exploitation">Exploitation</option>
+                <option value="information-gathering">Information Gathering</option>
+                <option value="network-capture">Network Capture</option>
+                <option value="credential-exploitation">Credential Exploitation</option>
+                <option value="remote-access">Remote Access</option>
+                <option value="vulnerability-scanning">Vulnerability Scanning</option>
+                <option value="unknown">Unknown</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="toolVersion" class="form-label">Tool Version</label>
+            <input type="text" id="toolVersion" name="tool_version" class="form-control"
+                   placeholder="e.g., 4.0.2">
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="toolAliases" class="form-label">Aliases</label>
+        <input type="text" id="toolAliases" name="aliases" class="form-control"
+               placeholder="Other names for this tool (comma-separated)">
+    </div>
+    
+    <div class="field-group">
+        <label class="form-label">Kill Chain Phases</label>
+        <div id="toolKillChainPhases">
+            <div class="row mb-2 kill-chain-row">
+                <div class="col-md-5">
+                    <select name="kill_chain_name[]" class="form-select">
+                        <option value="mitre-attack">MITRE ATT&CK</option>
+                        <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addKillChainPhase()">
+            <i class="fas fa-plus me-1"></i> Add Phase
+        </button>
+    </div>
+</div>

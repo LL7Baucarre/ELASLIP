@@ -6,7 +6,7 @@
 <div class="top-bar">
     <div>
         <h4 class="mb-0">Public Submissions</h4>
-        <small class="text-muted">External IOC submissions awaiting review</small>
+        <small class="text-muted">External STIX Object submissions awaiting review</small>
     </div>
 </div>
 
@@ -20,7 +20,7 @@
                     <option value="">All Status</option>
                     <option value="pending">Pending Review</option>
                     <option value="processed">Processed</option>
-                    <option value="created_ioc">IOC Created</option>
+                    <option value="created_ioc">STIX Object Created</option>
                     <option value="rejected">Rejected</option>
                 </select>
             </div>
@@ -86,7 +86,7 @@
                             {% if submission.status == 'pending' %}
                                 <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Pending</span>
                             {% elif submission.status == 'created_ioc' %}
-                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> IOC Created</span>
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> STIX Object Created</span>
                             {% elif submission.status == 'rejected' %}
                                 <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Rejected</span>
                             {% elif submission.status == 'duplicate' %}

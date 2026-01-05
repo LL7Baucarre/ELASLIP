@@ -1,0 +1,124 @@
+<!-- Threat Actor Fields -->
+<div id="fields-threat-actor" class="type-fields">
+    <div class="alert alert-warning mb-3">
+        <i class="fas fa-user-secret me-1"></i>
+        Describe threat actors: individuals, groups, or organizations.
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="threatActorTypes" class="form-label">Threat Actor Types</label>
+            <select id="threatActorTypes" name="threat_actor_types" class="form-select" multiple>
+                <option value="activist">Activist</option>
+                <option value="competitor">Competitor</option>
+                <option value="crime-syndicate">Crime Syndicate</option>
+                <option value="criminal">Criminal</option>
+                <option value="hacker">Hacker</option>
+                <option value="insider-accidental">Insider (Accidental)</option>
+                <option value="insider-disgruntled">Insider (Disgruntled)</option>
+                <option value="nation-state">Nation-State</option>
+                <option value="sensationalist">Sensationalist</option>
+                <option value="spy">Spy</option>
+                <option value="terrorist">Terrorist</option>
+                <option value="unknown">Unknown</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="sophistication" class="form-label">Sophistication Level</label>
+            <select id="sophistication" name="sophistication" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="none">None</option>
+                <option value="minimal">Minimal</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+                <option value="expert">Expert</option>
+                <option value="innovator">Innovator</option>
+                <option value="strategic">Strategic</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="actorAliases" class="form-label">Aliases</label>
+        <input type="text" id="actorAliases" name="aliases" class="form-control"
+               placeholder="Other names for this actor (comma-separated)">
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="actorFirstSeen" class="form-label">First Seen</label>
+            <input type="datetime-local" id="actorFirstSeen" name="first_seen" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="actorLastSeen" class="form-label">Last Seen</label>
+            <input type="datetime-local" id="actorLastSeen" name="last_seen" class="form-control">
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="roles" class="form-label">Roles</label>
+            <select id="roles" name="roles" class="form-select" multiple>
+                <option value="agent">Agent</option>
+                <option value="director">Director</option>
+                <option value="independent">Independent</option>
+                <option value="infrastructure-architect">Infrastructure Architect</option>
+                <option value="infrastructure-operator">Infrastructure Operator</option>
+                <option value="malware-author">Malware Author</option>
+                <option value="sponsor">Sponsor</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="resourceLevel" class="form-label">Resource Level</label>
+            <select id="resourceLevel" name="resource_level" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="individual">Individual</option>
+                <option value="club">Club</option>
+                <option value="contest">Contest</option>
+                <option value="team">Team</option>
+                <option value="organization">Organization</option>
+                <option value="government">Government</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="primaryMotivation" class="form-label">Primary Motivation</label>
+            <select id="primaryMotivation" name="primary_motivation" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="accidental">Accidental</option>
+                <option value="coercion">Coercion</option>
+                <option value="dominance">Dominance</option>
+                <option value="ideology">Ideology</option>
+                <option value="notoriety">Notoriety</option>
+                <option value="organizational-gain">Organizational Gain</option>
+                <option value="personal-gain">Personal Gain</option>
+                <option value="personal-satisfaction">Personal Satisfaction</option>
+                <option value="revenge">Revenge</option>
+                <option value="unpredictable">Unpredictable</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="secondaryMotivations" class="form-label">Secondary Motivations</label>
+            <select id="secondaryMotivations" name="secondary_motivations" class="form-select" multiple>
+                <option value="accidental">Accidental</option>
+                <option value="coercion">Coercion</option>
+                <option value="dominance">Dominance</option>
+                <option value="ideology">Ideology</option>
+                <option value="notoriety">Notoriety</option>
+                <option value="organizational-gain">Organizational Gain</option>
+                <option value="personal-gain">Personal Gain</option>
+                <option value="personal-satisfaction">Personal Satisfaction</option>
+                <option value="revenge">Revenge</option>
+                <option value="unpredictable">Unpredictable</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="goals" class="form-label">Goals</label>
+        <textarea id="goals" name="goals" class="form-control" rows="2"
+                  placeholder="High-level goals of this threat actor"></textarea>
+    </div>
+</div>

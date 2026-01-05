@@ -1,0 +1,61 @@
+<!-- Intrusion Set Fields -->
+<div id="fields-intrusion-set" class="type-fields">
+    <div class="alert alert-dark mb-3">
+        <i class="fas fa-spider me-1"></i>
+        Intrusion Sets group adversarial behaviors and resources.
+    </div>
+    
+    <div class="field-group">
+        <label for="intrusionAliases" class="form-label">Aliases</label>
+        <input type="text" id="intrusionAliases" name="aliases" class="form-control"
+               placeholder="Other names (comma-separated)">
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="intrusionFirstSeen" class="form-label">First Seen</label>
+            <input type="datetime-local" id="intrusionFirstSeen" name="first_seen" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="intrusionLastSeen" class="form-label">Last Seen</label>
+            <input type="datetime-local" id="intrusionLastSeen" name="last_seen" class="form-control">
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="intrusionResourceLevel" class="form-label">Resource Level</label>
+            <select id="intrusionResourceLevel" name="resource_level" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="individual">Individual</option>
+                <option value="club">Club</option>
+                <option value="contest">Contest</option>
+                <option value="team">Team</option>
+                <option value="organization">Organization</option>
+                <option value="government">Government</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="intrusionPrimaryMotivation" class="form-label">Primary Motivation</label>
+            <select id="intrusionPrimaryMotivation" name="primary_motivation" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="accidental">Accidental</option>
+                <option value="coercion">Coercion</option>
+                <option value="dominance">Dominance</option>
+                <option value="ideology">Ideology</option>
+                <option value="notoriety">Notoriety</option>
+                <option value="organizational-gain">Organizational Gain</option>
+                <option value="personal-gain">Personal Gain</option>
+                <option value="personal-satisfaction">Personal Satisfaction</option>
+                <option value="revenge">Revenge</option>
+                <option value="unpredictable">Unpredictable</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="intrusionGoals" class="form-label">Goals</label>
+        <textarea id="intrusionGoals" name="goals" class="form-control" rows="2"
+                  placeholder="High-level goals of this intrusion set"></textarea>
+    </div>
+</div>

@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ stix_object.name or stix_object.type }} - ELASLIP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .field-group { margin-bottom: 1rem; }
+    .field-group label { font-weight: 500; }
+    .required-field::after { content: " *"; color: #dc3545; }
+    
+    /* Theme-aware card backgrounds */
+    html[data-theme="light"] .card {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6;
+    }
+    html[data-theme="dark"] .card {
+        background-color: #212529 !important;
+        border-color: #495057;
+    }
+    html[data-theme="light"] .card-header {
+        background-color: #e9ecef !important;
+        border-color: #dee2e6;
+        color: #212529;
+    }
+    html[data-theme="dark"] .card-header {
+        background-color: #495057 !important;
+        border-color: #495057;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('stix.list_stix_objects_page') }}">STIX Objects</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('stix.view_stix_object_page', stix_id=stix_object.id) }}">{{ stix_object.name or stix_object.type }}</a></li>
+                            <li class="breadcrumb-item active">Edit</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-1"><i class="bi bi-pencil me-2"></i>Edit STIX Object</h1>
+                    <p class="text-muted mb-0">{{ stix_object.type }} - {{ stix_object.id }}</p>
+                </div>
+                <a href="{{ url_for('stix.view_stix_object_page', stix_id=stix_object.id) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1"></i> Cancel
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form id="editForm">
+        <div class="row">
+            <!-- Main Form Column -->
+            <div class="col-lg-8">
+                <!-- Core Properties -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-cube me-2"></i>Core Properties</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label class="form-label">Object Type</label>
+                                <input type="text" class="form-control" value="{{ stix_object.type }}" disabled>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label class="form-label">STIX ID</label>
+                                <input type="text" class="form-control font-monospace" value="{{ stix_object.id }}" disabled>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="name" class="form-label required-field">Name</label>
+                            <input type="text" id="name" name="name" class="form-control" 
+                                   value="{{ stix_object.name or '' }}" placeholder="Enter a descriptive name">
+                        </div>
+                        <div class="field-group">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea id="description" name="description" class="form-control" rows="4"
+                                      placeholder="Detailed description of this object">{{ stix_object.description or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Type-Specific Fields -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-gear me-2"></i>{{ stix_object.type|title }} Properties</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if stix_object.type == 'indicator' %}
+                        <div class="field-group">
+                            <label for="pattern" class="form-label">STIX Pattern</label>
+                            <textarea id="pattern" name="pattern" class="form-control font-monospace" rows="3">{{ stix_object.pattern or '' }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="valid_from" class="form-label">Valid From</label>
+                                <input type="datetime-local" id="valid_from" name="valid_from" class="form-control"
+                                       value="{{ stix_object.valid_from[:16] if stix_object.valid_from else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="valid_until" class="form-label">Valid Until</label>
+                                <input type="datetime-local" id="valid_until" name="valid_until" class="form-control"
+                                       value="{{ stix_object.valid_until[:16] if stix_object.valid_until else '' }}">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="x_ioc_type" class="form-label">IOC Type</label>
+                                <select id="x_ioc_type" name="x_ioc_type" class="form-select">
+                                    <option value="">Select IOC Type</option>
+                                    {% for t in ['ipv4', 'ipv6', 'domain', 'url', 'email', 'hash_md5', 'hash_sha1', 'hash_sha256', 'filename', 'registry', 'user-agent', 'asn', 'cidr', 'cve'] %}
+                                    <option value="{{ t }}" {{ 'selected' if stix_object.x_ioc_type == t else '' }}>{{ t }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="x_ioc_value" class="form-label">IOC Value</label>
+                                <input type="text" id="x_ioc_value" name="x_ioc_value" class="form-control"
+                                       value="{{ stix_object.x_ioc_value or '' }}">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="x_threat_level" class="form-label">Threat Level</label>
+                            <select id="x_threat_level" name="x_threat_level" class="form-select">
+                                <option value="">Select Threat Level</option>
+                                {% for level in ['low', 'medium', 'high', 'critical'] %}
+                                <option value="{{ level }}" {{ 'selected' if stix_object.x_threat_level == level else '' }}>{{ level|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        {% elif stix_object.type == 'malware' %}
+                        <div class="field-group">
+                            <label for="is_family" class="form-label">Is Family</label>
+                            <select id="is_family" name="is_family" class="form-select">
+                                <option value="true" {{ 'selected' if stix_object.is_family else '' }}>Yes</option>
+                                <option value="false" {{ 'selected' if not stix_object.is_family else '' }}>No</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="malware_types" class="form-label">Malware Types</label>
+                            <input type="text" id="malware_types" name="malware_types" class="form-control"
+                                   value="{{ stix_object.malware_types | join(', ') if stix_object.malware_types else '' }}"
+                                   placeholder="ransomware, trojan, backdoor (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Alias1, Alias2 (comma-separated)">
+                        </div>
+                        
+                        {% elif stix_object.type == 'threat-actor' %}
+                        <div class="field-group">
+                            <label for="threat_actor_types" class="form-label">Threat Actor Types</label>
+                            <input type="text" id="threat_actor_types" name="threat_actor_types" class="form-control"
+                                   value="{{ stix_object.threat_actor_types | join(', ') if stix_object.threat_actor_types else '' }}"
+                                   placeholder="nation-state, criminal, hacktivist (comma-separated)">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="sophistication" class="form-label">Sophistication</label>
+                                <select id="sophistication" name="sophistication" class="form-select">
+                                    <option value="">Select...</option>
+                                    {% for s in ['none', 'minimal', 'intermediate', 'advanced', 'expert', 'innovator', 'strategic'] %}
+                                    <option value="{{ s }}" {{ 'selected' if stix_object.sophistication == s else '' }}>{{ s|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="primary_motivation" class="form-label">Primary Motivation</label>
+                                <select id="primary_motivation" name="primary_motivation" class="form-select">
+                                    <option value="">Select...</option>
+                                    {% for m in ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'] %}
+                                    <option value="{{ m }}" {{ 'selected' if stix_object.primary_motivation == m else '' }}>{{ m|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Alias1, Alias2 (comma-separated)">
+                        </div>
+                        
+                        {% elif stix_object.type == 'campaign' %}
+                        <div class="field-group">
+                            <label for="objective" class="form-label">Objective</label>
+                            <textarea id="objective" name="objective" class="form-control" rows="2">{{ stix_object.objective or '' }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_seen" class="form-label">First Seen</label>
+                                <input type="datetime-local" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:16] if stix_object.first_seen else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_seen" class="form-label">Last Seen</label>
+                                <input type="datetime-local" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:16] if stix_object.last_seen else '' }}">
+                            </div>
+                        </div>
+                        
+                        {% elif stix_object.type == 'vulnerability' %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            External references (CVE IDs, etc.) can be managed separately. Core vulnerability properties are shown here.
+                        </div>
+                        
+                        {% else %}
+                        <p class="text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Edit common properties above. Type-specific fields for "{{ stix_object.type }}" will be preserved.
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar Column -->
+            <div class="col-lg-4">
+                <!-- Metadata -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-tags me-2"></i>Metadata</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-group">
+                            <label for="labels" class="form-label">Labels</label>
+                            <input type="text" id="labels" name="labels" class="form-control"
+                                   value="{{ stix_object.labels | join(', ') if stix_object.labels else '' }}"
+                                   placeholder="malicious, apt, phishing (comma-separated)">
+                            <small class="text-muted">Comma-separated tags</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="confidence" class="form-label">Confidence</label>
+                            <input type="range" id="confidence" name="confidence" class="form-range" 
+                                   min="0" max="100" value="{{ stix_object.confidence or 50 }}">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Low</small>
+                                <span id="confidenceValue" class="badge bg-primary">{{ stix_object.confidence or 50 }}%</span>
+                                <small class="text-muted">High</small>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="tlp" class="form-label">TLP Marking</label>
+                            <select id="tlp" name="x_tlp" class="form-select">
+                                <option value="">None</option>
+                                {% for tlp in ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:AMBER+STRICT', 'TLP:RED'] %}
+                                <option value="{{ tlp }}" {{ 'selected' if stix_object.x_tlp == tlp else '' }}>{{ tlp }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timestamps (Read-only) -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Timestamps</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <small class="text-muted">Created:</small>
+                            <p class="mb-0">{{ stix_object.created }}</p>
+                        </div>
+                        <div class="mb-2">
+                            <small class="text-muted">Modified:</small>
+                            <p class="mb-0">{{ stix_object.modified }}</p>
+                        </div>
+                        {% if stix_object.x_elaslip_created_by_username %}
+                        <div>
+                            <small class="text-muted">Created By:</small>
+                            <p class="mb-0">{{ stix_object.x_elaslip_created_by_username }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                        <i class="bi bi-save me-2"></i>Save Changes
+                    </button>
+                    <a href="{{ url_for('stix.view_stix_object_page', stix_id=stix_object.id) }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x me-1"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const stixId = '{{ stix_object.id }}';
+const stixType = '{{ stix_object.type }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Confidence slider
+    const confidenceSlider = document.getElementById('confidence');
+    const confidenceValue = document.getElementById('confidenceValue');
+    
+    if (confidenceSlider) {
+        confidenceSlider.addEventListener('input', function() {
+            confidenceValue.textContent = this.value + '%';
+        });
+    }
+    
+    // Form submission
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await saveChanges();
+    });
+});
+
+async function saveChanges() {
+    const form = document.getElementById('editForm');
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+    
+    try {
+        const data = {};
+        
+        // Common fields
+        const name = document.getElementById('name').value.trim();
+        if (name) data.name = name;
+        
+        const description = document.getElementById('description').value.trim();
+        if (description) data.description = description;
+        
+        // Labels
+        const labels = document.getElementById('labels').value.trim();
+        if (labels) {
+            data.labels = labels.split(',').map(l => l.trim()).filter(l => l);
+        }
+        
+        // Confidence
+        const confidence = document.getElementById('confidence').value;
+        if (confidence) data.confidence = parseInt(confidence);
+        
+        // TLP
+        const tlp = document.getElementById('tlp').value;
+        if (tlp) data.x_tlp = tlp;
+        
+        // Type-specific fields
+        if (stixType === 'indicator') {
+            const pattern = document.getElementById('pattern')?.value.trim();
+            if (pattern) data.pattern = pattern;
+            
+            const validFrom = document.getElementById('valid_from')?.value;
+            if (validFrom) data.valid_from = new Date(validFrom).toISOString();
+            
+            const validUntil = document.getElementById('valid_until')?.value;
+            if (validUntil) data.valid_until = new Date(validUntil).toISOString();
+            
+            const iocType = document.getElementById('x_ioc_type')?.value;
+            if (iocType) data.x_ioc_type = iocType;
+            
+            const iocValue = document.getElementById('x_ioc_value')?.value.trim();
+            if (iocValue) data.x_ioc_value = iocValue;
+            
+            const threatLevel = document.getElementById('x_threat_level')?.value;
+            if (threatLevel) data.x_threat_level = threatLevel;
+        }
+        
+        if (stixType === 'malware') {
+            const isFamily = document.getElementById('is_family')?.value;
+            data.is_family = isFamily === 'true';
+            
+            const malwareTypes = document.getElementById('malware_types')?.value.trim();
+            if (malwareTypes) data.malware_types = malwareTypes.split(',').map(t => t.trim()).filter(t => t);
+            
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'threat-actor') {
+            const actorTypes = document.getElementById('threat_actor_types')?.value.trim();
+            if (actorTypes) data.threat_actor_types = actorTypes.split(',').map(t => t.trim()).filter(t => t);
+            
+            const sophistication = document.getElementById('sophistication')?.value;
+            if (sophistication) data.sophistication = sophistication;
+            
+            const motivation = document.getElementById('primary_motivation')?.value;
+            if (motivation) data.primary_motivation = motivation;
+            
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'campaign') {
+            const objective = document.getElementById('objective')?.value.trim();
+            if (objective) data.objective = objective;
+            
+            const firstSeen = document.getElementById('first_seen')?.value;
+            if (firstSeen) data.first_seen = new Date(firstSeen).toISOString();
+            
+            const lastSeen = document.getElementById('last_seen')?.value;
+            if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+        }
+        
+        const response = await fetch(`/api/stix/objects/${stixId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            window.location.href = `/stix/objects/${stixId}`;
+        } else {
+            alert(result.error || 'Failed to save changes');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
+    }
+}
+</script>
+{% endblock %}

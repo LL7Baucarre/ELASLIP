@@ -3,7 +3,7 @@ name: Build and Push Docker Image to GHCR
 on:
   push:
     branches:
-      - deploy
+      - main
     tags:
       - 'v*'
 
@@ -48,11 +48,16 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            # Branch tag
             type=ref,event=branch
+            # Version tags from semver pattern
             type=semver,pattern={{version}},value=v${{ steps.version.outputs.version }}
             type=semver,pattern={{major}}.{{minor}},value=v${{ steps.version.outputs.version }}
+            # Commit SHA tag
             type=sha,prefix={{branch}}-
+            # Raw version tag (e.g., 1.0.0)
             type=raw,value=${{ steps.version.outputs.version }}
+            # Latest tag only on default branch (main)
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image

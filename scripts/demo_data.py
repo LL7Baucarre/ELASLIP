@@ -1,6 +1,6 @@
 """
 Demo data generation script for ELASLIP.
-Populates the database with random IOCs and relationships for demonstration purposes.
+Populates the database with STIX 2.1 Domain Objects and relationships for demonstration purposes.
 Only runs if DEMO_DATA_ENABLED=true is set in environment.
 """
 
@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app
-from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.case_service import CaseService, IncidentService, TimelineService
 from app.services.comment_service import CommentService, SnippetService
@@ -367,75 +367,124 @@ def generate_checklists():
     return checklists
 
 
-def generate_random_iocs(count=100):
-    """Generate random IOCs of various types."""
-    # Only use types supported by STIX pattern generation
+def generate_random_stix_objects(count=100):
+    """Generate random STIX 2.1 Domain Objects of various types."""
+    # IOC types that can be converted to indicators
     ioc_types = ['ipv4', 'domain', 'email', 'url', 'md5', 'sha1', 'sha256', 'asn']
-
-    iocs = []
+    
+    # STIX SDO types for variety
+    sdo_types = ['indicator', 'malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool', 'vulnerability']
+    
+    objects = []
     
     for _ in range(count):
-        ioc_type = random.choice(ioc_types)
-        
-        if ioc_type == 'ipv4':
-            value = generate_ipv4()
-        elif ioc_type == 'domain':
-            value = generate_domain()
-        elif ioc_type == 'email':
-            value = generate_email()
-        elif ioc_type == 'url':
-            value = generate_url()
-        elif ioc_type == 'md5':
-            value = generate_hash('md5')
-        elif ioc_type == 'sha1':
-            value = generate_hash('sha1')
-        elif ioc_type == 'sha256':
-            value = generate_hash('sha256')
-        elif ioc_type == 'asn':
-            value = generate_asn()
+        # 60% indicators, 40% other STIX objects
+        if random.random() < 0.6:
+            # Create an indicator (IOC-based)
+            ioc_type = random.choice(ioc_types)
+            
+            if ioc_type == 'ipv4':
+                value = generate_ipv4()
+                pattern = f"[ipv4-addr:value = '{value}']"
+            elif ioc_type == 'domain':
+                value = generate_domain()
+                pattern = f"[domain-name:value = '{value}']"
+            elif ioc_type == 'email':
+                value = generate_email()
+                pattern = f"[email-addr:value = '{value}']"
+            elif ioc_type == 'url':
+                value = generate_url()
+                pattern = f"[url:value = '{value}']"
+            elif ioc_type in ['md5', 'sha1', 'sha256']:
+                hash_type = ioc_type
+                value = generate_hash(hash_type)
+                hash_algo = 'MD5' if hash_type == 'md5' else hash_type.upper()
+                pattern = f"[file:hashes.'{hash_algo}' = '{value}']"
+            elif ioc_type == 'asn':
+                value = generate_asn()
+                pattern = f"[autonomous-system:number = {value.replace('AS', '')}]"
+            else:
+                value = 'unknown'
+                pattern = "[file:name = 'unknown']"
+            
+            # Random metadata
+            threat_levels = ['low', 'medium', 'high', 'critical']
+            tlp_levels = ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED']
+            labels = ['malicious', 'benign', 'anomalous-activity', 'anonymization', 'compromised']
+            
+            obj = {
+                'type': 'indicator',
+                'name': f'{ioc_type.upper()} - {value[:30]}',
+                'description': f'Demo indicator for {ioc_type}: {value}',
+                'pattern': pattern,
+                'pattern_type': 'stix',
+                'valid_from': (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat() + 'Z',
+                'valid_until': (datetime.utcnow() + timedelta(days=random.randint(1, 365))).isoformat() + 'Z',
+                'x_ioc_type': ioc_type,
+                'x_ioc_value': value,
+                'x_threat_level': random.choice(threat_levels),
+                'x_tlp': random.choice(tlp_levels),
+                'labels': random.sample(labels, random.randint(1, 2)),
+                'confidence': random.randint(30, 100),
+            }
         else:
-            value = 'unknown'
+            # Create other STIX object types
+            sdo_type = random.choice(['malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool'])
+            
+            if sdo_type == 'malware':
+                malware_types = ['ransomware', 'trojan', 'backdoor', 'dropper', 'rootkit', 'worm', 'bot']
+                obj = {
+                    'type': 'malware',
+                    'name': f"DemoMalware-{random.randint(1000, 9999)}",
+                    'description': f"Demo malware sample for testing purposes",
+                    'is_family': random.choice([True, False]),
+                    'malware_types': random.sample(malware_types, random.randint(1, 2)),
+                    'labels': ['malware'],
+                }
+            elif sdo_type == 'threat-actor':
+                actor_types = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'nation-state']
+                motivations = ['coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain']
+                obj = {
+                    'type': 'threat-actor',
+                    'name': f"APT-Demo-{random.randint(10, 99)}",
+                    'description': f"Demo threat actor for testing purposes",
+                    'threat_actor_types': random.sample(actor_types, 1),
+                    'sophistication': random.choice(['minimal', 'intermediate', 'advanced', 'expert']),
+                    'primary_motivation': random.choice(motivations),
+                    'labels': ['threat-actor'],
+                }
+            elif sdo_type == 'attack-pattern':
+                techniques = ['Spearphishing', 'Credential Dumping', 'PowerShell', 'Remote Services', 
+                             'Data Encrypted', 'Scheduled Task', 'Registry Run Keys', 'DLL Side-Loading']
+                obj = {
+                    'type': 'attack-pattern',
+                    'name': random.choice(techniques),
+                    'description': f"Demo attack pattern for testing purposes",
+                    'labels': ['attack-pattern'],
+                }
+            elif sdo_type == 'campaign':
+                obj = {
+                    'type': 'campaign',
+                    'name': f"Operation Demo-{random.randint(100, 999)}",
+                    'description': f"Demo campaign for testing purposes",
+                    'objective': "Demonstrate ELASLIP capabilities",
+                    'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 180))).isoformat() + 'Z',
+                    'last_seen': datetime.utcnow().isoformat() + 'Z',
+                    'labels': ['campaign'],
+                }
+            elif sdo_type == 'tool':
+                tools = ['Mimikatz', 'Cobalt Strike', 'Metasploit', 'BloodHound', 'Empire', 'PsExec']
+                obj = {
+                    'type': 'tool',
+                    'name': f"{random.choice(tools)}-Demo",
+                    'description': f"Demo tool for testing purposes",
+                    'tool_types': ['exploitation', 'credential-exploitation', 'remote-access'],
+                    'labels': ['tool'],
+                }
         
-        # Random metadata
-        threat_levels = ['low', 'medium', 'high', 'critical']
-        confidence_levels = ['low', 'medium', 'high']
-        tlp_levels = ['white', 'green', 'amber', 'red']
-        labels = [
-            'malware', 'phishing', 'botnet', 'c2', 'trojan', 
-            'ransomware', 'exploit', 'ddos', 'spam', 'suspicious'
-        ]
-        sources = ['MISP', 'AlienVault', 'VirusTotal', 'Abuse.ch', 'Phishtank']
-        # Comprehensive list of realistic APT/Campaign names
-        campaigns = [
-            'APT1', 'APT28', 'APT29', 'APT30', 'APT32', 'APT33', 'APT34', 'APT35', 'APT37', 'APT39', 'APT40', 'APT41',
-            'Lazarus', 'Carbanak', 'FIN7', 'FIN6', 'FIN4', 'FIN5',
-            'Turla', 'Snake', 'Gamaredon', 'Emotet', 'Trickbot', 'Ryuk',
-            'Conti', 'LockBit', 'DarkSide', 'Colonial Pipeline',
-            'Wizard Spider', 'Evil Corp', 'FIN10', 'FIN11',
-            'Operation Stealth', 'Operation Ghost', 'Campaign Mimic',
-            'Indrik Spider', 'Scattered Spider',
-            'Unknown', 'Unattributed', 'Generic Malware', 'Opportunistic'
-        ]
-        
-        ioc = {
-            'ioc_type': ioc_type,
-            'ioc_value': value,
-            'name': f'{ioc_type.upper()} - {value[:30]}',
-            'description': f'Demo IOC for {ioc_type}: {value}',
-            'threat_level': random.choice(threat_levels),
-            'confidence': random.choice(confidence_levels),
-            'tlp': random.choice(tlp_levels),
-            'labels': random.sample(labels, random.randint(1, 3)),
-            'sources': [{'name': random.choice(sources), 'reference': f'ref-{uuid.uuid4()}'}],
-            'campaigns': random.sample(campaigns, random.randint(1, 3)),  # Changed from 0, 2 to 1, 3 to ensure at least 1 campaign
-            'valid_from': (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat(),
-            'valid_until': (datetime.utcnow() + timedelta(days=random.randint(1, 365))).isoformat(),
-            'status': random.choice(['active', 'inactive', 'false_positive']),
-        }
-        
-        iocs.append(ioc)
+        objects.append(obj)
     
-    return iocs
+    return objects
 
 
 def populate_demo_data():
@@ -455,65 +504,51 @@ def populate_demo_data():
     app = create_app()
     
     with app.app_context():
-        service = IOCService()
-        
-        # Generate and insert IOCs
-        print("\n1. Generating 100 random IOCs with diverse types...")
-        iocs = generate_random_iocs(100)
+        # Generate and insert STIX objects (increase total to ~200)
+        print("\n1. Generating 200 random STIX 2.1 objects with diverse types...")
+        stix_objects = generate_random_stix_objects(200)
         
         created_ids = []
-        for i, ioc in enumerate(iocs, 1):
+        for i, obj_data in enumerate(stix_objects, 1):
             try:
-                # Convert sources list to single source dict
-                source = None
-                if ioc.get('sources'):
-                    source = ioc['sources'][0]  # Take first source
-                
-                ioc_doc, is_new = service.create(
-                    ioc_type=ioc['ioc_type'],
-                    value=ioc['ioc_value'],
-                    name=ioc.get('name'),
-                    description=ioc.get('description'),
-                    threat_level=ioc.get('threat_level'),
-                    confidence=ioc.get('confidence'),
-                    tlp=ioc.get('tlp'),
-                    labels=ioc.get('labels', []),
-                    source=source,
-                    campaigns=ioc.get('campaigns', []),
-                    valid_from=ioc.get('valid_from'),
-                    valid_until=ioc.get('valid_until')
+                sdo_type = obj_data.pop('type')
+                stix_object = STIXService.create_sdo(
+                    sdo_type=sdo_type,
+                    data=obj_data,
+                    user_id='demo-user',
+                    username='demo'
                 )
-                created_ids.append(ioc_doc['id'])
+                created_ids.append(stix_object['id'])
                 if i % 10 == 0:
-                    print(f"   Created {i}/100 IOCs...")
+                    print(f"   Created {i}/200 STIX objects...")
             except Exception as e:
-                print(f"   Error creating IOC {i}: {str(e)}")
+                print(f"   Error creating STIX object {i}: {str(e)}")
         
-        print(f"   ✓ Created {len(created_ids)} IOCs successfully")
+        print(f"   ✓ Created {len(created_ids)} STIX objects successfully")
         
-        # Create multi-level IOC relationships for graph testing
-        print("\n1b. Creating multi-level IOC relationships...")
-        from app.routes.ioc_relations import ioc_relations_bp
+        # Create multi-level STIX 2.1 relationships for graph testing
+        print("\n1b. Creating multi-level STIX 2.1 relationships...")
         
-        relation_types = ['related', 'caused_by', 'used_by', 'implements', 'variant_of']
+        # Use STIX 2.1 standard relationship types
+        stix_relationship_types = ['indicates', 'uses', 'related-to', 'derived-from', 
+                                    'targets', 'attributed-to', 'communicates-with', 'exploits', 'drops']
         relations_created = 0
         
         try:
-            # Create multiple levels of relationships for graph traversal testing
+            # Create multiple levels of STIX relationships for graph traversal testing
             if len(created_ids) >= 10:
                 # Level 1: Create a primary node with 3-4 direct connections
                 primary_node = created_ids[0]
                 level1_nodes = created_ids[1:4]  # 3 nodes at level 1
                 
                 for target_id in level1_nodes:
-                    relation = {
-                        'source_id': primary_node,
-                        'target_id': target_id,
-                        'relation_type': random.choice(relation_types),
-                        'created_at': datetime.utcnow().isoformat()
-                    }
-                    relation_id = str(uuid.uuid4())
-                    es.index('ioc_relations', relation_id, relation)
+                    STIXService.create_relationship(
+                        source_ref=primary_node,
+                        target_ref=target_id,
+                        relationship_type=random.choice(stix_relationship_types),
+                        user_id='demo-user',
+                        username='demo'
+                    )
                     relations_created += 1
                 
                 # Level 2: Create relationships from level 1 nodes to level 2 nodes
@@ -521,14 +556,13 @@ def populate_demo_data():
                 
                 for level1_id in level1_nodes:
                     for level2_id in random.sample(level2_nodes, random.randint(1, 2)):
-                        relation = {
-                            'source_id': level1_id,
-                            'target_id': level2_id,
-                            'relation_type': random.choice(relation_types),
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                        relation_id = str(uuid.uuid4())
-                        es.index('ioc_relations', relation_id, relation)
+                        STIXService.create_relationship(
+                            source_ref=level1_id,
+                            target_ref=level2_id,
+                            relationship_type=random.choice(stix_relationship_types),
+                            user_id='demo-user',
+                            username='demo'
+                        )
                         relations_created += 1
                 
                 # Level 3: Create relationships from level 2 nodes to level 3 nodes
@@ -537,14 +571,13 @@ def populate_demo_data():
                     
                     for level2_id in level2_nodes:
                         for level3_id in random.sample(level3_nodes, random.randint(1, 2)):
-                            relation = {
-                                'source_id': level2_id,
-                                'target_id': level3_id,
-                                'relation_type': random.choice(relation_types),
-                                'created_at': datetime.utcnow().isoformat()
-                            }
-                            relation_id = str(uuid.uuid4())
-                            es.index('ioc_relations', relation_id, relation)
+                            STIXService.create_relationship(
+                                source_ref=level2_id,
+                                target_ref=level3_id,
+                                relationship_type=random.choice(stix_relationship_types),
+                                user_id='demo-user',
+                                username='demo'
+                            )
                             relations_created += 1
                 
                 # Level 4: Create relationships from level 3 nodes to level 4 nodes
@@ -553,38 +586,36 @@ def populate_demo_data():
                     
                     for level3_id in level3_nodes:
                         for level4_id in random.sample(level4_nodes, random.randint(1, 2)):
-                            relation = {
-                                'source_id': level3_id,
-                                'target_id': level4_id,
-                                'relation_type': random.choice(relation_types),
-                                'created_at': datetime.utcnow().isoformat()
-                            }
-                            relation_id = str(uuid.uuid4())
-                            es.index('ioc_relations', relation_id, relation)
+                            STIXService.create_relationship(
+                                source_ref=level3_id,
+                                target_ref=level4_id,
+                                relationship_type=random.choice(stix_relationship_types),
+                                user_id='demo-user',
+                                username='demo'
+                            )
                             relations_created += 1
                 
-                # Add some cross-level relationships for complexity
-                for _ in range(5):
-                    if len(created_ids) > 20:
-                        source_id = random.choice(created_ids[1:10])
-                        target_id = random.choice(created_ids[10:20])
+                # Add many cross-level relationships for complexity
+                for _ in range(25):
+                    if len(created_ids) > 1:
+                        source_id = random.choice(created_ids)
+                        target_id = random.choice([cid for cid in created_ids if cid != source_id])
                         
-                        relation = {
-                            'source_id': source_id,
-                            'target_id': target_id,
-                            'relation_type': random.choice(relation_types),
-                            'created_at': datetime.utcnow().isoformat()
-                        }
-                        relation_id = str(uuid.uuid4())
-                        es.index('ioc_relations', relation_id, relation)
+                        STIXService.create_relationship(
+                            source_ref=source_id,
+                            target_ref=target_id,
+                            relationship_type=random.choice(stix_relationship_types),
+                            user_id='demo-user',
+                            username='demo'
+                        )
                         relations_created += 1
             
-            print(f"   ✓ Created {relations_created} multi-level IOC relationships (4+ levels deep)")
+            print(f"   ✓ Created {relations_created} multi-level STIX 2.1 relationships (4+ levels deep)")
             
         except Exception as e:
-            print(f"   Warning: Failed to create IOC relationships: {str(e)}")
+            print(f"   Warning: Failed to create STIX relationships: {str(e)}")
         
-        # Create cases and incidents with IOC links
+        # Create cases and incidents with STIX object links
         print("\n2. Creating cases with related incidents...")
         case_service = CaseService()
         incident_service = IncidentService()
@@ -983,10 +1014,11 @@ def populate_demo_data():
             print(f"      Warning: Failed to create incident-to-incident relationships: {str(e)}")
         
         print(f"   ✓ Created {incident_to_incident_relations} incident-to-incident relationships")
-                # Create random relationships between IOCs
+                # Create random STIX 2.1 relationships between IOCs
         if len(created_ids) > 1:
-            print("\n11. Creating random IOC relationships...")
-            relation_types = [
+            print("\n11. Creating random STIX 2.1 relationships...")
+            # Use STIX 2.1 standard relationship types
+            stix_rel_types = [
                 'communicates-with',
                 'exploits',
                 'targets',
@@ -994,35 +1026,42 @@ def populate_demo_data():
                 'based-on',
                 'attributed-to',
                 'drops',
-                'downloads'
+                'delivers',
+                'uses',
+                'related-to'
             ]
             
             es = ElasticsearchService()
             created_relations = 0
             failed_relations = 0
             
-            # Create random number of relationships between 10-50 per IOC
-            num_relations = random.randint(20, 100)
+            # Create random number of relationships between 100-200 (increase for demo density)
+            num_relations = random.randint(100, 200)
             
             for attempt in range(num_relations):
                 try:
                     source_id = random.choice(created_ids)
                     target_id = random.choice([id for id in created_ids if id != source_id])
-                    relation_type = random.choice(relation_types)
+                    relationship_type = random.choice(stix_rel_types)
                     
-                    relation_doc = {
-                        'source_id': source_id,
-                        'target_id': target_id,
-                        'relation_type': relation_type,
-                        'created': datetime.utcnow().isoformat(),
-                        'strength': random.randint(1, 10)
+                    # Create STIX 2.1 compliant relationship
+                    rel_id = str(uuid.uuid4())
+                    now = datetime.utcnow().isoformat() + 'Z'
+                    
+                    # source_id and target_id already have indicator-- prefix
+                    stix_rel_doc = {
+                        'id': f'relationship--{rel_id}',
+                        'type': 'relationship',
+                        'spec_version': '2.1',
+                        'created': now,
+                        'modified': now,
+                        'relationship_type': relationship_type,
+                        'source_ref': source_id,
+                        'target_ref': target_id
                     }
                     
-                    # Generate unique ID for this relation
-                    relation_id = str(uuid.uuid4())
-                    
-                    # Index the relation with proper arguments: (index, doc_id, document)
-                    response = es.index('ioc_relations', relation_id, relation_doc)
+                    # Index the STIX relationship
+                    response = es.index('stix_relationships', rel_id, stix_rel_doc)
                     
                     if response:
                         created_relations += 1
@@ -1031,9 +1070,9 @@ def populate_demo_data():
                         
                 except Exception as e:
                     failed_relations += 1
-                    print(f"      Warning: Failed to create relation {attempt + 1}: {str(e)}")
+                    print(f"      Warning: Failed to create STIX relationship {attempt + 1}: {str(e)}")
             
-            print(f"   ✓ Created {created_relations} relationships (out of {num_relations} attempts)")
+            print(f"   ✓ Created {created_relations} STIX relationships (out of {num_relations} attempts)")
             if failed_relations > 0:
                 print(f"   ⚠ Failed to create {failed_relations} relationships")
         

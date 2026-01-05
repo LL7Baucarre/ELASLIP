@@ -33,6 +33,15 @@ def init_elasticsearch():
     
     logger.info("Initializing Elasticsearch indices...")
     
+    # Cleanup legacy ioc_relations index if it exists (migrated to stix_relationships)
+    legacy_index = 'elaslip_ioc_relations'
+    try:
+        if es.indices.exists(index=legacy_index):
+            es.indices.delete(index=legacy_index)
+            logger.info("Deleted legacy index: %s (migrated to elaslip_stix_relationships)", legacy_index)
+    except Exception as e:
+        logger.warning("Could not delete legacy index %s: %s", legacy_index, e)
+    
     for index_name, mapping in INDICES.items():
         try:
             if not es.indices.exists(index=index_name):

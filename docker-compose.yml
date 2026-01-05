@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - APP_VERSION=${APP_VERSION:-1.1.0}
+        - APP_VERSION=${APP_VERSION:-1.2.0}
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-app
     cap_add:
@@ -15,7 +15,7 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app
-      - APP_VERSION=${APP_VERSION:-1.1.0}
+      - APP_VERSION=${APP_VERSION:-1.2.0}
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
       - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
       - APP_URL=${APP_URL:-http://localhost:5000}
@@ -73,7 +73,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ghcr.io/ll7baucarre/elaslip:latest
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery worker --loglevel=info
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
