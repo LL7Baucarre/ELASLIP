@@ -884,3 +884,52 @@ def get_stix_enrichment(stix_id):
         'enrichment': enrichment
     })
 
+
+@stix_bp.route('/api/stix/objects/<stix_id>/generate-report', methods=['POST'])
+@permission_required('report.create')
+def api_generate_stix_report(stix_id):
+    """
+    Generate LLM report for a STIX object.
+    Works for all STIX types (indicator, malware, threat-actor, etc.).
+    """
+    import os
+    import uuid
+    from datetime import datetime
+    
+    # Check if LLM is enabled
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    try:
+        from app.tasks.report_tasks import generate_stix_report as task_generate_stix
+        
+        # Generate task ID upfront so we can create ES doc before launching task
+        task_id = str(uuid.uuid4())
+        
+        # Create initial ES document so status check works immediately
+        es_service = ElasticsearchService()
+        es_service.index('elaslip_app_config', f'report_{task_id}', {
+            'type': 'stix',
+            'entity_id': stix_id,
+            'status': 'queued',
+            'user_id': current_user.username,
+            'created_at': datetime.utcnow().isoformat(),
+            'task_id': task_id
+        })
+        
+        # Launch async task with our generated task_id
+        task = task_generate_stix.apply_async(
+            args=[stix_id, current_user.username],
+            task_id=task_id
+        )
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'queued',
+            'message': 'Report generation started'
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception("Error launching STIX report task: %s", e)
+        return jsonify({'error': str(e)}), 500
+

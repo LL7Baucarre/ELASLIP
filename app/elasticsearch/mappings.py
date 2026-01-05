@@ -803,7 +803,7 @@ APP_CONFIG_MAPPING = {
             "url": {"type": "keyword"},
             "model": {"type": "keyword"},
             "api_key": {"type": "keyword"},
-            "custom_prompt_ioc": {"type": "text"},
+            "custom_prompt_stix": {"type": "text"},
             "custom_prompt_case": {"type": "text"},
             "custom_prompt_incident": {"type": "text"},
             "configured": {"type": "boolean"}

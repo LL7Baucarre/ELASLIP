@@ -187,6 +187,11 @@
                             <li><span class="dropdown-item text-muted"><i class="spinner-border spinner-border-sm me-1"></i> Loading APIs...</span></li>
                         </ul>
                     </div>
+                    {% if has_permission('report.generate_llm') %}
+                    <button class="btn btn-outline-success" id="generateReportBtn" onclick="generateReport(event)">
+                        <i class="bi bi-file-text me-1"></i> Generate Report
+                    </button>
+                    {% endif %}
                     <button class="btn btn-outline-primary" onclick="exportBundle()">
                         <i class="bi bi-download me-1"></i> Export Bundle
                     </button>
@@ -1106,6 +1111,54 @@ async function deleteObject() {
     } catch (e) {
         alert('Error: ' + e.message);
     }
+}
+
+function generateReport(e) {
+    if (!objectId) {
+        alert('STIX object ID not found');
+        return;
+    }
+    
+    // Prevent double-click
+    if (e) e.preventDefault();
+    
+    // Get the button element
+    const btn = document.getElementById('generateReportBtn');
+    if (!btn || btn.disabled) return;
+    
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Generating...';
+    
+    // Call the API to generate the report
+    fetch(`/api/stix/objects/${objectId}/generate-report`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Failed to generate report');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.task_id) {
+            // Redirect to loading page
+            window.location.href = `/reports/loading?task_id=${data.task_id}&type=stix&id=${objectId}`;
+        } else {
+            alert('Report generation started. Check the reports page.');
+            window.location.href = '/reports';
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 }
 
 async function exportBundle() {

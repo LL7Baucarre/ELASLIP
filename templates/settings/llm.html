@@ -117,14 +117,14 @@
 
                     <div class="mb-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <label for="custom_prompt_ioc" class="form-label mb-0">Custom IOC Report Prompt (Optional)</label>
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('custom_prompt_ioc', 'default_prompt_ioc')" title="Reset to default prompt">
+                            <label for="custom_prompt_stix" class="form-label mb-0">Custom STIX Report Prompt (Optional)</label>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="resetPrompt('custom_prompt_stix', 'default_prompt_ioc')" title="Reset to default prompt">
                                 <i class="bi bi-arrow-clockwise me-1"></i> Reset to Default
                             </button>
                         </div>
-                        <textarea class="form-control" id="custom_prompt_ioc" name="custom_prompt_ioc" 
+                        <textarea class="form-control" id="custom_prompt_stix" name="custom_prompt_stix" 
                                   rows="6" placeholder="Leave empty to use default prompt.&#10;Available variables: {type}, {value}, {severity}, {description}, {relations}"></textarea>
-                        <small class="text-muted">Custom prompt template for IOC analysis</small>
+                        <small class="text-muted">Custom prompt template for STIX object analysis (indicators, malware, threat-actors, etc.)</small>
                     </div>
 
                     <div class="mb-3">
@@ -263,7 +263,7 @@ async function loadLLMConfig() {
         document.getElementById('generation_language').value = data.generation_language || 'en';
         
         // Fill prompts: use saved value if available, otherwise use default prompt
-        document.getElementById('custom_prompt_ioc').value = data.custom_prompt_ioc || defaultPrompts.default_prompt_ioc || '';
+        document.getElementById('custom_prompt_stix').value = data.custom_prompt_stix || defaultPrompts.default_prompt_ioc || '';
         document.getElementById('custom_prompt_case').value = data.custom_prompt_case || defaultPrompts.default_prompt_case || '';
         document.getElementById('custom_prompt_incident').value = data.custom_prompt_incident || defaultPrompts.default_prompt_incident || '';
         document.getElementById('custom_prompt_checklist').value = data.custom_prompt_checklist || defaultPrompts.default_prompt_checklist || '';
@@ -289,7 +289,7 @@ async function loadLLMConfig() {
         document.getElementById('generation_language').value = 'en';
         
         // Use default prompts as fallback
-        document.getElementById('custom_prompt_ioc').value = defaultPrompts.default_prompt_ioc || '';
+        document.getElementById('custom_prompt_stix').value = defaultPrompts.default_prompt_ioc || '';
         document.getElementById('custom_prompt_case').value = defaultPrompts.default_prompt_case || '';
         document.getElementById('custom_prompt_incident').value = defaultPrompts.default_prompt_incident || '';
         document.getElementById('custom_prompt_checklist').value = defaultPrompts.default_prompt_checklist || '';
@@ -374,7 +374,7 @@ async function saveLLMConfig() {
         model: document.getElementById('model').value,
         api_key: apiKey,
         generation_language: document.getElementById('generation_language').value,
-        custom_prompt_ioc: document.getElementById('custom_prompt_ioc').value,
+        custom_prompt_stix: document.getElementById('custom_prompt_stix').value,
         custom_prompt_case: document.getElementById('custom_prompt_case').value,
         custom_prompt_incident: document.getElementById('custom_prompt_incident').value,
         custom_prompt_checklist: document.getElementById('custom_prompt_checklist').value

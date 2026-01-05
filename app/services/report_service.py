@@ -15,42 +15,42 @@ logger = logging.getLogger(__name__)
 
 
 # Default prompt templates - Optimized for LLM generation
-DEFAULT_PROMPT_IOC = """You are a senior threat intelligence analyst. Analyze the following Indicator of Compromise (IOC) and generate a professional threat assessment report.
+DEFAULT_PROMPT_STIX = """You are a senior threat intelligence analyst. Analyze the following STIX object (Indicator, Malware, Threat-Actor, etc.) and generate a professional threat assessment report.
 
 ## INPUT DATA
 
-**🎯 MAIN IOC (Primary Focus):**
+**🎯 MAIN STIX OBJECT (Primary Focus):**
 - Type: {type}
 - Value: {value}
 - Threat Level: {severity}
 - Description: {description}
 
-**First-Level Relations (exactly like the IOC graph):**
+**First-Level Relations (exactly like the STIX graph):**
 {relations}
 
 ## YOUR TASK
 
-Generate a comprehensive threat assessment in Markdown format. The MAIN IOC is the primary focus, but you must analyze ALL first-level relations shown above.
+Generate a comprehensive threat assessment in Markdown format. The MAIN STIX OBJECT is the primary focus, but you must analyze ALL first-level relations shown above.
 
 ### 1. Executive Summary
-Write 2-3 sentences summarizing the MAIN IOC, its threat significance, and its relationships with other entities.
+Write 2-3 sentences summarizing the MAIN STIX OBJECT, its threat significance, and its relationships with other entities.
 
-### 2. Main IOC Threat Analysis (Primary Focus)
-- What type of threat does this indicator represent?
+### 2. Main STIX Object Threat Analysis (Primary Focus)
+- What type of threat does this STIX object represent?
 - What attack techniques or malware families is it associated with?
-- What is the potential impact if this IOC is detected in an environment?
+- What is the potential impact if this object is detected in an environment?
 
 ### 3. First-Level Relations Analysis (Important)
 Analyze ALL related entities shown in the relations:
-- **Related IOCs**: Explain how each related IOC connects to the main one and their role in the attack chain
-- **Cases**: How is this IOC connected to investigation cases? What does this reveal?
-- **Incidents**: What security incidents involve this IOC? What patterns emerge?
+- **Related STIX Objects**: Explain how each related object connects to the main one and their role in the attack chain
+- **Cases**: How is this STIX object connected to investigation cases? What does this reveal?
+- **Incidents**: What security incidents involve this STIX object? What patterns emerge?
 
 ### 4. Attack Chain Reconstruction
 Based on the main IOC and its relations, reconstruct the potential attack chain or threat scenario.
 
 ### 5. Detection & Response
-- How to detect the main IOC and its related indicators
+- How to detect the main STIX object and its related indicators
 - Immediate actions to take if detected
 - Tools and techniques for investigation
 
@@ -62,7 +62,7 @@ Based on the main IOC and its relations, reconstruct the potential attack chain 
 ## OUTPUT FORMAT
 - Use Markdown formatting with headers, bullet points, and bold text
 - Be specific and actionable
-- Reference the actual IOC values and ALL relations provided
+- Reference the actual STIX object values and ALL relations provided
 - Give proper attention to each relation - they provide critical context
 - Do NOT wrap the response in code blocks"""
 
@@ -283,7 +283,7 @@ class ReportService:
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
                 self.llm_provider = config.get('provider', os.getenv('LLM_PROVIDER', 'auto'))  # auto, ollama, openai
                 self.generation_language = config.get('generation_language', 'en')
-                self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
+                self.custom_prompt_stix = config.get('custom_prompt_stix', '')
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
                 self.custom_prompt_incident = config.get('custom_prompt_incident', '')
                 self.custom_prompt_checklist = config.get('custom_prompt_checklist', '')
@@ -297,7 +297,7 @@ class ReportService:
         self.llm_api_key = os.getenv('LLM_API_KEY', '')
         self.llm_provider = os.getenv('LLM_PROVIDER', 'auto')  # auto, ollama, openai
         self.generation_language = os.getenv('LLM_GENERATION_LANGUAGE', 'en')
-        self.custom_prompt_ioc = ''
+        self.custom_prompt_stix = ''
         self.custom_prompt_case = ''
         self.custom_prompt_incident = ''
         self.custom_prompt_checklist = ''
@@ -387,7 +387,7 @@ class ReportService:
                 self.llm_api_key = config.get('api_key', os.getenv('LLM_API_KEY', ''))
                 self.llm_provider = config.get('provider', os.getenv('LLM_PROVIDER', 'auto'))
                 self.generation_language = config.get('generation_language', 'en')
-                self.custom_prompt_ioc = config.get('custom_prompt_ioc', '')
+                self.custom_prompt_stix = config.get('custom_prompt_stix', '')
                 self.custom_prompt_case = config.get('custom_prompt_case', '')
                 self.custom_prompt_incident = config.get('custom_prompt_incident', '')
                 self.custom_prompt_checklist = config.get('custom_prompt_checklist', '')
@@ -569,6 +569,48 @@ class ReportService:
             'relations_count': len(relations)
         }
     
+    def generate_stix_report(self, stix_id: str) -> Dict[str, Any]:
+        """
+        Generate a report for a STIX object and its relations.
+        Works for all STIX types (indicator, malware, threat-actor, etc.).
+        
+        Args:
+            stix_id: The STIX object ID
+            
+        Returns:
+            Report data with analysis and relations
+        """
+        # Try to get the STIX object from both indices
+        stix_obj = self._get_stix_object(stix_id)
+        if not stix_obj:
+            raise ValueError(f"STIX object {stix_id} not found")
+        
+        # Ensure object has its ID
+        stix_obj['id'] = stix_id
+        
+        # Get ALL first-level relations (IOCs, cases, incidents) like the graph
+        relations = self._get_first_level_relations(stix_id)
+        
+        # Build prompt - use IOC prompt format as it works well for all STIX types
+        prompt = self._build_ioc_prompt(stix_obj, relations)
+        
+        # Generate analysis
+        analysis, token_usage = self._call_llm(prompt)
+        
+        # Get display value for the object
+        stix_value = stix_obj.get('value') or stix_obj.get('name') or stix_obj.get('pattern', stix_id)
+        stix_type = stix_obj.get('type', 'unknown')
+        
+        return {
+            'stix_id': stix_id,
+            'stix_value': stix_value,
+            'stix_type': stix_type,
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'analysis': analysis,
+            'relations_count': len(relations.get('iocs', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', []))
+        }
+    
     def generate_case_report(self, case_id: str) -> Dict[str, Any]:
         """
         Generate a report for a case.
@@ -718,6 +760,51 @@ class ReportService:
             'token_usage': token_usage,
             'analysis': analysis,
             'relations_count': len(relations),
+            'regenerated': True
+        }
+    
+    def regenerate_stix_report(self, stix_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
+        """
+        Regenerate a STIX object report with correction instructions.
+        Works for all STIX types (indicator, malware, threat-actor, etc.).
+        
+        Args:
+            stix_id: The STIX object ID
+            correction_prompt: User correction/refinement instructions
+            previous_report: The previous report content for context
+            
+        Returns:
+            Report data with regenerated analysis
+        """
+        # Get STIX object from both indices
+        stix_obj = self._get_stix_object(stix_id)
+        if not stix_obj:
+            raise ValueError(f"STIX object {stix_id} not found")
+        
+        stix_obj['id'] = stix_id
+        relations = self._get_first_level_relations(stix_id)
+        
+        # Build base prompt
+        base_prompt = self._build_ioc_prompt(stix_obj, relations)
+        
+        # Build regeneration prompt
+        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
+        
+        # Generate analysis
+        analysis, token_usage = self._call_llm(prompt)
+        
+        # Get display value
+        stix_value = stix_obj.get('value') or stix_obj.get('name') or stix_obj.get('pattern', stix_id)
+        stix_type = stix_obj.get('type', 'unknown')
+        
+        return {
+            'stix_id': stix_id,
+            'stix_value': stix_value,
+            'stix_type': stix_type,
+            'generated_at': datetime.utcnow().isoformat(),
+            'token_usage': token_usage,
+            'analysis': analysis,
+            'relations_count': len(relations.get('iocs', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', [])),
             'regenerated': True
         }
     
@@ -1007,6 +1094,41 @@ Do NOT wrap the response in code blocks."""
                 pass
         return items
     
+    def _get_stix_object(self, stix_id: str) -> Optional[Dict]:
+        """
+        Get a STIX object from either the ioc or stix_objects index.
+        Works for both indicators and other STIX types (malware, threat-actor, etc.).
+        
+        Args:
+            stix_id: The STIX object ID
+            
+        Returns:
+            The STIX object or None if not found
+        """
+        # Try to get from IOC index first (indicators)
+        try:
+            ioc = self.ioc_service.get(stix_id)
+            if ioc:
+                return ioc
+        except Exception:
+            pass
+        
+        # Try to get from STIX objects index (malware, threat-actor, etc.)
+        try:
+            from app.services.stix_service import STIXService
+            stix_obj = STIXService.get_sdo(stix_id)
+            if stix_obj:
+                # Normalize fields for consistent formatting
+                if 'value' not in stix_obj and 'pattern' in stix_obj:
+                    stix_obj['value'] = stix_obj['pattern']
+                if 'value' not in stix_obj and 'name' in stix_obj:
+                    stix_obj['value'] = stix_obj['name']
+                return stix_obj
+        except Exception:
+            pass
+        
+        return None
+    
     def _get_case_iocs(self, case_id: str) -> List[Dict]:
         """Get IOCs for a case."""
         # Get case document first
@@ -1051,7 +1173,7 @@ Do NOT wrap the response in code blocks."""
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
-                ioc = self.ioc_service.get(ioc_id)
+                ioc = self._get_stix_object(ioc_id)
                 if ioc:
                     ioc['id'] = ioc_id
                     # Include first-level relations for this IOC (like the graph)
@@ -1082,7 +1204,7 @@ Do NOT wrap the response in code blocks."""
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
-                ioc = self.ioc_service.get(ioc_id)
+                ioc = self._get_stix_object(ioc_id)
                 if ioc:
                     ioc['id'] = ioc_id
                     # Include first-level relations for this IOC (like the graph)
@@ -1520,10 +1642,10 @@ Do NOT wrap the response in code blocks."""
         total_relations = total_iocs + total_cases + total_incidents
         
         # Use custom prompt if available
-        if self.custom_prompt_ioc:
+        if self.custom_prompt_stix:
             try:
                 language_instruction = self._get_language_instruction()
-                custom_with_language = language_instruction + self.custom_prompt_ioc
+                custom_with_language = language_instruction + self.custom_prompt_stix
                 return custom_with_language.format(
                     type=ioc.get('type'),
                     value=ioc_value,

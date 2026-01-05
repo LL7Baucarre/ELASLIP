@@ -222,6 +222,138 @@ def generate_ioc_report(ioc_id: str, user_id: str = 'system'):
         return {'status': 'error', 'error': str(e), 'task_id': task_id}
 
 
+@shared_task(name='tasks.generate_stix_report')
+def generate_stix_report(stix_id: str, user_id: str = 'system'):
+    """
+    Generate a report for a STIX object asynchronously.
+    Works for all STIX types (indicator, malware, threat-actor, etc.).
+    
+    Args:
+        stix_id: The STIX object ID
+        user_id: User ID who initiated the report
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = generate_stix_report.request.id
+    
+    try:
+        # Create report entry
+        report_entry = {
+            'id': task_id,
+            'type': 'stix',
+            'entity_id': stix_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None
+        }
+        
+        # Save pending report
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        # Mark as queued while waiting for lock
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        # Acquire lock to ensure only one report generates at a time
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        # Update status to processing once we have the lock
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        try:
+            # Generate report
+            report_data = report_service.generate_stix_report(stix_id)
+            
+            # Record token usage if available
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='stix',
+                    entity_id=stix_id,
+                    entity_name=report_data.get('stix_value', stix_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            # Always release the lock
+            release_report_lock()
+        
+        # Save completed report with entity name
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('stix_value', stix_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        # Send notification
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        logger.info("Creating notification for user_id: %s -> %s", user_id, real_user_id)
+        notif_result = notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='stix',
+            entity_name=report_data.get('stix_value', stix_id),
+            task_id=task_id
+        )
+        logger.info("Notification created: %s", notif_result)
+        
+        audit.log(
+            action='report_generated',
+            entity_type='stix',
+            entity_id=stix_id,
+            username=user_id,
+            entity_name=f'STIX Report {stix_id}',
+            changes={'task_id': task_id}
+        )
+        
+        # Dispatch webhooks for report generation
+        try:
+            from app.tasks.webhook_tasks import dispatch_webhook
+            dispatch_webhook.delay('report.llm_created', {
+                'report_id': task_id,
+                'report_type': 'stix',
+                'entity_id': stix_id,
+                'entity_value': report_data.get('stix_value'),
+                'generated_by': user_id,
+                'generated_at': report_entry['completed_at'],
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            es_logger = __import__('logging').getLogger('app')
+            es_logger.warning(f"Failed to dispatch STIX report webhook: {str(e)}")
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        audit.log(
+            action='report_generation_failed',
+            entity_type='stix',
+            entity_id=stix_id,
+            username=user_id,
+            entity_name=f'STIX Report {stix_id}',
+            changes={'error': str(e)}
+        )
+        
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
 @shared_task(name='tasks.generate_case_report')
 def generate_case_report(case_id: str, user_id: str = 'system'):
     """
@@ -858,6 +990,93 @@ def regenerate_ioc_report(ioc_id: str, user_id: str, correction_prompt: str, pre
             entity_id=ioc_id,
             username=user_id,
             entity_name=f'IOC Report {ioc_id}',
+            changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
+        )
+        
+        return {'status': 'completed', 'task_id': task_id, 'report': report_data}
+    except Exception as e:
+        report_entry['status'] = 'failed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['error'] = str(e)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        return {'status': 'error', 'error': str(e), 'task_id': task_id}
+
+
+@shared_task(name='tasks.regenerate_stix_report')
+def regenerate_stix_report(stix_id: str, user_id: str, correction_prompt: str, previous_report: str = ''):
+    """Regenerate a STIX report with correction instructions."""
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return {'status': 'error', 'error': 'LLM not enabled'}
+    
+    es = ElasticsearchService()
+    report_service = ReportService()
+    audit = AuditService()
+    finops = FinOpsService()
+    task_id = regenerate_stix_report.request.id
+    
+    try:
+        report_entry = {
+            'id': task_id,
+            'type': 'stix',
+            'entity_id': stix_id,
+            'status': 'pending',
+            'created_at': datetime.utcnow().isoformat(),
+            'started_at': None,
+            'completed_at': None,
+            'user_id': user_id,
+            'error': None,
+            'report_data': None,
+            'regenerated': True
+        }
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        report_entry['status'] = 'queued'
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        if not acquire_report_lock(timeout=600):
+            raise RuntimeError("Report generation queue is full. Please try again later.")
+        
+        report_entry['status'] = 'processing'
+        report_entry['started_at'] = datetime.utcnow().isoformat()
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        try:
+            report_data = report_service.regenerate_stix_report(stix_id, correction_prompt, previous_report)
+            
+            token_usage = report_data.get('token_usage', {})
+            if token_usage:
+                finops.record_token_usage(
+                    report_type='stix_regenerate',
+                    entity_id=stix_id,
+                    entity_name=report_data.get('stix_value', stix_id),
+                    prompt_tokens=token_usage.get('prompt_tokens', 0),
+                    completion_tokens=token_usage.get('completion_tokens', 0),
+                    user_id=user_id
+                )
+        finally:
+            release_report_lock()
+        
+        report_entry['status'] = 'completed'
+        report_entry['completed_at'] = datetime.utcnow().isoformat()
+        report_entry['report_data'] = report_data
+        report_entry['entity_name'] = report_data.get('stix_value', stix_id)
+        es.index('elaslip_app_config', f'report_{task_id}', report_entry)
+        
+        notification = NotificationService()
+        real_user_id = get_real_user_id(user_id)
+        notification.notify_report_completed(
+            user_id=real_user_id,
+            report_type='stix',
+            entity_name=f"{report_data.get('stix_value', stix_id)} (Regenerated)",
+            task_id=task_id
+        )
+        
+        audit.log(
+            action='report_regenerated',
+            entity_type='stix',
+            entity_id=stix_id,
+            username=user_id,
+            entity_name=f'STIX Report {stix_id}',
             changes={'task_id': task_id, 'correction_prompt': correction_prompt[:200]}
         )
         
