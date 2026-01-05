@@ -105,6 +105,12 @@
                                     <option value="location">Location</option>
                                     <option value="course-of-action">Course of Action</option>
                                 </optgroup>
+                                <optgroup label="Documentation & Analysis">
+                                    <option value="report">Report</option>
+                                    <option value="note">Note</option>
+                                    <option value="opinion">Opinion</option>
+                                    <option value="observed-data">Observed Data</option>
+                                </optgroup>
                             </select>
                         </div>
 
@@ -144,6 +150,10 @@
                         {% include 'stix/_identity_fields.html' %}
                         {% include 'stix/_location_fields.html' %}
                         {% include 'stix/_course_of_action_fields.html' %}
+                        {% include 'stix/_report_fields.html' %}
+                        {% include 'stix/_note_fields.html' %}
+                        {% include 'stix/_opinion_fields.html' %}
+                        {% include 'stix/_observed_data_fields.html' %}
                     </div>
                 </div>
 

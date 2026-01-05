@@ -1,0 +1,37 @@
+<!-- Note Fields -->
+<div id="fields-note" class="type-fields">
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Notes allow analysts to document comments and analysis on STIX objects.
+    </div>
+    
+    <div class="field-group">
+        <label for="noteAbstract" class="form-label required-field">Abstract</label>
+        <input type="text" id="noteAbstract" name="abstract" class="form-control"
+               placeholder="Brief summary of the note">
+    </div>
+    
+    <div class="field-group">
+        <label for="noteContent" class="form-label required-field">Content</label>
+        <textarea id="noteContent" name="content" class="form-control" rows="5"
+                  placeholder="Full text of the analyst note"></textarea>
+    </div>
+    
+    <div class="field-group">
+        <label for="noteObjectRefs" class="form-label">Object References</label>
+        <textarea id="noteObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
+                  placeholder="STIX objects this note relates to (one per line)"></textarea>
+        <small class="text-muted">Enter object IDs or identifiers</small>
+    </div>
+    
+    <div class="field-group">
+        <label for="noteAuthority" class="form-label">Authority</label>
+        <select id="noteAuthority" name="x_authority" class="form-select">
+            <option value="">Select authority level</option>
+            <option value="personal">Personal Opinion</option>
+            <option value="team">Team Analysis</option>
+            <option value="organization">Organization Official</option>
+            <option value="public">Public Intelligence</option>
+        </select>
+    </div>
+</div>

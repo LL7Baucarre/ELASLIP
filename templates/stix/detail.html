@@ -63,28 +63,6 @@
     html[data-theme="light"] #relationshipGraph { background: #f8f9fa; }
     html[data-theme="dark"] #relationshipGraph { background: #1a1a1a; }
     
-    /* Graph Legend */
-    .graph-legend { background: rgba(0,0,0,0.02); }
-    html[data-theme="dark"] .graph-legend { background: rgba(255,255,255,0.02); }
-    
-    .legend-circle {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-    }
-    .legend-square {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border-radius: 3px;
-    }
-    .legend-diamond {
-        display: inline-block;
-        width: 12px;
-        height: 12px;
-        transform: rotate(45deg);
-    }
     .current-node { box-shadow: 0 0 0 2px #fff; }
     
     /* Filter buttons */
@@ -163,7 +141,7 @@
                         </ol>
                     </nav>
                     <h1 class="h3 mb-2">
-                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check'} %}
+                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check', 'note': 'bi-sticky', 'opinion': 'bi-chat-left-quote', 'report': 'bi-file-text', 'observed-data': 'bi-eye'} %}
                         <i class="bi {{ type_icons.get(stix_object.type, 'bi-box') }} me-2"></i>
                         {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
                     </h1>
@@ -365,10 +343,143 @@
                             <span class="ms-2">{{ stix_object.latitude }}, {{ stix_object.longitude }}</span>
                         </div>
                         {% endif %}
+                    
+                    {% elif stix_object.type == 'tool' %}
+                        {% if stix_object.tool_types %}
+                        <div class="property-row">
+                            <span class="property-label">Tool Types:</span>
+                            {% for t in stix_object.tool_types %}
+                            <span class="badge bg-info ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.tool_version %}
+                        <div class="property-row">
+                            <span class="property-label">Version:</span>
+                            <span class="ms-2">{{ stix_object.tool_version }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'note' %}
+                        {% if stix_object.abstract %}
+                        <div class="property-row">
+                            <span class="property-label">Abstract:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.abstract }}</p>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.content %}
+                        <div class="property-row">
+                            <span class="property-label">Content:</span>
+                            <div class="mt-1 p-2 rounded" style="background: rgba(0,0,0,0.03);">{{ stix_object.content }}</div>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.authors %}
+                        <div class="property-row">
+                            <span class="property-label">Authors:</span>
+                            {% for author in stix_object.authors %}
+                            <span class="badge bg-secondary ms-1">{{ author }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'opinion' %}
+                        {% if stix_object.opinion %}
+                        <div class="property-row">
+                            <span class="property-label">Opinion:</span>
+                            {% set opinion_colors = {'strongly-disagree': 'danger', 'disagree': 'warning', 'neutral': 'secondary', 'agree': 'info', 'strongly-agree': 'success'} %}
+                            <span class="badge bg-{{ opinion_colors.get(stix_object.opinion, 'secondary') }} ms-2">{{ stix_object.opinion }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.explanation %}
+                        <div class="property-row">
+                            <span class="property-label">Explanation:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.explanation }}</p>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.authors %}
+                        <div class="property-row">
+                            <span class="property-label">Authors:</span>
+                            {% for author in stix_object.authors %}
+                            <span class="badge bg-secondary ms-1">{{ author }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'report' %}
+                        {% if stix_object.report_types %}
+                        <div class="property-row">
+                            <span class="property-label">Report Types:</span>
+                            {% for t in stix_object.report_types %}
+                            <span class="badge bg-success ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.published %}
+                        <div class="property-row">
+                            <span class="property-label">Published:</span>
+                            <span class="ms-2">{{ stix_object.published }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'observed-data' %}
+                        <div class="row">
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">First Observed:</span>
+                                <span class="ms-2">{{ stix_object.first_observed or 'N/A' }}</span>
+                            </div>
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Last Observed:</span>
+                                <span class="ms-2">{{ stix_object.last_observed or 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% if stix_object.number_observed %}
+                        <div class="property-row">
+                            <span class="property-label">Number Observed:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.number_observed }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.objects %}
+                        <div class="property-row">
+                            <span class="property-label">Observable Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.objects | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Object Refs:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} reference(s)</span>
+                        </div>
+                        {% endif %}
                     {% endif %}
                     
                     <!-- Generic properties display for other types -->
-                    {% if stix_object.aliases and stix_object.type not in ['malware'] %}
+                    {% if stix_object.aliases and stix_object.type not in ['malware', 'tool'] %}
                     <div class="property-row">
                         <span class="property-label">Aliases:</span>
                         {% for a in stix_object.aliases %}
@@ -459,25 +570,6 @@
                 </div>
                 <div class="card-body p-0">
                     <div id="relationshipGraph" style="height: 450px; width: 100%;"></div>
-                    <!-- Legend -->
-                    <div class="graph-legend d-flex flex-wrap gap-3 p-3 border-top">
-                        <div class="d-flex align-items-center">
-                            <span class="legend-circle me-2" style="background: #17a2b8;"></span>
-                            <small>STIX Objects</small>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="legend-square me-2" style="background: #0d6efd;"></span>
-                            <small>Cases</small>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="legend-diamond me-2" style="background: #dc3545;"></span>
-                            <small>Incidents</small>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <span class="legend-circle me-2 current-node" style="background: #17a2b8; border: 3px solid #333;"></span>
-                            <small>Current Object</small>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -530,6 +622,83 @@
                     {% endif %}
                 </div>
             </div>
+            
+            <!-- Sources (Imports & Edits) -->
+            {% if stix_object.x_elaslip_sources or stix_object.x_elaslip_import_job_id %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>History</h5>
+                        {% if stix_object.x_elaslip_sources %}
+                        <span class="badge bg-secondary">{{ stix_object.x_elaslip_sources|length }} entries</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if stix_object.x_elaslip_sources %}
+                    {% set sources_list = stix_object.x_elaslip_sources | reverse | list %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th><small>Type</small></th>
+                                    <th><small>Details</small></th>
+                                    <th><small>User</small></th>
+                                    <th><small>Date</small></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for source in sources_list[:10] %}
+                                <tr>
+                                    <td>
+                                        {% if source.type == 'user_creation' %}
+                                            <span class="badge bg-success"><i class="bi bi-plus-circle me-1"></i>Created</span>
+                                        {% elif source.type == 'user_duplicate' %}
+                                            <span class="badge bg-info"><i class="bi bi-files me-1"></i>Duplicate</span>
+                                        {% elif source.type == 'user_edit' %}
+                                            <span class="badge bg-warning"><i class="bi bi-pencil me-1"></i>Edited</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-cloud-download me-1"></i>Import</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if source.import_job_id %}
+                                            <code class="small">{{ source.import_job_id[:20] }}{% if source.import_job_id|length > 20 %}...{% endif %}</code>
+                                        {% else %}
+                                            <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ source.username or source.user_id or 'Unknown' }}</span></td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ source.imported_at[:19] if source.imported_at else (source.created_at[:19] if source.created_at else (source.modified_at[:19] if source.modified_at else 'N/A')) }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if stix_object.x_elaslip_sources|length > 10 %}
+                    <div class="mt-2 text-center">
+                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Showing 10 of {{ stix_object.x_elaslip_sources|length }} entries</small>
+                    </div>
+                    {% endif %}
+                    {% elif stix_object.x_elaslip_import_job_id %}
+                    <div class="property-row">
+                        <span class="property-label">Import Job:</span>
+                        <code class="small ms-2">{{ stix_object.x_elaslip_import_job_id }}</code>
+                    </div>
+                    {% if stix_object.x_elaslip_created_by_username %}
+                    <div class="property-row mt-2">
+                        <span class="property-label">User:</span>
+                        <span class="ms-2"><span class="badge bg-secondary">{{ stix_object.x_elaslip_created_by_username }}</span></span>
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
             
             <!-- Labels -->
             {% if stix_object.labels %}
@@ -745,7 +914,11 @@ const typeColors = {
     'intrusion-set': '#fd7e14',
     'identity': '#20c997',
     'location': '#0dcaf0',
-    'course-of-action': '#198754'
+    'course-of-action': '#198754',
+    'note': '#0dcaf0',
+    'opinion': '#e91e63',
+    'report': '#2d5016',
+    'observed-data': '#ff9800'
 };
 
 // Available enrichment APIs

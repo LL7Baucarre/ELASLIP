@@ -171,27 +171,63 @@ def dashboard():
         total_stix = 0
     
     try:
-        cases_result = es.search('cases', {'size': 0})
+        cases_result = es.search('cases', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
+            'size': 0
+        })
         total_cases = cases_result['hits']['total']['value']
     except:
         total_cases = 0
     
     try:
-        incidents_result = es.search('incidents', {'size': 0})
+        incidents_result = es.search('incidents', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
+            'size': 0
+        })
         total_incidents = incidents_result['hits']['total']['value']
     except:
         total_incidents = 0
     
     try:
-        checklists_result = es.search('checklists', {'size': 0})
+        checklists_result = es.search('checklists', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'completed'}},
+                        {'term': {'status': 'archived'}}
+                    ]
+                }
+            },
+            'size': 0
+        })
         total_checklists = checklists_result['hits']['total']['value']
     except:
         total_checklists = 0
     
-    # Get stats by status/severity
+    # Get stats by status/severity (exclude closed items)
     try:
         cases_by_status = es.aggregate('cases', {
-            'by_status': {'terms': {'field': 'status', 'size': 10}}
+            'by_status': {
+                'terms': {'field': 'status', 'size': 10}
+            }
+        }, query={
+            'bool': {
+                'must_not': [
+                    {'term': {'status': 'closed'}}
+                ]
+            }
         })
         cases_status_stats = {b['key']: b['doc_count'] 
                              for b in cases_by_status.get('aggregations', {}).get('by_status', {}).get('buckets', [])}
@@ -201,6 +237,12 @@ def dashboard():
     try:
         incidents_by_severity = es.aggregate('incidents', {
             'by_severity': {'terms': {'field': 'severity', 'size': 10}}
+        }, query={
+            'bool': {
+                'must_not': [
+                    {'term': {'status': 'closed'}}
+                ]
+            }
         })
         incidents_severity_stats = {b['key']: b['doc_count'] 
                                    for b in incidents_by_severity.get('aggregations', {}).get('by_severity', {}).get('buckets', [])}
@@ -240,9 +282,16 @@ def dashboard():
         logger.exception("Error fetching recent STIX objects: %s", e)
         template_stix = []
     
-    # Get recent cases
+    # Get recent cases (exclude closed cases)
     try:
         recent_cases_result = es.search('cases', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
             'size': 5,
             'sort': [{'updated_at': {'order': 'desc'}}]
         })
@@ -251,9 +300,16 @@ def dashboard():
     except:
         recent_cases = []
     
-    # Get recent incidents
+    # Get recent incidents (exclude closed incidents)
     try:
         recent_incidents_result = es.search('incidents', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
             'size': 5,
             'sort': [{'updated_at': {'order': 'desc'}}]
         })
@@ -262,9 +318,17 @@ def dashboard():
     except:
         recent_incidents = []
     
-    # Get recent checklists
+    # Get recent checklists (exclude completed/archived checklists)
     try:
         recent_checklists_result = es.search('checklists', {
+            'query': {
+                'bool': {
+                    'must_not': [
+                        {'term': {'status': 'completed'}},
+                        {'term': {'status': 'archived'}}
+                    ]
+                }
+            },
             'size': 5,
             'sort': [{'updated_at': {'order': 'desc'}}]
         })
@@ -273,40 +337,105 @@ def dashboard():
     except:
         recent_checklists = []
     
-    # Combine and sort recent entries
-    all_recent = []
-    for stix in template_stix:
-        # For STIX objects, get name from the object
-        stix_name = None
-        if isinstance(stix, dict):
-            stix_name = stix.get('name') or stix.get('value') or stix.get('pattern', '')
+    # Get assignments for current user - with filters
+    assigned_cases = []
+    assigned_incidents = []
+    assigned_checklists = []
+    
+    try:
+        # Get cases assigned to current user (exclude closed)
+        cases_assigned_result = es.search('cases', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'assignee_name': current_user.username}}
+                    ],
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
+            'size': 100,
+            'sort': [{'updated_at': {'order': 'desc'}}]
+        })
+        assigned_cases = [hit['_source'] | {'id': hit['_id']} 
+                         for hit in cases_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned cases: %s", e)
+    
+    try:
+        # Get incidents assigned to current user (exclude closed)
+        incidents_assigned_result = es.search('incidents', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'assignee_name': current_user.username}}
+                    ],
+                    'must_not': [
+                        {'term': {'status': 'closed'}}
+                    ]
+                }
+            },
+            'size': 100,
+            'sort': [{'updated_at': {'order': 'desc'}}]
+        })
+        assigned_incidents = [hit['_source'] | {'id': hit['_id']} 
+                             for hit in incidents_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned incidents: %s", e)
+    
+    try:
+        # Get checklists assigned to current user (exclude completed/archived)
+        checklists_assigned_result = es.search('checklists', {
+            'query': {
+                'bool': {
+                    'must': [
+                        {'term': {'assigned_to_name': current_user.username}}
+                    ],
+                    'must_not': [
+                        {'term': {'status': 'completed'}},
+                        {'term': {'status': 'archived'}}
+                    ]
+                }
+            },
+            'size': 100,
+            'sort': [{'updated_at': {'order': 'desc'}}]
+        })
+        assigned_checklists = [hit['_source'] | {'id': hit['_id']} 
+                              for hit in checklists_assigned_result['hits']['hits']]
         
-        entry = {
-            'id': stix.get('id'),
-            'entity_type': 'stix',
-            'name': stix_name or 'Unknown',
-            'stix_type': stix.get('type', 'unknown'),
-            'updated_at': stix.get('modified', stix.get('created', ''))
-        }
-        all_recent.append(entry)
-    for case in recent_cases:
-        all_recent.append({
+        # Calculate progress for each checklist
+        for checklist in assigned_checklists:
+            items = checklist.get('items', [])
+            if items:
+                completed_count = sum(1 for item in items if item.get('completed', False))
+                checklist['progress'] = int((completed_count / len(items)) * 100)
+            else:
+                checklist['progress'] = 0
+    except Exception as e:
+        logger.exception("Error fetching assigned checklists: %s", e)
+    
+    # Build assigned_recent from assigned items only
+    assigned_recent = []
+    
+    for case in assigned_cases:
+        assigned_recent.append({
             'id': case.get('id'),
             'entity_type': 'case',
             'name': case.get('title', 'Untitled'),
             'status': case.get('status', ''),
             'updated_at': case.get('updated_at', '')
         })
-    for incident in recent_incidents:
-        all_recent.append({
+    for incident in assigned_incidents:
+        assigned_recent.append({
             'id': incident.get('id'),
             'entity_type': 'incident',
             'name': incident.get('title', 'Unnamed'),
             'severity': incident.get('severity', ''),
             'updated_at': incident.get('updated_at', '')
         })
-    for checklist in recent_checklists:
-        all_recent.append({
+    for checklist in assigned_checklists:
+        assigned_recent.append({
             'id': checklist.get('id'),
             'entity_type': 'checklist',
             'name': checklist.get('title', 'Unnamed'),
@@ -315,7 +444,10 @@ def dashboard():
         })
     
     # Sort by updated_at descending and take top 10
-    all_recent = sorted(all_recent, key=lambda x: x.get('updated_at', ''), reverse=True)[:10]
+    assigned_recent = sorted(assigned_recent, key=lambda x: x.get('updated_at', ''), reverse=True)[:10]
+    
+    # Keep all_recent for backward compatibility but use assigned_recent for display
+    all_recent = assigned_recent
     
     # Get unresolved public submissions
     try:
@@ -328,44 +460,6 @@ def dashboard():
                                   for hit in submissions_result['hits']['hits']]
     except:
         unresolved_submissions = []
-    
-    # Get assignments for current user
-    assigned_cases = []
-    assigned_incidents = []
-    assigned_checklists = []
-    
-    try:
-        # Get cases assigned to current user
-        cases_assigned_result = es.search('cases', {
-            'query': {'term': {'assignee_name': current_user.username}},
-            'size': 100
-        })
-        assigned_cases = [hit['_source'] | {'id': hit['_id']} 
-                         for hit in cases_assigned_result['hits']['hits']]
-    except Exception as e:
-        logger.exception("Error fetching assigned cases: %s", e)
-    
-    try:
-        # Get incidents assigned to current user
-        incidents_assigned_result = es.search('incidents', {
-            'query': {'term': {'assignee_name': current_user.username}},
-            'size': 100
-        })
-        assigned_incidents = [hit['_source'] | {'id': hit['_id']} 
-                             for hit in incidents_assigned_result['hits']['hits']]
-    except Exception as e:
-        logger.exception("Error fetching assigned incidents: %s", e)
-    
-    try:
-        # Get checklists assigned to current user
-        checklists_assigned_result = es.search('checklists', {
-            'query': {'term': {'assigned_to_name': current_user.username}},
-            'size': 100
-        })
-        assigned_checklists = [hit['_source'] | {'id': hit['_id']} 
-                              for hit in checklists_assigned_result['hits']['hits']]
-    except Exception as e:
-        logger.exception("Error fetching assigned checklists: %s", e)
     
     return render_template('dashboard.html', 
                           total_stix=total_stix,
@@ -1538,7 +1632,7 @@ def elasticsearch_stats():
                 'active_primary_shards': cluster_health.get('active_primary_shards', 0),
                 'active_shards': cluster_health.get('active_shards', 0),
                 'unassigned_shards': cluster_health.get('unassigned_shards', 0),
-                'number_of_indices': cluster_health.get('number_of_indices', 0)
+                'number_of_indices': len(indices_info)
             },
             'indices': indices_info
         })

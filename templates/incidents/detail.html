@@ -76,28 +76,6 @@
     background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
 }
 
-/* Graph Legend */
-.graph-legend { background: rgba(0,0,0,0.02); }
-[data-theme="dark"] .graph-legend { background: rgba(255,255,255,0.02); }
-
-.legend-circle {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-}
-.legend-square {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border-radius: 3px;
-}
-.legend-diamond {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    transform: rotate(45deg);
-}
 .current-node { box-shadow: 0 0 0 2px #fff; }
 
 /* Filter buttons */
@@ -135,12 +113,11 @@
                     <i class="bi bi-arrow-right-circle me-1"></i> Status
                 </button>
                 <ul class="dropdown-menu">
-                    <li><a class="dropdown-item" href="#" onclick="updateStatus('new')">New</a></li>
+                    <li><a class="dropdown-item" href="#" onclick="updateStatus('detected')">Detected</a></li>
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('investigating')">Investigating</a></li>
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('containment')">Containment</a></li>
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('eradication')">Eradication</a></li>
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('recovery')">Recovery</a></li>
-                    <li><a class="dropdown-item" href="#" onclick="updateStatus('post-incident')">Post-Incident</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#" onclick="updateStatus('closed')">Close Incident</a></li>
                 </ul>
@@ -429,25 +406,6 @@
         </div>
         <div class="card-body p-0">
             <div id="incidentGraphContainer" style="width: 100%; height: 450px; border-radius: 0 0 6px 6px;"></div>
-            <!-- Legend -->
-            <div class="graph-legend d-flex flex-wrap gap-3 p-3 border-top">
-                <div class="d-flex align-items-center">
-                    <span class="legend-circle me-2" style="background: #17a2b8;"></span>
-                    <small>STIX Objects</small>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="legend-square me-2" style="background: #0d6efd;"></span>
-                    <small>Cases</small>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="legend-diamond me-2" style="background: #dc3545;"></span>
-                    <small>Incidents</small>
-                </div>
-                <div class="d-flex align-items-center">
-                    <span class="legend-diamond me-2 current-node" style="background: #dc3545; border: 2px solid #333;"></span>
-                    <small>Current Incident</small>
-                </div>
-            </div>
         </div>
     </div>
 </div>

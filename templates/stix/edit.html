@@ -209,9 +209,125 @@
                         </div>
                         
                         {% elif stix_object.type == 'vulnerability' %}
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            External references (CVE IDs, etc.) can be managed separately. Core vulnerability properties are shown here.
+                        <div class="field-group">
+                            <label class="form-label">External References (CVE/CWE)</label>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                External references are managed via the External References section.
+                            </p>
+                        </div>
+                        
+                        {% elif stix_object.type == 'attack-pattern' %}
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this technique (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label class="form-label">Kill Chain Phases</label>
+                            <p class="text-muted small mb-2">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Kill chain phases are preserved from the original object.
+                            </p>
+                        </div>
+                        
+                        {% elif stix_object.type == 'tool' %}
+                        <div class="field-group">
+                            <label for="tool_types" class="form-label">Tool Types</label>
+                            <select id="tool_types" name="tool_types" class="form-select" multiple>
+                                {% for t in ['denial-of-service', 'exploitation', 'information-gathering', 'network-capture', 'credential-exploitation', 'remote-access', 'vulnerability-scanning', 'unknown'] %}
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.tool_types or []) else '' }}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="tool_version" class="form-label">Tool Version</label>
+                            <input type="text" id="tool_version" name="tool_version" class="form-control"
+                                   value="{{ stix_object.tool_version or '' }}"
+                                   placeholder="e.g., 4.0.2">
+                        </div>
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this tool (comma-separated)">
+                        </div>
+                        
+                        {% elif stix_object.type == 'note' %}
+                        <div class="field-group">
+                            <label for="abstract" class="form-label">Abstract</label>
+                            <input type="text" id="abstract" name="abstract" class="form-control"
+                                   value="{{ stix_object.abstract or '' }}"
+                                   placeholder="Brief summary of the note">
+                        </div>
+                        <div class="field-group">
+                            <label for="content" class="form-label">Content</label>
+                            <textarea id="content" name="content" class="form-control" rows="5"
+                                      placeholder="Full note content">{{ stix_object.content or '' }}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label for="authors" class="form-label">Authors</label>
+                            <input type="text" id="authors" name="authors" class="form-control"
+                                   value="{{ stix_object.authors | join(', ') if stix_object.authors else '' }}"
+                                   placeholder="Author names (comma-separated)">
+                        </div>
+                        
+                        {% elif stix_object.type == 'opinion' %}
+                        <div class="field-group">
+                            <label for="opinion" class="form-label required-field">Opinion</label>
+                            <select id="opinion" name="opinion" class="form-select" required>
+                                {% for o in ['strongly-disagree', 'disagree', 'neutral', 'agree', 'strongly-agree'] %}
+                                <option value="{{ o }}" {{ 'selected' if stix_object.opinion == o else '' }}>{{ o|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="explanation" class="form-label">Explanation</label>
+                            <textarea id="explanation" name="explanation" class="form-control" rows="4"
+                                      placeholder="Explain your opinion">{{ stix_object.explanation or '' }}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label for="authors" class="form-label">Authors</label>
+                            <input type="text" id="authors" name="authors" class="form-control"
+                                   value="{{ stix_object.authors | join(', ') if stix_object.authors else '' }}"
+                                   placeholder="Author names (comma-separated)">
+                        </div>
+                        
+                        {% elif stix_object.type == 'report' %}
+                        <div class="field-group">
+                            <label for="report_types" class="form-label">Report Types</label>
+                            <select id="report_types" name="report_types" class="form-select" multiple>
+                                {% for t in ['threat-report', 'attack-pattern', 'campaign', 'identity', 'indicator', 'intrusion-set', 'malware', 'observed-data', 'threat-actor', 'tool', 'vulnerability'] %}
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.report_types or []) else '' }}>{{ t }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="published" class="form-label">Published Date</label>
+                            <input type="datetime-local" id="published" name="published" class="form-control"
+                                   value="{{ stix_object.published[:16] if stix_object.published else '' }}">
+                        </div>
+                        
+                        {% elif stix_object.type == 'observed-data' %}
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_observed" class="form-label">First Observed</label>
+                                <input type="datetime-local" id="first_observed" name="first_observed" class="form-control"
+                                       value="{{ stix_object.first_observed[:16] if stix_object.first_observed else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_observed" class="form-label">Last Observed</label>
+                                <input type="datetime-local" id="last_observed" name="last_observed" class="form-control"
+                                       value="{{ stix_object.last_observed[:16] if stix_object.last_observed else '' }}">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="number_observed" class="form-label">Number Observed</label>
+                            <input type="number" id="number_observed" name="number_observed" class="form-control"
+                                   value="{{ stix_object.number_observed or 1 }}" min="1">
                         </div>
                         
                         {% else %}
@@ -407,6 +523,69 @@ async function saveChanges() {
             
             const lastSeen = document.getElementById('last_seen')?.value;
             if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+        }
+        
+        if (stixType === 'attack-pattern') {
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'tool') {
+            const toolTypes = document.getElementById('tool_types');
+            if (toolTypes) {
+                const selected = Array.from(toolTypes.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.tool_types = selected;
+            }
+            
+            const toolVersion = document.getElementById('tool_version')?.value.trim();
+            if (toolVersion) data.tool_version = toolVersion;
+            
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'note') {
+            const abstract = document.getElementById('abstract')?.value.trim();
+            if (abstract) data.abstract = abstract;
+            
+            const content = document.getElementById('content')?.value.trim();
+            if (content) data.content = content;
+            
+            const authors = document.getElementById('authors')?.value.trim();
+            if (authors) data.authors = authors.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'opinion') {
+            const opinion = document.getElementById('opinion')?.value;
+            if (opinion) data.opinion = opinion;
+            
+            const explanation = document.getElementById('explanation')?.value.trim();
+            if (explanation) data.explanation = explanation;
+            
+            const authors = document.getElementById('authors')?.value.trim();
+            if (authors) data.authors = authors.split(',').map(a => a.trim()).filter(a => a);
+        }
+        
+        if (stixType === 'report') {
+            const reportTypes = document.getElementById('report_types');
+            if (reportTypes) {
+                const selected = Array.from(reportTypes.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.report_types = selected;
+            }
+            
+            const published = document.getElementById('published')?.value;
+            if (published) data.published = new Date(published).toISOString();
+        }
+        
+        if (stixType === 'observed-data') {
+            const firstObserved = document.getElementById('first_observed')?.value;
+            if (firstObserved) data.first_observed = new Date(firstObserved).toISOString();
+            
+            const lastObserved = document.getElementById('last_observed')?.value;
+            if (lastObserved) data.last_observed = new Date(lastObserved).toISOString();
+            
+            const numberObserved = document.getElementById('number_observed')?.value;
+            if (numberObserved) data.number_observed = parseInt(numberObserved);
         }
         
         const response = await fetch(`/api/stix/objects/${stixId}`, {
