@@ -62,8 +62,9 @@ jobs:
           REGISTRY: ${{ env.REGISTRY }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
         run: |
-          TAGS="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
-          TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME}:latest"
+          IMAGE_NAME_LOWER=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
+          TAGS="${REGISTRY}/${IMAGE_NAME_LOWER}:${VERSION}"
+          TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME_LOWER}:latest"
           echo "tags=${TAGS}" >> $GITHUB_OUTPUT
           echo "Generated tags: ${TAGS}"
 
