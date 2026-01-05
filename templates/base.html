@@ -35,7 +35,7 @@
             {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'stix' in request.endpoint %}active{% endif %}" href="{{ url_for('stix.list_stix_objects_page') }}">
-                    <i class="bi bi-boxes"></i> STIX Objects
+                    <i class="bi bi-boxes"></i> Objects
                 </a>
             </li>
             {% endif %}
@@ -124,7 +124,6 @@
                 </a>
             </li>
         </ul>
-        
         <div class="user-section">
             <a class="nav-link" href="#" id="notification-nav-link" style="padding: 10px 20px; margin: 10px -20px 10px -20px; width: calc(100% + 40px);">
                 <i class="bi bi-bell"></i> <span>Notifications</span>

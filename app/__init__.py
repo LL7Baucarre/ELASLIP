@@ -11,7 +11,7 @@ from app.config import config
 
 login_manager = LoginManager()
 jwt = JWTManager()
-celery = Celery()
+celery = None  # Will be initialized at module level after create_celery_app
 redis_client = None
 
 
@@ -336,6 +336,6 @@ def create_app(config_name=None):
 
 
 # Create celery app for worker
-celery_app = create_celery_app()
+celery = create_celery_app()
 # Import tasks so they're registered with the worker
 from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks

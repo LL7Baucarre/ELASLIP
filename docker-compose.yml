@@ -73,7 +73,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ghcr.io/ll7baucarre/elaslip:latest
-    command: celery -A app.celery_app worker --loglevel=info
+    command: celery -A app.celery worker --loglevel=info
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}

@@ -1428,17 +1428,5 @@ async function storeEnrichmentResult(resultIdx) {
     }
 }
 
-        // Refresh the page
-        location.reload();
-        
-    } catch (e) {
-        alert('Auto-enrichment error: ' + e.message);
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-    }
-}
-
-// Auto-enrichment function removed - use Store buttons instead
-
 </script>
 {% endblock %}

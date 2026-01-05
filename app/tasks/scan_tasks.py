@@ -227,3 +227,56 @@ def single_scan(self, tool: str, target: str, user_id: str, **kwargs):
         
     except Exception as e:
         return {'error': str(e), 'success': False}
+
+
+@celery.task(bind=True, soft_time_limit=300)
+def analyze_dmarc_dkim_async(self, domain: str, user_id: str):
+    """
+    Analyze DMARC/DKIM/SPF records for a domain asynchronously.
+    
+    Args:
+        domain: Domain to analyze
+        user_id: User ID who initiated the analysis
+    """
+    import logging
+    logger = logging.getLogger('celery.tasks')
+    
+    logger.info(f"[DMARC/DKIM] Task started for domain: {domain}")
+    
+    es = ElasticsearchService()
+    tools = ToolsService()
+    
+    try:
+        # Perform the analysis
+        logger.info(f"[DMARC/DKIM] Analyzing domain {domain}...")
+        result = tools.analyze_dmarc_dkim(domain)
+        logger.info(f"[DMARC/DKIM] Analysis completed for {domain}. Success: {result.get('success', False)}")
+        
+        # Save to Elasticsearch
+        logger.info(f"[DMARC/DKIM] Saving results to Elasticsearch...")
+        scan_id = str(uuid.uuid4())
+        
+        result_copy = dict(result)
+        result_copy.pop('raw_output', None)
+        result_copy.pop('timestamp', None)
+        
+        scan_doc = {
+            'user_id': user_id,
+            'tool': 'dmarc-dkim',
+            'target': domain,
+            'success': result.get('success', False),
+            'result': result_copy,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+        
+        es.index('scan_results', scan_id, scan_doc)
+        logger.info(f"[DMARC/DKIM] Results saved with scan_id: {scan_id}")
+        
+        result['scan_id'] = scan_id
+        
+        logger.info(f"[DMARC/DKIM] Task completed successfully for {domain}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"[DMARC/DKIM] Task failed for {domain}: {str(e)}", exc_info=True)
+        return {'error': str(e), 'success': False}
