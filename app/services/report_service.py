@@ -588,11 +588,11 @@ class ReportService:
         # Ensure object has its ID
         stix_obj['id'] = stix_id
         
-        # Get ALL first-level relations (IOCs, cases, incidents) like the graph
-        relations = self._get_first_level_relations(stix_id)
+        # Get ALL first-level relations using the STIX-aware method
+        relations = self._get_stix_first_level_relations(stix_id)
         
-        # Build prompt - use IOC prompt format as it works well for all STIX types
-        prompt = self._build_ioc_prompt(stix_obj, relations)
+        # Build prompt - use dedicated STIX prompt format
+        prompt = self._build_stix_prompt(stix_obj, relations)
         
         # Generate analysis
         analysis, token_usage = self._call_llm(prompt)
@@ -608,7 +608,7 @@ class ReportService:
             'generated_at': datetime.utcnow().isoformat(),
             'token_usage': token_usage,
             'analysis': analysis,
-            'relations_count': len(relations.get('iocs', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', []))
+            'relations_count': len(relations.get('stix_objects', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', []))
         }
     
     def generate_case_report(self, case_id: str) -> Dict[str, Any]:
@@ -996,6 +996,28 @@ Do NOT wrap the response in code blocks."""
             doc['id'] = hit['_id']
             items.append(doc)
         return items
+
+    def _get_stix_relations(self, stix_id: str) -> List[Dict]:
+        """Get STIX 2.1 relationships for ANY STIX object (works with all types)."""
+        query = {
+            'query': {
+                'bool': {
+                    'should': [
+                        {'term': {'source_ref': stix_id}},
+                        {'term': {'target_ref': stix_id}}
+                    ],
+                    'minimum_should_match': 1
+                }
+            },
+            'size': 100
+        }
+        result = self.es.search('stix_relationships', query)
+        items = []
+        for hit in result.get('hits', {}).get('hits', []):
+            doc = hit['_source']
+            doc['id'] = hit['_id']
+            items.append(doc)
+        return items
     
     def _get_first_level_relations(self, ioc_id: str) -> Dict[str, List[Dict]]:
         """
@@ -1068,6 +1090,82 @@ Do NOT wrap the response in code blocks."""
                     relations['incidents'].append(incident_doc)
         except Exception:
             pass
+        
+        return relations
+
+    def _get_stix_first_level_relations(self, stix_id: str) -> Dict[str, List[Dict]]:
+        """
+        Get ALL first-level relations for a STIX object (works with all STIX types):
+        - Direct STIX-to-STIX relations
+        - Cases containing this STIX object (if it's an indicator)
+        - Incidents containing this STIX object (if it's an indicator)
+        - Related STIX objects through relationships
+        
+        Args:
+            stix_id: The STIX object ID (e.g., 'malware--uuid', 'threat-actor--uuid', 'indicator--uuid')
+            
+        Returns:
+            Dict with 'stix_objects', 'cases', 'incidents' keys containing relation lists
+        """
+        relations = {
+            'stix_objects': [],
+            'cases': [],
+            'incidents': []
+        }
+        
+        # 1. Get direct STIX-to-STIX relations using the full STIX ID
+        stix_relations = self._get_stix_relations(stix_id)
+        for relation in stix_relations:
+            rel_source_ref = relation.get('source_ref', '')
+            rel_target_ref = relation.get('target_ref', '')
+            
+            # Get the OTHER STIX ref
+            other_ref = rel_target_ref if rel_source_ref == stix_id else rel_source_ref
+            
+            # Fetch the related STIX object details (use _get_stix_object which handles both IOCs and STIX objects)
+            try:
+                related_stix = self._get_stix_object(other_ref)
+                if related_stix:
+                    related_stix['id'] = other_ref
+                    related_stix['_relation_type'] = relation.get('relationship_type', 'related-to')
+                    relations['stix_objects'].append(related_stix)
+            except Exception:
+                pass
+        
+        # 2. Only get cases/incidents if this is an IOC/indicator (check if it starts with 'indicator--')
+        if stix_id.startswith('indicator--'):
+            # Extract the UUID part for lookups
+            ioc_id = stix_id.replace('indicator--', '') if stix_id.startswith('indicator--') else stix_id
+            
+            try:
+                cases_result = self.es.search('cases', {
+                    'query': {'match_all': {}},
+                    'size': 1000
+                })
+                for hit in cases_result.get('hits', {}).get('hits', []):
+                    case_doc = hit['_source']
+                    ioc_ids = case_doc.get('ioc_ids', [])
+                    if ioc_id in ioc_ids:
+                        case_doc['id'] = hit['_id']
+                        case_doc['_relation_type'] = 'found-in-case'
+                        relations['cases'].append(case_doc)
+            except Exception:
+                pass
+            
+            try:
+                incidents_result = self.es.search('incidents', {
+                    'query': {'match_all': {}},
+                    'size': 1000
+                })
+                for hit in incidents_result.get('hits', {}).get('hits', []):
+                    incident_doc = hit['_source']
+                    ioc_ids = incident_doc.get('ioc_ids', [])
+                    if ioc_id in ioc_ids:
+                        incident_doc['id'] = hit['_id']
+                        incident_doc['_relation_type'] = 'found-in-incident'
+                        relations['incidents'].append(incident_doc)
+            except Exception:
+                pass
         
         return relations
     
@@ -1751,6 +1849,202 @@ Generate a comprehensive threat assessment with **emphasis on the MAIN IOC**:
 4. **Attack Chain Context** - How this IOC fits in potential attack scenarios
 5. **Detection & Response** - How to detect and respond to this specific IOC
 6. **Mitigation Recommendations** - Actions specific to this threat"""
+
+    def _build_stix_prompt(self, stix_obj: Dict, relations: Dict[str, List[Dict]]) -> str:
+        """
+        Build prompt specifically for STIX objects (malware, threat-actor, etc.) with emphasis on relationships.
+        
+        Args:
+            stix_obj: The main STIX object
+            relations: Dict with 'stix_objects', 'cases', 'incidents' keys
+        """
+        # Get language instruction
+        language_instruction = self._get_language_instruction()
+        
+        # Extract object information
+        stix_type = stix_obj.get('type', 'unknown')
+        stix_value = stix_obj.get('name') or stix_obj.get('value') or stix_obj.get('pattern', 'Unknown')
+        description = stix_obj.get('description', 'No description available')
+        
+        # Extract metadata based on type
+        metadata_text = ""
+        x_metadata = stix_obj.get('x_metadata', {})
+        
+        if stix_type == 'malware':
+            malware_types = stix_obj.get('malware_types', [])
+            is_family = stix_obj.get('is_family', False)
+            aliases = stix_obj.get('aliases', [])
+            capabilities = stix_obj.get('capabilities', [])
+            kill_chain = stix_obj.get('kill_chain_phases', [])
+            
+            metadata_text = f"""- **Malware Type**: {', '.join(malware_types) if malware_types else 'N/A'}
+- **Is Family**: {is_family}
+- **Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Capabilities**: {', '.join(capabilities) if capabilities else 'N/A'}
+- **Kill Chain**: {', '.join([kc.get('phase_name', '') for kc in kill_chain]) if kill_chain else 'N/A'}"""
+        
+        elif stix_type == 'threat-actor':
+            threat_actor_types = stix_obj.get('threat_actor_types', [])
+            aliases = stix_obj.get('aliases', [])
+            goals = stix_obj.get('goals', [])
+            resource_level = stix_obj.get('resource_level', 'N/A')
+            primary_motivation = stix_obj.get('primary_motivation', 'N/A')
+            
+            metadata_text = f"""- **Type**: {', '.join(threat_actor_types) if threat_actor_types else 'N/A'}
+- **Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Goals**: {', '.join(goals) if goals else 'N/A'}
+- **Resource Level**: {resource_level}
+- **Primary Motivation**: {primary_motivation}"""
+        
+        elif stix_type == 'attack-pattern':
+            aliases = stix_obj.get('aliases', [])
+            kill_chain = stix_obj.get('kill_chain_phases', [])
+            
+            metadata_text = f"""- **Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Kill Chain**: {', '.join([kc.get('phase_name', '') for kc in kill_chain]) if kill_chain else 'N/A'}"""
+        
+        elif stix_type == 'campaign':
+            aliases = stix_obj.get('aliases', [])
+            objective = stix_obj.get('objective', 'N/A')
+            
+            metadata_text = f"""- **Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Objective**: {objective}"""
+        
+        elif stix_type == 'vulnerability':
+            external_refs = stix_obj.get('external_references', [])
+            refs_text = ', '.join([ref.get('external_id', '') for ref in external_refs if ref.get('external_id')])
+            
+            metadata_text = f"""- **CVE/References**: {refs_text if refs_text else 'N/A'}"""
+        
+        else:
+            # Generic metadata for other STIX types
+            aliases = stix_obj.get('aliases', [])
+            if aliases:
+                metadata_text = f"- **Aliases**: {', '.join(aliases)}"
+        
+        # Build relations context
+        related_stix = relations.get('stix_objects', [])
+        related_cases = relations.get('cases', [])
+        related_incidents = relations.get('incidents', [])
+        
+        relations_details = ""
+        
+        # Add related STIX objects
+        if related_stix:
+            relations_details += f"\n### Related STIX Objects ({len(related_stix)} found)\n"
+            for idx, stix in enumerate(related_stix[:10], 1):
+                rel_type = stix.get('_relation_type', 'related-to').replace('-', ' ').title()
+                obj_name = stix.get('name') or stix.get('value') or 'Unknown'
+                obj_type = stix.get('type', 'unknown').title()
+                obj_desc = stix.get('description', 'No description')[:150]
+                
+                relations_details += f"""
+{idx}. **{obj_type}: {obj_name}**
+   - Relationship: {rel_type}
+   - Description: {obj_desc}{'...' if len(obj_desc) >= 150 else ''}"""
+        
+        # Add cases containing this STIX object
+        if related_cases:
+            relations_details += f"\n### Related Cases ({len(related_cases)} found)\n"
+            for idx, case in enumerate(related_cases[:5], 1):
+                case_name = case.get('title') or case.get('name', 'Unknown')
+                case_status = case.get('status', 'Unknown')
+                case_desc = case.get('description', 'No description')[:150]
+                
+                relations_details += f"""
+{idx}. **Case: {case_name}**
+   - Status: {case_status}
+   - Description: {case_desc}{'...' if len(case_desc) >= 150 else ''}"""
+        
+        # Add incidents containing this STIX object
+        if related_incidents:
+            relations_details += f"\n### Related Incidents ({len(related_incidents)} found)\n"
+            for idx, incident in enumerate(related_incidents[:5], 1):
+                incident_name = incident.get('title') or incident.get('name', 'Unknown')
+                incident_status = incident.get('status', 'Unknown')
+                incident_desc = incident.get('description', 'No description')[:150]
+                
+                relations_details += f"""
+{idx}. **Incident: {incident_name}**
+   - Status: {incident_status}
+   - Description: {incident_desc}{'...' if len(incident_desc) >= 150 else ''}"""
+        
+        # Use custom prompt if available
+        if self.custom_prompt_stix:
+            try:
+                return language_instruction + self.custom_prompt_stix.format(
+                    type=stix_type,
+                    value=stix_value,
+                    severity=x_metadata.get('threat_level', 'unknown'),
+                    description=description,
+                    relations=relations_details if relations_details else "No related entities found"
+                )
+            except KeyError:
+                pass
+        
+        # Build comprehensive default prompt
+        total_relations = len(related_stix) + len(related_cases) + len(related_incidents)
+        
+        return language_instruction + f"""# {stix_type.upper()} Threat Intelligence Report: {stix_value}
+
+## Primary STIX Object
+- **Type**: {stix_type.upper()}
+- **Name/Value**: {stix_value}
+- **Created**: {stix_obj.get('created', 'Unknown')}
+- **Modified**: {stix_obj.get('modified', 'Unknown')}
+
+## Threat Details
+{metadata_text}
+
+## Description
+{description}
+
+## Relationships ({total_relations} connections found)
+{relations_details if relations_details else "No related entities found. Analyze this object in isolation."}
+
+## Analysis Requirements
+
+Generate a comprehensive threat intelligence report focused on this {stix_type}:
+
+1. **Executive Summary**
+   - What threat does this {stix_type} represent?
+   - Why is it significant to defenders?
+   - What is the overall threat level?
+
+2. **Detailed Analysis of Main Object**
+   - Characteristics and capabilities specific to this {stix_type}
+   - Historical context and evolution
+   - Known victims or targets (if applicable)
+   - Attribution and threat actor associations
+
+3. **Relationship Analysis** 
+   - Explain how the {total_relations} related entities connect to this {stix_type}
+   - What do the relationships reveal about the threat?
+   - Are there attack chains or campaigns linking these entities?
+   - What cases or incidents are impacted?
+
+4. **Tactical & Strategic Impact**
+   - How does this threat affect defenders?
+   - What systems or sectors are most at risk?
+   - Estimated impact if exploited or deployed
+
+5. **Detection & Hunting**
+   - How to detect activity related to this {stix_type}
+   - Indicators to hunt for
+   - Network and host-based detection strategies
+
+6. **Response & Mitigation**
+   - Immediate containment actions
+   - Long-term remediation strategies
+   - Prevention measures for the future
+   - Threat hunting recommendations
+
+7. **Intelligence Confidence**
+   - Rate confidence in this assessment
+   - What additional information would strengthen it?
+   - Related intelligence gaps
+
+Format your response in clean Markdown with headers, bullet points, and bold text for emphasis. Be specific and actionable."""
     
     def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for case analysis."""
