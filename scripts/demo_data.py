@@ -368,19 +368,23 @@ def generate_checklists():
 
 
 def generate_random_stix_objects(count=100):
-    """Generate random STIX 2.1 Domain Objects of various types."""
+    """Generate random STIX 2.1 Domain Objects of all available types."""
     # IOC types that can be converted to indicators
     ioc_types = ['ipv4', 'domain', 'email', 'url', 'md5', 'sha1', 'sha256', 'asn']
     
-    # STIX SDO types for variety
-    sdo_types = ['indicator', 'malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool', 'vulnerability']
+    # All STIX 2.1 SDO types
+    sdo_types = ['indicator', 'malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool', 
+                 'vulnerability', 'infrastructure', 'course-of-action', 'identity', 'intrusion-set',
+                 'report', 'observed-data', 'note', 'opinion']
     
     objects = []
     
     for _ in range(count):
-        # 60% indicators, 40% other STIX objects
-        if random.random() < 0.6:
-            # Create an indicator (IOC-based)
+        # Randomly select a STIX object type
+        selected_type = random.choice(sdo_types)
+        
+        # Create indicator (IOC-based)
+        if selected_type == 'indicator':
             ioc_type = random.choice(ioc_types)
             
             if ioc_type == 'ipv4':
@@ -407,7 +411,6 @@ def generate_random_stix_objects(count=100):
                 value = 'unknown'
                 pattern = "[file:name = 'unknown']"
             
-            # Random metadata
             threat_levels = ['low', 'medium', 'high', 'critical']
             tlp_levels = ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED']
             labels = ['malicious', 'benign', 'anomalous-activity', 'anonymization', 'compromised']
@@ -427,60 +430,183 @@ def generate_random_stix_objects(count=100):
                 'labels': random.sample(labels, random.randint(1, 2)),
                 'confidence': random.randint(30, 100),
             }
-        else:
-            # Create other STIX object types
-            sdo_type = random.choice(['malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool'])
-            
-            if sdo_type == 'malware':
-                malware_types = ['ransomware', 'trojan', 'backdoor', 'dropper', 'rootkit', 'worm', 'bot']
-                obj = {
-                    'type': 'malware',
-                    'name': f"DemoMalware-{random.randint(1000, 9999)}",
-                    'description': f"Demo malware sample for testing purposes",
-                    'is_family': random.choice([True, False]),
-                    'malware_types': random.sample(malware_types, random.randint(1, 2)),
-                    'labels': ['malware'],
-                }
-            elif sdo_type == 'threat-actor':
-                actor_types = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'nation-state']
-                motivations = ['coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain']
-                obj = {
-                    'type': 'threat-actor',
-                    'name': f"APT-Demo-{random.randint(10, 99)}",
-                    'description': f"Demo threat actor for testing purposes",
-                    'threat_actor_types': random.sample(actor_types, 1),
-                    'sophistication': random.choice(['minimal', 'intermediate', 'advanced', 'expert']),
-                    'primary_motivation': random.choice(motivations),
-                    'labels': ['threat-actor'],
-                }
-            elif sdo_type == 'attack-pattern':
-                techniques = ['Spearphishing', 'Credential Dumping', 'PowerShell', 'Remote Services', 
-                             'Data Encrypted', 'Scheduled Task', 'Registry Run Keys', 'DLL Side-Loading']
-                obj = {
-                    'type': 'attack-pattern',
-                    'name': random.choice(techniques),
-                    'description': f"Demo attack pattern for testing purposes",
-                    'labels': ['attack-pattern'],
-                }
-            elif sdo_type == 'campaign':
-                obj = {
-                    'type': 'campaign',
-                    'name': f"Operation Demo-{random.randint(100, 999)}",
-                    'description': f"Demo campaign for testing purposes",
-                    'objective': "Demonstrate ELASLIP capabilities",
-                    'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 180))).isoformat() + 'Z',
-                    'last_seen': datetime.utcnow().isoformat() + 'Z',
-                    'labels': ['campaign'],
-                }
-            elif sdo_type == 'tool':
-                tools = ['Mimikatz', 'Cobalt Strike', 'Metasploit', 'BloodHound', 'Empire', 'PsExec']
-                obj = {
-                    'type': 'tool',
-                    'name': f"{random.choice(tools)}-Demo",
-                    'description': f"Demo tool for testing purposes",
-                    'tool_types': ['exploitation', 'credential-exploitation', 'remote-access'],
-                    'labels': ['tool'],
-                }
+        
+        elif selected_type == 'malware':
+            malware_types = ['ransomware', 'trojan', 'backdoor', 'dropper', 'rootkit', 'worm', 'bot', 'spyware']
+            obj = {
+                'type': 'malware',
+                'name': f"Malware-{random.choice(['Banker', 'Loader', 'Stealer', 'Worm', 'Bot'])}-{random.randint(1000, 9999)}",
+                'description': f"Demo malware family for threat intelligence",
+                'is_family': random.choice([True, False]),
+                'malware_types': random.sample(malware_types, random.randint(1, 3)),
+                'labels': ['malware'],
+            }
+        
+        elif selected_type == 'threat-actor':
+            actor_types = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'nation-state', 'insider-threat']
+            motivations = ['coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'vengeance']
+            obj = {
+                'type': 'threat-actor',
+                'name': f"APT-{random.randint(1, 50)}",
+                'description': f"Demo threat actor group for testing",
+                'threat_actor_types': random.sample(actor_types, random.randint(1, 2)),
+                'sophistication': random.choice(['minimal', 'intermediate', 'advanced', 'expert']),
+                'primary_motivation': random.choice(motivations),
+                'resource_level': random.choice(['individual', 'club', 'organization', 'government']),
+                'labels': ['threat-actor'],
+            }
+        
+        elif selected_type == 'attack-pattern':
+            techniques = ['Spearphishing', 'Credential Dumping', 'PowerShell', 'Remote Services', 
+                         'Data Encrypted', 'Scheduled Task', 'Registry Run Keys', 'DLL Side-Loading',
+                         'SQL Injection', 'Cross-Site Scripting', 'Privilege Escalation', 'Data Exfiltration']
+            obj = {
+                'type': 'attack-pattern',
+                'name': random.choice(techniques),
+                'description': f"Demo attack pattern commonly used in campaigns",
+                'kill_chain_phases': [{'kill_chain_name': 'lockheed-martin-cyber-kill-chain', 
+                                     'phase_name': random.choice(['reconnaissance', 'weaponization', 'delivery', 'exploitation', 'installation'])}],
+                'labels': ['attack-pattern'],
+            }
+        
+        elif selected_type == 'campaign':
+            obj = {
+                'type': 'campaign',
+                'name': f"Operation Demo-{random.randint(100, 999)}",
+                'description': f"Demo campaign for ELASLIP testing",
+                'objective': random.choice(['Espionage', 'Financial gain', 'Sabotage', 'Credential theft']),
+                'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 365))).isoformat() + 'Z',
+                'last_seen': datetime.utcnow().isoformat() + 'Z',
+                'labels': ['campaign'],
+            }
+        
+        elif selected_type == 'tool':
+            tools = ['Mimikatz', 'Cobalt Strike', 'Metasploit', 'BloodHound', 'Empire', 'PsExec', 'Invoke-PSExec', 'Evil-WinRM']
+            obj = {
+                'type': 'tool',
+                'name': random.choice(tools),
+                'description': f"Demo tool commonly used in cyberattacks",
+                'tool_types': random.sample(['remote-access', 'credential-exploitation', 'exploitation', 
+                                            'command-and-control', 'execution', 'lateral-movement'], random.randint(1, 3)),
+                'labels': ['tool'],
+            }
+        
+        elif selected_type == 'vulnerability':
+            cves = [f"CVE-{random.randint(2010, 2024)}-{random.randint(1000, 50000)}" for _ in range(random.randint(1, 3))]
+            obj = {
+                'type': 'vulnerability',
+                'name': f"Vuln-{random.randint(1000, 9999)}",
+                'description': f"Demo vulnerability for testing purposes",
+                'x_severity': random.choice(['low', 'medium', 'high', 'critical']),
+                'x_cvss_score': round(random.uniform(3.0, 10.0), 1),
+                'x_affected_products': [f"Software-{random.randint(1, 50)}", f"System-{random.randint(1, 20)}"],
+                'labels': ['vulnerability'],
+            }
+        
+        elif selected_type == 'infrastructure':
+            infrastructure_types = ['c2', 'malware-repository', 'website', 'cloud-storage', 'hosting-provider']
+            obj = {
+                'type': 'infrastructure',
+                'name': f"Infrastructure-{random.randint(1000, 9999)}",
+                'description': f"Demo infrastructure used in campaigns",
+                'infrastructure_types': random.sample(infrastructure_types, random.randint(1, 2)),
+                'labels': ['infrastructure'],
+            }
+        
+        elif selected_type == 'course-of-action':
+            obj = {
+                'type': 'course-of-action',
+                'name': f"Mitigation-{random.randint(100, 999)}",
+                'description': f"Demo mitigation strategy for detected threats",
+                'x_recommended_remediation': random.choice(['Patch immediately', 'Block at firewall', 'Isolate systems', 'Reset credentials']),
+                'labels': ['course-of-action'],
+            }
+        
+        elif selected_type == 'identity':
+            identity_classes = ['individual', 'organization', 'system']
+            obj = {
+                'type': 'identity',
+                'name': f"Entity-{random.randint(1000, 9999)}",
+                'description': f"Demo organization/entity for testing",
+                'identity_class': random.choice(identity_classes),
+                'sector': random.choice(['healthcare', 'finance', 'government', 'technology', 'manufacturing']),
+                'labels': ['identity'],
+            }
+        
+        elif selected_type == 'intrusion-set':
+            obj = {
+                'type': 'intrusion-set',
+                'name': f"Intrusion-Set-{random.randint(1, 100)}",
+                'description': f"Demo intrusion set for grouping related activity",
+                'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 730))).isoformat() + 'Z',
+                'last_seen': datetime.utcnow().isoformat() + 'Z',
+                'goals': [random.choice(['Espionage', 'Financial gain', 'Sabotage'])],
+                'labels': ['intrusion-set'],
+            }
+        
+        elif selected_type == 'report':
+            report_names = [
+                'APT29 Campaign Analysis', 'Ransomware Trends Q4 2025', 'Financial Sector Threat Report',
+                'Critical Infrastructure Security Assessment', 'Phishing Campaign Investigation',
+                'Malware Family Analysis Report', 'Supply Chain Attack Summary', 'Nation-State Actor Profile'
+            ]
+            obj = {
+                'type': 'report',
+                'name': random.choice(report_names) + f" - {random.randint(1, 100)}",
+                'description': f"Demo threat intelligence report covering recent threat activity and indicators.",
+                'published': datetime.utcnow().isoformat() + 'Z',
+                'report_types': random.sample(['threat-report', 'campaign', 'attack-pattern', 'malware', 'tool', 'vulnerability'], k=random.randint(1, 3)),
+                'object_refs': [],
+                'labels': ['report'],
+            }
+        
+        elif selected_type == 'observed-data':
+            observation_names = [
+                'Network Traffic Analysis', 'Endpoint Detection Event', 'Firewall Log Analysis',
+                'DNS Query Observation', 'File Hash Detection', 'Process Execution Monitor',
+                'Registry Change Detection', 'Authentication Event Capture'
+            ]
+            obj = {
+                'type': 'observed-data',
+                'name': random.choice(observation_names) + f" - {random.randint(1000, 9999)}",
+                'first_observed': (datetime.utcnow() - timedelta(hours=random.randint(1, 168))).isoformat() + 'Z',
+                'last_observed': datetime.utcnow().isoformat() + 'Z',
+                'number_observed': random.randint(1, 1000),
+                'object_refs': {'0': {'type': 'file', 'name': f'file-{random.randint(1, 10000)}.exe'}},
+                'description': f"Demo observed data from network detection",
+                'labels': ['observed-data'],
+            }
+        
+        elif selected_type == 'note':
+            note_titles = [
+                'Analyst Note: Attribution Assessment', 'Investigation Update', 'Threat Intelligence Summary',
+                'Malware Behavior Analysis', 'Network IOC Correlation', 'Incident Timeline Notes',
+                'Adversary TTP Documentation', 'Vulnerability Assessment Notes'
+            ]
+            obj = {
+                'type': 'note',
+                'name': random.choice(note_titles) + f" #{random.randint(1, 1000)}",
+                'abstract': f"Summary of analyst findings on threat activity.",
+                'content': f"Demo analyst note with detailed observations regarding threat activity, indicators of compromise, and recommended actions for mitigation.",
+                'object_refs': [],
+                'labels': ['note'],
+            }
+        
+        elif selected_type == 'opinion':
+            opinion_titles = [
+                'Attribution Confidence Assessment', 'Threat Severity Evaluation', 'IOC Validity Opinion',
+                'Campaign Attribution Analysis', 'Tool Classification Assessment', 'Actor Motivation Analysis',
+                'Infrastructure Assessment', 'Malware Family Classification'
+            ]
+            obj = {
+                'type': 'opinion',
+                'name': random.choice(opinion_titles) + f" #{random.randint(1, 1000)}",
+                'abstract': f"Analyst assessment of threat intelligence data quality and accuracy.",
+                'opinion': random.choice(['strongly-disagree', 'disagree', 'neutral', 'agree', 'strongly-agree']),
+                'explanation': f"This is an analyst opinion on the attribution and severity of the threat, based on corroborating evidence and historical patterns.",
+                'object_refs': [],
+                'labels': ['opinion'],
+            }
         
         objects.append(obj)
     
@@ -670,7 +796,7 @@ def populate_demo_data():
                             'case_id': case['id'],
                             'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
                             'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['new', 'investigating', 'containment', 'eradication', 'recovery', 'post-incident', 'closed']),
+                            'status': random.choice(['detected', 'investigating', 'containment', 'eradication', 'recovery', 'closed']),
                             'severity': random.choice(severities),
                             'category': random.choice(incident_categories),
                             'ioc_ids': incident_iocs,

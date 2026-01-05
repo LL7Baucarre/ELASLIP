@@ -211,15 +211,23 @@ class NotificationManager {
         // Add event listeners using delegation
         listContainer.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action]');
-            if (!btn) return;
+            if (btn) {
+                const notificationId = btn.dataset.notificationId;
+                if (btn.dataset.action === 'toggle-read') {
+                    const readBtn = btn.closest('.notification-item').querySelector('[data-action="toggle-read"]');
+                    const isRead = readBtn.innerHTML.includes('envelope-open');
+                    this.toggleRead(notificationId, isRead);
+                } else if (btn.dataset.action === 'delete') {
+                    this.deleteNotification(notificationId);
+                }
+                return;
+            }
             
-            const notificationId = btn.dataset.notificationId;
-            if (btn.dataset.action === 'toggle-read') {
-                const readBtn = btn.closest('.notification-item').querySelector('[data-action="toggle-read"]');
-                const isRead = readBtn.innerHTML.includes('envelope-open');
-                this.toggleRead(notificationId, isRead);
-            } else if (btn.dataset.action === 'delete') {
-                this.deleteNotification(notificationId);
+            // Click on notification item itself to mark as read
+            const notifItem = e.target.closest('.notification-item');
+            if (notifItem && notifItem.classList.contains('notification-unread')) {
+                const notificationId = notifItem.dataset.id;
+                this.toggleRead(notificationId, false);
             }
         });
     }

@@ -37,6 +37,44 @@
         </div>
     </div>
 
+    <!-- Stats Cards -->
+    {% if checklists %}
+    <div class="row mb-4" id="statsRow">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0" id="statTotal">{{ checklists|length }}</h4>
+                    <small class="text-muted">Total Checklists</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-warning" id="statInProgress">{{ checklists|selectattr('status', 'equalto', 'in-progress')|list|length }}</h4>
+                    <small class="text-muted">In Progress</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-success" id="statCompleted">{{ checklists|selectattr('status', 'equalto', 'completed')|list|length }}</h4>
+                    <small class="text-muted">Completed</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-secondary" id="statArchived">{{ checklists|selectattr('status', 'equalto', 'archived')|list|length }}</h4>
+                    <small class="text-muted">Archived</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Checklists Table -->
     <div class="card">
         <div class="table-responsive">

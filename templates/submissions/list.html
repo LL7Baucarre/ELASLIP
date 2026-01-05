@@ -43,6 +43,44 @@
     </div>
 </div>
 
+<!-- Stats Cards -->
+{% if submissions['items'] %}
+<div class="row mb-4" id="statsRow">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="mb-0">{{ submissions.total }}</h4>
+                <small class="text-muted">Total Submissions</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="mb-0 text-warning">{{ submissions['items']|selectattr('status', 'equalto', 'pending')|list|length }}</h4>
+                <small class="text-muted">Pending Review</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="mb-0 text-success">{{ submissions['items']|selectattr('status', 'equalto', 'created_ioc')|list|length }}</h4>
+                <small class="text-muted">STIX Created</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body text-center">
+                <h4 class="mb-0 text-danger">{{ submissions['items']|selectattr('status', 'equalto', 'rejected')|list|length }}</h4>
+                <small class="text-muted">Rejected</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Submissions List -->
 <div class="card">
     <div class="card-body">

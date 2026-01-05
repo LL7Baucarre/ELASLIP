@@ -154,23 +154,35 @@ class STIXService:
                     if hits:
                         return hits[0]["_source"]
 
-            # Other SDOs: match by exact name when available
+            # Other SDOs: match by exact name (case-insensitive) when available
             if "name" in data and data["name"]:
                 name_val = data["name"].strip()
+                # Use case-insensitive matching for name deduplication
                 q = {
                     "query": {
                         "bool": {
                             "must": [
                                 {"term": {"type": sdo_type}},
-                                {"term": {"name.keyword": name_val}}
+                                {
+                                    "match": {
+                                        "name": {
+                                            "query": name_val,
+                                            "operator": "and"
+                                        }
+                                    }
+                                }
                             ]
                         }
                     }
                 }
-                res = es.search(index=cls.STIX_OBJECTS_INDEX, body=q, size=1)
+                res = es.search(index=cls.STIX_OBJECTS_INDEX, body=q, size=10)
                 hits = res.get("hits", {}).get("hits", [])
                 if hits:
-                    return hits[0]["_source"]
+                    # Find exact match (case-insensitive)
+                    for hit in hits:
+                        existing_name = hit["_source"].get("name", "").strip()
+                        if existing_name.lower() == name_val.lower():
+                            return hit["_source"]
         except Exception:
             # On any ES error, conservatively return None so we don't block creation
             return None
@@ -231,7 +243,9 @@ class STIXService:
 
             # Apply the update
             try:
-                updated = cls.update_sdo(existing["id"], updates)
+                updated = cls.update_sdo(existing["id"], updates, 
+                                        user_id=user_id, username=username,
+                                        source_type="user_duplicate")
                 if updated:
                     return updated
                 else:
@@ -267,6 +281,15 @@ class STIXService:
             stix_object["x_elaslip_created_by_user_id"] = user_id
         if username:
             stix_object["x_elaslip_created_by_username"] = username
+        
+        # Track creation as a source
+        if user_id or username:
+            stix_object["x_elaslip_sources"] = [{
+                "type": "user_creation",
+                "user_id": user_id,
+                "username": username,
+                "created_at": now
+            }]
 
         # For indicators, generate pattern hash for deduplication
         if sdo_type == "indicator" and "pattern" in data and data["pattern"]:
@@ -296,7 +319,9 @@ class STIXService:
             return None
     
     @classmethod
-    def update_sdo(cls, stix_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def update_sdo(cls, stix_id: str, updates: Dict[str, Any], 
+                   user_id: Optional[str] = None, username: Optional[str] = None,
+                   source_type: str = "user_edit") -> Optional[Dict[str, Any]]:
         """Update a STIX object"""
         es = ElasticsearchService().client
         
@@ -306,12 +331,35 @@ class STIXService:
             return None
         
         # Update modified timestamp
-        updates["modified"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        updates["modified"] = now
         
         # Merge updates
         for key, value in updates.items():
             if value is not None:
                 current[key] = value
+        
+        # Track user edits in sources if user info provided
+        if user_id or username:
+            sources = current.get("x_elaslip_sources", [])
+            # Ensure it's a list
+            if not isinstance(sources, list):
+                sources = []
+            
+            source_entry = {
+                "type": source_type,
+                "user_id": user_id,
+                "username": username,
+                "modified_at": now
+            }
+            
+            # For duplicate detection, use created_at instead of modified_at
+            if source_type == "user_duplicate":
+                source_entry["created_at"] = now
+                del source_entry["modified_at"]
+            
+            sources.append(source_entry)
+            current["x_elaslip_sources"] = sources
         
         # Re-index
         es.index(
@@ -989,7 +1037,7 @@ class STIXService:
             "modified": now
         }
         
-        return cls.update_sdo(stix_id, updates)
+        return cls.update_sdo(stix_id, updates, user_id=user_id, username=username)
     
     @classmethod
     def store_selected_enrichment(cls, stix_id: str, api_name: str, api_id: str,
@@ -1062,7 +1110,7 @@ class STIXService:
             "modified": now
         }
         
-        return cls.update_sdo(stix_id, updates)
+        return cls.update_sdo(stix_id, updates, user_id=user_id, username=username)
     
     @classmethod
     def get_enrichment(cls, stix_id: str) -> Optional[Dict[str, Any]]:

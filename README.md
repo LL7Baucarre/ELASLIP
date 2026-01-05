@@ -13,7 +13,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 
 ## Key Features
 
-- **IOC Management** - Multi-format import (STIX, MISP, OpenIOC, IODEF), deduplication, enrichment, relationship mapping
+- **STIX Import** - deduplication, enrichment, relationship mapping
 - **Case & Incident Investigation** - Organize investigations with timeline events, comments, and IOC linking
 - **AI-Powered Reports** - Generate IOC, case, incident, and checklist reports via LLM (Ollama or OpenAI-compatible)
 - **Advanced Search** - Full-text and pattern-based search with interactive graphs

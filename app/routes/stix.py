@@ -149,7 +149,9 @@ def update_stix_object(stix_id):
         data.pop('created', None)
         data.pop('spec_version', None)
         
-        updated = STIXService.update_sdo(stix_id, data)
+        updated = STIXService.update_sdo(stix_id, data, 
+                                        user_id=str(current_user.id),
+                                        username=current_user.username)
         
         if not updated:
             return jsonify({"error": "STIX object not found"}), 404

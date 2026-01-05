@@ -147,21 +147,26 @@
                     <h6 class="mb-0">Status</h6>
                 </div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label class="form-label">Current Status</label>
-                        <div>
-                            <span class="badge bg-{{ 'success' if checklist.status == 'completed' else 'warning' if checklist.status == 'in-progress' else 'secondary' }}">
+                    {% if has_permission('checklist.edit') %}
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary dropdown-toggle w-100 text-start" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="badge bg-{{ 'success' if checklist.status == 'completed' else 'warning' if checklist.status == 'in-progress' else 'secondary' }} me-2">
                                 {{ checklist.status|title }}
                             </span>
-                        </div>
+                            Status
+                        </button>
+                        <ul class="dropdown-menu w-100">
+                            <li><a class="dropdown-item" href="#" onclick="updateStatus('in-progress'); return false;">In Progress</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateStatus('completed'); return false;">Completed</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateStatus('archived'); return false;">Archived</a></li>
+                        </ul>
                     </div>
-
-                    {% if has_permission('checklist.edit') %}
-                    <select class="form-select" id="statusSelect" onchange="updateStatus()">
-                        <option value="in-progress" {% if checklist.status == 'in-progress' %}selected{% endif %}>In Progress</option>
-                        <option value="completed" {% if checklist.status == 'completed' %}selected{% endif %}>Completed</option>
-                        <option value="archived" {% if checklist.status == 'archived' %}selected{% endif %}>Archived</option>
-                    </select>
+                    {% else %}
+                    <div>
+                        <span class="badge bg-{{ 'success' if checklist.status == 'completed' else 'warning' if checklist.status == 'in-progress' else 'secondary' }}">
+                            {{ checklist.status|title }}
+                        </span>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -872,8 +877,7 @@ function deleteComment(itemId, commentId) {
     }
 }
 
-function updateStatus() {
-    const status = document.getElementById('statusSelect').value;
+function updateStatus(status) {
     fetch(`/checklists/api/${checklistId}/update`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},

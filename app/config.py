@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Application Version
-__version__ = "1.2.0"
+__version__ = "1.2.2"
 
 
 def env_bool(name: str, default: bool = False) -> bool:

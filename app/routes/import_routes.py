@@ -1,4 +1,4 @@
-"""Import API Routes."""
+"""Import API Routes - STIX 2.1 Only."""
 
 import secrets
 from datetime import datetime
@@ -18,23 +18,18 @@ import_bp = Blueprint('import', __name__)
 @permission_required('ioc.import')
 def create_import():
     """
-    Create a new import job.
+    Create a new STIX import job.
     
     Expected form data or JSON:
-    - file: The file to import (form-data)
+    - file: The STIX JSON file to import (form-data)
     - content: File content as string (JSON)
-    - type: File type (stix, misp, openioc, iodef)
     """
     es = ElasticsearchService()
-    
-    # Get file type
-    file_type = request.form.get('type') or request.args.get('type')
     
     if request.is_json:
         data = request.get_json()
         file_content = data.get('content')
-        file_type = file_type or data.get('type')
-        filename = data.get('filename', 'uploaded_file')
+        filename = data.get('filename', 'uploaded_file.json')
     else:
         # Handle file upload
         if 'file' not in request.files:
@@ -50,30 +45,11 @@ def create_import():
     if not file_content:
         return jsonify({'error': 'Empty file content'}), 400
     
-    if not file_type:
-        # Try to detect from filename first
-        file_type = detect_file_type(filename)
-        
-        # If we still don't have a type and it's JSON, analyze the content
-        if not file_type and filename.lower().endswith('.json'):
-            file_type = detect_json_file_type(file_content)
-        
-        # If we still don't have a type and it's XML, analyze the content
-        if not file_type and filename.lower().endswith('.xml'):
-            file_type = detect_xml_file_type(file_content)
-    
-    if not file_type:
+    # Validate it's a valid STIX JSON
+    if not is_valid_stix(file_content):
         return jsonify({
-            'error': 'File type not specified or could not be detected',
-            'supported_types': ['stix', 'misp', 'openioc', 'iodef'],
-            'hint': 'Please specify file type explicitly or use a filename that contains the type (e.g., event.misp.json, indicators.iodef.xml)'
-        }), 400
-    
-    file_type = file_type.lower()
-    if file_type not in ['stix', 'misp', 'openioc', 'iodef']:
-        return jsonify({
-            'error': f'Unsupported file type: {file_type}',
-            'supported_types': ['stix', 'misp', 'openioc', 'iodef']
+            'error': 'Invalid STIX format',
+            'hint': 'File must be a valid STIX 2.1 JSON bundle or object'
         }), 400
     
     # Create import job
@@ -82,7 +58,7 @@ def create_import():
         'id': job_id,
         'user_id': g.current_user.id,
         'filename': filename,
-        'file_type': file_type,
+        'file_type': 'stix',
         'status': 'pending',
         'progress': 0,
         'total_items': 0,
@@ -99,7 +75,7 @@ def create_import():
     es.index('import_jobs', job_id, job_data)
     
     # Queue the import task
-    process_import.delay(job_id, file_content, file_type, g.current_user.id)
+    process_import.delay(job_id, file_content, 'stix', g.current_user.id)
     
     return jsonify({
         'message': 'Import job created',
@@ -192,88 +168,41 @@ def delete_import(job_id):
     return jsonify({'message': 'Import job deleted'})
 
 
-def detect_file_type(filename: str) -> str:
-    """Detect file type from filename with better heuristics."""
-    filename = filename.lower()
-    
-    if 'stix' in filename:
-        return 'stix'
-    elif 'misp' in filename:
-        return 'misp'
-    elif 'openioc' in filename or filename.endswith('.ioc'):
-        return 'openioc'
-    elif 'iodef' in filename:
-        return 'iodef'
-    # For .json files, don't assume type - let caller analyze content
-    elif filename.endswith('.json'):
-        return None
-    # Don't assume XML type - let caller specify or analyze content
-    elif filename.endswith('.xml'):
-        return None
-    
-    return None
-
-
-def detect_json_file_type(content: str) -> str:
+def is_valid_stix(content: str) -> bool:
     """
-    Detect JSON file type by analyzing structure.
+    Validate that content is valid STIX 2.1 JSON.
     
     Args:
         content: JSON file content
     
     Returns:
-        'misp', 'stix', or None if type cannot be determined
+        True if valid STIX, False otherwise
     """
     try:
         import json
         data = json.loads(content)
         
-        # Check for MISP structure
-        if 'Event' in data:
-            return 'misp'
+        if not isinstance(data, dict):
+            return False
         
-        # Check for STIX structure
-        if isinstance(data, dict):
-            if data.get('type') in ['bundle', 'indicator']:
-                return 'stix'
-            if 'spec_version' in data and '2.' in str(data.get('spec_version', '')):
-                return 'stix'
+        # Check for STIX bundle
+        if data.get('type') == 'bundle':
+            return 'objects' in data or 'spec_version' in data
+        
+        # Check for single STIX object
+        if data.get('type') in ['indicator', 'malware', 'threat-actor', 'campaign', 
+                                 'attack-pattern', 'tool', 'vulnerability', 'infrastructure',
+                                 'intrusion-set', 'identity', 'location', 'course-of-action',
+                                 'relationship', 'sighting', 'observed-data', 'report',
+                                 'grouping', 'note', 'opinion', 'malware-analysis']:
+            return True
+        
+        # Check for spec_version indicating STIX 2.x
+        if 'spec_version' in data and '2.' in str(data.get('spec_version', '')):
+            return True
+        
+        return False
         
     except (json.JSONDecodeError, TypeError):
-        pass
-    
-    return None
-
-
-def detect_xml_file_type(content: str) -> str:
-    """
-    Detect XML file type by analyzing root element and namespaces.
-    
-    Args:
-        content: XML file content
-    
-    Returns:
-        'iodef', 'openioc', or None if type cannot be determined
-    """
-    try:
-        from lxml import etree
-        root = etree.fromstring(content.encode('utf-8'))
-        
-        # Check namespaces
-        ns = root.nsmap.get(None, '')
-        if 'iodef' in ns.lower():
-            return 'iodef'
-        elif 'ioc' in ns.lower() and 'mandiant' in ns.lower():
-            return 'openioc'
-        
-        # Check root tag name
-        tag = root.tag.split('}')[-1].lower()
-        if 'incident' in tag:
-            return 'iodef'
-        elif 'ioc' in tag:
-            return 'openioc'
-    except Exception:
-        pass
-    
-    return None
+        return False
 

@@ -1,0 +1,49 @@
+<!-- Opinion Fields -->
+<div id="fields-opinion" class="type-fields">
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Opinions allow analysts to document their professional assessment and judgments.
+    </div>
+    
+    <div class="field-group">
+        <label for="opinionAbstract" class="form-label required-field">Abstract</label>
+        <input type="text" id="opinionAbstract" name="abstract" class="form-control"
+               placeholder="Brief summary of the opinion">
+    </div>
+    
+    <div class="field-group">
+        <label for="opinion" class="form-label required-field">Opinion Assessment</label>
+        <select id="opinion" name="opinion" class="form-select">
+            <option value="">Select opinion</option>
+            <option value="strongly-disagree">Strongly Disagree</option>
+            <option value="disagree">Disagree</option>
+            <option value="neutral">Neutral / Unknown</option>
+            <option value="agree">Agree</option>
+            <option value="strongly-agree">Strongly Agree</option>
+        </select>
+    </div>
+    
+    <div class="field-group">
+        <label for="opinionExplanation" class="form-label">Explanation</label>
+        <textarea id="opinionExplanation" name="explanation" class="form-control" rows="4"
+                  placeholder="Detailed explanation of the opinion and supporting evidence"></textarea>
+    </div>
+    
+    <div class="field-group">
+        <label for="opinionObjectRefs" class="form-label required-field">Object References</label>
+        <textarea id="opinionObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
+                  placeholder="STIX objects this opinion relates to (one per line)"></textarea>
+        <small class="text-muted">Enter object IDs or identifiers (required)</small>
+    </div>
+    
+    <div class="field-group">
+        <label for="opinionConfidence" class="form-label">Confidence Level</label>
+        <select id="opinionConfidence" name="x_confidence_level" class="form-select">
+            <option value="">Select confidence level</option>
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="very-high">Very High</option>
+        </select>
+    </div>
+</div>
