@@ -1632,7 +1632,7 @@ def elasticsearch_stats():
                 'active_primary_shards': cluster_health.get('active_primary_shards', 0),
                 'active_shards': cluster_health.get('active_shards', 0),
                 'unassigned_shards': cluster_health.get('unassigned_shards', 0),
-                'number_of_indices': cluster_health.get('number_of_indices', 0)
+                'number_of_indices': len(indices_info)
             },
             'indices': indices_info
         })
