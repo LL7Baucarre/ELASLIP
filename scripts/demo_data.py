@@ -670,7 +670,7 @@ def populate_demo_data():
                             'case_id': case['id'],
                             'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
                             'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['new', 'investigating', 'containment', 'eradication', 'recovery', 'post-incident', 'closed']),
+                            'status': random.choice(['detected', 'investigating', 'containment', 'eradication', 'recovery', 'closed']),
                             'severity': random.choice(severities),
                             'category': random.choice(incident_categories),
                             'ioc_ids': incident_iocs,

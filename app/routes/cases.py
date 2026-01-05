@@ -242,6 +242,29 @@ def delete_case(case_id):
     return jsonify({'success': True})
 
 
+@bp.route('/api/cases/<case_id>/status', methods=['PUT'])
+@login_required
+@permission_required('case.edit')
+def update_case_status(case_id):
+    """Update case status."""
+    data = request.get_json()
+    status = data.get('status')
+    
+    if not status:
+        abort(400, 'Status is required')
+    
+    case = case_service.update_case(
+        case_id, {'status': status},
+        user_id=current_user.id,
+        username=current_user.username
+    )
+    
+    if not case:
+        abort(404, 'Case not found')
+    
+    return jsonify(case)
+
+
 @bp.route('/api/cases/<case_id>/iocs', methods=['POST'])
 @login_required
 @permission_required('case.edit')

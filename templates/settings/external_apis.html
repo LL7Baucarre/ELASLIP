@@ -96,7 +96,13 @@
 {% endblock %}
 
 {% block content %}
-<div class="row" style="height: calc(100vh - 200px);">
+<div class="mb-3">
+    <a href="{{ url_for('main.settings') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i> Back to Settings
+    </a>
+    <span class="ms-3"><strong>External APIs</strong> - Configure third-party API integrations</span>
+</div>
+<div class="row" style="height: calc(100vh - 250px);">
     <div class="col-md-4" style="overflow-y: auto; border-right: 1px solid #e9ecef;">
         <div class="mb-3">
             <button class="btn btn-primary w-100" onclick="newApi()" style="margin-bottom: 15px;">

@@ -30,12 +30,11 @@
                 <div class="col-md-2">
                     <select class="form-select" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="new">New</option>
+                        <option value="detected">Detected</option>
                         <option value="investigating">Investigating</option>
                         <option value="containment">Containment</option>
                         <option value="eradication">Eradication</option>
                         <option value="recovery">Recovery</option>
-                        <option value="post-incident">Post-Incident</option>
                         <option value="closed">Closed</option>
                     </select>
                 </div>
@@ -181,12 +180,11 @@ function getSeverityColor(severity) {
 
 function getStatusColor(status) {
     const colors = {
-        new: 'primary',
+        detected: 'primary',
         investigating: 'info',
         containment: 'warning',
         eradication: 'warning',
         recovery: 'success',
-        'post-incident': 'secondary',
         closed: 'dark'
     };
     return colors[status] || 'secondary';

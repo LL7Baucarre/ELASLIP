@@ -1,4 +1,4 @@
-"""Import Tasks for Celery."""
+"""Import Tasks for Celery - STIX 2.1 Only."""
 
 import json
 from datetime import datetime
@@ -8,9 +8,6 @@ from app import celery
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.ioc_service import IOCService
 from app.models.stix_schema import STIXBundle, STIXIndicator, STIXRelationship
-from app.parsers.misp_parser import MISPParser
-from app.parsers.openioc_parser import OpenIOCParser
-from app.parsers.iodef_parser import IODEFParser
 
 
 @celery.task(bind=True)
@@ -36,7 +33,9 @@ def process_import(self, job_id: str, file_content: str, file_type: str, user_id
         'duplicates': 0,
         'errors': 0,
         'relationships_added': 0,
+        'relationships_updated': 0,
         'objects_added': 0,
+        'objects_updated': 0,
         'error_details': []
     }
     
@@ -107,6 +106,7 @@ def process_import(self, job_id: str, file_content: str, file_type: str, user_id
         if relationships:
             rel_result = import_stix_relationships(es, relationships, user_id, username, job_id)
             result['relationships_added'] = rel_result['added']
+            result['relationships_updated'] = rel_result.get('updated', 0)
             result['errors'] += rel_result['errors']
             result['error_details'].extend(rel_result['error_details'])
             processed += len(relationships)
@@ -117,6 +117,7 @@ def process_import(self, job_id: str, file_content: str, file_type: str, user_id
         if stix_objects:
             obj_result = import_stix_objects(es, stix_objects, user_id, username, job_id)
             result['objects_added'] = obj_result['added']
+            result['objects_updated'] = obj_result.get('updated', 0)
             result['errors'] += obj_result['errors']
             result['error_details'].extend(obj_result['error_details'])
             processed += len(stix_objects)
@@ -138,19 +139,10 @@ def process_import(self, job_id: str, file_content: str, file_type: str, user_id
 
 
 def parse_file(content: str, file_type: str) -> List:
-    """Parse file content based on type."""
-    file_type = file_type.lower()
-    
-    if file_type == 'stix':
-        return STIXBundle.parse(content)
-    elif file_type == 'misp':
-        return MISPParser.parse(content)
-    elif file_type == 'openioc':
-        return OpenIOCParser.parse(content)
-    elif file_type == 'iodef':
-        return IODEFParser.parse(content)
-    else:
-        raise ValueError(f'Unsupported file type: {file_type}')
+    """Parse STIX file content."""
+    if file_type.lower() != 'stix':
+        raise ValueError(f'Unsupported file type: {file_type}. Only STIX 2.1 is supported.')
+    return STIXBundle.parse(content)
 
 
 def parse_stix_full(content: str) -> Dict[str, List]:
@@ -166,34 +158,80 @@ def parse_stix_full(content: str) -> Dict[str, List]:
 def import_stix_relationships(es: ElasticsearchService, relationships: List[Dict], 
                                user_id: str, username: str, job_id: str) -> Dict:
     """
-    Import STIX relationships from a bundle.
+    Import STIX relationships from a bundle with deduplication.
+    
+    If a relationship with the same ID already exists, adds the new source
+    to the existing sources list instead of creating a duplicate.
     
     Returns:
-        Dict with 'added', 'errors', 'error_details'
+        Dict with 'added', 'updated', 'errors', 'error_details'
     """
-    result = {'added': 0, 'errors': 0, 'error_details': []}
+    result = {'added': 0, 'updated': 0, 'errors': 0, 'error_details': []}
     
     for rel in relationships:
         try:
-            # Prepare relationship document
-            rel_doc = {
-                'id': rel.get('id', f"relationship--{__import__('uuid').uuid4()}"),
-                'type': 'relationship',
-                'spec_version': rel.get('spec_version', '2.1'),
-                'created': rel.get('created', datetime.utcnow().isoformat()),
-                'modified': rel.get('modified', datetime.utcnow().isoformat()),
-                'relationship_type': rel['relationship_type'],
-                'source_ref': rel['source_ref'],
-                'target_ref': rel['target_ref'],
-                'description': rel.get('description'),
-                'x_elaslip_import_job_id': job_id,
-                'x_elaslip_created_by_user_id': user_id,
-                'x_elaslip_created_by_username': username
+            rel_id = rel.get('id', f"relationship--{__import__('uuid').uuid4()}")
+            
+            # Check if relationship already exists
+            existing = None
+            try:
+                existing = es.get('stix_relationships', rel_id)
+            except Exception:
+                pass
+            
+            # Build source info for this import
+            source_info = {
+                'import_job_id': job_id,
+                'user_id': user_id,
+                'username': username,
+                'imported_at': datetime.utcnow().isoformat()
             }
             
-            # Store in Elasticsearch
-            es.index('stix_relationships', rel_doc['id'], rel_doc)
-            result['added'] += 1
+            if existing and existing.get('_source'):
+                # Update existing - merge sources
+                existing_doc = existing['_source']
+                sources = existing_doc.get('x_elaslip_sources', [])
+                
+                # Add original source if not already in list
+                if not sources and existing_doc.get('x_elaslip_import_job_id'):
+                    sources.append({
+                        'import_job_id': existing_doc.get('x_elaslip_import_job_id'),
+                        'user_id': existing_doc.get('x_elaslip_created_by_user_id'),
+                        'username': existing_doc.get('x_elaslip_created_by_username'),
+                        'imported_at': existing_doc.get('created', datetime.utcnow().isoformat())
+                    })
+                
+                # Add new source
+                sources.append(source_info)
+                
+                # Update the document
+                es.update('stix_relationships', rel_id, {
+                    'doc': {
+                        'x_elaslip_sources': sources,
+                        'modified': datetime.utcnow().isoformat()
+                    }
+                })
+                result['updated'] += 1
+            else:
+                # Create new relationship
+                rel_doc = {
+                    'id': rel_id,
+                    'type': 'relationship',
+                    'spec_version': rel.get('spec_version', '2.1'),
+                    'created': rel.get('created', datetime.utcnow().isoformat()),
+                    'modified': rel.get('modified', datetime.utcnow().isoformat()),
+                    'relationship_type': rel['relationship_type'],
+                    'source_ref': rel['source_ref'],
+                    'target_ref': rel['target_ref'],
+                    'description': rel.get('description'),
+                    'x_elaslip_import_job_id': job_id,
+                    'x_elaslip_created_by_user_id': user_id,
+                    'x_elaslip_created_by_username': username,
+                    'x_elaslip_sources': [source_info]
+                }
+                
+                es.index('stix_relationships', rel_id, rel_doc)
+                result['added'] += 1
             
         except Exception as e:
             result['errors'] += 1
@@ -210,34 +248,79 @@ def import_stix_relationships(es: ElasticsearchService, relationships: List[Dict
 def import_stix_objects(es: ElasticsearchService, objects: List[Dict], 
                         user_id: str, username: str, job_id: str) -> Dict:
     """
-    Import STIX domain objects (malware, threat-actor, etc.) from a bundle.
+    Import STIX domain objects (malware, threat-actor, etc.) with deduplication.
+    
+    If an object with the same ID already exists, adds the new source
+    to the existing sources list instead of creating a duplicate.
     
     Returns:
-        Dict with 'added', 'errors', 'error_details'
+        Dict with 'added', 'updated', 'errors', 'error_details'
     """
-    result = {'added': 0, 'errors': 0, 'error_details': []}
+    result = {'added': 0, 'updated': 0, 'errors': 0, 'error_details': []}
     
     for obj in objects:
         try:
             obj_type = obj.get('type', 'unknown')
             obj_id = obj.get('id', f"{obj_type}--{__import__('uuid').uuid4()}")
             
-            # Add metadata
-            obj['x_elaslip_import_job_id'] = job_id
-            obj['x_elaslip_created_by_user_id'] = user_id
-            obj['x_elaslip_created_by_username'] = username
+            # Build source info for this import
+            source_info = {
+                'import_job_id': job_id,
+                'user_id': user_id,
+                'username': username,
+                'imported_at': datetime.utcnow().isoformat()
+            }
             
-            # Ensure required fields
-            if 'spec_version' not in obj:
-                obj['spec_version'] = '2.1'
-            if 'created' not in obj:
-                obj['created'] = datetime.utcnow().isoformat()
-            if 'modified' not in obj:
-                obj['modified'] = datetime.utcnow().isoformat()
+            # Check if object already exists
+            existing = None
+            try:
+                existing = es.get('stix_objects', obj_id)
+            except Exception:
+                pass
             
-            # Store in Elasticsearch
-            es.index('stix_objects', obj_id, obj)
-            result['added'] += 1
+            if existing and existing.get('_source'):
+                # Update existing - merge sources
+                existing_doc = existing['_source']
+                sources = existing_doc.get('x_elaslip_sources', [])
+                
+                # Add original source if not already in list
+                if not sources and existing_doc.get('x_elaslip_import_job_id'):
+                    sources.append({
+                        'import_job_id': existing_doc.get('x_elaslip_import_job_id'),
+                        'user_id': existing_doc.get('x_elaslip_created_by_user_id'),
+                        'username': existing_doc.get('x_elaslip_created_by_username'),
+                        'imported_at': existing_doc.get('created', datetime.utcnow().isoformat())
+                    })
+                
+                # Add new source
+                sources.append(source_info)
+                
+                # Update the document
+                es.update('stix_objects', obj_id, {
+                    'doc': {
+                        'x_elaslip_sources': sources,
+                        'modified': datetime.utcnow().isoformat()
+                    }
+                })
+                result['updated'] += 1
+            else:
+                # Create new object with metadata
+                obj['x_elaslip_import_job_id'] = job_id
+                obj['x_elaslip_created_by_user_id'] = user_id
+                obj['x_elaslip_created_by_username'] = username
+                obj['x_elaslip_sources'] = [source_info]
+                
+                # Ensure required fields
+                if 'spec_version' not in obj:
+                    obj['spec_version'] = '2.1'
+                if 'created' not in obj:
+                    obj['created'] = datetime.utcnow().isoformat()
+                if 'modified' not in obj:
+                    obj['modified'] = datetime.utcnow().isoformat()
+                
+                # Store in Elasticsearch
+                es.index('stix_objects', obj_id, obj)
+                result['added'] += 1
             
         except Exception as e:
             result['errors'] += 1

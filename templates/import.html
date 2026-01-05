@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}Import IOCs - {{ SITE_TITLE }}{% endblock %}
+{% block title %}Import STIX - {{ SITE_TITLE }}{% endblock %}
 
 {% block content %}
 <div class="top-bar">
     <div>
-        <h4 class="mb-0">Import IOCs</h4>
-        <small class="text-muted">Bulk import from STIX, MISP, OpenIOC, or IODEF files</small>
+        <h4 class="mb-0">Import STIX</h4>
+        <small class="text-muted">Import STIX 2.1 bundles with indicators, malware, threat actors and relationships</small>
     </div>
 </div>
 
@@ -19,62 +19,29 @@
             </div>
             <div class="card-body">
                 <form id="importForm">
-                    <div class="mb-4">
-                        <label class="form-label">File Format</label>
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <input type="radio" class="btn-check" name="format" id="formatStix" value="stix" checked>
-                                <label class="btn btn-outline-primary w-100 py-3" for="formatStix">
-                                    <i class="bi bi-braces d-block mb-1" style="font-size: 1.5rem;"></i>
-                                    STIX 2.1
-                                </label>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="radio" class="btn-check" name="format" id="formatMisp" value="misp">
-                                <label class="btn btn-outline-primary w-100 py-3" for="formatMisp">
-                                    <i class="bi bi-file-earmark-code d-block mb-1" style="font-size: 1.5rem;"></i>
-                                    MISP JSON
-                                </label>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="radio" class="btn-check" name="format" id="formatOpenioc" value="openioc">
-                                <label class="btn btn-outline-primary w-100 py-3" for="formatOpenioc">
-                                    <i class="bi bi-file-earmark-text d-block mb-1" style="font-size: 1.5rem;"></i>
-                                    OpenIOC
-                                </label>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="radio" class="btn-check" name="format" id="formatIodef" value="iodef">
-                                <label class="btn btn-outline-primary w-100 py-3" for="formatIodef">
-                                    <i class="bi bi-file-earmark-richtext d-block mb-1" style="font-size: 1.5rem;"></i>
-                                    IODEF
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label">File</label>
+                        <label class="form-label">Select File</label>
                         <div class="border rounded p-4 text-center bg-light" id="dropZone">
-                            <input type="file" class="d-none" id="fileInput" accept=".json,.xml,.ioc">
+                            <input type="file" class="d-none" id="fileInput" accept=".json">
                             <i class="bi bi-cloud-upload display-4 text-muted d-block mb-2"></i>
-                            <p class="mb-2">Drag and drop your file here or</p>
+                            <p class="mb-2">Drag and drop your STIX bundle here or</p>
                             <button type="button" class="btn btn-outline-primary" id="browseBtn">Browse Files</button>
                             <p class="small text-muted mt-2 mb-0" id="selectedFile"></p>
+                            <p class="small text-info mt-2 mb-0"><i class="bi bi-info-circle"></i> Supports STIX 2.1 JSON bundles with indicators, malware, threat-actors, campaigns, and relationships</p>
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="importSource" class="form-label">Source Name</label>
                         <input type="text" class="form-control" id="importSource" 
-                               placeholder="e.g., MISP Feed, Threat Report">
-                        <div class="form-text">Optional. Will be used to track the origin of imported IOCs.</div>
+                               placeholder="e.g., Threat Report, STIX Feed">
+                        <div class="form-text">Optional. Will be used to track the origin of imported objects.</div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="importLabels" class="form-label">Additional Labels</label>
                         <input type="text" class="form-control" id="importLabels" 
-                               placeholder="Comma-separated labels to add to all imported IOCs">
+                               placeholder="Comma-separated labels to add to all imported objects">
                     </div>
                     
                     <button type="submit" class="btn btn-primary btn-lg" id="importBtn" disabled>
@@ -132,27 +99,35 @@
             </div>
         </div>
         
-        <!-- Format Info -->
+        <!-- STIX Info -->
         <div class="card mt-4">
             <div class="card-header bg-white">
-                <h6 class="mb-0">Supported Formats</h6>
+                <h6 class="mb-0">STIX 2.1 Objects</h6>
             </div>
             <div class="card-body">
-                <div class="mb-3">
-                    <strong>STIX 2.1</strong>
-                    <p class="small text-muted mb-0">Native format. Bundles with Indicator objects.</p>
+                <div class="mb-2">
+                    <span class="badge bg-info me-1">indicator</span>
+                    <span class="small text-muted">IOCs with patterns</span>
                 </div>
-                <div class="mb-3">
-                    <strong>MISP JSON</strong>
-                    <p class="small text-muted mb-0">MISP event export with attributes.</p>
+                <div class="mb-2">
+                    <span class="badge bg-danger me-1">malware</span>
+                    <span class="small text-muted">Malware families</span>
                 </div>
-                <div class="mb-3">
-                    <strong>OpenIOC</strong>
-                    <p class="small text-muted mb-0">Mandiant/FireEye OpenIOC XML format.</p>
+                <div class="mb-2">
+                    <span class="badge bg-warning text-dark me-1">threat-actor</span>
+                    <span class="small text-muted">Threat groups</span>
                 </div>
-                <div>
-                    <strong>IODEF</strong>
-                    <p class="small text-muted mb-0">IETF Incident Object Description format.</p>
+                <div class="mb-2">
+                    <span class="badge bg-success me-1">campaign</span>
+                    <span class="small text-muted">Attack campaigns</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-primary me-1">attack-pattern</span>
+                    <span class="small text-muted">TTPs / MITRE ATT&CK</span>
+                </div>
+                <div class="mb-2">
+                    <span class="badge bg-secondary me-1">relationship</span>
+                    <span class="small text-muted">Links between objects</span>
                 </div>
             </div>
         </div>
@@ -199,21 +174,6 @@ function handleFile(file) {
     selectedFile = file;
     $('#selectedFile').text(`Selected: ${file.name} (${formatSize(file.size)})`);
     $('#importBtn').prop('disabled', false);
-    
-    // Auto-detect format
-    if (file.name.endsWith('.json')) {
-        if (file.name.includes('misp')) {
-            $('#formatMisp').prop('checked', true);
-        } else {
-            $('#formatStix').prop('checked', true);
-        }
-    } else if (file.name.endsWith('.xml') || file.name.endsWith('.ioc')) {
-        if (file.name.includes('iodef')) {
-            $('#formatIodef').prop('checked', true);
-        } else {
-            $('#formatOpenioc').prop('checked', true);
-        }
-    }
 }
 
 function formatSize(bytes) {
@@ -232,7 +192,6 @@ $('#importForm').submit(function(e) {
     
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('format', $('input[name="format"]:checked').val());
     
     const source = $('#importSource').val().trim();
     if (source) formData.append('source', source);
