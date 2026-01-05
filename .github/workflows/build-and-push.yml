@@ -45,11 +45,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha,prefix={{branch}}-
+            type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Determine app version
@@ -58,6 +54,18 @@ jobs:
           VERSION=$(cat VERSION)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "App Version: $VERSION"
+
+      - name: Generate Docker tags
+        id: tags
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          TAGS="${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+          TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME}:latest"
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "Generated tags: ${TAGS}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -70,13 +78,3 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Make package public
-        if: github.event_name != 'pull_request'
-        run: |
-          curl -X PATCH \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: token ${{ secrets.GHCR_TOKEN }}" \
-            https://api.github.com/user/packages/container/elaslip/access \
-            -d '{"access":"public"}'
-
