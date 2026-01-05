@@ -141,7 +141,7 @@
                         </ol>
                     </nav>
                     <h1 class="h3 mb-2">
-                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check'} %}
+                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check', 'note': 'bi-sticky', 'opinion': 'bi-chat-left-quote', 'report': 'bi-file-text', 'observed-data': 'bi-eye'} %}
                         <i class="bi {{ type_icons.get(stix_object.type, 'bi-box') }} me-2"></i>
                         {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
                     </h1>
@@ -781,7 +781,11 @@ const typeColors = {
     'intrusion-set': '#fd7e14',
     'identity': '#20c997',
     'location': '#0dcaf0',
-    'course-of-action': '#198754'
+    'course-of-action': '#198754',
+    'note': '#0dcaf0',
+    'opinion': '#e91e63',
+    'report': '#2d5016',
+    'observed-data': '#ff9800'
 };
 
 // Available enrichment APIs

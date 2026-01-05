@@ -156,7 +156,10 @@ function handleTypeChange() {
     const nameField = document.getElementById('name');
     const nameLabel = nameField.previousElementSibling;
     
-    if (sdoType === 'indicator' || sdoType === 'location') {
+    // Types without name field
+    const noNameTypes = ['indicator', 'location', 'note', 'opinion', 'observed-data'];
+    
+    if (noNameTypes.includes(sdoType)) {
         nameField.required = false;
         nameLabel.classList.remove('required-field');
     } else {
@@ -732,7 +735,11 @@ function getTypeIcon(type) {
         'intrusion-set': '🕵️',
         'identity': '🏢',
         'location': '📍',
-        'course-of-action': '🛡️'
+        'course-of-action': '🛡️',
+        'note': '📝',
+        'opinion': '💬',
+        'report': '📄',
+        'observed-data': '👁️'
     };
     return icons[type] || '📦';
 }

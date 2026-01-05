@@ -71,6 +71,10 @@
     .type-identity { background: #20c997; }
     .type-location { background: #0dcaf0; }
     .type-course-of-action { background: #198754; }
+    .type-note { background: #0dcaf0; }
+    .type-opinion { background: #e91e63; }
+    .type-report { background: #2d5016; }
+    .type-observed-data { background: #ff9800; }
     
     /* Clickable row */
     .clickable-row { cursor: pointer; }
@@ -120,6 +124,10 @@
                         <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="campaign">Campaigns</button>
                         <button class="btn btn-sm btn-outline-secondary type-filter-btn" data-type="tool">Tools</button>
                         <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="vulnerability">Vulnerabilities</button>
+                        <button class="btn btn-sm btn-outline-info type-filter-btn" data-type="note">Notes</button>
+                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="opinion">Opinions</button>
+                        <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="report">Reports</button>
+                        <button class="btn btn-sm btn-outline-warning type-filter-btn" data-type="observed-data">Observed Data</button>
                     </div>
                 </div>
             </div>
@@ -508,7 +516,11 @@ function getTypeIcon(type) {
         'intrusion-set': '<i class="bi bi-incognito"></i>',
         'identity': '<i class="bi bi-building"></i>',
         'location': '<i class="bi bi-geo-alt"></i>',
-        'course-of-action': '<i class="bi bi-shield-check"></i>'
+        'course-of-action': '<i class="bi bi-shield-check"></i>',
+        'note': '<i class="bi bi-sticky"></i>',
+        'opinion': '<i class="bi bi-chat-left-quote"></i>',
+        'report': '<i class="bi bi-file-text"></i>',
+        'observed-data': '<i class="bi bi-eye"></i>'
     };
     return icons[type] || '<i class="bi bi-box"></i>';
 }

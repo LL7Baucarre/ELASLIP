@@ -1,0 +1,43 @@
+<!-- Observed Data Fields -->
+<div id="fields-observed-data" class="type-fields">
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-1"></i>
+        Observed Data captures specific observations from network, endpoint or application monitoring.
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="firstObserved" class="form-label required-field">First Observed</label>
+            <input type="datetime-local" id="firstObserved" name="first_observed" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="lastObserved" class="form-label required-field">Last Observed</label>
+            <input type="datetime-local" id="lastObserved" name="last_observed" class="form-control">
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="numberObserved" class="form-label required-field">Number Observed</label>
+        <input type="number" id="numberObserved" name="number_observed" class="form-control" 
+               value="1" min="1" placeholder="Number of times this data was observed">
+    </div>
+    
+    <div class="field-group">
+        <label for="observedDataDescription" class="form-label">Description</label>
+        <textarea id="observedDataDescription" name="description" class="form-control" rows="3"
+                  placeholder="Details about what was observed"></textarea>
+    </div>
+    
+    <div class="field-group">
+        <label for="observationSource" class="form-label">Observation Source</label>
+        <input type="text" id="observationSource" name="x_observation_source" class="form-control"
+               placeholder="Source of the observation (e.g., IDS, Firewall, EDR)">
+    </div>
+    
+    <div class="field-group">
+        <label for="objectRefs" class="form-label">Object References</label>
+        <textarea id="objectRefs" name="x_object_refs_text" class="form-control" rows="3"
+                  placeholder="Related STIX object references (one per line)"></textarea>
+        <small class="text-muted">Enter object identifiers or types observed</small>
+    </div>
+</div>
