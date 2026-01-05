@@ -267,6 +267,14 @@ function displayResults(data) {
         } else if (entityType === 'user') {
             displayValue = escapeHtml(item.name || item.username || '');
             viewLink = `/users/${item.id}`;
+        } else if (entityType === 'stix') {
+            // Generic STIX object - show name and type
+            displayValue = escapeHtml(item.name || item.pattern || item.id || '');
+            viewLink = `/stix/objects/${item.id}`;
+            // Use STIX type as subtitle
+            if (item.type) {
+                displayType = `STIX: ${item.type.toUpperCase()}`;
+            }
         }
         
         const created = item.created_at ? item.created_at.substring(0, 10) : (item.created ? item.created.substring(0, 10) : 'N/A');

@@ -115,37 +115,75 @@ def search_iocs():
     logger.debug(f"Search query: {query_text}")
     
     # Search in STIX Objects
-    stix_query = {"bool": {"must": [], "filter": []}}
-    if query_text:
-        stix_query["bool"]["must"].append({
-            "multi_match": {
-                "query": query_text,
-                "fields": ["name", "description", "pattern", "value", "type"],
-                "type": "best_fields"
-            }
-        })
-    if ioc_type:
-        stix_query["bool"]["filter"].append({"term": {"type": ioc_type.lower()}})
-    if labels:
-        for label in labels:
-            stix_query["bool"]["filter"].append({"term": {"labels": label}})
-    if source:
-        stix_query["bool"]["filter"].append({
-            "nested": {
-                "path": "external_references",
-                "query": {"term": {"external_references.source_name": source}}
-            }
-        })
-    if from_date or to_date:
-        date_range = {"range": {"created": {}}}
-        if from_date:
-            date_range["range"]["created"]["gte"] = from_date
-        if to_date:
-            date_range["range"]["created"]["lte"] = to_date
-        stix_query["bool"]["filter"].append(date_range)
+    stix_query = None
     
-    if not stix_query["bool"]["must"] and not stix_query["bool"]["filter"]:
+    # Check if query has actual non-wildcard content
+    has_search_content = query_text and query_text.strip() and query_text.strip().strip('*?')
+    
+    if has_search_content:
+        # Support both exact and wildcard searches
+        # Add wildcard support with * and ?
+        wildcard_query = query_text if '*' in query_text or '?' in query_text else f"*{query_text}*"
+        stix_query = {
+            "bool": {
+                "must": [
+                    {
+                        "bool": {
+                            "should": [
+                                # Exact/phrase match (higher priority)
+                                {
+                                    "multi_match": {
+                                        "query": query_text,
+                                        "fields": ["name", "description", "pattern", "value", "type"],
+                                        "type": "best_fields",
+                                        "boost": 2.0
+                                    }
+                                },
+                                # Wildcard match (supports partial matches)
+                                {
+                                    "query_string": {
+                                        "query": wildcard_query,
+                                        "fields": ["name", "description", "pattern", "value", "type"],
+                                        "default_operator": "OR"
+                                    }
+                                }
+                            ],
+                            "minimum_should_match": 1
+                        }
+                    }
+                ],
+                "filter": []
+            }
+        }
+    else:
+        # If only wildcards or empty, use match_all
         stix_query = {"match_all": {}}
+    
+    # Add filters only if we have the bool structure
+    if stix_query.get("bool"):
+        if ioc_type:
+            stix_query["bool"]["filter"].append({"term": {"type": ioc_type.lower()}})
+        if labels:
+            for label in labels:
+                stix_query["bool"]["filter"].append({"term": {"labels": label}})
+        if source:
+            stix_query["bool"]["filter"].append({
+                "nested": {
+                    "path": "external_references",
+                    "query": {"term": {"external_references.source_name": source}}
+                }
+            })
+        if from_date or to_date:
+            date_range = {"range": {"created": {}}}
+            if from_date:
+                date_range["range"]["created"]["gte"] = from_date
+            if to_date:
+                date_range["range"]["created"]["lte"] = to_date
+            stix_query["bool"]["filter"].append(date_range)
+        
+        # Final check: if no must and no filter, use match_all
+        if not stix_query["bool"]["must"] and not stix_query["bool"]["filter"]:
+            stix_query = {"match_all": {}}
     
     try:
         stix_result = es.search('stix_objects', {
@@ -158,7 +196,24 @@ def search_iocs():
         for hit in stix_result['hits']['hits']:
             doc = hit['_source']
             doc['id'] = hit['_id']
-            doc['entity_type'] = 'stix'
+            
+            # Determine if this is an indicator (IOC) or another STIX object
+            if doc.get('type') == 'indicator':
+                doc['entity_type'] = 'ioc'
+                # Flatten x_metadata fields to root level for frontend compatibility
+                if 'x_metadata' in doc:
+                    x_meta = doc['x_metadata']
+                    # Ensure ioc_value is accessible at root level
+                    if 'ioc_value' in x_meta and 'ioc_value' not in doc:
+                        doc['ioc_value'] = x_meta['ioc_value']
+                    # Ensure sources array is accessible
+                    if 'sources' in x_meta and 'sources' not in doc:
+                        doc['sources'] = x_meta['sources']
+                # Ensure labels exist as array
+                if 'labels' not in doc:
+                    doc['labels'] = []
+            else:
+                doc['entity_type'] = 'stix'
             items.append(doc)
         
         stix_total = stix_result['hits']['total']['value']
@@ -169,70 +224,112 @@ def search_iocs():
         stix_total = 0
     
     # Search in Cases
-    if query_text:
+    has_search_content = query_text and query_text.strip() and query_text.strip().strip('*?')
+    
+    if has_search_content:
+        wildcard_query = query_text if '*' in query_text or '?' in query_text else f"*{query_text}*"
         cases_query = {
-            "multi_match": {
-                "query": query_text,
-                "fields": ["title", "description"],
-                "type": "best_fields"
+            "bool": {
+                "should": [
+                    {
+                        "multi_match": {
+                            "query": query_text,
+                            "fields": ["title", "description"],
+                            "type": "best_fields",
+                            "boost": 2.0
+                        }
+                    },
+                    {
+                        "query_string": {
+                            "query": wildcard_query,
+                            "fields": ["title", "description"],
+                            "default_operator": "OR"
+                        }
+                    }
+                ],
+                "minimum_should_match": 1
             }
         }
+    else:
+        # If only wildcards or empty, match all
+        cases_query = {"match_all": {}}
+    
+    try:
+        cases_result = es.search('cases', {
+            "query": cases_query,
+            "from": from_idx,
+            "size": per_page,
+            "sort": [{"created_at": {"order": "desc"}}]
+        })
         
-        try:
-            cases_result = es.search('cases', {
-                "query": cases_query,
-                "from": from_idx,
-                "size": per_page,
-                "sort": [{"created_at": {"order": "desc"}}]
-            })
-            
-            cases_found = 0
-            for hit in cases_result['hits']['hits']:
-                doc = hit['_source']
-                doc['id'] = hit['_id']
-                doc['entity_type'] = 'case'
-                doc['name'] = doc.get('title', '')
-                items.append(doc)
-                cases_found += 1
-            
-            cases_total = cases_result['hits']['total']['value']
-            total += cases_total
-            logger.debug(f"Cases search found {cases_total} results")
-        except Exception as e:
-            logger.error(f"Cases search error: {str(e)}", exc_info=True)
+        cases_found = 0
+        for hit in cases_result['hits']['hits']:
+            doc = hit['_source']
+            doc['id'] = hit['_id']
+            doc['entity_type'] = 'case'
+            doc['name'] = doc.get('title', '')
+            items.append(doc)
+            cases_found += 1
+        
+        cases_total = cases_result['hits']['total']['value']
+        total += cases_total
+        logger.debug(f"Cases search found {cases_total} results")
+    except Exception as e:
+        logger.error(f"Cases search error: {str(e)}", exc_info=True)
     
     # Search in Incidents
-    if query_text:
+    has_search_content = query_text and query_text.strip() and query_text.strip().strip('*?')
+    
+    if has_search_content:
+        wildcard_query = query_text if '*' in query_text or '?' in query_text else f"*{query_text}*"
         incidents_query = {
-            "multi_match": {
-                "query": query_text,
-                "fields": ["title", "description"],
-                "type": "best_fields"
+            "bool": {
+                "should": [
+                    {
+                        "multi_match": {
+                            "query": query_text,
+                            "fields": ["title", "description"],
+                            "type": "best_fields",
+                            "boost": 2.0
+                        }
+                    },
+                    {
+                        "query_string": {
+                            "query": wildcard_query,
+                            "fields": ["title", "description"],
+                            "default_operator": "OR"
+                        }
+                    }
+                ],
+                "minimum_should_match": 1
             }
         }
+    else:
+        # If only wildcards or empty, match all
+        incidents_query = {"match_all": {}}
         
-        try:
-            incidents_result = es.search('incidents', {
-                "query": incidents_query,
-                "from": from_idx,
-                "size": per_page,
-                "sort": [{"created_at": {"order": "desc"}}]
-            })
-            
-            incidents_found = 0
-            for hit in incidents_result['hits']['hits']:
-                doc = hit['_source']
-                doc['id'] = hit['_id']
-                doc['entity_type'] = 'incident'
-                doc['name'] = doc.get('title', '')
-                items.append(doc)
-                incidents_found += 1
-            
-            incidents_total = incidents_result['hits']['total']['value']
-            total += incidents_total
-            logger.debug(f"Incidents search found {incidents_total} results")
-        except Exception as e:
-            logger.error(f"Incidents search error: {str(e)}", exc_info=True)
+    try:
+        incidents_result = es.search('incidents', {
+            "query": incidents_query,
+            "from": from_idx,
+            "size": per_page,
+            "sort": [{"created_at": {"order": "desc"}}]
+        })
+        
+        incidents_found = 0
+        for hit in incidents_result['hits']['hits']:
+            doc = hit['_source']
+            doc['id'] = hit['_id']
+            doc['entity_type'] = 'incident'
+            doc['name'] = doc.get('title', '')
+            items.append(doc)
+            incidents_found += 1
+        
+        incidents_total = incidents_result['hits']['total']['value']
+        total += incidents_total
+        logger.debug(f"Incidents search found {incidents_total} results")
+    except Exception as e:
+        logger.error(f"Incidents search error: {str(e)}", exc_info=True)
     
     # Search in Users - DISABLED
     # if query_text:
