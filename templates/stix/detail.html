@@ -1,0 +1,1485 @@
+{% extends "base.html" %}
+
+{% block title %}{{ stix_object.name or stix_object.x_ioc_value or stix_object.id }} - ELASLIP{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Theme-aware property rows */
+    .property-row { padding: 0.5rem 0; }
+    html[data-theme="light"] .property-row { border-bottom: 1px solid rgba(0,0,0,0.1); }
+    html[data-theme="dark"] .property-row { border-bottom: 1px solid rgba(255,255,255,0.1); }
+    
+    html[data-theme="light"] .property-label { font-weight: 500; color: #495057; }
+    html[data-theme="dark"] .property-label { font-weight: 500; color: #adb5bd; }
+    
+    /* Theme-aware relationship cards */
+    .relationship-card { transition: background 0.2s; }
+    html[data-theme="light"] .relationship-card:hover { background: rgba(0,0,0,0.05); }
+    html[data-theme="dark"] .relationship-card:hover { background: rgba(255,255,255,0.05); }
+    
+    .stix-id { font-family: monospace; font-size: 0.85rem; word-break: break-all; }
+    
+    /* Theme-aware pattern display */
+    html[data-theme="light"] .pattern-display { 
+        background: #f8f9fa; 
+        padding: 1rem; 
+        border-radius: 0.5rem; 
+        font-family: monospace;
+        border: 1px solid #dee2e6;
+    }
+    html[data-theme="dark"] .pattern-display { 
+        background: #1e1e1e; 
+        padding: 1rem; 
+        border-radius: 0.5rem; 
+        font-family: monospace; 
+    }
+    
+    /* Theme-aware cards */
+    html[data-theme="light"] .card {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6;
+    }
+    html[data-theme="dark"] .card {
+        background-color: #212529 !important;
+        border-color: #495057;
+    }
+    html[data-theme="light"] .card-header {
+        background-color: #e9ecef !important;
+        border-color: #dee2e6;
+        color: #212529;
+    }
+    html[data-theme="dark"] .card-header {
+        background-color: #495057 !important;
+        border-color: #495057;
+        color: #fff;
+    }
+    
+    /* Relationship graph container */
+    #relationshipGraph {
+        width: 100%;
+        height: 450px;
+        border-radius: 0.5rem;
+    }
+    html[data-theme="light"] #relationshipGraph { background: #f8f9fa; }
+    html[data-theme="dark"] #relationshipGraph { background: #1a1a1a; }
+    
+    /* Graph Legend */
+    .graph-legend { background: rgba(0,0,0,0.02); }
+    html[data-theme="dark"] .graph-legend { background: rgba(255,255,255,0.02); }
+    
+    .legend-circle {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+    }
+    .legend-square {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+    }
+    .legend-diamond {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        transform: rotate(45deg);
+    }
+    .current-node { box-shadow: 0 0 0 2px #fff; }
+    
+    /* Filter buttons */
+    .filter-btn.active { opacity: 1; }
+    .filter-btn:not(.active) { opacity: 0.5; }
+    
+    /* JSON Tree Styling - Enhanced */
+    .json-tree { margin: 0.5rem 0; }
+    .json-field {
+        padding: 0.75rem 0.5rem;
+        border-radius: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+    html[data-theme="light"] .json-field {
+        background: rgba(0,0,0,0.01);
+        border-left: 3px solid #0d6efd;
+    }
+    html[data-theme="dark"] .json-field {
+        background: rgba(255,255,255,0.02);
+        border-left: 3px solid #0d6efd;
+    }
+    .json-field:hover {
+        background: rgba(13,110,253,0.08);
+    }
+    
+    .json-field-label {
+        font-size: 0.95rem;
+        margin-bottom: 0.25rem;
+        display: inline-block;
+    }
+    
+    .json-key {
+        font-weight: 600;
+        color: #0d6efd;
+    }
+    .json-colon {
+        color: #6c757d;
+        margin: 0 0.25rem;
+    }
+    
+    .json-value-container {
+        font-size: 0.9rem;
+        font-family: 'Courier New', monospace;
+        margin-top: 0.25rem;
+        padding-left: 1.5rem;
+    }
+    
+    .json-string { color: #28a745; }
+    .json-string-long { color: #28a745; font-style: italic; }
+    .json-number { color: #fd7e14; font-weight: 500; }
+    .json-bool { color: #0d6efd; font-weight: 600; }
+    .json-null { color: #6c757d; font-style: italic; }
+    .json-array { color: #6c757d; }
+    .json-object { color: #6c757d; }
+    .json-unknown { color: #495057; }
+    .json-length { color: #6c757d; font-size: 0.8rem; }
+    .json-more { color: #6c757d; font-weight: 500; }
+    .json-comma { color: #6c757d; }
+    
+    .cursor-pointer { cursor: pointer; }
+</style>
+<script src="https://unpkg.com/cytoscape@3.25.0/dist/cytoscape.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-start flex-wrap">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('stix.list_stix_objects_page') }}">STIX Objects</a></li>
+                            <li class="breadcrumb-item active">{{ stix_object.type }}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-2">
+                        {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check'} %}
+                        <i class="bi {{ type_icons.get(stix_object.type, 'bi-box') }} me-2"></i>
+                        {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
+                    </h1>
+                    <p class="stix-id text-muted">{{ stix_object.id }}</p>
+                </div>
+                <div class="btn-group">
+                    <a href="{{ url_for('stix.list_stix_objects_page') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Back
+                    </a>
+                    <a href="{{ url_for('stix.edit_stix_object_page', stix_id=stix_object.id) }}" class="btn btn-outline-warning">
+                        <i class="bi bi-pencil me-1"></i> Edit
+                    </a>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-outline-info" onclick="enrichObject()" id="enrichBtn">
+                            <i class="bi bi-cloud-download me-1"></i> Enrich All
+                        </button>
+                        <button type="button" class="btn btn-outline-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false" id="enrichDropdown">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="enrichApiList">
+                            <li><span class="dropdown-item text-muted"><i class="spinner-border spinner-border-sm me-1"></i> Loading APIs...</span></li>
+                        </ul>
+                    </div>
+                    {% if has_permission('report.generate_llm') %}
+                    <button class="btn btn-outline-success" id="generateReportBtn" onclick="generateReport(event)">
+                        <i class="bi bi-file-text me-1"></i> Generate Report
+                    </button>
+                    {% endif %}
+                    <button class="btn btn-outline-primary" onclick="exportBundle()">
+                        <i class="bi bi-download me-1"></i> Export Bundle
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteObject()">
+                        <i class="bi bi-trash me-1"></i> Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Main Content -->
+        <div class="col-lg-8">
+            <!-- Description -->
+            {% if stix_object.description %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-text-left me-2"></i>Description</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-0">{{ stix_object.description }}</p>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Type-specific Properties -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2"></i>{{ stix_object.type|title }} Properties</h5>
+                </div>
+                <div class="card-body">
+                    {% if stix_object.type == 'indicator' %}
+                        {% if stix_object.pattern %}
+                        <div class="mb-3">
+                            <label class="property-label">STIX Pattern</label>
+                            <div class="pattern-display">{{ stix_object.pattern }}</div>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.x_ioc_type and stix_object.x_ioc_value %}
+                        <div class="row">
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">IOC Type:</span>
+                                <span class="badge bg-info ms-2">{{ stix_object.x_ioc_type }}</span>
+                            </div>
+                            <div class="col-md-8 property-row">
+                                <span class="property-label">IOC Value:</span>
+                                <code class="ms-2">{{ stix_object.x_ioc_value }}</code>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="row">
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Valid From:</span>
+                                <span class="ms-2">{{ stix_object.valid_from or 'N/A' }}</span>
+                            </div>
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Valid Until:</span>
+                                <span class="ms-2">{{ stix_object.valid_until or 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% if stix_object.x_threat_level %}
+                        <div class="property-row">
+                            <span class="property-label">Threat Level:</span>
+                            <span class="badge bg-{{ {'low': 'success', 'medium': 'warning', 'high': 'danger', 'critical': 'danger'}.get(stix_object.x_threat_level, 'secondary') }} ms-2">
+                                {{ stix_object.x_threat_level }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'malware' %}
+                        <div class="property-row">
+                            <span class="property-label">Is Family:</span>
+                            <span class="ms-2">{{ 'Yes' if stix_object.is_family else 'No' }}</span>
+                        </div>
+                        {% if stix_object.malware_types %}
+                        <div class="property-row">
+                            <span class="property-label">Types:</span>
+                            {% for t in stix_object.malware_types %}
+                            <span class="badge bg-danger ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'threat-actor' %}
+                        {% if stix_object.threat_actor_types %}
+                        <div class="property-row">
+                            <span class="property-label">Types:</span>
+                            {% for t in stix_object.threat_actor_types %}
+                            <span class="badge bg-warning ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.sophistication %}
+                        <div class="property-row">
+                            <span class="property-label">Sophistication:</span>
+                            <span class="ms-2">{{ stix_object.sophistication }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.primary_motivation %}
+                        <div class="property-row">
+                            <span class="property-label">Primary Motivation:</span>
+                            <span class="ms-2">{{ stix_object.primary_motivation }}</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'attack-pattern' %}
+                        {% if stix_object.kill_chain_phases %}
+                        <div class="property-row">
+                            <span class="property-label">Kill Chain Phases:</span>
+                            {% for phase in stix_object.kill_chain_phases %}
+                            <span class="badge bg-primary ms-1">{{ phase.kill_chain_name }}: {{ phase.phase_name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'campaign' %}
+                        {% if stix_object.objective %}
+                        <div class="property-row">
+                            <span class="property-label">Objective:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.objective }}</p>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'vulnerability' %}
+                        {% if stix_object.external_references %}
+                        <div class="property-row">
+                            <span class="property-label">External IDs:</span>
+                            {% for ref in stix_object.external_references %}
+                                {% if ref.external_id %}
+                                <a href="{{ ref.url }}" target="_blank" class="badge bg-danger text-decoration-none ms-1">
+                                    {{ ref.external_id }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'location' %}
+                        <div class="row">
+                            {% if stix_object.country %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">Country:</span>
+                                <span class="ms-2">{{ stix_object.country }}</span>
+                            </div>
+                            {% endif %}
+                            {% if stix_object.region %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">Region:</span>
+                                <span class="ms-2">{{ stix_object.region }}</span>
+                            </div>
+                            {% endif %}
+                            {% if stix_object.city %}
+                            <div class="col-md-4 property-row">
+                                <span class="property-label">City:</span>
+                                <span class="ms-2">{{ stix_object.city }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if stix_object.latitude and stix_object.longitude %}
+                        <div class="property-row">
+                            <span class="property-label">Coordinates:</span>
+                            <span class="ms-2">{{ stix_object.latitude }}, {{ stix_object.longitude }}</span>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <!-- Generic properties display for other types -->
+                    {% if stix_object.aliases and stix_object.type not in ['malware'] %}
+                    <div class="property-row">
+                        <span class="property-label">Aliases:</span>
+                        {% for a in stix_object.aliases %}
+                        <span class="badge bg-secondary ms-1">{{ a }}</span>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    {% if stix_object.first_seen %}
+                    <div class="property-row">
+                        <span class="property-label">First Seen:</span>
+                        <span class="ms-2">{{ stix_object.first_seen }}</span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if stix_object.last_seen %}
+                    <div class="property-row">
+                        <span class="property-label">Last Seen:</span>
+                        <span class="ms-2">{{ stix_object.last_seen }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Relationships -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Relationships</h5>
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addRelModal">
+                        <i class="bi bi-plus me-1"></i> Add
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if relationships %}
+                        {% for rel in relationships %}
+                        {% set other_id = rel.target_ref if rel.source_ref == stix_object.id else rel.source_ref %}
+                        {% set other_obj = related_objects | selectattr('id', 'equalto', other_id) | first %}
+                        {% set direction = 'outgoing' if rel.source_ref == stix_object.id else 'incoming' %}
+                        <div class="relationship-card p-2 rounded mb-2">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <i class="bi bi-{{ 'arrow-right text-success' if direction == 'outgoing' else 'arrow-left text-info' }} me-2"></i>
+                                    <span class="badge bg-secondary">{{ rel.relationship_type }}</span>
+                                    {% if other_obj %}
+                                    <a href="{{ url_for('stix.view_stix_object_page', stix_id=other_id) }}" class="ms-2">
+                                        {{ other_obj.name or other_obj.x_ioc_value or other_id[:30] }}
+                                    </a>
+                                    <span class="text-muted small">({{ other_obj.type }})</span>
+                                    {% else %}
+                                    <span class="ms-2 text-muted">{{ other_id }}</span>
+                                    {% endif %}
+                                </div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRelationship('{{ rel.id }}')">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center py-3 mb-0">
+                            <i class="bi bi-info-circle me-1"></i> No relationships defined
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Relationship Graph -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-share me-2"></i>Relationship Graph</h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="btn-group btn-group-sm me-2" role="group">
+                            <button type="button" class="btn btn-outline-info filter-btn active" data-filter="stix" onclick="toggleGraphFilter('stix', this)">
+                                <i class="bi bi-diagram-3 me-1"></i>STIX
+                            </button>
+                            <button type="button" class="btn btn-outline-primary filter-btn active" data-filter="case" onclick="toggleGraphFilter('case', this)">
+                                <i class="bi bi-folder me-1"></i>Cases
+                            </button>
+                            <button type="button" class="btn btn-outline-danger filter-btn active" data-filter="incident" onclick="toggleGraphFilter('incident', this)">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Incidents
+                            </button>
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-secondary" onclick="fitGraph()"><i class="bi bi-arrows-fullscreen"></i></button>
+                            <button class="btn btn-outline-secondary" onclick="resetLayout()"><i class="bi bi-arrow-counterclockwise"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="relationshipGraph" style="height: 450px; width: 100%;"></div>
+                    <!-- Legend -->
+                    <div class="graph-legend d-flex flex-wrap gap-3 p-3 border-top">
+                        <div class="d-flex align-items-center">
+                            <span class="legend-circle me-2" style="background: #17a2b8;"></span>
+                            <small>STIX Objects</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="legend-square me-2" style="background: #0d6efd;"></span>
+                            <small>Cases</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="legend-diamond me-2" style="background: #dc3545;"></span>
+                            <small>Incidents</small>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="legend-circle me-2 current-node" style="background: #17a2b8; border: 3px solid #333;"></span>
+                            <small>Current Object</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Metadata -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Metadata</h5>
+                </div>
+                <div class="card-body">
+                    <div class="property-row">
+                        <span class="property-label">Type:</span>
+                        <span class="badge bg-primary ms-2">{{ stix_object.type }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Spec Version:</span>
+                        <span class="ms-2">{{ stix_object.spec_version }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Created:</span>
+                        <span class="ms-2">{{ stix_object.created }}</span>
+                    </div>
+                    <div class="property-row">
+                        <span class="property-label">Modified:</span>
+                        <span class="ms-2">{{ stix_object.modified }}</span>
+                    </div>
+                    {% if stix_object.confidence is defined %}
+                    <div class="property-row">
+                        <span class="property-label">Confidence:</span>
+                        <div class="progress ms-2" style="height: 20px; flex: 1;">
+                            <div class="progress-bar" style="width: {{ stix_object.confidence }}%;">
+                                {{ stix_object.confidence }}%
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if stix_object.x_tlp %}
+                    <div class="property-row">
+                        <span class="property-label">TLP:</span>
+                        <span class="badge bg-secondary ms-2">{{ stix_object.x_tlp }}</span>
+                    </div>
+                    {% endif %}
+                    {% if stix_object.x_elaslip_created_by_username %}
+                    <div class="property-row">
+                        <span class="property-label">Created By:</span>
+                        <span class="ms-2">{{ stix_object.x_elaslip_created_by_username }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Labels -->
+            {% if stix_object.labels %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-tags me-2"></i>Labels</h5>
+                </div>
+                <div class="card-body">
+                    {% for label in stix_object.labels %}
+                    <span class="badge bg-info me-1 mb-1">{{ label }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Enrichment Data -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-cloud-download me-2"></i>Enrichment</h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-outline-info" onclick="enrichObject()" title="Enrich with all APIs">
+                            <i class="bi bi-arrow-repeat"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-info dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Toggle Dropdown</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end" id="enrichApiListSidebar">
+                            <li><span class="dropdown-item text-muted small">Loading...</span></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body" id="enrichmentData">
+                    {% if stix_object.x_elaslip_enrichment and stix_object.x_elaslip_enrichment.api_results %}
+                        <div class="mb-2">
+                            <small class="text-muted">
+                                Last enriched: {{ stix_object.x_elaslip_enrichment.last_enriched or 'N/A' }}
+                            </small>
+                        </div>
+                        {% for result in stix_object.x_elaslip_enrichment.api_results %}
+                        <div class="border rounded p-2 mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="small">{{ result.api_name }}</strong>
+                                <span class="badge bg-success">OK</span>
+                            </div>
+                            {% if result.data %}
+                                {% for key, value in result.data.items() %}
+                                <div class="property-row small py-1">
+                                    <span class="property-label">{{ key }}:</span>
+                                    <span class="ms-1">
+                                        {% if value is iterable and value is not string %}
+                                            {{ value | join(', ') }}
+                                        {% else %}
+                                            {{ value }}
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-center mb-0 small">
+                            <i class="bi bi-info-circle me-1"></i>No enrichment data
+                            <br><a href="#" onclick="enrichObject(); return false;">Enrich now</a>
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- External References -->
+            {% if stix_object.external_references %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-box-arrow-up-right me-2"></i>External References</h5>
+                </div>
+                <div class="card-body">
+                    {% for ref in stix_object.external_references %}
+                    <div class="mb-2">
+                        <strong>{{ ref.source_name or 'Unknown Source' }}</strong>
+                        {% if ref.external_id %}
+                        <span class="badge bg-secondary ms-1">{{ ref.external_id }}</span>
+                        {% endif %}
+                        {% if ref.url %}
+                        <br><a href="{{ ref.url }}" target="_blank" class="small">
+                            {{ ref.url[:50] }}{% if ref.url|length > 50 %}...{% endif %}
+                            <i class="bi bi-box-arrow-up-right ms-1"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Raw JSON -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-code me-2"></i>Raw JSON</h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-sm btn-outline-secondary w-100" onclick="showRawJson()">
+                        <i class="bi bi-eye me-1"></i> View Raw STIX JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Relationship Modal -->
+<div class="modal fade" id="addRelModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-link me-2"></i>Add Relationship</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Relationship Type</label>
+                        <select id="newRelType" class="form-select">
+                            {% for rt in relationship_types %}
+                            <option value="{{ rt }}">{{ rt }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Search Objects</label>
+                        <input type="text" id="searchRelTarget" class="form-control" placeholder="Search...">
+                    </div>
+                </div>
+                <div id="availableTargets" class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                    <p class="text-center text-muted py-3">Type to search for STIX objects...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmAddRel" disabled onclick="confirmAddRelationship()">
+                    <i class="bi bi-plus-circle me-1"></i> Add Relationship
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Raw JSON Modal -->
+<div class="modal fade" id="rawJsonModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-code-slash me-2"></i>Raw STIX JSON</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="rawJsonContent" class="p-3 rounded" style="max-height: 500px; overflow: auto;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-primary" onclick="copyRawJson()">
+                    <i class="bi bi-clipboard me-1"></i> Copy
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enrichment Modal -->
+<div class="modal fade" id="enrichmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cloud-download me-2"></i>Enrichment Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="enrichmentResults">
+                <div class="text-center py-4">
+                    <span class="spinner-border"></span>
+                    <p class="mt-2">Loading enrichment data...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const stixObject = {{ stix_object | tojson | safe }};
+const objectId = '{{ stix_object.id }}';
+const relatedObjects = {{ related_objects | tojson | safe }};
+const relationships = {{ relationships | tojson | safe }};
+let availableObjects = [];
+let selectedTarget = null;
+let cy = null;
+let linkedCases = [];
+let linkedIncidents = [];
+let graphFilters = { stix: true, case: true, incident: true };
+
+// Color scheme for STIX types
+const typeColors = {
+    'indicator': '#17a2b8',
+    'malware': '#dc3545',
+    'threat-actor': '#ffc107',
+    'attack-pattern': '#0d6efd',
+    'campaign': '#198754',
+    'tool': '#6c757d',
+    'vulnerability': '#dc3545',
+    'infrastructure': '#6f42c1',
+    'intrusion-set': '#fd7e14',
+    'identity': '#20c997',
+    'location': '#0dcaf0',
+    'course-of-action': '#198754'
+};
+
+// Available enrichment APIs
+let enrichmentApis = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadLinkedEntities();
+    initRelationshipGraph();
+    loadEnrichmentApis();
+    
+    // Handle search in Add Relationship modal
+    document.getElementById('searchRelTarget').addEventListener('input', debounce(function() {
+        const query = this.value.trim();
+        if (query.length < 2) {
+            document.getElementById('availableTargets').innerHTML = '<p class="text-center text-muted py-3">Type to search for STIX objects...</p>';
+            return;
+        }
+        
+        fetch(`/api/stix/search?q=${encodeURIComponent(query)}&size=10&exclude=${objectId}`)
+            .then(r => r.json())
+            .then(data => {
+                const container = document.getElementById('availableTargets');
+                const items = data.items || data.results || [];
+                if (items.length === 0) {
+                    container.innerHTML = '<p class="text-center text-muted py-3">No STIX objects found</p>';
+                    return;
+                }
+                
+                container.innerHTML = items.map(obj => {
+                    const name = obj.name || obj.pattern || obj.x_ioc_value || obj.type;
+                    return `
+                        <div class="p-2 border rounded mb-1 target-option" data-id="${obj.id}" 
+                             onclick="selectTarget(this)" style="cursor: pointer;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${escapeHtml(name)}</strong>
+                                    <span class="badge bg-secondary ms-2">${obj.type}</span>
+                                </div>
+                                <i class="bi bi-check text-success d-none check-mark"></i>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            })
+            .catch(e => {
+                console.error('Search error:', e);
+                document.getElementById('availableTargets').innerHTML = '<p class="text-center text-danger py-3">Search error</p>';
+            });
+    }, 300));
+});
+
+async function loadLinkedEntities() {
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}/linked-entities`);
+        if (response.ok) {
+            const data = await response.json();
+            linkedCases = data.cases || [];
+            linkedIncidents = data.incidents || [];
+        }
+    } catch (e) {
+        console.error('Error loading linked entities:', e);
+    }
+    initRelationshipGraph();
+}
+
+function initRelationshipGraph() {
+    const container = document.getElementById('relationshipGraph');
+    if (!container) return;
+    
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    
+    // Build nodes - current object + related objects
+    const nodes = [{
+        data: {
+            id: stixObject.id,
+            label: stixObject.name || stixObject.x_ioc_value || stixObject.type,
+            type: stixObject.type,
+            entityType: 'stix',
+            color: typeColors[stixObject.type] || '#17a2b8',
+            isCurrent: true
+        }
+    }];
+    
+    // Add STIX related objects
+    if (graphFilters.stix) {
+        relatedObjects.forEach(obj => {
+            nodes.push({
+                data: {
+                    id: obj.id,
+                    label: obj.name || obj.x_ioc_value || obj.type,
+                    type: obj.type,
+                    entityType: 'stix',
+                    color: typeColors[obj.type] || '#17a2b8',
+                    isCurrent: false
+                }
+            });
+        });
+    }
+    
+    // Add linked cases
+    if (graphFilters.case) {
+        linkedCases.forEach(c => {
+            nodes.push({
+                data: {
+                    id: c.id,
+                    label: c.title || 'Case',
+                    type: 'case',
+                    entityType: 'case',
+                    color: '#0d6efd',
+                    isCurrent: false
+                }
+            });
+        });
+    }
+    
+    // Add linked incidents
+    if (graphFilters.incident) {
+        linkedIncidents.forEach(inc => {
+            nodes.push({
+                data: {
+                    id: inc.id,
+                    label: inc.title || 'Incident',
+                    type: 'incident',
+                    entityType: 'incident',
+                    color: '#dc3545',
+                    isCurrent: false
+                }
+            });
+        });
+    }
+    
+    // Build edges
+    const edges = [];
+    
+    // STIX relationships
+    if (graphFilters.stix) {
+        relationships.forEach(rel => {
+            edges.push({
+                data: {
+                    id: rel.id,
+                    source: rel.source_ref,
+                    target: rel.target_ref,
+                    label: rel.relationship_type
+                }
+            });
+        });
+    }
+    
+    // Case edges
+    if (graphFilters.case) {
+        linkedCases.forEach(c => {
+            edges.push({
+                data: {
+                    id: `edge-case-${c.id}`,
+                    source: objectId,
+                    target: c.id,
+                    label: 'in-case'
+                }
+            });
+        });
+    }
+    
+    // Incident edges
+    if (graphFilters.incident) {
+        linkedIncidents.forEach(inc => {
+            edges.push({
+                data: {
+                    id: `edge-incident-${inc.id}`,
+                    source: objectId,
+                    target: inc.id,
+                    label: 'in-incident'
+                }
+            });
+        });
+    }
+    
+    // Initialize Cytoscape
+    cy = cytoscape({
+        container: container,
+        elements: { nodes, edges },
+        style: [
+            {
+                selector: 'node',
+                style: {
+                    'label': 'data(label)',
+                    'background-color': 'data(color)',
+                    'color': isDark ? '#fff' : '#333',
+                    'text-valign': 'bottom',
+                    'text-halign': 'center',
+                    'font-size': '11px',
+                    'text-margin-y': 5,
+                    'width': 40,
+                    'height': 40,
+                    'border-width': 3,
+                    'border-color': 'data(color)'
+                }
+            },
+            {
+                selector: 'node[?isCurrent]',
+                style: {
+                    'width': 55,
+                    'height': 55,
+                    'border-width': 4,
+                    'font-weight': 'bold'
+                }
+            },
+            {
+                selector: 'node[entityType="case"]',
+                style: {
+                    'shape': 'round-rectangle',
+                    'background-color': '#0d6efd',
+                    'border-color': '#0d6efd'
+                }
+            },
+            {
+                selector: 'node[entityType="incident"]',
+                style: {
+                    'shape': 'diamond',
+                    'background-color': '#dc3545',
+                    'border-color': '#dc3545'
+                }
+            },
+            {
+                selector: 'edge',
+                style: {
+                    'label': 'data(label)',
+                    'curve-style': 'bezier',
+                    'target-arrow-shape': 'triangle',
+                    'line-color': isDark ? '#666' : '#aaa',
+                    'target-arrow-color': isDark ? '#666' : '#aaa',
+                    'font-size': '9px',
+                    'color': isDark ? '#aaa' : '#666',
+                    'text-rotation': 'autorotate',
+                    'text-margin-y': -10
+                }
+            }
+        ],
+        layout: {
+            name: 'cose',
+            padding: 30,
+            nodeRepulsion: 5000,
+            idealEdgeLength: 100
+        },
+        minZoom: 0.3,
+        maxZoom: 3
+    });
+    
+    // Node click handler
+    cy.on('tap', 'node', function(evt) {
+        const node = evt.target;
+        const nodeId = node.id();
+        const entityType = node.data('entityType');
+        
+        if (nodeId !== objectId) {
+            if (entityType === 'case') {
+                window.location.href = `/cases/${nodeId}`;
+            } else if (entityType === 'incident') {
+                window.location.href = `/incidents/${nodeId}`;
+            } else {
+                window.location.href = `/stix/objects/${nodeId}`;
+            }
+        }
+    });
+}
+
+function toggleGraphFilter(type, btn) {
+    graphFilters[type] = !graphFilters[type];
+    btn.classList.toggle('active', graphFilters[type]);
+    initRelationshipGraph();
+}
+
+function fitGraph() {
+    if (cy) cy.fit(50);
+}
+
+function resetLayout() {
+    if (cy) {
+        cy.layout({
+            name: 'cose',
+            padding: 30,
+            nodeRepulsion: 5000,
+            idealEdgeLength: 100,
+            animate: true
+        }).run();
+    }
+}
+
+// Helper function for debouncing
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function selectTarget(el) {
+    document.querySelectorAll('.target-option').forEach(e => {
+        e.classList.remove('bg-primary');
+        e.querySelector('.check-mark').classList.add('d-none');
+    });
+    el.classList.add('bg-primary');
+    el.querySelector('.check-mark').classList.remove('d-none');
+    selectedTarget = el.dataset.id;
+    document.getElementById('confirmAddRel').disabled = false;
+}
+
+async function confirmAddRelationship() {
+    if (!selectedTarget) return;
+    
+    const relType = document.getElementById('newRelType').value;
+    
+    try {
+        const response = await fetch('/api/stix/relationships', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                source_ref: objectId,
+                target_ref: selectedTarget,
+                relationship_type: relType
+            })
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to create relationship');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteRelationship(relId) {
+    if (!confirm('Delete this relationship?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/relationships/${relId}`, { method: 'DELETE' });
+        if (response.ok) {
+            location.reload();
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+async function deleteObject() {
+    if (!confirm('Are you sure you want to delete this object and all its relationships?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}`, { method: 'DELETE' });
+        if (response.ok) {
+            window.location.href = '{{ url_for("stix.list_stix_objects_page") }}';
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function generateReport(e) {
+    if (!objectId) {
+        alert('STIX object ID not found');
+        return;
+    }
+    
+    // Prevent double-click
+    if (e) e.preventDefault();
+    
+    // Get the button element
+    const btn = document.getElementById('generateReportBtn');
+    if (!btn || btn.disabled) return;
+    
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Generating...';
+    
+    // Call the API to generate the report
+    fetch(`/api/stix/objects/${objectId}/generate-report`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.error || 'Failed to generate report');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.task_id) {
+            // Redirect to loading page
+            window.location.href = `/reports/loading?task_id=${data.task_id}&type=stix&id=${objectId}`;
+        } else {
+            alert('Report generation started. Check the reports page.');
+            window.location.href = '/reports';
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
+
+async function exportBundle() {
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}/bundle`);
+        const bundle = await response.json();
+        
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stix-bundle-${objectId.split('--')[1].substring(0, 8)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Export failed: ' + e.message);
+    }
+}
+
+function showRawJson() {
+    document.getElementById('rawJsonContent').textContent = JSON.stringify(stixObject, null, 2);
+    new bootstrap.Modal(document.getElementById('rawJsonModal')).show();
+}
+
+function copyRawJson() {
+    navigator.clipboard.writeText(JSON.stringify(stixObject, null, 2));
+    alert('Copied to clipboard!');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ============================================================
+// ENRICHMENT FUNCTIONS
+// ============================================================
+
+// Load available enrichment APIs for dropdown
+async function loadEnrichmentApis() {
+    try {
+        const response = await fetch('/api/external-apis');
+        const data = await response.json();
+        enrichmentApis = data.configs || data.apis || [];
+        
+        const dropdownHtml = buildEnrichmentDropdown(enrichmentApis);
+        document.getElementById('enrichApiList').innerHTML = dropdownHtml;
+        document.getElementById('enrichApiListSidebar').innerHTML = dropdownHtml;
+    } catch (e) {
+        console.error('Failed to load enrichment APIs:', e);
+        const errorHtml = '<li><span class="dropdown-item text-danger small">Failed to load APIs</span></li>';
+        document.getElementById('enrichApiList').innerHTML = errorHtml;
+        document.getElementById('enrichApiListSidebar').innerHTML = errorHtml;
+    }
+}
+
+function buildEnrichmentDropdown(apis) {
+    if (!apis || apis.length === 0) {
+        return `
+            <li><span class="dropdown-item text-muted small">No APIs configured</span></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item small" href="/settings/external-apis"><i class="bi bi-gear me-1"></i>Configure APIs</a></li>
+        `;
+    }
+    
+    let html = '<li><a class="dropdown-item" href="#" onclick="enrichObject(); return false;"><i class="bi bi-cloud-download me-1"></i><strong>All APIs</strong></a></li>';
+    html += '<li><hr class="dropdown-divider"></li>';
+    
+    apis.forEach(api => {
+        const enabled = api.enabled !== false;
+        const icon = enabled ? 'bi-check-circle text-success' : 'bi-x-circle text-muted';
+        const apiName = api.name || 'Unknown API';
+        html += `
+            <li>
+                <a class="dropdown-item d-flex justify-content-between align-items-center ${!enabled ? 'text-muted' : ''}" 
+                   href="#" onclick="enrichObject('${api.id}'); return false;" ${!enabled ? 'disabled' : ''}>
+                    <span><i class="${icon} me-1"></i>${escapeHtml(apiName)}</span>
+                </a>
+            </li>
+        `;
+    });
+    
+    html += '<li><hr class="dropdown-divider"></li>';
+    html += '<li><a class="dropdown-item small text-muted" href="/settings/external-apis"><i class="bi bi-gear me-1"></i>Manage APIs</a></li>';
+    
+    return html;
+}
+
+async function enrichObject(apiId = null) {
+    const btn = document.getElementById('enrichBtn');
+    const originalHtml = btn.innerHTML;
+    const apiName = apiId ? enrichmentApis.find(a => a.id === apiId)?.name : 'All APIs';
+    btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Enriching${apiId ? ' (' + apiName + ')' : ''}...`;
+    btn.disabled = true;
+    
+    try {
+        // Build request body with optional api_id filter
+        const requestBody = {};
+        if (apiId) {
+            requestBody.api_ids = [apiId];
+        }
+        
+        const response = await fetch(`/api/stix/objects/${objectId}/enrich`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Enrichment failed');
+        }
+        
+        // Show enrichment results modal
+        showEnrichmentModal(data);
+        
+    } catch (e) {
+        alert('Enrichment error: ' + e.message);
+    } finally {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
+}
+
+function showEnrichmentModal(data) {
+    const modal = document.getElementById('enrichmentModal');
+    const resultsContainer = document.getElementById('enrichmentResults');
+    
+    if (!data.results || data.results.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No external APIs configured or no results returned.
+                <a href="/settings/external-apis">Configure APIs</a>
+            </div>
+        `;
+    } else {
+        let html = `
+            <div class="mb-3">
+                <small class="text-muted">Value: <code>${escapeHtml(data.value || '')}</code> (${data.ioc_type || 'auto'})</small>
+            </div>
+        `;
+        
+        data.results.forEach((result, idx) => {
+            const success = result.success;
+            const statusBadge = success 
+                ? '<span class="badge bg-success">Success</span>'
+                : '<span class="badge bg-danger">Failed</span>';
+            
+            html += `
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <div>
+                            <strong>${escapeHtml(result.api_name || 'Unknown API')}</strong>
+                            ${statusBadge}
+                            ${result.from_cache ? '<span class="badge bg-secondary ms-1">Cached</span>' : ''}
+                        </div>
+                        ${success ? `
+                        <button class="btn btn-sm btn-outline-primary" onclick="storeEnrichmentResult(${idx})">
+                            <i class="bi bi-save me-1"></i>Store
+                        </button>
+                        ` : ''}
+                    </div>
+                    <div class="card-body">
+                        ${!success ? `<div class="text-danger small">${escapeHtml(result.error || 'Unknown error')}</div>` : ''}
+                        ${success && result.raw_response ? renderEnrichmentFields(result.raw_response, idx) : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        resultsContainer.innerHTML = html;
+        
+        // Store results for later use
+        window.enrichmentResults = data.results;
+    }
+    
+    new bootstrap.Modal(modal).show();
+}
+
+function renderEnrichmentFields(transformed, resultIdx) {
+    if (!transformed) return '<span class="text-muted">No data</span>';
+    
+    const skipFields = ['__api_response__', 'ioc_type', 'value'];
+    
+    // Build a tree structure of the JSON
+    return buildJsonTree(transformed, `result_${resultIdx}`, skipFields);
+}
+
+function buildJsonTree(obj, parentId, skipFields = []) {
+    let html = '<div class="json-tree">';
+    
+    for (const [key, value] of Object.entries(obj)) {
+        if (skipFields.includes(key) || value === null || value === undefined) continue;
+        
+        const fieldId = `${parentId}_${key}`;
+        const valueHtml = renderJsonValue(value, fieldId);
+        
+        html += `
+            <div class="json-field">
+                <div class="d-flex gap-2">
+                    <input type="checkbox" class="form-check-input enrichment-field flex-shrink-0" 
+                           id="checkbox_${fieldId}" data-field="${key}" data-parent-id="${parentId}">
+                    <div class="flex-grow-1">
+                        <label for="checkbox_${fieldId}" class="form-check-label json-field-label cursor-pointer">
+                            <span class="json-key">${escapeHtml(key)}</span>
+                            <span class="json-colon">:</span>
+                        </label>
+                        <div class="json-value-container">${valueHtml}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function renderJsonValue(value, fieldId) {
+    if (value === null || value === undefined) {
+        return '<span class="json-null">null</span>';
+    }
+    
+    if (typeof value === 'boolean') {
+        return `<span class="json-bool">${value}</span>`;
+    }
+    
+    if (typeof value === 'number') {
+        return `<span class="json-number">${value}</span>`;
+    }
+    
+    if (typeof value === 'string') {
+        // Truncate long strings but allow expansion
+        if (value.length > 200) {
+            return `<span class="json-string-long" title="${escapeHtml(value)}">
+                        "${escapeHtml(value.substring(0, 200))}..."
+                        <small class="json-length">(${value.length} chars)</small>
+                    </span>`;
+        }
+        return `<span class="json-string">"${escapeHtml(value)}"</span>`;
+    }
+    
+    if (Array.isArray(value)) {
+        if (value.length === 0) {
+            return '<span class="json-array">[]</span>';
+        }
+        const preview = value.slice(0, 3).map(v => {
+            if (typeof v === 'string') return `<span class="json-string">"${escapeHtml(v)}"</span>`;
+            if (typeof v === 'number') return `<span class="json-number">${v}</span>`;
+            if (typeof v === 'boolean') return `<span class="json-bool">${v}</span>`;
+            return `<span>${escapeHtml(String(v))}</span>`;
+        }).join('<span class="json-comma">, </span>');
+        const hasMore = value.length > 3 ? `<span class="json-more"> +${value.length - 3}</span>` : '';
+        return `<span class="json-array">[<span class="json-comma"> </span>${preview}${hasMore}<span class="json-comma"> </span>]</span>`;
+    }
+    
+    if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) {
+            return '<span class="json-object">{}</span>';
+        }
+        const preview = keys.slice(0, 2).map(k => {
+            const v = value[k];
+            const vStr = typeof v === 'string' ? `"${v}"` : String(v);
+            const truncated = vStr.length > 30 ? vStr.substring(0, 30) + '...' : vStr;
+            return `<span class="json-key">${escapeHtml(k)}</span><span class="json-colon">:</span> <span class="json-number">${escapeHtml(truncated)}</span>`;
+        }).join('<span class="json-comma">, </span>');
+        const hasMore = keys.length > 2 ? `<span class="json-more"> ... (${keys.length} properties)</span>` : '';
+        return `<span class="json-object">{<span class="json-comma"> </span>${preview}${hasMore}<span class="json-comma"> </span>}</span>`;
+    }
+    
+    return `<span class="json-unknown">${escapeHtml(String(value))}</span>`;
+}
+
+async function storeEnrichmentResult(resultIdx) {
+    const result = window.enrichmentResults[resultIdx];
+    if (!result || !result.success) return;
+    
+    // Collect selected fields from the new JSON tree structure
+    // Use raw_response for complete API data
+    const dataSource = result.raw_response || result.transformed || {};
+    const selectedFields = {};
+    document.querySelectorAll(`input.enrichment-field[data-parent-id="result_${resultIdx}"]:checked`).forEach(checkbox => {
+        const field = checkbox.dataset.field;
+        if (dataSource && dataSource[field] !== undefined) {
+            selectedFields[field] = dataSource[field];
+        }
+    });
+    
+    if (Object.keys(selectedFields).length === 0) {
+        alert('Please select at least one field to store');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${objectId}/store-enrichment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                api_name: result.api_name,
+                api_id: result.api_id,
+                selected_fields: selectedFields
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to store enrichment');
+        }
+        
+        // Refresh the page to show updated enrichment
+        location.reload();
+        
+    } catch (e) {
+        alert('Error storing enrichment: ' + e.message);
+    }
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+<!-- Campaign Fields -->
+<div id="fields-campaign" class="type-fields">
+    <div class="alert alert-success mb-3">
+        <i class="fas fa-bullseye me-1"></i>
+        Campaigns describe coordinated attacks with common objectives.
+    </div>
+    
+    <div class="field-group">
+        <label for="campaignAliases" class="form-label">Aliases</label>
+        <input type="text" id="campaignAliases" name="aliases" class="form-control"
+               placeholder="Other names for this campaign (comma-separated)">
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="campaignFirstSeen" class="form-label">First Seen</label>
+            <input type="datetime-local" id="campaignFirstSeen" name="first_seen" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="campaignLastSeen" class="form-label">Last Seen</label>
+            <input type="datetime-local" id="campaignLastSeen" name="last_seen" class="form-control">
+        </div>
+    </div>
+    
+    <div class="field-group">
+        <label for="objective" class="form-label">Objective</label>
+        <textarea id="objective" name="objective" class="form-control" rows="3"
+                  placeholder="The primary goal or objective of this campaign"></textarea>
+    </div>
+</div>

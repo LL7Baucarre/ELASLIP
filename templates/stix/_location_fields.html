@@ -1,0 +1,79 @@
+<!-- Location Fields -->
+<div id="fields-location" class="type-fields">
+    <div class="alert alert-success mb-3">
+        <i class="fas fa-map-marker-alt me-1"></i>
+        Geographic locations for threat attribution.
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="region" class="form-label">Region</label>
+            <select id="region" name="region" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="africa">Africa</option>
+                <option value="eastern-africa">Eastern Africa</option>
+                <option value="middle-africa">Middle Africa</option>
+                <option value="northern-africa">Northern Africa</option>
+                <option value="southern-africa">Southern Africa</option>
+                <option value="western-africa">Western Africa</option>
+                <option value="americas">Americas</option>
+                <option value="caribbean">Caribbean</option>
+                <option value="central-america">Central America</option>
+                <option value="latin-america-caribbean">Latin America & Caribbean</option>
+                <option value="northern-america">Northern America</option>
+                <option value="south-america">South America</option>
+                <option value="asia">Asia</option>
+                <option value="central-asia">Central Asia</option>
+                <option value="eastern-asia">Eastern Asia</option>
+                <option value="southern-asia">Southern Asia</option>
+                <option value="south-eastern-asia">South-Eastern Asia</option>
+                <option value="western-asia">Western Asia</option>
+                <option value="europe">Europe</option>
+                <option value="eastern-europe">Eastern Europe</option>
+                <option value="northern-europe">Northern Europe</option>
+                <option value="southern-europe">Southern Europe</option>
+                <option value="western-europe">Western Europe</option>
+                <option value="oceania">Oceania</option>
+                <option value="australia-new-zealand">Australia/New Zealand</option>
+                <option value="melanesia">Melanesia</option>
+                <option value="micronesia">Micronesia</option>
+                <option value="polynesia">Polynesia</option>
+            </select>
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="country" class="form-label">Country (ISO 3166-1 Alpha-2)</label>
+            <input type="text" id="country" name="country" class="form-control" maxlength="2"
+                   placeholder="US, FR, CN, RU...">
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="administrativeArea" class="form-label">Administrative Area</label>
+            <input type="text" id="administrativeArea" name="administrative_area" class="form-control"
+                   placeholder="State, Province, etc.">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="city" class="form-label">City</label>
+            <input type="text" id="city" name="city" class="form-control" placeholder="City name">
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-4 field-group">
+            <label for="latitude" class="form-label">Latitude</label>
+            <input type="number" id="latitude" name="latitude" class="form-control" 
+                   min="-90" max="90" step="0.000001" placeholder="48.8566">
+        </div>
+        <div class="col-md-4 field-group">
+            <label for="longitude" class="form-label">Longitude</label>
+            <input type="number" id="longitude" name="longitude" class="form-control"
+                   min="-180" max="180" step="0.000001" placeholder="2.3522">
+        </div>
+        <div class="col-md-4 field-group">
+            <label for="precision" class="form-label">Precision (meters)</label>
+            <input type="number" id="precision" name="precision" class="form-control"
+                   min="0" placeholder="1000">
+        </div>
+    </div>
+</div>

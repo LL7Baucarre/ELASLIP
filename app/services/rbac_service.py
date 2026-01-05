@@ -76,6 +76,7 @@ PERMISSIONS = {
     
     # ============== Search & Reports ==============
     'search.advanced': 'Access advanced search',
+    'search.users': 'Search users for assignment',
     'search.save': 'Save searches',
     'report.view': 'View reports',
     'report.create': 'Create reports',
@@ -166,7 +167,7 @@ DEFAULT_ROLES = {
             # Tools
             'tools.view', 'tools.execute', 'tools.configure',
             # Search & Reports
-            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            'search.advanced', 'search.users', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
@@ -203,7 +204,7 @@ DEFAULT_ROLES = {
             # Tools
             'tools.view', 'tools.execute',
             # Search & Reports
-            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            'search.advanced', 'search.users', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',
@@ -240,7 +241,7 @@ DEFAULT_ROLES = {
             # Tools
             'tools.view', 'tools.execute',
             # Search & Reports
-            'search.advanced', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
+            'search.advanced', 'search.users', 'search.save', 'report.view', 'report.create', 'report.export', 'report.generate_llm',
             # Checklists
             'checklist.view', 'checklist.create', 'checklist.edit', 'checklist.delete', 'checklist.export', 'checklist.generate_llm',
             'checklist.comment.create', 'checklist.comment.delete', 'checklist.comment.delete_any',

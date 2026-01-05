@@ -1,0 +1,23 @@
+<!-- Course of Action Fields -->
+<div id="fields-course-of-action" class="type-fields">
+    <div class="alert alert-success mb-3">
+        <i class="fas fa-shield-alt me-1"></i>
+        Mitigations and defensive measures.
+    </div>
+    
+    <div class="field-group">
+        <label for="actionType" class="form-label">Action Type</label>
+        <select id="actionType" name="action_type" class="form-select">
+            <option value="">-- Select --</option>
+            <option value="textual:text/plain">Textual (Plain Text)</option>
+            <option value="textual:text/html">Textual (HTML)</option>
+            <option value="textual:text/md">Textual (Markdown)</option>
+        </select>
+    </div>
+    
+    <div class="field-group">
+        <label class="form-label">Detailed Mitigation Steps</label>
+        <textarea id="coaDescription" name="description" class="form-control" rows="5"
+                  placeholder="Detailed steps to mitigate or prevent this threat..."></textarea>
+    </div>
+</div>

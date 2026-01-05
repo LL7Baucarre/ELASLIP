@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from app.auth import permission_required
 from app.services.report_service import (
     ReportService, 
-    DEFAULT_PROMPT_IOC, 
+    DEFAULT_PROMPT_STIX, 
     DEFAULT_PROMPT_CASE, 
     DEFAULT_PROMPT_INCIDENT, 
     DEFAULT_PROMPT_CHECKLIST
@@ -50,7 +50,7 @@ def get_report_config():
               type: string
             generation_language:
               type: string
-            custom_prompt_ioc:
+            custom_prompt_stix:
               type: string
             custom_prompt_case:
               type: string
@@ -74,7 +74,7 @@ def get_report_config():
         'model': os.getenv('LLM_MODEL', 'mistral'),
         'api_key': os.getenv('LLM_API_KEY', ''),
         'generation_language': os.getenv('LLM_GENERATION_LANGUAGE', 'en'),
-        'custom_prompt_ioc': '',
+        'custom_prompt_stix': '',
         'custom_prompt_case': '',
         'custom_prompt_incident': '',
         'custom_prompt_checklist': ''
@@ -128,7 +128,7 @@ def get_default_prompts():
         return jsonify({'error': 'Admin access required'}), 403
     
     return jsonify({
-        'default_prompt_ioc': DEFAULT_PROMPT_IOC,
+        'default_prompt_ioc': DEFAULT_PROMPT_STIX,
         'default_prompt_case': DEFAULT_PROMPT_CASE,
         'default_prompt_incident': DEFAULT_PROMPT_INCIDENT,
         'default_prompt_checklist': DEFAULT_PROMPT_CHECKLIST
@@ -471,7 +471,7 @@ def update_report_config():
             generation_language:
               type: string
               default: "en"
-            custom_prompt_ioc:
+            custom_prompt_stix:
               type: string
             custom_prompt_case:
               type: string
@@ -507,7 +507,7 @@ def update_report_config():
         'model': data.get('model', os.getenv('LLM_MODEL', 'mistral')),
         'api_key': data.get('api_key', os.getenv('LLM_API_KEY', '')),
         'generation_language': data.get('generation_language', os.getenv('LLM_GENERATION_LANGUAGE', 'en')),
-        'custom_prompt_ioc': data.get('custom_prompt_ioc', ''),
+        'custom_prompt_stix': data.get('custom_prompt_stix', ''),
         'custom_prompt_case': data.get('custom_prompt_case', ''),
         'custom_prompt_incident': data.get('custom_prompt_incident', ''),
         'custom_prompt_checklist': data.get('custom_prompt_checklist', ''),
@@ -900,6 +900,79 @@ def regenerate_ioc_report(ioc_id):
         import time
         
         task = task_regenerate_ioc.delay(ioc_id, current_user.id, correction_prompt, previous_report)
+        task_id = task.id
+        
+        # Wait briefly for completion
+        for attempt in range(50):
+            try:
+                response = es_service.get('elaslip_app_config', f'report_{task_id}')
+                if response and response.get('found'):
+                    config = response.get('_source', {})
+                    if config.get('status') == 'completed':
+                        return jsonify({
+                            'task_id': task_id,
+                            'status': 'completed',
+                            'message': 'Report regeneration completed'
+                        })
+            except Exception:
+                pass
+            time.sleep(0.1)
+        
+        return jsonify({
+            'task_id': task_id,
+            'status': 'pending',
+            'message': 'Report regeneration started'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@bp.route('/api/reports/stix/<stix_id>/regenerate', methods=['POST'])
+@login_required
+@permission_required('report.generate_llm')
+def regenerate_stix_report(stix_id):
+    """
+    Regenerate STIX report with correction instructions
+    ---
+    tags:
+      - Reports
+    parameters:
+      - in: path
+        name: stix_id
+        type: string
+        required: true
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            correction_prompt:
+              type: string
+              description: User's correction/refinement instructions
+            previous_report:
+              type: string
+              description: Previous report content for context
+    responses:
+      200:
+        description: Report regeneration started
+      400:
+        description: LLM reporting not enabled or missing correction prompt
+    """
+    if not os.getenv('LLM_ENABLED', 'false').lower() == 'true':
+        return jsonify({'error': 'LLM reporting not enabled'}), 400
+    
+    data = request.get_json() or {}
+    correction_prompt = data.get('correction_prompt', '').strip()
+    previous_report = data.get('previous_report', '')
+    
+    if not correction_prompt:
+        return jsonify({'error': 'Correction prompt is required'}), 400
+    
+    try:
+        from app.tasks.report_tasks import regenerate_stix_report as task_regenerate_stix
+        import time
+        
+        task = task_regenerate_stix.delay(stix_id, current_user.id, correction_prompt, previous_report)
         task_id = task.id
         
         # Wait briefly for completion

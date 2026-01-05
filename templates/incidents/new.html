@@ -227,21 +227,20 @@ document.getElementById('assignToSearch').addEventListener('input', function() {
         return;
     }
     
-    fetch(`/api/search?q=${encodeURIComponent(query)}&per_page=10`)
+    fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`)
         .then(r => r.json())
         .then(data => {
-            const items = data.items || [];
+            const users = data.users || [];
             let html = '';
             
-            for (const item of items) {
-                if (item.entity_type === 'user' && item.name !== selectedAssignTo) {
+            for (const user of users) {
+                if (user.username !== selectedAssignTo) {
                     html += `
-                        <a href="#" class="list-group-item list-group-item-action link-user" data-username="${item.name}">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <strong>${item.name}</strong>
-                                    <small class="text-muted d-block">${item.email || ''}</small>
-                                </div>
+                        <a href="#" class="list-group-item list-group-item-action link-user" 
+                           data-username="${user.username}" data-id="${user.id}">
+                            <div>
+                                <strong>${user.username}</strong>
+                                <small class="text-muted d-block">${user.email || ''}</small>
                             </div>
                         </a>
                     `;

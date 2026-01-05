@@ -3,9 +3,13 @@ name: Build and Push Docker Image to GHCR
 on:
   push:
     branches:
-      - deploy
+      - main
+      - develop
     tags:
-      - 'v*'
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io
@@ -19,7 +23,7 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -32,15 +36,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract version from config
-        id: version
-        run: |
-          VERSION=$(grep -oP '(?<=__version__ = ")[^"]*' app/config.py)
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Version extracted: ${VERSION}"
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -48,32 +45,37 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}},value=v${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.version.outputs.version }}
-            type=sha,prefix={{branch}}-
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Determine app version
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "App Version: $VERSION"
+
+      - name: Generate Docker tags
+        id: tags
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          IMAGE_NAME_LOWER=$(echo "$IMAGE_NAME" | tr '[:upper:]' '[:lower:]')
+          TAGS="${REGISTRY}/${IMAGE_NAME_LOWER}:${VERSION}"
+          TAGS="${TAGS},${REGISTRY}/${IMAGE_NAME_LOWER}:latest"
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+          echo "Generated tags: ${TAGS}"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Create release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false

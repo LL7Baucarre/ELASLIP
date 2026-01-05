@@ -194,11 +194,58 @@
                         <div class="form-text">Use <code>{value}</code> as placeholder for the IOC value</div>
                     </div>
                     
+                    <!-- STIX-Compatible Response Mapping -->
                     <div class="mb-3">
-                        <label for="responseTemplate" class="form-label">Response Template (JSONPath)</label>
-                        <textarea class="form-control json-editor" id="responseTemplate" rows="4" 
-                                  placeholder='{"asn": "$.asn", "description": "$.flag_title", "name": "$.name"}'></textarea>
-                        <div class="form-text">Map API response fields using JSONPath (e.g., $.asn, $.data.country). Optional - leave empty for auto-detection.</div>
+                        <label class="form-label d-flex justify-content-between align-items-center">
+                            <span>Response Template (JSONPath)</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#stixFieldsHelp">
+                                <i class="bi bi-question-circle"></i> STIX Fields
+                            </button>
+                        </label>
+                        <textarea class="form-control json-editor" id="responseTemplate" rows="5" 
+                                  placeholder='{
+  "threat_level": "$.data.threat_level",
+  "confidence": "$.data.confidence_score",
+  "country": "$.data.country",
+  "asn": "$.data.asn",
+  "reputation": "$.data.reputation"
+}'></textarea>
+                        <div class="form-text">Map API response fields using JSONPath. Leave empty for auto-detection.</div>
+                        
+                        <!-- STIX Fields Help Collapse -->
+                        <div class="collapse mt-2" id="stixFieldsHelp">
+                            <div class="card card-body small">
+                                <h6 class="mb-2"><i class="bi bi-info-circle me-1"></i>STIX 2.1 Compatible Fields</h6>
+                                <p class="text-muted mb-2">Use these field names to ensure compatibility with STIX objects:</p>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled mb-0">
+                                            <li><code>threat_level</code> - low/medium/high/critical</li>
+                                            <li><code>confidence</code> - 0-100 score</li>
+                                            <li><code>tlp</code> - TLP:WHITE/GREEN/AMBER/RED</li>
+                                            <li><code>risk_score</code> - Numeric risk score</li>
+                                            <li><code>severity</code> - Severity level</li>
+                                            <li><code>reputation</code> - Reputation score</li>
+                                            <li><code>name</code> - Display name</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <ul class="list-unstyled mb-0">
+                                            <li><code>description</code> - Description text</li>
+                                            <li><code>country</code> - Country code/name</li>
+                                            <li><code>asn</code> - AS Number</li>
+                                            <li><code>registrar</code> - Domain registrar</li>
+                                            <li><code>malware_family</code> - Malware family</li>
+                                            <li><code>first_seen</code> - First seen date</li>
+                                            <li><code>last_seen</code> - Last seen date</li>
+                                            <li><code>labels</code> - Array of tags</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <hr class="my-2">
+                                <p class="mb-0 text-muted"><strong>Example:</strong> <code>{"threat_level": "$.data.threat", "country": "$.geo.country_name"}</code></p>
+                            </div>
+                        </div>
                     </div>
                     
                     <hr>
@@ -241,10 +288,16 @@
                              style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
                     </div>
                     
-                    <div>
-                        <label class="form-label small"><strong>Transformed Result</strong></label>
+                    <div class="mb-3">
+                        <label class="form-label small"><strong>Transformed Result (STIX Compatible)</strong></label>
                         <pre class="bg-light p-2 rounded small" id="testTransformed"
                              style="max-height: 250px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
+                    </div>
+                    
+                    <div id="stixPreview" style="display: none;">
+                        <label class="form-label small"><strong>STIX Enrichment Preview</strong></label>
+                        <pre class="bg-success bg-opacity-10 p-2 rounded small border border-success" id="testStixPreview"
+                             style="max-height: 200px; overflow: auto; font-size: 0.75rem; margin: 0;"></pre>
                     </div>
                 </div>
             </div>
@@ -599,6 +652,25 @@ $('#testApiBtn').click(function() {
             $('#testRawResponse').text(JSON.stringify(data.raw_response, null, 2));
             $('#testTransformed').text(JSON.stringify(data.transformed, null, 2));
             
+            // Show STIX preview with enrichment-compatible fields
+            if (data.transformed) {
+                const stixPreview = buildStixEnrichmentPreview(data.transformed);
+                if (Object.keys(stixPreview).length > 0) {
+                    $('#stixPreview').show();
+                    $('#testStixPreview').text(JSON.stringify({
+                        x_elaslip_enrichment: {
+                            api_results: [{
+                                api_name: $('#apiName').val() || 'Test API',
+                                enriched_at: new Date().toISOString(),
+                                data: stixPreview
+                            }]
+                        }
+                    }, null, 2));
+                } else {
+                    $('#stixPreview').hide();
+                }
+            }
+            
             // Remove old interactive tree if exists
             $('#testResult').find('.interactive-json-tree').remove();
             
@@ -717,5 +789,34 @@ function updatePostBodyVisibility() {
 $(document).on('change', '#apiMethod', function() {
     updatePostBodyVisibility();
 });
+
+// Build STIX enrichment preview from transformed data
+function buildStixEnrichmentPreview(transformed) {
+    const preview = {};
+    const stixFields = [
+        'malicious', 'reputation_score', 'confidence', 'description',
+        'first_seen', 'last_seen', 'country', 'city', 'asn', 'isp',
+        'threat_types', 'malware_families', 'labels', 'external_references',
+        'raw_data'
+    ];
+    
+    stixFields.forEach(field => {
+        if (transformed[field] !== undefined && transformed[field] !== null) {
+            preview[field] = transformed[field];
+        }
+    });
+    
+    // Add any extra fields under raw_data if not already present
+    Object.keys(transformed).forEach(key => {
+        if (!stixFields.includes(key) && transformed[key] !== undefined && transformed[key] !== null) {
+            if (!preview.raw_data) {
+                preview.raw_data = {};
+            }
+            preview.raw_data[key] = transformed[key];
+        }
+    });
+    
+    return preview;
+}
 </script>
 {% endblock %}

@@ -18,14 +18,6 @@
             <i class="bi bi-shield-check"></i> {{ SITE_NAME }}
         </div>
         <ul class="nav">
-            <li class="nav-item">
-                <a class="nav-link" href="#" id="notification-nav-link">
-                    <i class="bi bi-bell"></i> <span>Notifications</span>
-                    <span class="badge bg-danger ms-2" id="notification-nav-badge" style="display: none; font-size: 0.65rem;">
-                        <span id="notification-nav-count">0</span>
-                    </span>
-                </a>
-            </li>
                         {% if has_permission('search.advanced') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.search_page' %}active{% endif %}" href="{{ url_for('main.search_page') }}">
@@ -33,28 +25,20 @@
                 </a>
             </li>
             {% endif %}
-            <li class="nav-section-title">IOCs</li>
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}" href="{{ url_for('main.dashboard') }}">
                     <i class="bi bi-speedometer2"></i> Dashboard
                 </a>
             </li>
-            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
-            <li class="nav-item">
-                <a class="nav-link {% if 'iocs' in request.endpoint and request.endpoint != 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_list') }}">
-                    <i class="bi bi-list-ul"></i> IOCs
-                </a>
-            </li>
-            {% endif %}
-            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.iocs_graph' %}active{% endif %}" href="{{ url_for('main.iocs_graph') }}">
-                    <i class="bi bi-diagram-3"></i> IOC Graph
-                </a>
-            </li>
-            {% endif %}
-            
+                        
             <li class="nav-section-title">INVESTIGATIONS</li>
+            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
+            <li class="nav-item">
+                <a class="nav-link {% if 'stix' in request.endpoint %}active{% endif %}" href="{{ url_for('stix.list_stix_objects_page') }}">
+                    <i class="bi bi-boxes"></i> Objects
+                </a>
+            </li>
+            {% endif %}
             {% if has_any_permission('case.view', 'case.create', 'case.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'cases' in request.endpoint %}active{% endif %}" href="{{ url_for('main.cases_list') }}">
@@ -83,15 +67,15 @@
                 </a>
             </li>
             {% endif %}
-                        {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
+                        
+            <li class="nav-section-title">TOOLS</li>
+            {% if has_any_permission('report.view', 'report.create') and llm_enabled %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
                     <i class="bi bi-file-earmark-pdf"></i> LLM Reports
                 </a>
             </li>
             {% endif %}
-            
-            <li class="nav-section-title">TOOLS</li>
             {% if has_permission('ioc.import') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
@@ -114,7 +98,7 @@
             </li>
             {% endif %}
             
-            <li class="nav-section-title">CONFIG</li>
+            <li class="nav-section-title">MANAGEMENT</li>
             {% if has_any_permission('admin.users.view', 'admin.users.create', 'admin.users.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'users_management' in request.endpoint %}active{% endif %}" href="{{ url_for('main.users_management') }}">
@@ -134,9 +118,19 @@
                     <i class="bi bi-gear"></i> Settings
                 </a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'main.api_docs' %}active{% endif %}" href="{{ url_for('main.api_docs') }}">
+                    <i class="bi bi-file-earmark-code"></i> API Docs
+                </a>
+            </li>
         </ul>
-        
         <div class="user-section">
+            <a class="nav-link" href="#" id="notification-nav-link" style="padding: 10px 20px; margin: 10px -20px 10px -20px; width: calc(100% + 40px);">
+                <i class="bi bi-bell"></i> <span>Notifications</span>
+                <span class="badge bg-danger ms-2" id="notification-nav-badge" style="display: none; font-size: 0.65rem;">
+                    <span id="notification-nav-count">0</span>
+                </span>
+            </a>
             <div class="user-info">
                 <a href="{{ url_for('auth.profile') }}" class="user-info-link" title="View your profile">
                     <div class="user-name">
@@ -150,9 +144,6 @@
             </div>
             <a class="nav-link" href="{{ url_for('auth.logout') }}" title="Logout" style="padding: 10px 20px; margin: 10px -20px 0 -20px; width: calc(100% + 40px);">
                 <i class="bi bi-box-arrow-right"></i> <span>Logout</span>
-            </a>
-            <a class="nav-link" href="{{ url_for('main.api_docs') }}" title="API Docs" style="padding: 10px 20px; margin: 10px -20px 0 -20px; width: calc(100% + 40px);">
-                <i class="bi bi-file-earmark-code"></i> <span>API Docs</span>
             </a>
             <div class="version-footer">
                 v{{ APP_VERSION }}

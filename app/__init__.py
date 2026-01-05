@@ -11,7 +11,7 @@ from app.config import config
 
 login_manager = LoginManager()
 jwt = JWTManager()
-celery = Celery()
+celery = None  # Will be initialized at module level after create_celery_app
 redis_client = None
 
 
@@ -100,7 +100,7 @@ def create_app(config_name=None):
         "info": {
             "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
             "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
-            "version": "1.1.0",
+            "version": "1.2.0",
             "contact": {
                 "name": "ELASLIP Support",
                 "url": "https://github.com/LL7Baucarre/ELASLIP"
@@ -279,8 +279,6 @@ def create_app(config_name=None):
     # Register blueprints
     from app.routes.auth import auth_bp
     from app.routes.oauth import oauth_bp
-    from app.routes.ioc import ioc_bp
-    from app.routes.ioc_relations import ioc_relations_bp
     from app.routes.search import search_bp
     from app.routes.import_routes import import_bp
     from app.routes.api_config import api_config_bp
@@ -298,18 +296,19 @@ def create_app(config_name=None):
     from app.routes.finops import finops_bp
     from app.routes.submissions import submissions_bp, public_bp
     from app.routes.notifications import bp as notifications_bp
+    from app.routes.stix import stix_bp
+    from app.routes.users import users_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(oauth_bp, url_prefix='/oauth')
-    app.register_blueprint(ioc_bp, url_prefix='/api/ioc')
-    app.register_blueprint(ioc_relations_bp, url_prefix='/api')
     app.register_blueprint(search_bp, url_prefix='/api/search')
     app.register_blueprint(import_bp, url_prefix='/api/import')
     app.register_blueprint(api_config_bp, url_prefix='/api/external-apis')
     app.register_blueprint(webhook_bp, url_prefix='/api/webhooks')
     app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
     app.register_blueprint(tools_bp, url_prefix='/api/tools')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(images_bp)
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)
@@ -321,12 +320,13 @@ def create_app(config_name=None):
     app.register_blueprint(submissions_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(notifications_bp)
+    app.register_blueprint(stix_bp)
 
     # Make app version available to all templates
     @app.context_processor
     def inject_app_version():
         return {
-            'APP_VERSION': app.config.get('APP_VERSION', '1.1.0')
+            'APP_VERSION': app.config.get('APP_VERSION', '1.2.0')
         }
     
     # Health check endpoint
@@ -338,6 +338,6 @@ def create_app(config_name=None):
 
 
 # Create celery app for worker
-celery_app = create_celery_app()
+celery = create_celery_app()
 # Import tasks so they're registered with the worker
 from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks

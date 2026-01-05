@@ -116,7 +116,7 @@ async function regenerateReport() {
     if (!reportId) {
         // Try to extract from reportData one more time
         if (reportData) {
-            reportId = reportData.ioc_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
+            reportId = reportData.ioc_id || reportData.stix_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
         }
         if (!reportId) {
             alert('Cannot regenerate: report ID is unknown.');
@@ -143,6 +143,9 @@ async function regenerateReport() {
         switch(reportType) {
             case 'ioc':
                 endpoint = `/api/reports/iocs/${reportId}/regenerate`;
+                break;
+            case 'stix':
+                endpoint = `/api/reports/stix/${reportId}/regenerate`;
                 break;
             case 'case':
                 endpoint = `/api/reports/cases/${reportId}/regenerate`;
@@ -361,7 +364,7 @@ function displayReport() {
     
     // Extract report ID from data if not set from URL params
     if (!reportId) {
-        reportId = reportData.ioc_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
+        reportId = reportData.ioc_id || reportData.stix_id || reportData.case_id || reportData.incident_id || reportData.checklist_id || reportData.entity_id;
     }
     
     switch(reportType) {
@@ -369,6 +372,11 @@ function displayReport() {
             markdown = displayIOCReport();
             const iocType = reportData.ioc_type || 'Unknown';
             document.getElementById('reportTitle').textContent = `IOC Report: ${iocType.toUpperCase()}`;
+            break;
+        case 'stix':
+            markdown = displaySTIXReport();
+            const stixType = reportData.stix_type || 'Unknown';
+            document.getElementById('reportTitle').textContent = `STIX Report: ${stixType.toUpperCase()}`;
             break;
         case 'case':
             markdown = displayCaseReport();
@@ -411,6 +419,21 @@ function displayIOCReport() {
 | **Type** | ${reportData.ioc_type || 'Unknown'} |
 | **Value** | ${reportData.ioc_value || 'N/A'} |
 | **Related Indicators** | ${reportData.relations_count || 0} |
+
+## Analysis
+
+${reportData.analysis || 'No analysis generated'}
+`;
+}
+
+function displaySTIXReport() {
+    return `## STIX Object Details
+
+| Field | Value |
+|-------|-------|
+| **Type** | ${reportData.stix_type || 'Unknown'} |
+| **Value** | ${reportData.stix_value || 'N/A'} |
+| **Related Objects** | ${reportData.relations_count || 0} |
 
 ## Analysis
 

@@ -1,0 +1,47 @@
+<!-- Attack Pattern Fields -->
+<div id="fields-attack-pattern" class="type-fields">
+    <div class="alert alert-primary mb-3">
+        <i class="fas fa-crosshairs me-1"></i>
+        Describe TTP (Tactics, Techniques, and Procedures) used by adversaries.
+    </div>
+    
+    <div class="field-group">
+        <label for="attackAliases" class="form-label">Aliases</label>
+        <input type="text" id="attackAliases" name="aliases" class="form-control"
+               placeholder="Other names for this technique (comma-separated)">
+    </div>
+    
+    <div class="field-group">
+        <label class="form-label">Kill Chain Phases</label>
+        <div id="killChainPhases">
+            <div class="row mb-2 kill-chain-row">
+                <div class="col-md-5">
+                    <select name="kill_chain_name[]" class="form-select">
+                        <option value="mitre-attack">MITRE ATT&CK</option>
+                        <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addKillChainPhase()">
+            <i class="fas fa-plus me-1"></i> Add Phase
+        </button>
+    </div>
+    
+    <div class="field-group mt-3">
+        <label class="form-label">MITRE ATT&CK Reference</label>
+        <div class="input-group">
+            <span class="input-group-text">ATT&CK ID</span>
+            <input type="text" id="mitreId" class="form-control" placeholder="T1059.001">
+        </div>
+        <small class="text-muted">Will be added as external reference</small>
+    </div>
+</div>

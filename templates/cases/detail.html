@@ -12,6 +12,34 @@
 [data-theme="dark"] #caseGraphContainer {
     background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
 }
+
+/* Graph Legend */
+.graph-legend { background: rgba(0,0,0,0.02); }
+[data-theme="dark"] .graph-legend { background: rgba(255,255,255,0.02); }
+
+.legend-circle {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+}
+.legend-square {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+}
+.legend-diamond {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    transform: rotate(45deg);
+}
+.current-node { box-shadow: 0 0 0 2px #fff; }
+
+/* Filter buttons */
+.filter-btn.active { opacity: 1; }
+.filter-btn:not(.active) { opacity: 0.5; }
 </style>
 {% endblock %}
 
@@ -81,17 +109,17 @@
                 </div>
             </div>
 
-            <!-- IOCs -->
+            <!-- STIX Objects -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked IOCs</h6>
+                    <h6 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Linked STIX Objects</h6>
                     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addIocModal">
-                        <i class="bi bi-plus"></i> Link IOC
+                        <i class="bi bi-plus"></i> Link STIX Object
                     </button>
                 </div>
                 <div class="card-body">
                     <div id="iocsContainer">
-                        <div class="text-center text-muted py-3">Loading IOCs...</div>
+                        <div class="text-center text-muted py-3">Loading STIX objects...</div>
                     </div>
                 </div>
             </div>
@@ -214,7 +242,7 @@
             </div>
 
             <!-- Linked Incidents -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Linked Incidents</h6>
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#linkIncidentModal">
@@ -227,18 +255,71 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Relationships Graph Link -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Relationships</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">View all relationships and connections for this case</p>
+                    <a href="#caseGraphContainer" class="btn btn-primary w-100 btn-sm" onclick="scrollToGraph()">
+                        <i class="bi bi-eye me-1"></i> View Graph
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Graph Visualization -->
     <div class="card mb-4">
-        <div class="card-header bg-white">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
             <h6 class="mb-0">
                 <i class="bi bi-diagram-3 me-2"></i> Relationships Graph
             </h6>
+            <div class="d-flex gap-2 align-items-center">
+                <div class="btn-group btn-group-sm me-2" role="group">
+                    <button type="button" class="btn btn-outline-info filter-btn active" data-filter="stix" onclick="toggleGraphFilter('stix', this)">
+                        <i class="bi bi-diagram-3 me-1"></i>STIX
+                    </button>
+                    <button type="button" class="btn btn-outline-primary filter-btn active" data-filter="case" onclick="toggleGraphFilter('case', this)">
+                        <i class="bi bi-folder me-1"></i>Cases
+                    </button>
+                    <button type="button" class="btn btn-outline-danger filter-btn active" data-filter="incident" onclick="toggleGraphFilter('incident', this)">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Incidents
+                    </button>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary" onclick="fitCaseGraph()" title="Fit to View">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetCaseLayout()" title="Reset Layout">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="card-body">
-            <div id="caseGraphContainer" style="width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 6px;"></div>
+        <div class="card-body p-0">
+            <div id="caseGraphContainer" style="width: 100%; height: 450px; border-radius: 0 0 6px 6px;"></div>
+            <!-- Legend -->
+            <div class="graph-legend d-flex flex-wrap gap-3 p-3 border-top">
+                <div class="d-flex align-items-center">
+                    <span class="legend-circle me-2" style="background: #17a2b8;"></span>
+                    <small>STIX Objects</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-square me-2" style="background: #0d6efd;"></span>
+                    <small>Cases</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-diamond me-2" style="background: #dc3545;"></span>
+                    <small>Incidents</small>
+                </div>
+                <div class="d-flex align-items-center">
+                    <span class="legend-circle me-2 current-node" style="background: #0d6efd; border: 3px solid #333;"></span>
+                    <small>Current Case</small>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -286,21 +367,21 @@
     </div>
 </div>
 
-<!-- Add IOC Modal -->
+<!-- Link STIX Object Modal -->
 <div class="modal fade" id="addIocModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Link IOC to Case</h5>
+                <h5 class="modal-title">Link STIX Object to Case</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Search IOCs</label>
-                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by value...">
+                    <label class="form-label">Search STIX Objects</label>
+                    <input type="text" class="form-control" id="iocSearch" placeholder="Search by name, pattern, or value...">
                 </div>
                 <div id="iocSearchResults" class="list-group" style="max-height: 300px; overflow-y: auto;">
-                    <div class="text-center text-muted py-3">Search for IOCs to link</div>
+                    <div class="text-center text-muted py-3">Search for STIX objects to link</div>
                 </div>
             </div>
         </div>
@@ -356,7 +437,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Assignee</label>
-                        <input type="text" class="form-control" id="editAssignee" value="{{ case.assignee_name or '' }}" placeholder="Leave empty for unassigned">
+                        <input type="text" class="form-control" id="editAssigneeSearch" 
+                               placeholder="Search users..." autocomplete="off">
+                        <div id="assigneeResults" class="list-group mt-2" style="max-height: 150px; overflow-y: auto;"></div>
+                        <div id="selectedAssignee" class="mt-2">
+                            <div id="assigneeTag"></div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -474,6 +560,81 @@
 {% block extra_js %}
 <script>
 const caseId = '{{ case.id }}';
+let selectedAssignee = '{{ case.assignee_name or "" }}';
+
+// Assignee search
+document.getElementById('editAssigneeSearch').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('assigneeResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`)
+        .then(r => r.json())
+        .then(data => {
+            const users = data.users || [];
+            let html = '';
+            
+            for (const user of users) {
+                if (user.username !== selectedAssignee) {
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-user" 
+                           data-username="${user.username}" data-id="${user.id}">
+                            <div>
+                                <strong>${user.username}</strong>
+                                <small class="text-muted d-block">${user.email || ''}</small>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (!html && users.length === 0) {
+                html = '<div class="list-group-item text-muted text-center py-2">No users found</div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            document.querySelectorAll('.link-user').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    selectedAssignee = this.dataset.username;
+                    updateAssigneeDisplay();
+                    document.getElementById('editAssigneeSearch').value = '';
+                    resultsDiv.innerHTML = '';
+                });
+            });
+        })
+        .catch(err => console.error('Search error:', err));
+});
+
+function updateAssigneeDisplay() {
+    const tag = document.getElementById('assigneeTag');
+    if (selectedAssignee) {
+        tag.innerHTML = `
+            <span class="badge bg-primary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-person-fill"></i> ${selectedAssignee}
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        style="font-size: 0.6rem;"
+                        aria-label="Remove"></button>
+            </span>
+        `;
+        tag.querySelector('.btn-close').addEventListener('click', function() {
+            selectedAssignee = null;
+            updateAssigneeDisplay();
+        });
+    } else {
+        tag.innerHTML = '<span class="text-muted small">No assignee selected</span>';
+    }
+}
+
+// Initialize assignee display when edit modal opens
+document.getElementById('editCaseModal').addEventListener('shown.bs.modal', function() {
+    updateAssigneeDisplay();
+});
 
 // Load Timeline
 function loadTimeline() {
@@ -526,37 +687,37 @@ function getEventIcon(type) {
     return icons[type] || 'circle';
 }
 
-// Load IOCs
+// Load STIX Objects
 function loadIOCs() {
     const iocIds = {{ case.ioc_ids | tojson }};
     const container = document.getElementById('iocsContainer');
     
     if (!iocIds || iocIds.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+        container.innerHTML = '<div class="text-center text-muted">No linked STIX objects</div>';
         return;
     }
     
-    // Fetch each IOC
-    Promise.all(iocIds.map(id => fetch(`/api/ioc/${id}`).then(r => r.json()).catch(() => null)))
-        .then(iocs => {
-            const validIocs = iocs.filter(i => i);
-            if (validIocs.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted">No linked IOCs</div>';
+    // Fetch each STIX object
+    Promise.all(iocIds.map(id => fetch(`/api/stix/objects/${id}`).then(r => r.json()).catch(() => null)))
+        .then(objects => {
+            const validObjects = objects.filter(i => i);
+            if (validObjects.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted">No linked STIX objects</div>';
                 return;
             }
             
             container.innerHTML = `
                 <div class="list-group">
-                    ${validIocs.map(ioc => {
-                        const value = ioc.ioc_value || ioc.value || (ioc.x_metadata && ioc.x_metadata.ioc_value);
-                        const type = (ioc.x_metadata && ioc.x_metadata.ioc_type) || ioc.ioc_type || 'unknown';
+                    ${validObjects.map(obj => {
+                        const name = obj.name || obj.pattern || (obj.x_metadata && obj.x_metadata.ioc_value) || 'Unknown';
+                        const type = obj.type || 'unknown';
                         return `
                             <div class="list-group-item d-flex justify-content-between align-items-center">
                                 <div>
-                                    <a href="/iocs/${ioc.id}">${escapeHtml(value)}</a>
+                                    <a href="/stix/objects/${obj.id}">${escapeHtml(name)}</a>
                                     <br><small class="text-muted">${type}</small>
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${ioc.id}')">
+                                <button class="btn btn-sm btn-outline-danger" onclick="unlinkIOC('${obj.id}')">
                                     <i class="bi bi-x-lg"></i>
                                 </button>
                             </div>
@@ -636,28 +797,28 @@ function addTimelineEvent() {
     });
 }
 
-// Search IOCs
+// Search STIX Objects
 document.getElementById('iocSearch').addEventListener('input', debounce(function() {
     const query = this.value.trim();
     if (query.length < 2) {
-        document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for IOCs to link</div>';
+        document.getElementById('iocSearchResults').innerHTML = '<div class="text-center text-muted py-3">Search for STIX objects to link</div>';
         return;
     }
     
-    fetch(`/api/search/iocs?q=${encodeURIComponent(query)}&size=10`)
+    fetch(`/api/stix/search?q=${encodeURIComponent(query)}&size=10`)
         .then(r => r.json())
         .then(data => {
             const results = document.getElementById('iocSearchResults');
             const items = data.items || data.results || [];
             if (items.length === 0) {
-                results.innerHTML = '<div class="text-center text-muted py-3">No IOCs found</div>';
+                results.innerHTML = '<div class="text-center text-muted py-3">No STIX objects found</div>';
                 return;
             }
             
-            results.innerHTML = items.map(ioc => `
-                <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${ioc.id}')">
-                    <div class="fw-bold">${escapeHtml(ioc.value || ioc.ioc_value)}</div>
-                    <small class="text-muted">${ioc.type || ioc.ioc_type}</small>
+            results.innerHTML = items.map(obj => `
+                <button class="list-group-item list-group-item-action text-start" onclick="linkIOC('${obj.id}')">
+                    <div class="fw-bold">${escapeHtml(obj.name || obj.pattern || 'Unknown')}</div>
+                    <small class="text-muted">${obj.type || 'unknown'}</small>
                 </button>
             `).join('');
         });
@@ -677,10 +838,10 @@ function linkIOC(iocId) {
     });
 }
 
-function unlinkIOC(iocId) {
-    if (!confirm('Unlink this IOC from the case?')) return;
+function unlinkIOC(stixId) {
+    if (!confirm('Unlink this STIX object from the case?')) return;
     
-    fetch(`/api/cases/${caseId}/iocs/${iocId}`, { method: 'DELETE' })
+    fetch(`/api/cases/${caseId}/iocs/${stixId}`, { method: 'DELETE' })
         .then(r => {
             if (r.ok) location.reload();
         });
@@ -693,7 +854,7 @@ function saveCase() {
         status: document.getElementById('editStatus').value,
         priority: document.getElementById('editPriority').value,
         severity: document.getElementById('editSeverity').value,
-        assignee_name: document.getElementById('editAssignee').value.trim() || null
+        assignee_name: selectedAssignee || null
     };
     
     fetch(`/api/cases/${caseId}`, {
@@ -704,6 +865,13 @@ function saveCase() {
     .then(r => {
         if (r.ok) location.reload();
     });
+}
+
+function scrollToGraph() {
+    const graphContainer = document.getElementById('caseGraphContainer');
+    if (graphContainer) {
+        graphContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 function deleteCase() {
@@ -1187,6 +1355,16 @@ function initCaseGraph(nodes, edges, caseId) {
                 }
             },
             {
+                selector: 'node[entity_type="stix"]',
+                style: {
+                    'shape': 'ellipse',
+                    'background-color': '#17a2b8',
+                    'border-color': '#138496',
+                    'width': 40,
+                    'height': 40
+                }
+            },
+            {
                 selector: 'edge',
                 style: {
                     'line-color': '#999',
@@ -1240,11 +1418,48 @@ function initCaseGraph(nodes, edges, caseId) {
                 window.location.href = `/cases/${nodeId}`;
             } else if (entityType === 'incident') {
                 window.location.href = `/incidents/${nodeId}`;
-            } else if (entityType === 'ioc') {
-                window.location.href = `/iocs/${nodeId}`;
+            } else if (entityType === 'stix') {
+                window.location.href = `/stix/objects/${nodeId}`;
             }
         }
     });
+}
+
+// Graph filter state
+let graphFilters = { stix: true, case: true, incident: true };
+
+function toggleGraphFilter(type, btn) {
+    graphFilters[type] = !graphFilters[type];
+    btn.classList.toggle('active', graphFilters[type]);
+    
+    if (caseCy) {
+        caseCy.nodes().forEach(node => {
+            const entityType = node.data('entity_type');
+            if (entityType === type || (entityType === 'stix' && type === 'stix')) {
+                if (graphFilters[type]) {
+                    node.style('display', 'element');
+                } else {
+                    node.style('display', 'none');
+                }
+            }
+        });
+    }
+}
+
+function fitCaseGraph() {
+    if (caseCy) caseCy.fit(50);
+}
+
+function resetCaseLayout() {
+    if (caseCy) {
+        caseCy.layout({
+            name: 'cose',
+            animate: true,
+            animationDuration: 400,
+            nodeSpacing: 30,
+            padding: 40
+        }).run();
+    }
 }
 
 function loadCaseGraph() {
@@ -1269,6 +1484,7 @@ function loadCaseGraph() {
             // Add colors for nodes
             const getColorForEntity = (type) => {
                 const colors = {
+                    'stix': '#17a2b8',
                     'ioc': '#0dcaf0',
                     'case': '#0d6efd',
                     'incident': '#dc3545',
@@ -1278,7 +1494,7 @@ function loadCaseGraph() {
             };
             
             data.nodes.forEach(node => {
-                const type = node.data.entity_type || 'ioc';
+                const type = node.data.entity_type || 'stix';
                 node.data.color = getColorForEntity(type);
             });
             
