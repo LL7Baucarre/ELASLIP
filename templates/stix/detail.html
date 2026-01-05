@@ -343,10 +343,143 @@
                             <span class="ms-2">{{ stix_object.latitude }}, {{ stix_object.longitude }}</span>
                         </div>
                         {% endif %}
+                    
+                    {% elif stix_object.type == 'tool' %}
+                        {% if stix_object.tool_types %}
+                        <div class="property-row">
+                            <span class="property-label">Tool Types:</span>
+                            {% for t in stix_object.tool_types %}
+                            <span class="badge bg-info ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.tool_version %}
+                        <div class="property-row">
+                            <span class="property-label">Version:</span>
+                            <span class="ms-2">{{ stix_object.tool_version }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'note' %}
+                        {% if stix_object.abstract %}
+                        <div class="property-row">
+                            <span class="property-label">Abstract:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.abstract }}</p>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.content %}
+                        <div class="property-row">
+                            <span class="property-label">Content:</span>
+                            <div class="mt-1 p-2 rounded" style="background: rgba(0,0,0,0.03);">{{ stix_object.content }}</div>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.authors %}
+                        <div class="property-row">
+                            <span class="property-label">Authors:</span>
+                            {% for author in stix_object.authors %}
+                            <span class="badge bg-secondary ms-1">{{ author }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'opinion' %}
+                        {% if stix_object.opinion %}
+                        <div class="property-row">
+                            <span class="property-label">Opinion:</span>
+                            {% set opinion_colors = {'strongly-disagree': 'danger', 'disagree': 'warning', 'neutral': 'secondary', 'agree': 'info', 'strongly-agree': 'success'} %}
+                            <span class="badge bg-{{ opinion_colors.get(stix_object.opinion, 'secondary') }} ms-2">{{ stix_object.opinion }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.explanation %}
+                        <div class="property-row">
+                            <span class="property-label">Explanation:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.explanation }}</p>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.authors %}
+                        <div class="property-row">
+                            <span class="property-label">Authors:</span>
+                            {% for author in stix_object.authors %}
+                            <span class="badge bg-secondary ms-1">{{ author }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'report' %}
+                        {% if stix_object.report_types %}
+                        <div class="property-row">
+                            <span class="property-label">Report Types:</span>
+                            {% for t in stix_object.report_types %}
+                            <span class="badge bg-success ms-1">{{ t }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.published %}
+                        <div class="property-row">
+                            <span class="property-label">Published:</span>
+                            <span class="ms-2">{{ stix_object.published }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Referenced Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'observed-data' %}
+                        <div class="row">
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">First Observed:</span>
+                                <span class="ms-2">{{ stix_object.first_observed or 'N/A' }}</span>
+                            </div>
+                            <div class="col-md-6 property-row">
+                                <span class="property-label">Last Observed:</span>
+                                <span class="ms-2">{{ stix_object.last_observed or 'N/A' }}</span>
+                            </div>
+                        </div>
+                        {% if stix_object.number_observed %}
+                        <div class="property-row">
+                            <span class="property-label">Number Observed:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.number_observed }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.objects %}
+                        <div class="property-row">
+                            <span class="property-label">Observable Objects:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.objects | length }} object(s)</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.object_refs %}
+                        <div class="property-row">
+                            <span class="property-label">Object Refs:</span>
+                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} reference(s)</span>
+                        </div>
+                        {% endif %}
                     {% endif %}
                     
                     <!-- Generic properties display for other types -->
-                    {% if stix_object.aliases and stix_object.type not in ['malware'] %}
+                    {% if stix_object.aliases and stix_object.type not in ['malware', 'tool'] %}
                     <div class="property-row">
                         <span class="property-label">Aliases:</span>
                         {% for a in stix_object.aliases %}

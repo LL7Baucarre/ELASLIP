@@ -545,19 +545,30 @@ def generate_random_stix_objects(count=100):
             }
         
         elif selected_type == 'report':
+            report_names = [
+                'APT29 Campaign Analysis', 'Ransomware Trends Q4 2025', 'Financial Sector Threat Report',
+                'Critical Infrastructure Security Assessment', 'Phishing Campaign Investigation',
+                'Malware Family Analysis Report', 'Supply Chain Attack Summary', 'Nation-State Actor Profile'
+            ]
             obj = {
                 'type': 'report',
-                'name': f"Threat Report - {datetime.utcnow().strftime('%Y-%m-%d')}",
-                'description': f"Demo threat intelligence report",
+                'name': random.choice(report_names) + f" - {random.randint(1, 100)}",
+                'description': f"Demo threat intelligence report covering recent threat activity and indicators.",
                 'published': datetime.utcnow().isoformat() + 'Z',
-                'report_types': ['threat-report', 'campaign', 'attack-pattern'],
-                'object_refs': [],  # Would be populated with actual object IDs
+                'report_types': random.sample(['threat-report', 'campaign', 'attack-pattern', 'malware', 'tool', 'vulnerability'], k=random.randint(1, 3)),
+                'object_refs': [],
                 'labels': ['report'],
             }
         
         elif selected_type == 'observed-data':
+            observation_names = [
+                'Network Traffic Analysis', 'Endpoint Detection Event', 'Firewall Log Analysis',
+                'DNS Query Observation', 'File Hash Detection', 'Process Execution Monitor',
+                'Registry Change Detection', 'Authentication Event Capture'
+            ]
             obj = {
                 'type': 'observed-data',
+                'name': random.choice(observation_names) + f" - {random.randint(1000, 9999)}",
                 'first_observed': (datetime.utcnow() - timedelta(hours=random.randint(1, 168))).isoformat() + 'Z',
                 'last_observed': datetime.utcnow().isoformat() + 'Z',
                 'number_observed': random.randint(1, 1000),
@@ -567,23 +578,33 @@ def generate_random_stix_objects(count=100):
             }
         
         elif selected_type == 'note':
+            note_titles = [
+                'Analyst Note: Attribution Assessment', 'Investigation Update', 'Threat Intelligence Summary',
+                'Malware Behavior Analysis', 'Network IOC Correlation', 'Incident Timeline Notes',
+                'Adversary TTP Documentation', 'Vulnerability Assessment Notes'
+            ]
             obj = {
                 'type': 'note',
-                'abstract': f"Note on threat analysis - {random.randint(1, 1000)}",
-                'content': f"Demo analyst note regarding threat activity and indicators of compromise.",
-                'object_refs': [],  # Would reference other STIX objects
-                'created_by_ref': None,  # Would reference identity object
+                'name': random.choice(note_titles) + f" #{random.randint(1, 1000)}",
+                'abstract': f"Summary of analyst findings on threat activity.",
+                'content': f"Demo analyst note with detailed observations regarding threat activity, indicators of compromise, and recommended actions for mitigation.",
+                'object_refs': [],
                 'labels': ['note'],
             }
         
         elif selected_type == 'opinion':
+            opinion_titles = [
+                'Attribution Confidence Assessment', 'Threat Severity Evaluation', 'IOC Validity Opinion',
+                'Campaign Attribution Analysis', 'Tool Classification Assessment', 'Actor Motivation Analysis',
+                'Infrastructure Assessment', 'Malware Family Classification'
+            ]
             obj = {
                 'type': 'opinion',
-                'abstract': f"Analysis opinion - {random.randint(1, 1000)}",
+                'name': random.choice(opinion_titles) + f" #{random.randint(1, 1000)}",
+                'abstract': f"Analyst assessment of threat intelligence data quality and accuracy.",
                 'opinion': random.choice(['strongly-disagree', 'disagree', 'neutral', 'agree', 'strongly-agree']),
-                'explanation': f"This is an analyst opinion on the attribution and severity of the threat.",
-                'object_refs': [],  # Would reference other STIX objects
-                'created_by_ref': None,  # Would reference identity object
+                'explanation': f"This is an analyst opinion on the attribution and severity of the threat, based on corroborating evidence and historical patterns.",
+                'object_refs': [],
                 'labels': ['opinion'],
             }
         
