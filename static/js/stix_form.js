@@ -490,12 +490,8 @@ async function handleSubmit(e) {
             await createRelationships(result.object.id);
         }
         
-        showToast('STIX object created successfully!', 'success');
-        
-        // Redirect to detail page
-        setTimeout(() => {
-            window.location.href = `/stix/objects/${result.object.id}`;
-        }, 1000);
+        // Redirect to detail page immediately
+        window.location.href = `/stix/objects/${result.object.id}`;
         
     } catch (error) {
         showToast(error.message, 'error');
