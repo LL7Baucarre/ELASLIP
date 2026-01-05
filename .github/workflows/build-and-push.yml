@@ -70,3 +70,13 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Make package public
+        if: github.event_name != 'pull_request'
+        run: |
+          curl -X PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: token ${{ secrets.GHCR_TOKEN }}" \
+            https://api.github.com/user/packages/container/elaslip/access \
+            -d '{"access":"public"}'
+
