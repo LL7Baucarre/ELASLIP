@@ -6,7 +6,7 @@
 <div class="top-bar">
     <div>
         <h4 class="mb-0">Search Entities</h4>
-        <small class="text-muted">Find IOCs, Cases, Incidents, and Users across your investigation</small>
+        <small class="text-muted">Find IOCs, Cases, Incidents across your investigation</small>
     </div>
 </div>
 
@@ -19,7 +19,7 @@
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                         <input type="text" class="form-control" id="searchQuery" 
-                               placeholder="Search IOCs, cases, incidents, users..." autofocus>
+                               placeholder="Search IOCs, cases, incidents" autofocus>
                     </div>
                 </div>
                 <div class="col-md-2">
@@ -27,31 +27,6 @@
                         Search
                     </button>
                 </div>
-            </div>
-            
-            <!-- Advanced Options -->
-            <div class="collapse mt-3" id="advancedOptions">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Labels</label>
-                        <input type="text" class="form-control" id="filterLabels" 
-                               placeholder="Filter by labels (comma-separated)">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Date From</label>
-                        <input type="date" class="form-control" id="filterFrom">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Date To</label>
-                        <input type="date" class="form-control" id="filterTo">
-                    </div>
-                </div>
-            </div>
-            
-            <div class="mt-2">
-                <a class="text-decoration-none small" data-bs-toggle="collapse" href="#advancedOptions">
-                    <i class="bi bi-sliders"></i> Advanced options
-                </a>
             </div>
         </form>
     </div>
@@ -106,36 +81,29 @@
 <div id="emptyState" class="text-center py-5">
     <i class="bi bi-search display-1 text-primary"></i>
     <h5 class="mt-3">Universal Search</h5>
-    <p class="text-muted">Search across IOCs, Cases, Incidents, and Users</p>
+    <p class="text-muted">Search across IOCs, Cases, Incidents.</p>
     <div class="row justify-content-center mt-4">
         <div class="col-md-10">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="border rounded p-3 text-start">
                         <strong><i class="bi bi-shield-exclamation me-2"></i>IOCs</strong>
                         <br>
                         <small class="text-muted">IPs, domains, hashes, URLs, emails</small>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="border rounded p-3 text-start">
                         <strong><i class="bi bi-folder me-2"></i>Cases</strong>
                         <br>
                         <small class="text-muted">Investigation cases and records</small>
                     </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
                     <div class="border rounded p-3 text-start">
                         <strong><i class="bi bi-exclamation-triangle me-2"></i>Incidents</strong>
                         <br>
                         <small class="text-muted">Security incidents and events</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="border rounded p-3 text-start">
-                        <strong><i class="bi bi-person me-2"></i>Users</strong>
-                        <br>
-                        <small class="text-muted">Team members and accounts</small>
                     </div>
                 </div>
             </div>
@@ -186,15 +154,6 @@ function performSearch() {
     };
     
     if (searchType) params.type = searchType;
-    
-    const labels = $('#filterLabels').val().trim();
-    if (labels) params.labels = labels;
-    
-    const from = $('#filterFrom').val();
-    if (from) params.from = from;
-    
-    const to = $('#filterTo').val();
-    if (to) params.to = to;
     
     // Show loading
     $('#resultsBody').html('<tr><td colspan="5" class="text-center py-4"><span class="spinner-border"></span></td></tr>');
@@ -264,11 +223,7 @@ function displayResults(data) {
         } else if (entityType === 'incident') {
             displayValue = escapeHtml(item.title || item.name || '');
             viewLink = `/incidents/${item.id}`;
-        } else if (entityType === 'user') {
-            displayValue = escapeHtml(item.name || item.username || '');
-            viewLink = `/users/${item.id}`;
         } else if (entityType === 'stix') {
-            // Generic STIX object - show name and type
             displayValue = escapeHtml(item.name || item.pattern || item.id || '');
             viewLink = `/stix/objects/${item.id}`;
             // Use STIX type as subtitle
