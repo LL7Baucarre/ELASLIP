@@ -6,6 +6,7 @@ from datetime import datetime
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.cache_service import CacheService
 from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.services.case_service import CaseService, IncidentService, TimelineService
 from app.services.comment_service import CommentService
 from app.config import Config
@@ -1130,7 +1131,7 @@ Do NOT wrap the response in code blocks."""
         return None
     
     def _get_case_iocs(self, case_id: str) -> List[Dict]:
-        """Get IOCs for a case."""
+        """Get IOCs/STIX objects for a case (searches both ioc and stix_objects indices)."""
         # Get case document first
         case = self.case_service.get_case(case_id)
         if not case:
@@ -1140,22 +1141,89 @@ Do NOT wrap the response in code blocks."""
         if not ioc_ids:
             return []
         
-        # Fetch each IOC
+        # Fetch each STIX object from both indices
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
-                ioc = self.ioc_service.get(ioc_id)
-                if ioc:
-                    ioc['id'] = ioc_id
-                    items.append(ioc)
+                stix_obj = self._get_stix_object(ioc_id)
+                if stix_obj:
+                    items.append(stix_obj)
             except Exception:
                 pass
         return items
     
+    def _get_stix_object(self, stix_id: str) -> Optional[Dict]:
+        """
+        Get a STIX object by ID, searching both ioc and stix_objects indices.
+        
+        Args:
+            stix_id: The STIX object ID (e.g., indicator--xxx, malware--xxx)
+            
+        Returns:
+            The STIX object dict with normalized fields, or None if not found
+        """
+        # Try IOC index first (for indicators)
+        try:
+            ioc = self.ioc_service.get(stix_id)
+            if ioc:
+                ioc['id'] = stix_id
+                return ioc
+        except Exception:
+            pass
+        
+        # Try STIX objects index (for malware, threat-actor, attack-pattern, etc.)
+        try:
+            stix_obj = STIXService.get_sdo(stix_id)
+            if stix_obj:
+                stix_obj['id'] = stix_id
+                # Normalize fields for consistent prompt formatting
+                # Map STIX object fields to IOC-like structure for prompt compatibility
+                if 'x_ioc_value' in stix_obj:
+                    stix_obj['value'] = stix_obj.get('x_ioc_value')
+                elif 'pattern' in stix_obj:
+                    # Extract value from STIX pattern like [file:hashes.MD5 = 'abc123']
+                    pattern = stix_obj.get('pattern', '')
+                    if "'" in pattern:
+                        stix_obj['value'] = pattern.split("'")[1] if pattern.count("'") >= 2 else pattern
+                    else:
+                        stix_obj['value'] = pattern
+                else:
+                    stix_obj['value'] = stix_obj.get('name', stix_id)
+                
+                # Normalize type
+                if 'x_ioc_type' in stix_obj:
+                    stix_obj['type'] = stix_obj.get('x_ioc_type')
+                elif stix_obj.get('type') == 'indicator' and 'pattern' in stix_obj:
+                    # Try to infer type from pattern
+                    pattern = stix_obj.get('pattern', '')
+                    if 'hashes.MD5' in pattern or 'hashes.SHA' in pattern:
+                        stix_obj['type'] = 'hash'
+                    elif 'ipv4-addr' in pattern:
+                        stix_obj['type'] = 'ipv4'
+                    elif 'domain-name' in pattern:
+                        stix_obj['type'] = 'domain'
+                    elif 'url' in pattern:
+                        stix_obj['type'] = 'url'
+                    elif 'email-addr' in pattern:
+                        stix_obj['type'] = 'email'
+                
+                # Normalize severity/threat_level
+                if 'x_threat_level' in stix_obj:
+                    stix_obj['severity'] = stix_obj.get('x_threat_level')
+                elif not stix_obj.get('severity'):
+                    stix_obj['severity'] = stix_obj.get('x_metadata', {}).get('threat_level', 'Unknown')
+                
+                return stix_obj
+        except Exception:
+            pass
+        
+        return None
+
     def _get_case_iocs_with_relations(self, case_id: str) -> List[Dict]:
         """
-        Get IOCs for a case WITH all their possible relations included.
-        For each IOC, includes:
+        Get IOCs/STIX objects for a case WITH all their possible relations included.
+        Searches both ioc and stix_objects indices.
+        For each object, includes:
         - Direct IOC-to-IOC relations
         - Transitive relations
         - Cases and incidents containing the IOC
@@ -1169,7 +1237,8 @@ Do NOT wrap the response in code blocks."""
         if not ioc_ids:
             return []
         
-        # Fetch each IOC with all its first-level relations
+        # Fetch each STIX object with all its first-level relations
+        # Search both ioc and stix_objects indices
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
@@ -1185,8 +1254,9 @@ Do NOT wrap the response in code blocks."""
     
     def _get_incident_iocs_with_relations(self, incident_id: str) -> List[Dict]:
         """
-        Get IOCs for an incident WITH all their first-level relations included.
-        For each IOC, includes (exactly like the graph):
+        Get IOCs/STIX objects for an incident WITH all their first-level relations included.
+        Searches both ioc and stix_objects indices.
+        For each object, includes (exactly like the graph):
         - Direct IOC-to-IOC relations
         - Cases containing the IOC
         - Incidents containing the IOC
@@ -1200,7 +1270,8 @@ Do NOT wrap the response in code blocks."""
         if not ioc_ids:
             return []
         
-        # Fetch each IOC with all its first-level relations
+        # Fetch each STIX object with all its first-level relations
+        # Search both ioc and stix_objects indices
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
@@ -1215,7 +1286,7 @@ Do NOT wrap the response in code blocks."""
         return items
     
     def _get_incident_iocs(self, incident_id: str) -> List[Dict]:
-        """Get IOCs for an incident."""
+        """Get IOCs/STIX objects for an incident (searches both ioc and stix_objects indices)."""
         # Get incident document first
         incident = self.incident_service.get_incident(incident_id)
         if not incident:
@@ -1225,14 +1296,13 @@ Do NOT wrap the response in code blocks."""
         if not ioc_ids:
             return []
         
-        # Fetch each IOC
+        # Fetch each STIX object from both indices
         items = []
         for ioc_id in ioc_ids[:20]:  # Limit to 20
             try:
-                ioc = self.ioc_service.get(ioc_id)
-                if ioc:
-                    ioc['id'] = ioc_id
-                    items.append(ioc)
+                stix_obj = self._get_stix_object(ioc_id)
+                if stix_obj:
+                    items.append(stix_obj)
             except Exception:
                 pass
         return items
