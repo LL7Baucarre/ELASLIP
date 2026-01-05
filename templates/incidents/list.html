@@ -2,6 +2,13 @@
 
 {% block title %}Incidents - {{ SITE_NAME }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .sortable-header { cursor: pointer; user-select: none; }
+    .sortable-header:hover { opacity: 0.8; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
@@ -80,10 +87,14 @@
     </div>
 
     <!-- Incidents Grid -->
-    <div class="row" id="incidentsGrid">
-        <div class="col-12 text-center py-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
+    <div class="card">
+        <div class="card-body p-0">
+            <div class="table-responsive" id="incidentsGrid">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -99,7 +110,9 @@
 {% block extra_js %}
 <script>
 let currentPage = 1;
-const perPage = 12;
+let sortField = 'created_at';
+let sortOrder = 'desc';
+const perPage = 25;
 
 function loadIncidents() {
     const params = new URLSearchParams({
@@ -108,7 +121,7 @@ function loadIncidents() {
         status: document.getElementById('statusFilter').value,
         severity: document.getElementById('severityFilter').value,
         search: document.getElementById('searchInput').value,
-        sort: document.getElementById('sortBy').value
+        sort: `${sortField}_${sortOrder}`
     });
 
     for (const [key, value] of [...params.entries()]) {
@@ -123,7 +136,7 @@ function loadIncidents() {
         })
         .catch(error => {
             document.getElementById('incidentsGrid').innerHTML = `
-                <div class="col-12 text-center text-danger py-5">Error loading incidents</div>
+                <div class="text-center text-danger py-5">Error loading incidents</div>
             `;
         });
 }
@@ -133,44 +146,72 @@ function renderIncidents(incidents) {
     
     if (incidents.length === 0) {
         grid.innerHTML = `
-            <div class="col-12 text-center py-5 text-muted">
-                <i class="bi bi-inbox display-1"></i>
+            <div class="text-center py-5 text-muted">
+                <i class="bi bi-inbox" style="font-size: 3rem;"></i>
                 <p class="mt-3">No incidents found</p>
             </div>
         `;
         return;
     }
 
-    grid.innerHTML = incidents.map(inc => `
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card h-100">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="badge bg-${getSeverityColor(inc.severity)}">${escapeHtml(inc.severity)}</span>
-                    <span class="badge bg-${getStatusColor(inc.status)}">${escapeHtml(inc.status)}</span>
-                </div>
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <a href="/incidents/${inc.id}" class="text-decoration-none">${escapeHtml(inc.title)}</a>
-                    </h5>
-                    <p class="card-text text-muted small">
-                        ${escapeHtml((inc.description || '').substring(0, 150))}${(inc.description || '').length > 150 ? '...' : ''}
-                    </p>
-                    <div class="d-flex flex-wrap gap-1 mb-2">
-                        <span class="badge bg-secondary">${escapeHtml(inc.category || 'uncategorized')}</span>
-                        ${(inc.mitre_tactics || []).slice(0, 2).map(t => `<span class="badge bg-dark">${escapeHtml(t)}</span>`).join('')}
-                    </div>
-                </div>
-                <div class="card-footer bg-transparent">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">
-                            <i class="bi bi-shield-exclamation me-1"></i>${(inc.ioc_ids || []).length} IOCs
-                        </small>
-                        <small class="text-muted">${formatDate(inc.created_at)}</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `).join('');
+    const getSortIcon = (field) => {
+        if (sortField !== field) return '<i class="bi bi-arrow-down-up text-muted ms-1"></i>';
+        return sortOrder === 'asc' 
+            ? '<i class="bi bi-sort-up text-primary ms-1"></i>'
+            : '<i class="bi bi-sort-down text-primary ms-1"></i>';
+    };
+    
+    const getSortLink = (field) => {
+        if (sortField === field) {
+            return `class="sortable-header" onclick="setSortOrder('${field}', '${sortOrder === 'asc' ? 'desc' : 'asc'}'); return false;"`;
+        }
+        return `class="sortable-header" onclick="setSortOrder('${field}', 'asc'); return false;"`;
+    };
+
+    const html = `
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th ${getSortLink('title')}>Title ${getSortIcon('title')}</th>
+                    <th ${getSortLink('category')}>Category ${getSortIcon('category')}</th>
+                    <th ${getSortLink('severity')}>Severity ${getSortIcon('severity')}</th>
+                    <th ${getSortLink('status')}>Status ${getSortIcon('status')}</th>
+                    <th>IOCs</th>
+                    <th ${getSortLink('created_at')}>Created ${getSortIcon('created_at')}</th>
+                    <th style="width: 50px;">View</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${incidents.map(inc => `
+                    <tr>
+                        <td>
+                            <a href="/incidents/${inc.id}" class="text-decoration-none fw-medium">${escapeHtml(inc.title)}</a>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">${escapeHtml(inc.category || 'uncategorized')}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${getSeverityColor(inc.severity)}">${escapeHtml(inc.severity)}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-${getStatusColor(inc.status)}">${escapeHtml(inc.status)}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">${(inc.ioc_ids || []).length}</span>
+                        </td>
+                        <td class="text-muted small">${formatDate(inc.created_at)}</td>
+                        <td>
+                            <a href="/incidents/${inc.id}" class="btn btn-sm btn-outline-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    grid.innerHTML = html;
 }
 
 function getSeverityColor(severity) {
@@ -192,6 +233,13 @@ function getStatusColor(status) {
 
 function goToPage(page) {
     currentPage = page;
+    loadIncidents();
+}
+
+function setSortOrder(field, order) {
+    sortField = field;
+    sortOrder = order;
+    currentPage = 1;
     loadIncidents();
 }
 
