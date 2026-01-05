@@ -4,17 +4,16 @@ on:
   push:
     branches:
       - main
+      - develop
     tags:
-      - 'v*'
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - main
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-
-# Default permissions for the workflow. 'packages: write' is required to push to GHCR.
-permissions:
-  contents: read
-  packages: write
 
 jobs:
   build-and-push:
@@ -24,7 +23,7 @@ jobs:
       packages: write
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -38,14 +37,7 @@ jobs:
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
-          password: ${{ secrets.GHCR_PAT }}
-
-      - name: Extract version from config
-        id: version
-        run: |
-          VERSION=$(grep -oP '(?<=__version__ = ")[^"]*' app/config.py)
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Version extracted: ${VERSION}"
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -53,29 +45,24 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Branch tag
             type=ref,event=branch
-            # Version tags from semver pattern
-            type=semver,pattern={{version}},value=v${{ steps.version.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.version.outputs.version }}
-            # Commit SHA tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=sha,prefix={{branch}}-
-            # Raw version tag (e.g., 1.0.0)
-            type=raw,value=${{ steps.version.outputs.version }}
-            # Latest tag only on default branch (main)
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Show computed tags
+      - name: Determine app version
+        id: version
         run: |
-          echo "Computed tags for image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-          echo "TAGS=${{ steps.meta.outputs.tags }}"
-          echo "LABELS=${{ steps.meta.outputs.labels }}"
+          VERSION=$(cat VERSION)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "App Version: $VERSION"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -83,60 +70,3 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Verify package pushed to GHCR
-        if: ${{ github.event_name != 'pull_request' }}
-        env:
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          set -e
-          REPO_FULL="$GITHUB_REPOSITORY"
-          OWNER="${REPO_FULL%%/*}"
-          REPO="${REPO_FULL##*/}"
-
-          echo "Checking owner type for $OWNER"
-          OWNER_TYPE=$(curl -s -H "Authorization: token $GHCR_PAT" https://api.github.com/users/$OWNER | jq -r '.type')
-          echo "Owner type: $OWNER_TYPE"
-
-          if [ "$OWNER_TYPE" = "Organization" ]; then
-            PACKAGES_URL="https://api.github.com/orgs/$OWNER/packages/container/$REPO/versions"
-          else
-            PACKAGES_URL="https://api.github.com/user/packages/container/$REPO/versions"
-          fi
-
-          echo "Querying $PACKAGES_URL"
-          PACKAGES_JSON=$(curl -s -H "Authorization: token $GHCR_PAT" "$PACKAGES_URL" || true)
-          echo "$PACKAGES_JSON" | jq -r '.[] | {id: .id, name: .name, updated_at: .updated_at} | @json' || true
-          echo "\nNow querying repo-level packages endpoint to see if the package is associated with the repository..."
-          REPO_PACKAGES_URL="https://api.github.com/repos/$OWNER/$REPO/packages?package_type=container"
-          echo "Querying $REPO_PACKAGES_URL"
-          REPO_PACKAGES_JSON=$(curl -s -H "Authorization: token $GHCR_PAT" "$REPO_PACKAGES_URL" || true)
-          echo "Repo packages result:"
-          echo "$REPO_PACKAGES_JSON" | jq -r '.[] | {id: .id, name: .name, package_html_url: .package_html_url} | @json' || true
-
-          if [ -z "$(echo "$REPO_PACKAGES_JSON" | jq -r 'length')" ] || [ "$(echo "$REPO_PACKAGES_JSON" | jq -r 'length')" -eq 0 ]; then
-            echo "No repo-associated packages found. Will display metadata for the latest user package version (if any)."
-            LATEST_ID=$(echo "$PACKAGES_JSON" | jq -r '.[0].id' || true)
-            if [ -n "$LATEST_ID" ] && [ "$LATEST_ID" != "null" ]; then
-              echo "Fetching metadata for version id=$LATEST_ID"
-              curl -s -H "Authorization: token $GHCR_PAT" "https://api.github.com/user/packages/container/$REPO/versions/$LATEST_ID" | jq || true
-            else
-              echo "No package versions found for user package $REPO."
-            fi
-          else
-            echo "Package appears associated with the repository."
-          fi
-
-          echo "If the output above is empty, the package was not found or the token lacks permission."
-
-      - name: Create release (on tag)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: actions/create-release@v1
-        env:
-          GHCR_PAT: ${{ secrets.GHCR_PAT }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
