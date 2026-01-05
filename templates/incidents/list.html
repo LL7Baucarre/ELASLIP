@@ -86,6 +86,42 @@
         </div>
     </div>
 
+    <!-- Stats Cards -->
+    <div class="row mb-4" id="statsRow">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0" id="statTotal">0</h4>
+                    <small class="text-muted">Total Incidents</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-danger" id="statCritical">0</h4>
+                    <small class="text-muted">Critical</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-warning" id="statHigh">0</h4>
+                    <small class="text-muted">High Severity</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h4 class="mb-0 text-info" id="statActive">0</h4>
+                    <small class="text-muted">Active</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Incidents Grid -->
     <div class="card">
         <div class="card-body p-0">
@@ -132,6 +168,7 @@ function loadIncidents() {
         .then(r => r.json())
         .then(data => {
             renderIncidents(data.items || []);
+            updateStats(data);
             renderPagination(data.total || 0, currentPage, perPage);
         })
         .catch(error => {
@@ -139,6 +176,20 @@ function loadIncidents() {
                 <div class="text-center text-danger py-5">Error loading incidents</div>
             `;
         });
+}
+
+function updateStats(data) {
+    const items = data.items || [];
+    const total = data.total || 0;
+    
+    const critical = items.filter(i => i.severity === 'critical').length;
+    const high = items.filter(i => i.severity === 'high').length;
+    const active = items.filter(i => ['detected', 'investigating', 'containment', 'eradication', 'recovery'].includes(i.status)).length;
+    
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statCritical').textContent = critical;
+    document.getElementById('statHigh').textContent = high;
+    document.getElementById('statActive').textContent = active;
 }
 
 function renderIncidents(incidents) {
