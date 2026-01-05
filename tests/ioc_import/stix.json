@@ -1,9 +1,0 @@
-{
-  "type": "indicator",
-  "spec_version": "2.1",
-  "id": "indicator--8e2e2d2b-17d4-4cbf-938f-98ee46b3cd3f",
-  "name": "Evil IP",
-  "pattern": "[ipv4-addr:value = '10.0.0.1']",
-  "pattern_type": "stix",
-  "valid_from": "2024-01-01T00:00:00Z"
-}
