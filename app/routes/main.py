@@ -329,6 +329,44 @@ def dashboard():
     except:
         unresolved_submissions = []
     
+    # Get assignments for current user
+    assigned_cases = []
+    assigned_incidents = []
+    assigned_checklists = []
+    
+    try:
+        # Get cases assigned to current user
+        cases_assigned_result = es.search('cases', {
+            'query': {'term': {'assignee_name': current_user.username}},
+            'size': 100
+        })
+        assigned_cases = [hit['_source'] | {'id': hit['_id']} 
+                         for hit in cases_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned cases: %s", e)
+    
+    try:
+        # Get incidents assigned to current user
+        incidents_assigned_result = es.search('incidents', {
+            'query': {'term': {'assignee_name': current_user.username}},
+            'size': 100
+        })
+        assigned_incidents = [hit['_source'] | {'id': hit['_id']} 
+                             for hit in incidents_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned incidents: %s", e)
+    
+    try:
+        # Get checklists assigned to current user
+        checklists_assigned_result = es.search('checklists', {
+            'query': {'term': {'assigned_to_name': current_user.username}},
+            'size': 100
+        })
+        assigned_checklists = [hit['_source'] | {'id': hit['_id']} 
+                              for hit in checklists_assigned_result['hits']['hits']]
+    except Exception as e:
+        logger.exception("Error fetching assigned checklists: %s", e)
+    
     return render_template('dashboard.html', 
                           total_stix=total_stix,
                           total_iocs=total_stix,  # Backward compatibility
@@ -341,7 +379,10 @@ def dashboard():
                           iocs_threat_stats=stix_type_stats,  # Backward compatibility
                           stats=stats,
                           all_recent=all_recent,
-                          unresolved_submissions=unresolved_submissions)
+                          unresolved_submissions=unresolved_submissions,
+                          assigned_cases=assigned_cases,
+                          assigned_incidents=assigned_incidents,
+                          assigned_checklists=assigned_checklists)
 
 
 @main_bp.route('/iocs')

@@ -297,6 +297,7 @@ def create_app(config_name=None):
     from app.routes.submissions import submissions_bp, public_bp
     from app.routes.notifications import bp as notifications_bp
     from app.routes.stix import stix_bp
+    from app.routes.users import users_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -307,6 +308,7 @@ def create_app(config_name=None):
     app.register_blueprint(webhook_bp, url_prefix='/api/webhooks')
     app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
     app.register_blueprint(tools_bp, url_prefix='/api/tools')
+    app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(images_bp)
     app.register_blueprint(audit_bp)
     app.register_blueprint(cases_bp)

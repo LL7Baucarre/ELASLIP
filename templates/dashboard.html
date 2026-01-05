@@ -100,8 +100,135 @@
     </div>
 </div>
 
+<!-- My Assignments -->
+<div class="row g-4 mt-4">
+    <!-- Assigned Cases -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-folder2-open me-2"></i>Cases</h6>
+                <span class="badge bg-success">{{ assigned_cases|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if assigned_cases %}
+                <div class="list-group list-group-flush">
+                    {% for case in assigned_cases %}
+                    <a href="{{ url_for('main.cases_detail', case_id=case.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-bold text-truncate" style="max-width: 180px;">{{ case.title }}</div>
+                                <small class="text-muted">{{ case.created_at[:10] if case.created_at else 'N/A' }}</small>
+                            </div>
+                            <span class="badge bg-{{ 'success' if case.status == 'open' else 'warning' if case.status == 'in-progress' else 'secondary' }}">
+                                {{ case.status }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-folder-x fs-3 d-block mb-2"></i>
+                    No assigned cases
+                </div>
+                {% endif %}
+            </div>
+            {% if assigned_cases|length > 0 %}
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('main.cases_list') }}" class="btn btn-sm btn-outline-primary w-100">
+                    View All Cases
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Assigned Incidents -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Incidents</h6>
+                <span class="badge bg-danger">{{ assigned_incidents|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if assigned_incidents %}
+                <div class="list-group list-group-flush">
+                    {% for incident in assigned_incidents %}
+                    <a href="{{ url_for('main.incidents_detail', incident_id=incident.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-bold text-truncate" style="max-width: 180px;">{{ incident.title }}</div>
+                                <small class="text-muted">{{ incident.created_at[:10] if incident.created_at else 'N/A' }}</small>
+                            </div>
+                            <span class="badge bg-{{ 'danger' if incident.severity == 'critical' else 'warning' if incident.severity == 'high' else 'info' }}">
+                                {{ incident.severity }}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-exclamation-circle fs-3 d-block mb-2"></i>
+                    No assigned incidents
+                </div>
+                {% endif %}
+            </div>
+            {% if assigned_incidents|length > 0 %}
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('main.incidents_list') }}" class="btn btn-sm btn-outline-danger w-100">
+                    View All Incidents
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Assigned Checklists -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-check me-2"></i>Checklists</h6>
+                <span class="badge bg-info">{{ assigned_checklists|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if assigned_checklists %}
+                <div class="list-group list-group-flush">
+                    {% for checklist in assigned_checklists %}
+                    <a href="{{ url_for('checklists.detail_page', checklist_id=checklist.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-bold text-truncate" style="max-width: 180px;">{{ checklist.title }}</div>
+                                <small class="text-muted">{{ checklist.created_at[:10] if checklist.created_at else 'N/A' }}</small>
+                            </div>
+                            {% set progress = checklist.progress|default(0) %}
+                            <span class="badge bg-{{ 'success' if progress == 100 else 'warning' if progress > 0 else 'secondary' }}">
+                                {{ progress }}%
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="bi bi-clipboard fs-3 d-block mb-2"></i>
+                    No assigned checklists
+                </div>
+                {% endif %}
+            </div>
+            {% if assigned_checklists|length > 0 %}
+            <div class="card-footer bg-white">
+                <a href="{{ url_for('checklists.list_page') }}" class="btn btn-sm btn-outline-info w-100">
+                    View All Checklists
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
 <!-- Secondary Stats -->
-<div class="row g-4 mb-4">
+<div class="row g-4 mb-4 mt-5">
     <!-- STIX Objects by Type -->
     <div class="col-md-3">
         <div class="card h-100">
@@ -280,6 +407,8 @@
         </div>
     </div>
 </div>
+
+
 
 <!-- Unresolved Public Submissions -->
 {% if unresolved_submissions %}

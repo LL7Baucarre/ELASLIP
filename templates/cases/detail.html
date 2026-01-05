@@ -437,7 +437,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Assignee</label>
-                        <input type="text" class="form-control" id="editAssignee" value="{{ case.assignee_name or '' }}" placeholder="Leave empty for unassigned">
+                        <input type="text" class="form-control" id="editAssigneeSearch" 
+                               placeholder="Search users..." autocomplete="off">
+                        <div id="assigneeResults" class="list-group mt-2" style="max-height: 150px; overflow-y: auto;"></div>
+                        <div id="selectedAssignee" class="mt-2">
+                            <div id="assigneeTag"></div>
+                        </div>
                     </div>
                 </form>
             </div>
@@ -555,6 +560,81 @@
 {% block extra_js %}
 <script>
 const caseId = '{{ case.id }}';
+let selectedAssignee = '{{ case.assignee_name or "" }}';
+
+// Assignee search
+document.getElementById('editAssigneeSearch').addEventListener('input', function() {
+    const query = this.value.trim();
+    const resultsDiv = document.getElementById('assigneeResults');
+    
+    if (query.length < 2) {
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`)
+        .then(r => r.json())
+        .then(data => {
+            const users = data.users || [];
+            let html = '';
+            
+            for (const user of users) {
+                if (user.username !== selectedAssignee) {
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action link-user" 
+                           data-username="${user.username}" data-id="${user.id}">
+                            <div>
+                                <strong>${user.username}</strong>
+                                <small class="text-muted d-block">${user.email || ''}</small>
+                            </div>
+                        </a>
+                    `;
+                }
+            }
+            
+            if (!html && users.length === 0) {
+                html = '<div class="list-group-item text-muted text-center py-2">No users found</div>';
+            }
+            
+            resultsDiv.innerHTML = html;
+            
+            document.querySelectorAll('.link-user').forEach(el => {
+                el.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    selectedAssignee = this.dataset.username;
+                    updateAssigneeDisplay();
+                    document.getElementById('editAssigneeSearch').value = '';
+                    resultsDiv.innerHTML = '';
+                });
+            });
+        })
+        .catch(err => console.error('Search error:', err));
+});
+
+function updateAssigneeDisplay() {
+    const tag = document.getElementById('assigneeTag');
+    if (selectedAssignee) {
+        tag.innerHTML = `
+            <span class="badge bg-primary d-inline-flex align-items-center gap-1">
+                <i class="bi bi-person-fill"></i> ${selectedAssignee}
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        style="font-size: 0.6rem;"
+                        aria-label="Remove"></button>
+            </span>
+        `;
+        tag.querySelector('.btn-close').addEventListener('click', function() {
+            selectedAssignee = null;
+            updateAssigneeDisplay();
+        });
+    } else {
+        tag.innerHTML = '<span class="text-muted small">No assignee selected</span>';
+    }
+}
+
+// Initialize assignee display when edit modal opens
+document.getElementById('editCaseModal').addEventListener('shown.bs.modal', function() {
+    updateAssigneeDisplay();
+});
 
 // Load Timeline
 function loadTimeline() {
@@ -774,7 +854,7 @@ function saveCase() {
         status: document.getElementById('editStatus').value,
         priority: document.getElementById('editPriority').value,
         severity: document.getElementById('editSeverity').value,
-        assignee_name: document.getElementById('editAssignee').value.trim() || null
+        assignee_name: selectedAssignee || null
     };
     
     fetch(`/api/cases/${caseId}`, {

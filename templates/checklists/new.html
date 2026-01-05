@@ -275,29 +275,27 @@ document.getElementById('assignToSearch').addEventListener('input', function() {
         return;
     }
     
-    fetch(`/api/search?q=${encodeURIComponent(query)}&per_page=10`)
+    fetch(`/api/users/search?q=${encodeURIComponent(query)}&limit=10`)
         .then(r => r.json())
         .then(data => {
-            const items = data.items || [];
+            const users = data.users || [];
             let html = '';
             
-            for (const item of items) {
-                if (item.entity_type === 'user' && item.name !== selectedAssignTo) {
-                    const displayName = item.name || item.username || 'Unknown';
+            for (const user of users) {
+                if (user.username !== selectedAssignTo) {
                     html += `
-                        <a href="#" class="list-group-item list-group-item-action link-user" data-name="${displayName}">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <strong>${displayName}</strong>
-                                    <small class="text-muted d-block">User</small>
-                                </div>
+                        <a href="#" class="list-group-item list-group-item-action link-user" 
+                           data-name="${user.username}" data-id="${user.id}">
+                            <div>
+                                <strong>${user.username}</strong>
+                                <small class="text-muted d-block">${user.email || ''}</small>
                             </div>
                         </a>
                     `;
                 }
             }
             
-            if (!html) {
+            if (!html && users.length === 0) {
                 html = '<div class="list-group-item text-muted text-center py-2">No users found</div>';
             }
             
