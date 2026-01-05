@@ -106,6 +106,7 @@ PERMISSION_CATEGORIES = {
     },
     'Search & Reports': {
         'search.advanced': 'Access advanced search',
+        'search.users': 'Search users for assignment',
         'report.view': 'View reports',
         'report.create': 'Create reports',
         'report.export': 'Export reports',

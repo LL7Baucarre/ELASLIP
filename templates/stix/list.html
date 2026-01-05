@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+
+{% block title %}STIX Objects - ELASLIP{% endblock %}
+
+{% block extra_css %}
+<style>
+    .type-filter-btn { margin: 0.25rem; }
+    .type-filter-btn.active { box-shadow: 0 0 0 2px var(--bs-primary); }
+    
+    /* Theme-aware cards */
+    html[data-theme="light"] .card {
+        background-color: #f8f9fa !important;
+        border-color: #dee2e6;
+    }
+    html[data-theme="dark"] .card {
+        background-color: #212529 !important;
+        border-color: #495057;
+    }
+    html[data-theme="light"] .card-header {
+        background-color: #e9ecef !important;
+        color: #212529;
+    }
+    html[data-theme="dark"] .card-header {
+        background-color: #495057 !important;
+        color: #fff;
+    }
+    
+    /* Theme-aware table */
+    html[data-theme="light"] .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #212529;
+    }
+    html[data-theme="dark"] .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #dee2e6;
+    }
+    html[data-theme="dark"] .table-hover > tbody > tr:hover {
+        --bs-table-hover-bg: rgba(255,255,255,0.05);
+    }
+    html[data-theme="light"] .table-hover > tbody > tr:hover {
+        --bs-table-hover-bg: rgba(0,0,0,0.03);
+    }
+    
+    /* Bulk action bar */
+    .bulk-action-bar {
+        display: none;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    html[data-theme="light"] .bulk-action-bar {
+        background: #e7f1ff;
+        border: 1px solid #b6d4fe;
+    }
+    html[data-theme="dark"] .bulk-action-bar {
+        background: #1a3353;
+        border: 1px solid #3d6bb3;
+    }
+    .bulk-action-bar.active { display: flex; }
+    
+    /* Type badge colors */
+    .type-indicator { background: #17a2b8; }
+    .type-malware { background: #dc3545; }
+    .type-threat-actor { background: #ffc107; color: #212529; }
+    .type-attack-pattern { background: #0d6efd; }
+    .type-campaign { background: #198754; }
+    .type-tool { background: #6c757d; }
+    .type-vulnerability { background: #dc3545; }
+    .type-infrastructure { background: #6f42c1; }
+    .type-intrusion-set { background: #fd7e14; }
+    .type-identity { background: #20c997; }
+    .type-location { background: #0dcaf0; }
+    .type-course-of-action { background: #198754; }
+    
+    /* Clickable row */
+    .clickable-row { cursor: pointer; }
+    .clickable-row:hover td { background: inherit; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1"><i class="bi bi-boxes me-2"></i>STIX Objects</h1>
+                    <p class="text-muted mb-0">Browse and manage all STIX 2.1 Domain Objects</p>
+                </div>
+                <div>
+                    <a href="{{ url_for('stix.stix_graph_page') }}" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-diagram-3 me-1"></i> Graph View
+                    </a>
+                    <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Add STIX Object
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control" 
+                               placeholder="Search objects...">
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <div class="d-flex flex-wrap justify-content-end">
+                        <button class="btn btn-sm btn-outline-secondary type-filter-btn active" data-type="">All</button>
+                        <button class="btn btn-sm btn-outline-info type-filter-btn" data-type="indicator">Indicators</button>
+                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="malware">Malware</button>
+                        <button class="btn btn-sm btn-outline-warning type-filter-btn" data-type="threat-actor">Threat Actors</button>
+                        <button class="btn btn-sm btn-outline-primary type-filter-btn" data-type="attack-pattern">Attack Patterns</button>
+                        <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="campaign">Campaigns</button>
+                        <button class="btn btn-sm btn-outline-secondary type-filter-btn" data-type="tool">Tools</button>
+                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="vulnerability">Vulnerabilities</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-action-bar align-items-center justify-content-between" id="bulkActionBar">
+        <div>
+            <span id="selectedCount">0</span> object(s) selected
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-sm btn-outline-primary" onclick="bulkExport()">
+                <i class="bi bi-download me-1"></i> Export Bundle
+            </button>
+            <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                <i class="bi bi-trash me-1"></i> Delete
+            </button>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                <i class="bi bi-x me-1"></i> Clear Selection
+            </button>
+        </div>
+    </div>
+    
+    <!-- Results Table -->
+    <div class="card">
+        <div class="card-body p-0">
+            <div id="resultsContainer">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status"></div>
+                    <p class="mt-2">Loading objects...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    <nav id="pagination" class="mt-4" style="display: none;">
+        <ul class="pagination justify-content-center">
+        </ul>
+    </nav>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentType = '';
+let currentSearch = '';
+const pageSize = 25;
+let selectedObjects = new Set();
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadObjects();
+    
+    // Search input
+    let debounce;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+            currentSearch = this.value;
+            currentPage = 1;
+            loadObjects();
+        }, 300);
+    });
+    
+    // Type filters
+    document.querySelectorAll('.type-filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.type-filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentType = this.dataset.type;
+            currentPage = 1;
+            loadObjects();
+        });
+    });
+});
+
+async function loadObjects() {
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></div>';
+    
+    try {
+        let url = `/api/stix/objects?page=${currentPage}&size=${pageSize}`;
+        if (currentType) url += `&type=${currentType}`;
+        if (currentSearch) url += `&search=${encodeURIComponent(currentSearch)}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.items.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                    <p class="text-muted mt-3">No STIX objects found</p>
+                    <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle me-1"></i> Create your first object
+                    </a>
+                </div>
+            `;
+            document.getElementById('pagination').style.display = 'none';
+            return;
+        }
+        
+        renderTable(data.items);
+        renderPagination(data.total, data.pages);
+        
+    } catch (error) {
+        container.innerHTML = `
+            <div class="alert alert-danger m-3">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Failed to load objects: ${error.message}
+            </div>
+        `;
+    }
+}
+
+function renderTable(items) {
+    const container = document.getElementById('resultsContainer');
+    
+    const html = `
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" class="form-check-input" id="selectAll" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th>Type</th>
+                        <th>Name / Value</th>
+                        <th>Description</th>
+                        <th>Threat Level</th>
+                        <th>TLP</th>
+                        <th>Created</th>
+                        <th style="width: 100px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items.map(obj => renderTableRow(obj)).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    updateBulkActionBar();
+}
+
+function renderTableRow(obj) {
+    const name = escapeHtml(obj.name || obj.x_ioc_value || obj.pattern?.substring(0, 40) || 'Unnamed');
+    const description = obj.description ? escapeHtml(obj.description.substring(0, 60)) + (obj.description.length > 60 ? '...' : '') : '-';
+    const created = new Date(obj.created).toLocaleDateString();
+    const typeClass = `type-${obj.type}`;
+    const isSelected = selectedObjects.has(obj.id);
+    
+    let threatBadge = '-';
+    if (obj.x_threat_level) {
+        const colors = { low: 'success', medium: 'warning', high: 'danger', critical: 'danger' };
+        threatBadge = `<span class="badge bg-${colors[obj.x_threat_level] || 'secondary'}">${obj.x_threat_level}</span>`;
+    }
+    
+    let tlpBadge = '-';
+    if (obj.x_tlp) {
+        tlpBadge = `<span class="badge bg-secondary">${obj.x_tlp}</span>`;
+    }
+    
+    return `
+        <tr class="${isSelected ? 'table-primary' : ''}">
+            <td onclick="event.stopPropagation();">
+                <input type="checkbox" class="form-check-input row-checkbox" 
+                       data-id="${obj.id}" ${isSelected ? 'checked' : ''} 
+                       onchange="toggleRowSelection('${obj.id}', this)">
+            </td>
+            <td>
+                <span class="badge ${typeClass}">${getTypeIcon(obj.type)} ${obj.type}</span>
+            </td>
+            <td>
+                <a href="/stix/objects/${obj.id}" class="text-decoration-none fw-medium">${name}</a>
+            </td>
+            <td class="text-muted small">${description}</td>
+            <td>${threatBadge}</td>
+            <td>${tlpBadge}</td>
+            <td class="text-muted small">${created}</td>
+            <td onclick="event.stopPropagation();">
+                <div class="btn-group btn-group-sm">
+                    <a href="/stix/objects/${obj.id}" class="btn btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="/stix/objects/${obj.id}/edit" class="btn btn-outline-warning" title="Edit">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" onclick="deleteObject('${obj.id}')" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function toggleSelectAll(checkbox) {
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    rowCheckboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedObjects.add(cb.dataset.id);
+        } else {
+            selectedObjects.delete(cb.dataset.id);
+        }
+        cb.closest('tr').classList.toggle('table-primary', checkbox.checked);
+    });
+    updateBulkActionBar();
+}
+
+function toggleRowSelection(id, checkbox) {
+    if (checkbox.checked) {
+        selectedObjects.add(id);
+    } else {
+        selectedObjects.delete(id);
+    }
+    checkbox.closest('tr').classList.toggle('table-primary', checkbox.checked);
+    updateBulkActionBar();
+    
+    // Update select all checkbox
+    const allCheckboxes = document.querySelectorAll('.row-checkbox');
+    const allChecked = [...allCheckboxes].every(cb => cb.checked);
+    document.getElementById('selectAll').checked = allChecked;
+}
+
+function updateBulkActionBar() {
+    const bar = document.getElementById('bulkActionBar');
+    const count = selectedObjects.size;
+    document.getElementById('selectedCount').textContent = count;
+    bar.classList.toggle('active', count > 0);
+}
+
+function clearSelection() {
+    selectedObjects.clear();
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = false;
+        cb.closest('tr').classList.remove('table-primary');
+    });
+    document.getElementById('selectAll').checked = false;
+    updateBulkActionBar();
+}
+
+async function bulkExport() {
+    if (selectedObjects.size === 0) return;
+    
+    try {
+        // Create a STIX bundle with all selected objects
+        const bundle = {
+            type: 'bundle',
+            id: `bundle--${crypto.randomUUID()}`,
+            objects: []
+        };
+        
+        for (const id of selectedObjects) {
+            const response = await fetch(`/api/stix/objects/${id}`);
+            if (response.ok) {
+                const obj = await response.json();
+                bundle.objects.push(obj);
+            }
+        }
+        
+        const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `stix-bundle-${selectedObjects.size}-objects.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+    } catch (e) {
+        alert('Export failed: ' + e.message);
+    }
+}
+
+async function bulkDelete() {
+    if (selectedObjects.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedObjects.size} object(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    try {
+        let deleted = 0;
+        for (const id of selectedObjects) {
+            const response = await fetch(`/api/stix/objects/${id}`, { method: 'DELETE' });
+            if (response.ok) deleted++;
+        }
+        
+        alert(`Deleted ${deleted} object(s)`);
+        selectedObjects.clear();
+        loadObjects();
+        
+    } catch (e) {
+        alert('Delete failed: ' + e.message);
+        loadObjects();
+    }
+}
+
+async function deleteObject(id) {
+    if (!confirm('Are you sure you want to delete this object?')) return;
+    
+    try {
+        const response = await fetch(`/api/stix/objects/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            loadObjects();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to delete');
+        }
+    } catch (e) {
+        alert('Error: ' + e.message);
+    }
+}
+
+function renderPagination(total, pages) {
+    const nav = document.getElementById('pagination');
+    if (pages <= 1) {
+        nav.style.display = 'none';
+        return;
+    }
+    
+    nav.style.display = 'block';
+    const ul = nav.querySelector('ul');
+    
+    let html = `
+        <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage - 1}); return false;">Previous</a>
+        </li>
+    `;
+    
+    // Show pages around current
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(pages, currentPage + 2);
+    
+    if (startPage > 1) {
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(1); return false;">1</a></li>`;
+        if (startPage > 2) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        html += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>
+            </li>
+        `;
+    }
+    
+    if (endPage < pages) {
+        if (endPage < pages - 1) {
+            html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+        }
+        html += `<li class="page-item"><a class="page-link" href="#" onclick="goToPage(${pages}); return false;">${pages}</a></li>`;
+    }
+    
+    html += `
+        <li class="page-item ${currentPage === pages ? 'disabled' : ''}">
+            <a class="page-link" href="#" onclick="goToPage(${currentPage + 1}); return false;">Next</a>
+        </li>
+    `;
+    
+    ul.innerHTML = html;
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadObjects();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function getTypeIcon(type) {
+    const icons = {
+        'indicator': '<i class="bi bi-graph-up"></i>',
+        'malware': '<i class="bi bi-bug"></i>',
+        'threat-actor': '<i class="bi bi-person-x"></i>',
+        'attack-pattern': '<i class="bi bi-lightning"></i>',
+        'campaign': '<i class="bi bi-bullseye"></i>',
+        'tool': '<i class="bi bi-tools"></i>',
+        'vulnerability': '<i class="bi bi-unlock"></i>',
+        'infrastructure': '<i class="bi bi-hdd-network"></i>',
+        'intrusion-set': '<i class="bi bi-incognito"></i>',
+        'identity': '<i class="bi bi-building"></i>',
+        'location': '<i class="bi bi-geo-alt"></i>',
+        'course-of-action': '<i class="bi bi-shield-check"></i>'
+    };
+    return icons[type] || '<i class="bi bi-box"></i>';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

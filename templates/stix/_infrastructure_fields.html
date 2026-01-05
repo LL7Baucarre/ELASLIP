@@ -1,0 +1,45 @@
+<!-- Infrastructure Fields -->
+<div id="fields-infrastructure" class="type-fields">
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-server me-1"></i>
+        Describe adversary infrastructure: C2 servers, proxies, hosting.
+    </div>
+    
+    <div class="field-group">
+        <label for="infrastructureTypes" class="form-label">Infrastructure Types</label>
+        <select id="infrastructureTypes" name="infrastructure_types" class="form-select" multiple>
+            <option value="amplification">Amplification</option>
+            <option value="anonymization">Anonymization</option>
+            <option value="botnet">Botnet</option>
+            <option value="command-and-control">Command and Control</option>
+            <option value="control-system">Control System</option>
+            <option value="exfiltration">Exfiltration</option>
+            <option value="firewall">Firewall</option>
+            <option value="hosting-malware">Hosting Malware</option>
+            <option value="hosting-target-lists">Hosting Target Lists</option>
+            <option value="phishing">Phishing</option>
+            <option value="reconnaissance">Reconnaissance</option>
+            <option value="routers-switches">Routers/Switches</option>
+            <option value="staging">Staging</option>
+            <option value="workstation">Workstation</option>
+            <option value="unknown">Unknown</option>
+        </select>
+    </div>
+    
+    <div class="field-group">
+        <label for="infraAliases" class="form-label">Aliases</label>
+        <input type="text" id="infraAliases" name="aliases" class="form-control"
+               placeholder="Other names (comma-separated)">
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 field-group">
+            <label for="infraFirstSeen" class="form-label">First Seen</label>
+            <input type="datetime-local" id="infraFirstSeen" name="first_seen" class="form-control">
+        </div>
+        <div class="col-md-6 field-group">
+            <label for="infraLastSeen" class="form-label">Last Seen</label>
+            <input type="datetime-local" id="infraLastSeen" name="last_seen" class="form-control">
+        </div>
+    </div>
+</div>
