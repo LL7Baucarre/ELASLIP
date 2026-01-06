@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - APP_VERSION=${APP_VERSION:-1.2.4}
+        - APP_VERSION=${APP_VERSION:-1.2.2}
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-app
     cap_add:
