@@ -5,93 +5,90 @@
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.css" rel="stylesheet">
 <style>
-    .graph-container {
+    :root {
+        --light-bg: white;
+        --light-text: #212529;
+        --light-border: #ddd;
+        --light-shadow: rgba(0, 0, 0, 0.1);
+        --dark-bg: #22262a;
+        --dark-text: #e9ecef;
+        --dark-border: #3d4449;
+        --dark-shadow: rgba(0, 0, 0, 0.3);
+    }
+
+    .graph-container, #cy {
         position: relative;
         width: 100%;
         height: calc(100vh - 40px);
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     }
     
-    html[data-theme="dark"] .graph-container {
+    html[data-theme="dark"] .graph-container,
+    html[data-theme="dark"] #cy {
         background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
     }
 
-    #cy {
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    .graph-controls, .legend, .legend-toggle-btn, .info-panel, #searchResultsDropdown {
+        background: var(--light-bg);
+        color: var(--light-text);
+        box-shadow: 0 2px 8px var(--light-shadow);
+        border-radius: 8px;
     }
     
-    html[data-theme="dark"] #cy {
-        background: linear-gradient(135deg, #1a1d21 0%, #22262a 100%);
+    html[data-theme="dark"] .graph-controls,
+    html[data-theme="dark"] .legend,
+    html[data-theme="dark"] .legend-toggle-btn,
+    html[data-theme="dark"] .info-panel,
+    html[data-theme="dark"] #searchResultsDropdown {
+        background: var(--dark-bg);
+        color: var(--dark-text);
+        box-shadow: 0 2px 8px var(--dark-shadow);
     }
 
     .graph-controls {
         position: absolute;
         top: 20px;
         left: 20px;
-        background: white;
         padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         z-index: 10;
         min-width: 250px;
     }
     
-    html[data-theme="dark"] .graph-controls {
-        background: #22262a;
-        color: #e9ecef;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    .graph-controls h5 {
-        margin-bottom: 15px;
-        margin-top: 0;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 10px;
-    }
-    
-    html[data-theme="dark"] .graph-controls h5 {
-        color: #e9ecef;
-        border-bottom-color: #3498db;
-    }
-
-    .graph-controls.collapsed {
-        min-width: auto;
-        width: auto;
-        padding: 10px;
-    }
-
     .graph-controls.collapsed > *:not(h5):not(#toggleControlsIcon) {
         display: none;
     }
 
+    .graph-controls h5, .info-panel h5 {
+        margin: 0 0 15px;
+        border-bottom: 2px solid #007bff;
+        padding-bottom: 10px;
+        color: inherit;
+    }
+
     #searchResultsDropdown {
+        position: absolute;
         top: 100%;
         left: 0;
         right: 0;
-        background: white;
-        border: 1px solid #ddd;
+        border: 1px solid var(--light-border);
         border-top: none;
-        border-radius: 0 0 4px 4px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        display: none;
+        z-index: 1000;
     }
-
+    
     html[data-theme="dark"] #searchResultsDropdown {
-        background: #2d333b;
-        border-color: #3d4449;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border-color: var(--dark-border);
     }
 
     .search-result-item {
         padding: 8px 12px;
-        border-bottom: 1px solid #eee;
+        border-bottom: 1px solid var(--light-border);
         cursor: pointer;
         transition: background-color 0.2s;
     }
 
     html[data-theme="dark"] .search-result-item {
-        border-bottom-color: #3d4449;
+        border-bottom-color: var(--dark-border);
     }
 
     .search-result-item:hover {
@@ -99,41 +96,7 @@
     }
 
     html[data-theme="dark"] .search-result-item:hover {
-        background-color: #3d4449;
-    }
-
-    .search-result-item small {
-        display: block;
-        font-size: 0.8rem;
-        margin-top: 2px;
-    }
-    
-    /* Search result category headers */
-    .search-category-header {
-        padding: 8px 12px;
-        font-size: 0.75rem;
-        font-weight: bold;
-        border-bottom: 1px solid #c8e6c9;
-    }
-    
-    .search-category-exact {
-        background-color: #e8f5e9;
-        color: #2e7d32;
-    }
-    
-    .search-category-partial {
-        background-color: #e3f2fd;
-        color: #1565c0;
-    }
-    
-    html[data-theme="dark"] .search-category-exact {
-        background-color: #1b5e20;
-        color: #81c784;
-    }
-    
-    html[data-theme="dark"] .search-category-partial {
-        background-color: #0d47a1;
-        color: #64b5f6;
+        background-color: var(--dark-border);
     }
 
     .control-group {
@@ -147,25 +110,22 @@
         font-weight: 600;
         font-size: 0.9rem;
     }
-    
-    html[data-theme="dark"] .control-group label {
-        color: #e9ecef;
-    }
 
-    .control-group input,
-    .control-group select {
+    .control-group input, .control-group select {
         width: 100%;
         padding: 6px;
-        border: 1px solid #ddd;
+        border: 1px solid var(--light-border);
         border-radius: 4px;
         font-size: 0.85rem;
+        background: var(--light-bg);
+        color: var(--light-text);
     }
     
     html[data-theme="dark"] .control-group input,
     html[data-theme="dark"] .control-group select {
-        background-color: #2d333b;
-        border-color: #3d4449;
-        color: #e9ecef;
+        background-color: var(--dark-bg);
+        border-color: var(--dark-border);
+        color: var(--dark-text);
     }
 
     .btn-control {
@@ -181,17 +141,14 @@
 
     .btn-control:hover {
         transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 2px 8px var(--light-shadow);
     }
 
     .legend {
         position: absolute;
         top: 80px;
         right: 20px;
-        background: white;
         padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         z-index: 10;
         font-size: 0.85rem;
         max-height: calc(100vh - 140px);
@@ -204,18 +161,13 @@
         opacity: 0;
         visibility: hidden;
     }
-    
-    html[data-theme="dark"] .legend {
-        background: #22262a;
-        color: #e9ecef;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
 
     .legend-item {
         margin-bottom: 10px;
         display: flex;
         align-items: center;
         gap: 8px;
+        cursor: pointer;
     }
 
     .legend-color {
@@ -226,24 +178,21 @@
     }
     
     html[data-theme="dark"] .legend-color {
-        border-color: #e9ecef;
+        border-color: var(--dark-text);
     }
 
     .legend-toggle-btn {
         position: absolute;
         top: 20px;
         right: 20px;
-        background: white;
-        border: 1px solid #ddd;
         padding: 8px 12px;
-        border-radius: 8px;
         cursor: pointer;
         z-index: 11;
         font-size: 0.9rem;
         display: flex;
         align-items: center;
         gap: 6px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--light-border);
         transition: background-color 0.2s;
     }
 
@@ -252,42 +201,23 @@
     }
     
     html[data-theme="dark"] .legend-toggle-btn {
-        background: #22262a;
-        border-color: #3d4449;
-        color: #e9ecef;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        border-color: var(--dark-border);
     }
     
     html[data-theme="dark"] .legend-toggle-btn:hover {
-        background-color: #2d333b;
+        background-color: var(--dark-border);
     }
 
     .info-panel {
         position: absolute;
         top: 20px;
         right: 20px;
-        background: white;
         padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         z-index: 1000;
         max-width: 300px;
         max-height: 400px;
         overflow-y: auto;
         border: 2px solid #007bff;
-    }
-    
-    html[data-theme="dark"] .info-panel {
-        background: #22262a;
-        color: #e9ecef;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    .info-panel h5 {
-        margin-top: 0;
-        margin-bottom: 10px;
-        border-bottom: 2px solid #007bff;
-        padding-bottom: 10px;
     }
 
     .info-item {
@@ -302,13 +232,6 @@
     
     html[data-theme="dark"] .info-item strong {
         color: #adb5bd;
-    }
-
-    .form-check-input {
-        width: 1rem !important;
-        height: 1rem !important;
-        flex-shrink: 0;
-        margin-top: 0.25rem;
     }
 
     input[type="range"] {
@@ -326,17 +249,12 @@
         gap: 0.5rem;
     }
 
-    /* STIX Type Colors */
-    .stix-indicator { background-color: #FF6B6B !important; }
-    .stix-malware { background-color: #e74c3c !important; }
-    .stix-attack_pattern { background-color: #9b59b6 !important; }
-    .stix-threat_actor { background-color: #2c3e50 !important; }
-    .stix-campaign { background-color: #f39c12 !important; }
-    .stix-infrastructure { background-color: #1abc9c !important; }
-    .stix-tool { background-color: #3498db !important; }
-    .stix-vulnerability { background-color: #e67e22 !important; }
-    .stix-identity { background-color: #27ae60 !important; }
-    .stix-location { background-color: #16a085 !important; }
+    .form-check-input {
+        width: 1rem !important;
+        height: 1rem !important;
+        flex-shrink: 0;
+        margin-top: 0.25rem;
+    }
 
     #emptyGraphMessage {
         position: absolute;
@@ -347,16 +265,16 @@
         color: #666;
         font-size: 16px;
         z-index: 10;
-        background: white;
+        background: var(--light-bg);
         padding: 30px;
         border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px var(--light-shadow);
     }
     
     html[data-theme="dark"] #emptyGraphMessage {
-        background: #22262a;
-        color: #e9ecef;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        background: var(--dark-bg);
+        color: var(--dark-text);
+        box-shadow: 0 2px 8px var(--dark-shadow);
     }
 </style>
 {% endblock %}
@@ -381,7 +299,7 @@
         
         <div class="control-group">
             <label for="searchSTIX">Search Entities:</label>
-            <input type="text" id="searchSTIX" placeholder="Search STIX Objects, Cases, Incidents..." onkeyup="debouncedSearch()" onfocus="showShowAllOption()" autocomplete="off">
+            <input type="text" id="searchSTIX" placeholder="Search STIX Objects, Cases, Incidents..." onkeyup="debouncedSearch()" onkeypress="handleSearchKeypress(event)" onfocus="showShowAllOption()" autocomplete="off">
             <div id="searchResultsDropdown" class="dropdown-menu" style="display: none; position: absolute; width: 95%; max-height: 250px; overflow-y: auto; z-index: 1000;"></div>
         </div>
 
@@ -392,10 +310,6 @@
                 <span id="depthDescription">Direct relations only</span>
             </small>
         </div>
-
-        <button class="btn-control btn-primary" onclick="loadGraph()">
-            <i class="bi bi-arrow-repeat me-1"></i> Reload Graph
-        </button>
 
         <button class="btn-control btn-outline-secondary" onclick="fitGraph()">
             <i class="bi bi-fullscreen me-1"></i> Fit to Screen
@@ -412,17 +326,14 @@
 
         <div class="control-group" id="nodeSpacingControl">
             <label for="nodeSpacing">Node Spacing:</label>
-            <input type="range" id="nodeSpacing" min="10" max="200" value="50" onchange="updateNodeSpacing()" style="width: 100%; cursor: pointer;">
+            <input type="range" id="nodeSpacing" min="10" max="200" value="80" onchange="updateNodeSpacing()" style="width: 100%; cursor: pointer;">
         </div>
 
         <div class="control-group">
             <label for="layoutSelect">Layout:</label>
             <select id="layoutSelect" onchange="changeLayout()">
-                <option value="cose">COSE</option>
-                <option value="circle">Circle</option>
-                <option value="grid">Grid</option>
+                <option value="cose-bilkent" selected>COSE-Bilkent</option>
                 <option value="breadthfirst">Breadth-First</option>
-                <option value="concentric">Concentric</option>
             </select>
         </div>
 
@@ -557,485 +468,251 @@
 
 {% block extra_js %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+<!-- COSE-Bilkent layout extension -->
+<script src="https://unpkg.com/layout-base/layout-base.js"></script>
+<script src="https://unpkg.com/cose-base/cose-base.js"></script>
+<script src="https://unpkg.com/cytoscape-cose-bilkent@4.1.0/cytoscape-cose-bilkent.js"></script>
 <script>
+const EDGE_COLORS = {
+    'uses': '#FF6B6B', 'targets': '#FF4444', 'attributed-to': '#9b59b6',
+    'indicates': '#FFD700', 'related-to': '#3498db', 'has': '#1abc9c',
+    'part-of': '#27ae60', 'based-on': '#e67e22', 'authored-by': '#34495e',
+    'located-at': '#16a085', 'variant-of': '#c0392b', 'mitigates': '#2ecc71',
+    'exploits': '#e74c3c', 'documents': '#34495e', 'found-in-incident': '#95a5a6',
+    'found-in-case': '#95a5a6'
+};
+
 let cy = null;
-let currentLayout = 'cose';
+let currentLayout = 'cose-bilkent';
 let showEdgeLabels = true;
-let allNodes = [];
-let allEdges = [];
 let searchTimeout = null;
 let currentFocusNodeId = null;
 let currentSearchTerm = '';
-let originalNodePositions = {};  // Store original positions for spacing calculations
+let nodePositions = {}; // Store node positions
+let isSearchLocked = false; // Lock to prevent loading all nodes unless Show All is selected
+
+const STORAGE_KEY = 'stix_graph_node_positions';
+const DEFAULT_NODE_SPACING = 80;
+
+// COSE-Bilkent layout configuration for better node spacing
+const COSE_BILKENT_CONFIG = {
+    name: 'cose-bilkent',
+    quality: 'default',
+    nodeDimensionsIncludeLabels: true,
+    fit: true,
+    padding: 500,
+    randomize: true,
+    nodeRepulsion: 70000,      // Increased from default 4500 for more spacing
+    idealEdgeLength: 500,     // Increased from default 50 for more edge length
+    edgeElasticity: 0.45,
+    nestingFactor: 0.1,
+    gravity: 0.2,
+    numIter: 2500,
+    tile: false,
+    animate: 'end',
+    animationDuration: 500,
+    tilingPaddingVertical: 20,
+    tilingPaddingHorizontal: 20
+};
 
 function escapeHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
+function createEdgeStylesheet() {
+    const styles = [{
+        selector: 'node',
+        style: {
+            'content': 'data(label)', 'background-color': 'data(color)', 'background-image': 'data(icon)',
+            'background-fit': 'none', 'background-width': '55%', 'background-height': '55%', 'background-clip': 'none',
+            'width': 40, 'height': 40, 'border-width': 2, 'border-color': '#333',
+            'font-size': 11, 'color': 'white', 'text-outline-width': 1, 'text-outline-color': '#333',
+            'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 5, 'padding': 3, 'cursor': 'pointer'
+        }
+    }, {
+        selector: 'node:selected',
+        style: { 'border-width': 3, 'border-color': '#FFD700' }
+    }, {
+        selector: 'node.case',
+        style: {
+            'background-color': '#3498db', 'shape': 'round-rectangle',
+            'width': 55, 'height': 55, 'border-width': 2, 'border-color': '#2980b9'
+        }
+    }, {
+        selector: 'node.incident',
+        style: {
+            'background-color': '#e74c3c', 'shape': 'diamond',
+            'width': 60, 'height': 60, 'border-width': 2, 'border-color': '#c0392b'
+        }
+    }, {
+        selector: 'edge',
+        style: {
+            'line-color': '#999', 'target-arrow-color': '#999', 'target-arrow-shape': 'triangle',
+            'curve-style': 'bezier', 'width': 3, 'opacity': 0.8, 'font-size': 9,
+            'color': '#333', 'content': 'data(label)', 'text-valign': 'center', 'text-halign': 'center',
+            'text-background-color': '#fff', 'text-background-opacity': 0.8, 'text-background-padding': '2px'
+        }
+    }, {
+        selector: 'edge:selected',
+        style: { 'line-color': '#FFD700', 'target-arrow-color': '#FFD700', 'width': 4, 'opacity': 1 }
+    }];
+
+    // Generate edge styles from color map
+    Object.entries(EDGE_COLORS).forEach(([label, color]) => {
+        const width = ['targets', 'mitigates', 'exploits'].includes(label) ? 4 : 3;
+        const lineStyle = ['found-in-incident', 'found-in-case'].includes(label) ? 'dashed' : 'solid';
+        const opacity = ['found-in-incident', 'found-in-case'].includes(label) ? 0.6 : 0.8;
+        const fontSize = ['found-in-incident', 'found-in-case'].includes(label) ? 0 : 9;
+
+        styles.push({
+            selector: `edge[label="${label}"]`,
+            style: {
+                'line-color': color, 'target-arrow-color': color, 'width': width,
+                'line-style': lineStyle, 'opacity': opacity, 'font-size': fontSize
+            }
+        });
+    });
+
+    return styles;
+}
+
 function initGraph(nodes, edges) {
-    if (cy) {
-        cy.destroy();
-    }
+    if (cy) cy.destroy();
 
     cy = cytoscape({
         container: document.getElementById('cy'),
-        elements: {
-            nodes: nodes,
-            edges: edges
-        },
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'content': 'data(label)',
-                    'background-color': 'data(color)',
-                    'background-image': 'data(icon)',
-                    'background-fit': 'none',
-                    'background-width': '55%',
-                    'background-height': '55%',
-                    'background-clip': 'none',
-                    'width': 40,
-                    'height': 40,
-                    'border-width': 2,
-                    'border-color': '#333',
-                    'font-size': 11,
-                    'color': 'white',
-                    'text-outline-width': 1,
-                    'text-outline-color': '#333',
-                    'text-valign': 'bottom',
-                    'text-halign': 'center',
-                    'text-margin-y': 5,
-                    'padding': 3,
-                    'cursor': 'pointer'
-                }
-            },
-            {
-                selector: 'node:selected',
-                style: {
-                    'border-width': 3,
-                    'border-color': '#FFD700'
-                }
-            },
-            {
-                selector: 'node.case',
-                style: {
-                    'background-color': '#3498db',
-                    'background-image': 'data(icon)',
-                    'shape': 'round-rectangle',
-                    'width': 55,
-                    'height': 55,
-                    'border-width': 2,
-                    'border-color': '#2980b9'
-                }
-            },
-            {
-                selector: 'node.incident',
-                style: {
-                    'background-color': '#e74c3c',
-                    'background-image': 'data(icon)',
-                    'shape': 'diamond',
-                    'width': 60,
-                    'height': 60,
-                    'border-width': 2,
-                    'border-color': '#c0392b'
-                }
-            },
-            {
-                selector: 'edge',
-                style: {
-                    'line-color': '#999',
-                    'target-arrow-color': '#999',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'width': 3,
-                    'opacity': 0.8,
-                    'font-size': 9,
-                    'color': '#333',
-                    'content': 'data(label)',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'text-background-color': '#fff',
-                    'text-background-opacity': 0.8,
-                    'text-background-padding': '2px'
-                }
-            },
-            // STIX relationship types styling
-            {
-                selector: 'edge[label="uses"]',
-                style: {
-                    'line-color': '#FF6B6B',
-                    'target-arrow-color': '#FF6B6B'
-                }
-            },
-            {
-                selector: 'edge[label="targets"]',
-                style: {
-                    'line-color': '#FF4444',
-                    'target-arrow-color': '#FF4444',
-                    'width': 4
-                }
-            },
-            {
-                selector: 'edge[label="attributed-to"]',
-                style: {
-                    'line-color': '#9b59b6',
-                    'target-arrow-color': '#9b59b6'
-                }
-            },
-            {
-                selector: 'edge[label="indicates"]',
-                style: {
-                    'line-color': '#FFD700',
-                    'target-arrow-color': '#FFD700'
-                }
-            },
-            {
-                selector: 'edge[label="related-to"]',
-                style: {
-                    'line-color': '#3498db',
-                    'target-arrow-color': '#3498db',
-                    'line-style': 'dashed'
-                }
-            },
-            {
-                selector: 'edge[label="has"]',
-                style: {
-                    'line-color': '#1abc9c',
-                    'target-arrow-color': '#1abc9c'
-                }
-            },
-            {
-                selector: 'edge[label="part-of"]',
-                style: {
-                    'line-color': '#27ae60',
-                    'target-arrow-color': '#27ae60'
-                }
-            },
-            {
-                selector: 'edge[label="based-on"]',
-                style: {
-                    'line-color': '#e67e22',
-                    'target-arrow-color': '#e67e22'
-                }
-            },
-            {
-                selector: 'edge[label="authored-by"]',
-                style: {
-                    'line-color': '#34495e',
-                    'target-arrow-color': '#34495e'
-                }
-            },
-            {
-                selector: 'edge[label="located-at"]',
-                style: {
-                    'line-color': '#16a085',
-                    'target-arrow-color': '#16a085'
-                }
-            },
-            {
-                selector: 'edge[label="variant-of"]',
-                style: {
-                    'line-color': '#c0392b',
-                    'target-arrow-color': '#c0392b'
-                }
-            },
-            {
-                selector: 'edge[label="mitigates"]',
-                style: {
-                    'line-color': '#2ecc71',
-                    'target-arrow-color': '#2ecc71',
-                    'width': 4
-                }
-            },
-            {
-                selector: 'edge[label="exploits"]',
-                style: {
-                    'line-color': '#e74c3c',
-                    'target-arrow-color': '#e74c3c',
-                    'width': 4
-                }
-            },
-            {
-                selector: 'edge[label="found-in-incident"]',
-                style: {
-                    'line-color': '#95a5a6',
-                    'target-arrow-color': '#95a5a6',
-                    'line-style': 'dashed',
-                    'opacity': 0.6,
-                    'width': 2,
-                    'font-size': 0
-                }
-            },
-            {
-                selector: 'edge[label="found-in-case"]',
-                style: {
-                    'line-color': '#95a5a6',
-                    'target-arrow-color': '#95a5a6',
-                    'line-style': 'dashed',
-                    'opacity': 0.6,
-                    'width': 2,
-                    'font-size': 0
-                }
-            },
-            {
-                selector: 'edge:selected',
-                style: {
-                    'line-color': '#FFD700',
-                    'target-arrow-color': '#FFD700',
-                    'width': 4,
-                    'opacity': 1
-                }
-            }
-        ],
-        layout: {
-            name: currentLayout,
-            animate: true,
-            animationDuration: 500,
-            randomize: false,
-            nodeSpacing: 50,
-            padding: 50
-        },
-        wheelSensitivity: 0.1,
-        minZoom: 0.1,
-        maxZoom: 3,
-        userPanningEnabled: true,
-        userZoomingEnabled: true,
-        boxSelectionEnabled: false,
-        selectionType: 'single'
+        elements: { nodes, edges },
+        style: createEdgeStylesheet(),
+        layout: currentLayout === 'cose-bilkent' ? COSE_BILKENT_CONFIG : { name: currentLayout, animate: true, padding: 50 },
+        wheelSensitivity: 0.1, minZoom: 0.1, maxZoom: 3,
+        userPanningEnabled: true, userZoomingEnabled: true,
+        boxSelectionEnabled: false, selectionType: 'single'
     });
 
-    cy.on('tap', 'node', function(e) {
+    cy.on('tap', 'node', e => {
         e.stopPropagation();
-        const selectedNode = e.target;
-        currentFocusNodeId = selectedNode.id();
-        showNodeInfo(selectedNode);
+        currentFocusNodeId = e.target.id();
+        showNodeInfo(e.target);
     });
 
-    cy.on('tap', function(e) {
+    cy.on('tap', e => {
         if (e.target === cy) {
             currentFocusNodeId = null;
             document.getElementById('infoPanel').style.display = 'none';
         }
     });
 
-    cy.on('dblclick', 'node', function(e) {
+    cy.on('dblclick', 'node', e => {
         e.stopPropagation();
-        const nodeId = e.target.id();
+        const { id } = e.target.data();
         const entityType = e.target.data('entity_type') || 'stix';
-        
-        if (entityType === 'case') {
-            window.location.href = `/cases/${nodeId}`;
-        } else if (entityType === 'incident') {
-            window.location.href = `/incidents/${nodeId}`;
-        } else {
-            window.location.href = `/stix/objects/${nodeId}`;
-        }
+        const urls = { case: `/cases/${id}`, incident: `/incidents/${id}` };
+        window.location.href = urls[entityType] || `/stix/objects/${id}`;
     });
 
     fitGraph();
     
-    // Save original node positions for spacing calculations
+    // Save positions after layout completes
     setTimeout(() => {
         if (cy) {
-            originalNodePositions = {};
+            nodePositions = {};
             cy.nodes().forEach(node => {
-                originalNodePositions[node.id()] = {
-                    x: node.position().x,
-                    y: node.position().y
-                };
+                nodePositions[node.id()] = { x: node.position().x, y: node.position().y };
             });
-            console.log('[initGraph] Saved', Object.keys(originalNodePositions).length, 'node positions');
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(nodePositions));
         }
-    }, 600);  // Wait for layout animation to complete
+    }, 600);
 }
 
-function loadGraph(focusNodeId) {
-
-    if (!focusNodeId && currentFocusNodeId) {
-        focusNodeId = currentFocusNodeId;
-    }
-    
+function loadGraph() {
     const depth = parseInt(document.getElementById('relationshipDepth').value) || 1;
-    const params = { depth: depth };
-    
-    console.log('[loadGraph] Loading graph with depth:', depth, ', focusNodeId:', focusNodeId, ', searchTerm:', currentSearchTerm);
-    
+    const params = { depth };
 
-    if (focusNodeId) {
-        params.start_id = focusNodeId;
-    }
-    
     $.ajax({
-        url: '/api/stix/graph-data',
-        method: 'GET',
-        data: params,
-        success: function(response) {
-            const nodes = response.nodes;
-            const edges = response.edges;
-            
-            allNodes = nodes;
-            allEdges = edges;
-            
+        url: '/api/stix/graph-data', method: 'GET', data: params,
+        success: response => {
+            const nodes = response.nodes || [];
+            const edges = response.edges || [];
+
             nodes.forEach(node => {
-                if (node.data.type) {
-                    const type = node.data.type.replace('-', '_');
-                    node.data.color = getColorForType(type);
-                    node.data.icon = getIconForType(type);
-                } else if (node.data.entity_type === 'case') {
-                    node.data.color = '#3498db';
-                    node.data.icon = getIconForType('case');
-                } else if (node.data.entity_type === 'incident') {
-                    node.data.color = '#e74c3c';
-                    node.data.icon = getIconForType('incident');
-                } else {
-                    node.data.color = '#95a5a6';
-                    node.data.icon = getIconSvg('crosshair');
-                }
+                const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
+                node.data.color = getColorForType(type);
+                node.data.icon = getIconForType(type);
             });
 
             initGraph(nodes, edges);
-            console.log('[loadGraph] Graph initialized with', nodes.length, 'nodes and', edges.length, 'edges');
-            console.log('[loadGraph] currentSearchTerm value:', JSON.stringify(currentSearchTerm), 'type:', typeof currentSearchTerm, 'length:', currentSearchTerm ? currentSearchTerm.length : 'N/A');
-            
 
             if (nodes.length > 0) {
-
                 setTimeout(() => {
-                    try {
-                        cy.nodes().show();
-                        cy.edges().show();
-                        document.getElementById('emptyGraphMessage').style.display = 'none';
-                        
-                        console.log('[loadGraph] Checking if search should be reapplied...');
-                        if (currentSearchTerm && currentSearchTerm.length >= 2) {
-                            console.log('[loadGraph] YES - Reapplying search filter for term:', currentSearchTerm);
-                            applySearchFilter(currentSearchTerm);
-                        } else {
-                            console.log('[loadGraph] NO - No active search term to reapply (currentSearchTerm=', currentSearchTerm, ')');
-                            
-
-
-                            if (focusNodeId) {
-                                const focusNode = cy.$id(focusNodeId);
-                                if (focusNode && focusNode.length > 0) {
-                                    focusNode.select();
-                                    const toFit = focusNode.union(focusNode.neighborhood());
-                                    if (toFit && toFit.length > 0) {
-                                        cy.animate({
-                                            fit: { eles: toFit, padding: 50 },
-                                            duration: 300
-                                        });
-                                    } else {
-                                        cy.fit(null, 50);
-                                    }
-                                } else {
-                                    cy.fit(null, 50);
-                                }
-                            } else {
-                                cy.fit(null, 50);
+                    if (!cy) return;
+                    
+                    // Restore saved positions if they exist
+                    const savedPositions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                    if (Object.keys(savedPositions).length > 0) {
+                        cy.nodes().forEach(node => {
+                            if (savedPositions[node.id()]) {
+                                node.position(savedPositions[node.id()]);
                             }
-                        }
-                    } catch (e) {
-                        console.error('[loadGraph] Error in setTimeout:', e);
+                        });
+                    }
+                    
+                    cy.nodes().show();
+                    cy.edges().show();
+                    document.getElementById('emptyGraphMessage').style.display = 'none';
+                    
+                    // Only apply search filter if NOT locked
+                    if (currentSearchTerm && currentSearchTerm.length >= 2 && !isSearchLocked) {
+                        applySearchFilter(currentSearchTerm);
+                    } else {
+                        cy.fit(null, 50);
                     }
                 }, 100);
             } else {
-                cy.nodes().hide();
-                cy.edges().hide();
                 document.getElementById('emptyGraphMessage').style.display = 'block';
             }
         },
-        error: function(xhr) {
-            console.error('Error loading graph data:', xhr);
-            alert('Failed to load graph data');
-        }
+        error: () => alert('Failed to load graph data')
     });
 }
 
 function fitGraph() {
-    if (cy) {
-        cy.fit(null, 50);
-    }
+    if (cy) cy.fit(null, 50);
 }
 
 function changeLayout() {
     const layoutName = document.getElementById('layoutSelect').value;
     currentLayout = layoutName;
-    
-    // Show/hide node spacing control based on layout
     const nodeSpacingControl = document.getElementById('nodeSpacingControl');
-    if (layoutName === 'cose') {
-        nodeSpacingControl.style.display = 'block';
+    nodeSpacingControl.style.display = layoutName === 'cose-bilkent' ? 'block' : 'none';
+
+    if (!cy) return;
+
+    let layoutConfig;
+    if (layoutName === 'cose-bilkent') {
+        layoutConfig = { ...COSE_BILKENT_CONFIG };
     } else {
-        nodeSpacingControl.style.display = 'none';
+        layoutConfig = { name: layoutName, animate: true, padding: 50 };
     }
-    
-    if (cy) {
-        const nodeSpacing = parseInt(document.getElementById('nodeSpacing').value) || 50;
-        
-        const layoutConfig = {
-            name: layoutName,
-            animate: true,
-            animationDuration: 500,
-            randomize: false,
-            nodeSpacing: nodeSpacing,
-            padding: 50
-        };
-        
-        // Add COSE-specific parameters for case/incident gravity (galaxies)
-        if (layoutName === 'cose') {
-            layoutConfig.gravity = 0.5;  // Gentle overall gravity
-            layoutConfig.nodeRepulsion = 25000;  // Repulsion between nodes
-            layoutConfig.edgeElasticity = 0.5;  // Edge spring strength
-        }
-        
-        const layout = cy.layout(layoutConfig);
-        layout.run();
-    }
+
+    cy.layout(layoutConfig).run();
 }
 
 function updateNodeSpacing() {
-    const spacing = parseInt(document.getElementById('nodeSpacing').value);
-    
-    if (!cy || Object.keys(originalNodePositions).length === 0) return;
-    
-    console.log('[updateNodeSpacing] Updating spacing to:', spacing);
-    
-    // Adjust spacing with a more conservative formula
-    // spacing 50 = normal (factor 1), 100 = 1.25x spread, 25 = 0.75x spread
-    const spreadFactor = 1 + (spacing - 50) / 200;
-    
-    // Calculate center from original positions
-    let centerX = 0, centerY = 0;
-    let count = 0;
-    Object.values(originalNodePositions).forEach(pos => {
-        centerX += pos.x;
-        centerY += pos.y;
-        count++;
-    });
-    centerX /= count;
-    centerY /= count;
-    
-    // Apply spread factor to ALL nodes based on their ORIGINAL positions
-    cy.nodes().forEach(node => {
-        const nodeId = node.id();
-        if (originalNodePositions[nodeId]) {
-            const origPos = originalNodePositions[nodeId];
-            const distX = origPos.x - centerX;
-            const distY = origPos.y - centerY;
-            
-            // Apply spread factor to distances from center
-            node.position({
-                x: centerX + (distX * spreadFactor),
-                y: centerY + (distY * spreadFactor)
-            });
-        }
-    });
-    
-    console.log('[updateNodeSpacing] Spread nodes by factor:', spreadFactor);
-}
+    if (!cy || cy.nodes().length === 0) return;
 
+    const spacing = parseInt(document.getElementById('nodeSpacing').value) || DEFAULT_NODE_SPACING;
+
+    // Re-run layout with adjusted spacing
+    if (currentLayout === 'cose-bilkent') {
+        const config = { ...COSE_BILKENT_CONFIG };
+        config.nodeRepulsion = 4500 + (spacing - 50) * 70;
+        config.idealEdgeLength = 50 + spacing;
+        cy.layout(config).run();
+    } else {
+        cy.layout({ name: currentLayout, animate: true, padding: 50 }).run();
+    }
+}
 
 function clearSelection() {
     if (cy) {
@@ -1047,61 +724,29 @@ function clearSelection() {
 function toggleLegend() {
     const legendPanel = document.getElementById('legendPanel');
     const toggleText = document.getElementById('legendToggleText');
-    
     legendPanel.classList.toggle('collapsed');
     toggleText.textContent = legendPanel.classList.contains('collapsed') ? 'Show' : 'Hide';
 }
 
 function toggleEdgeLabels() {
     if (!cy) return;
-    
     showEdgeLabels = document.getElementById('showLabels').checked;
-    cy.edges().style({
-        'opacity': showEdgeLabels ? 0.8 : 0.5,
-        'font-size': showEdgeLabels ? 9 : 0
-    });
-}
-
-function filterBySTIXType() {
-    if (!cy) return;
-    
-    const selectedType = document.getElementById('filterSTIXType').value;
-    
-    if (!selectedType) {
-        cy.nodes().show();
-        cy.edges().show();
-    } else {
-        cy.nodes().hide();
-        cy.edges().hide();
-        
-        const selectedNodes = cy.nodes().filter(n => n.data('type') === selectedType);
-        selectedNodes.show();
-        selectedNodes.connectedEdges().show();
-    }
-    
-    if (cy.elements(':visible').length > 0) {
-        cy.fit(cy.elements(':visible'), 50);
-    }
+    cy.edges().style({ 'font-size': showEdgeLabels ? 9 : 0 });
 }
 
 function showNodeInfo(node) {
     const data = node.data();
-    const infoPanel = document.getElementById('infoPanel');
-    const nodeInfo = document.getElementById('nodeInfo');
-    const entityType = data.entity_type || 'stix';
-    
     const label = data.label || data.id || 'Unknown';
-    
+    const entityType = data.entity_type || 'stix';
+    const edges = node.connectedEdges();
+
     let html = `<div class="info-item"><strong>Name:</strong> <code>${escapeHtml(label)}</code></div>`;
     html += `<div class="info-item"><strong>Type:</strong> <span class="badge bg-primary">${escapeHtml(data.type || entityType)}</span></div>`;
 
-    const edges = node.connectedEdges();
     if (edges.length > 0) {
-        html += `
-            <div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
-                <strong>Relations (${edges.length}):</strong>
-                <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">
-        `;
+        html += `<div class="info-item" style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                    <strong>Relations (${edges.length}):</strong>
+                    <ul style="margin: 5px 0; padding-left: 20px; font-size: 0.8rem;">`;
         edges.forEach(edge => {
             const relationLabel = edge.data('label') || 'related';
             const otherNode = edge.source().id() === node.id() ? edge.target() : edge.source();
@@ -1111,48 +756,32 @@ function showNodeInfo(node) {
         html += `</ul></div>`;
     }
 
-    let viewUrl = entityType === 'case' ? `/cases/${data.id}` : 
-                  entityType === 'incident' ? `/incidents/${data.id}` : `/stix/objects/${data.id}`;
-    let viewText = entityType === 'case' ? 'View Case' : 
-                   entityType === 'incident' ? 'View Incident' : 'View STIX Object';
-    
-    html += `
-        <div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
-            <a href="${viewUrl}" class="btn btn-sm btn-primary w-100">
-                <i class="bi bi-eye me-1"></i> ${viewText}
-            </a>
-        </div>
-    `;
-    
-    nodeInfo.innerHTML = html;
-    infoPanel.style.display = 'block';
+    const urls = { case: `/cases/${data.id}`, incident: `/incidents/${data.id}` };
+    const viewUrl = urls[entityType] || `/stix/objects/${data.id}`;
+    const viewText = entityType === 'case' ? 'View Case' : entityType === 'incident' ? 'View Incident' : 'View STIX Object';
+
+    html += `<div style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                <a href="${viewUrl}" class="btn btn-sm btn-primary w-100"><i class="bi bi-eye me-1"></i> ${viewText}</a>
+            </div>`;
+
+    document.getElementById('nodeInfo').innerHTML = html;
+    document.getElementById('infoPanel').style.display = 'block';
 }
 
-
 const stixTypeConfig = {
-    'indicator': { color: '#FF6B6B', icon: 'crosshair' },
-    'malware': { color: '#e74c3c', icon: 'bug-fill' },
-    'attack_pattern': { color: '#9b59b6', icon: 'bullseye' },
-    'threat_actor': { color: '#2c3e50', icon: 'person-fill-exclamation' },
-    'campaign': { color: '#f39c12', icon: 'megaphone-fill' },
-    'infrastructure': { color: '#1abc9c', icon: 'hdd-network-fill' },
-    'tool': { color: '#3498db', icon: 'tools' },
-    'vulnerability': { color: '#e67e22', icon: 'shield-exclamation' },
-    'identity': { color: '#27ae60', icon: 'person-badge-fill' },
-    'location': { color: '#16a085', icon: 'geo-alt-fill' },
-    'intrusion_set': { color: '#8e44ad', icon: 'diagram-3-fill' },
-    'course_of_action': { color: '#2ecc71', icon: 'shield-check' },
-    'report': { color: '#34495e', icon: 'file-earmark-text-fill' },
-    'grouping': { color: '#7f8c8d', icon: 'collection-fill' },
-    'note': { color: '#95a5a6', icon: 'sticky-fill' },
-    'opinion': { color: '#bdc3c7', icon: 'chat-square-text-fill' },
-    'observed_data': { color: '#1abc9c', icon: 'eye-fill' },
-    'case': { color: '#3498db', icon: 'folder-fill' },
+    'indicator': { color: '#FF6B6B', icon: 'crosshair' }, 'malware': { color: '#e74c3c', icon: 'bug-fill' },
+    'attack_pattern': { color: '#9b59b6', icon: 'bullseye' }, 'threat_actor': { color: '#2c3e50', icon: 'person-fill-exclamation' },
+    'campaign': { color: '#f39c12', icon: 'megaphone-fill' }, 'infrastructure': { color: '#1abc9c', icon: 'hdd-network-fill' },
+    'tool': { color: '#3498db', icon: 'tools' }, 'vulnerability': { color: '#e67e22', icon: 'shield-exclamation' },
+    'identity': { color: '#27ae60', icon: 'person-badge-fill' }, 'location': { color: '#16a085', icon: 'geo-alt-fill' },
+    'intrusion_set': { color: '#8e44ad', icon: 'diagram-3-fill' }, 'course_of_action': { color: '#2ecc71', icon: 'shield-check' },
+    'report': { color: '#34495e', icon: 'file-earmark-text-fill' }, 'grouping': { color: '#7f8c8d', icon: 'collection-fill' },
+    'note': { color: '#95a5a6', icon: 'sticky-fill' }, 'opinion': { color: '#bdc3c7', icon: 'chat-square-text-fill' },
+    'observed_data': { color: '#1abc9c', icon: 'eye-fill' }, 'case': { color: '#3498db', icon: 'folder-fill' },
     'incident': { color: '#e74c3c', icon: 'exclamation-triangle-fill' }
 };
 
-
-function getIconSvg(iconName, color = 'white') {
+function getIconSvg(name, color = 'white') {
     const icons = {
         'crosshair': '<path d="M8.5.5a.5.5 0 0 0-1 0v.518A7.001 7.001 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518a7.001 7.001 0 0 0 6.482 6.482v.518a.5.5 0 0 0 1 0v-.518A7.001 7.001 0 0 0 14.982 8.5h.518a.5.5 0 0 0 0-1h-.518A7.001 7.001 0 0 0 8.5 1.018V.5Zm-6.48 7A6.001 6.001 0 0 1 7.5 2.02v.48a.5.5 0 0 0 1 0v-.48a6.001 6.001 0 0 1 5.48 5.48h-.48a.5.5 0 0 0 0 1h.48a6.002 6.002 0 0 1-5.48 5.48v-.48a.5.5 0 0 0-1 0v.48A6.001 6.001 0 0 1 2.02 8.5h.48a.5.5 0 0 0 0-1h-.48ZM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>',
         'bug-fill': '<path d="M4.978.855a.5.5 0 1 0-.956.29l.41 1.352A4.985 4.985 0 0 0 3 6h10a4.985 4.985 0 0 0-1.432-3.503l.41-1.352a.5.5 0 1 0-.956-.29l-.291.956A4.978 4.978 0 0 0 8 1a4.979 4.979 0 0 0-2.731.811l-.29-.956z"/><path d="M13 6v1H8.5V8H14a1 1 0 0 1 1 1v.5h-2a.5.5 0 0 0 0 1h2v1h-2a.5.5 0 0 0 0 1h2v1h-2a.5.5 0 0 0 0 1h2A1 1 0 0 1 14 15h-.5a.5.5 0 0 0 0 1H14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1V6h.5a.5.5 0 0 0 0-1H13v1zM3 6v1h4.5V8H2a1 1 0 0 0-1 1v.5h2a.5.5 0 0 1 0 1H1v1h2a.5.5 0 0 1 0 1H1v1h2a.5.5 0 0 1 0 1H1A1 1 0 0 0 2 15h.5a.5.5 0 0 1 0 1H2a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1V6h-.5a.5.5 0 0 1 0-1H3v1z"/>',
@@ -1174,212 +803,86 @@ function getIconSvg(iconName, color = 'white') {
         'folder-fill': '<path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3zm-8.322.12C1.72 3.042 1.95 3 2.19 3h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139z"/>',
         'exclamation-triangle-fill': '<path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>'
     };
-    const path = icons[iconName] || icons['crosshair'];
+    const path = icons[name] || icons['crosshair'];
     return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="${color}" viewBox="0 0 16 16">${path}</svg>`)}`;
 }
 
 function getColorForType(type) {
-    const config = stixTypeConfig[type];
-    return config ? config.color : '#888';
+    return stixTypeConfig[type]?.color || '#888';
 }
 
 function getIconForType(type) {
-    const config = stixTypeConfig[type];
-    return config ? getIconSvg(config.icon) : getIconSvg('crosshair');
+    return getIconSvg(stixTypeConfig[type]?.icon || 'crosshair');
 }
 
 function debouncedSearch() {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(searchSTIX, 300);
+    // Don't apply filter while typing, just show dropdown on Enter
+    searchTimeout = setTimeout(() => {}, 300);
 }
 
-function showShowAllOption() {
-    const dropdown = document.getElementById('searchResultsDropdown');
-    if (!dropdown) return;
-    dropdown.innerHTML = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
-    dropdown.style.display = 'block';
-}
-
-
-function applySearchFilter(searchTerm) {
-    if (!cy || !searchTerm) {
-        console.log('[applySearchFilter] Skipped: cy=', !!cy, ', searchTerm=', searchTerm);
-        return;
+function handleSearchKeypress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        searchSTIX();
     }
-    
-    try {
-        console.log('[applySearchFilter] Applying filter for term:', searchTerm);
-        
-        const searchTermLower = searchTerm.toLowerCase();
-        const matchingIds = new Set();
-        
+}
 
-        cy.nodes().forEach(node => {
-            try {
-                const nodeLabel = (node.data('label') || node.data('name') || node.id()).toLowerCase();
-                if (nodeLabel.includes(searchTermLower)) {
-                    matchingIds.add(node.id());
-                }
-            } catch (e) {
-                console.error('[applySearchFilter] Error checking node:', e);
-            }
+function applySearchFilter(term) {
+    if (!cy || !term) return;
+
+    const termLower = term.toLowerCase();
+    const matches = new Set();
+
+    cy.nodes().forEach(node => {
+        const label = (node.data('label') || node.data('name') || node.id()).toLowerCase();
+        if (label.includes(termLower)) matches.add(node.id());
+    });
+
+    if (matches.size > 0) {
+        cy.nodes().hide();
+        Array.from(matches).forEach(id => cy.$id(id).show());
+        cy.edges().forEach(e => {
+            if (e.source().visible() && e.target().visible()) e.show();
+            else e.hide();
         });
-        
-        console.log('[applySearchFilter] Found', matchingIds.size, 'matching nodes');
-        
-        if (matchingIds.size > 0) {
-
-            cy.nodes().forEach(node => {
-                node.hide();
-            });
-            
-
-            cy.nodes().forEach(node => {
-                if (matchingIds.has(node.id())) {
-                    node.show();
-                }
-            });
-            
-
-            cy.edges().forEach(edge => {
-                edge.hide();
-            });
-            
-
-            cy.edges().forEach(edge => {
-                try {
-                    const source = edge.source();
-                    const target = edge.target();
-                    if (source && target && source.visible() && target.visible()) {
-                        edge.show();
-                    }
-                } catch (e) {
-                    console.error('[applySearchFilter] Error checking edge:', e);
-                }
-            });
-            
-            const visibleCount = cy.elements(':visible').length;
-            console.log('[applySearchFilter] Visible elements:', visibleCount);
-            
-            if (visibleCount > 0) {
-                cy.fit(cy.elements(':visible'), 50);
-            }
-        } else {
-            console.log('[applySearchFilter] No matching nodes found');
-        }
-    } catch (e) {
-        console.error('[applySearchFilter] Error:', e);
+        cy.fit(cy.elements(':visible'), 50);
     }
 }
 
 function searchSTIX() {
     if (!cy) return;
-    
-    const searchTerm = document.getElementById('searchSTIX').value.trim();
-    const searchTermLower = searchTerm.toLowerCase();
+
+    const term = document.getElementById('searchSTIX').value.trim();
     const dropdown = document.getElementById('searchResultsDropdown');
-    
-    console.log('[searchSTIX] Search term:', searchTerm);
-    
-    if (!dropdown) return;
-    
+    currentSearchTerm = term;
 
-    currentSearchTerm = searchTerm;
-    console.log('[searchSTIX] Saved currentSearchTerm:', currentSearchTerm);
-    
-    if (!searchTerm) {
-        console.log('[searchSTIX] Search term cleared');
+    if (!term) {
         dropdown.style.display = 'none';
-
-        cy.nodes().show();
-        cy.edges().show();
         return;
     }
-    
-    if (searchTerm.length >= 2) {
-        console.log('[searchSTIX] Applying filter to graph');
 
-        applySearchFilter(searchTerm);
-        
-
+    if (term.length >= 2) {
         $.ajax({
-            url: '/api/search',
-            method: 'GET',
-            data: { q: searchTerm, per_page: 20 },
-            success: function(response) {
-                const dropdown = document.getElementById('searchResultsDropdown');
-                if (!dropdown) return;
-                
+            url: '/api/search', method: 'GET', data: { q: term, per_page: 20 },
+            success: response => {
                 const items = response.items || response.results || [];
-                
                 if (items.length === 0) {
                     dropdown.innerHTML = '<div class="search-result-item text-muted text-center">No results found</div>';
-                    dropdown.style.display = 'block';
-                    return;
+                } else {
+                    let html = '<div class="search-result-item" onclick="showAllSTIXObjects(event)" style="background-color: #f8f9fa; font-weight: bold; cursor: pointer;"><i class="bi bi-collection me-2"></i>Show All STIX Objects</div>';
+                    items.forEach(item => {
+                        const label = item.name || item.title || item.value || 'Unknown';
+                        const type = (item.type || item.entity_type || 'stix').toUpperCase();
+                        html += `<div class="search-result-item" onclick="selectFromSearch('${item.id}', '${label.replace(/'/g, "\\'")}', event)">
+                                    <strong>${escapeHtml(label)}</strong> <small class="text-muted">${escapeHtml(type)}</small>
+                                </div>`;
+                    });
+                    dropdown.innerHTML = html;
                 }
-                
-
-                const exactMatches = [];
-                const partialMatches = [];
-                
-                for (const item of items) {
-                    const itemName = (item.name || item.title || item.value || 'Unknown').toLowerCase();
-                    
-
-                    if (itemName === searchTermLower || itemName === searchTermLower.replace(/\s+/g, ' ')) {
-                        exactMatches.push(item);
-                    } else {
-                        partialMatches.push(item);
-                    }
-                }
-                
-                let html = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
-                
-
-                if (exactMatches.length > 0) {
-                    html += '<div style="padding: 8px 12px; background-color: #e8f5e9; font-size: 0.75rem; font-weight: bold; color: #2e7d32; border-bottom: 1px solid #c8e6c9;">EXACT MATCHES</div>';
-                    for (const item of exactMatches) {
-                        const entityType = item.entity_type || item.type || 'stix';
-                        const itemId = item.id;
-                        let displayLabel = item.name || item.title || item.value || 'Unknown';
-                        let displayType = (item.type || entityType).toUpperCase();
-                        
-                        html += `
-                            <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)" style="background-color: #f1f8e9;">
-                                <strong>${escapeHtml(displayLabel)}</strong>
-                                <small class="text-muted">${escapeHtml(displayType)}</small>
-                            </div>
-                        `;
-                    }
-                }
-                
-
-                if (partialMatches.length > 0) {
-                    if (exactMatches.length > 0) {
-                        html += '<div style="padding: 8px 12px; background-color: #e3f2fd; font-size: 0.75rem; font-weight: bold; color: #1565c0; border-bottom: 1px solid #bbdefb;">PARTIAL MATCHES</div>';
-                    }
-                    for (const item of partialMatches) {
-                        const entityType = item.entity_type || item.type || 'stix';
-                        const itemId = item.id;
-                        let displayLabel = item.name || item.title || item.value || 'Unknown';
-                        let displayType = (item.type || entityType).toUpperCase();
-                        
-                        html += `
-                            <div class="search-result-item" onclick="selectFromSearch('${itemId}', '${displayLabel.replace(/'/g, "\\'")}', event)">
-                                <strong>${escapeHtml(displayLabel)}</strong>
-                                <small class="text-muted">${escapeHtml(displayType)}</small>
-                            </div>
-                        `;
-                    }
-                }
-                
-                dropdown.innerHTML = html;
                 dropdown.style.display = 'block';
             },
-            error: function() {
-                const dropdown = document.getElementById('searchResultsDropdown');
-                if (dropdown) dropdown.style.display = 'none';
-            }
+            error: () => dropdown.style.display = 'none'
         });
     }
 }
@@ -1388,90 +891,50 @@ function selectFromSearch(objId, objValue, event) {
     event.preventDefault();
     event.stopPropagation();
     
-    console.log('[selectFromSearch] Selected:', objId, objValue);
-    
-    document.getElementById('searchSTIX').value = objValue;
-    document.getElementById('searchResultsDropdown').style.display = 'none';
-    
-
-    currentFocusNodeId = objId;
-    console.log('[selectFromSearch] Set currentFocusNodeId:', currentFocusNodeId);
-    
     if (cy) {
         const focusNode = cy.$id(objId);
         if (focusNode && focusNode.length > 0) {
-            console.log('[selectFromSearch] Node found in graph, showing with relations');
-            
-
-            cy.nodes().forEach(node => node.hide());
-            cy.edges().forEach(edge => edge.hide());
-            
-
-            const neighborhood = focusNode.neighborhood();
-            focusNode.show();
-            neighborhood.show();
-            
-
-            cy.edges().forEach(edge => {
-                if (edge.source().visible() && edge.target().visible()) {
-                    edge.show();
-                }
-            });
+            // Just update the input field and set focus on the node - don't hide all others
+            document.getElementById('searchSTIX').value = objValue;
+            document.getElementById('searchResultsDropdown').style.display = 'none';
+            currentFocusNodeId = objId;
+            isSearchLocked = true; // Lock to prevent reloading
             
             focusNode.select();
-            cy.animate({
-                fit: { eles: focusNode.union(neighborhood), padding: 50 },
-                duration: 300
-            });
+            cy.fit(focusNode.union(focusNode.neighborhood()), 50);
             showNodeInfo(focusNode);
         } else {
-
-            console.log('[selectFromSearch] Node not in graph, reloading...');
-            loadGraph(objId);
+            // Node not in current graph, load it
+            currentFocusNodeId = objId;
+            document.getElementById('searchSTIX').value = objValue;
+            document.getElementById('searchResultsDropdown').style.display = 'none';
+            loadGraph();
         }
     }
 }
 
-function showAllObjects(event) {
+function showAllSTIXObjects(event) {
     event.preventDefault();
     event.stopPropagation();
-    
     document.getElementById('searchSTIX').value = '';
     document.getElementById('searchResultsDropdown').style.display = 'none';
     currentSearchTerm = '';
+    isSearchLocked = false; // Unlock search to allow all nodes
     
-    if (!cy) return;
-    
-    cy.nodes().show();
-    cy.edges().show();
-    document.getElementById('emptyGraphMessage').style.display = 'none';
-    cy.fit(null, 50);
-}
-
-function filterGraphByIds(objIds) {
-    if (!cy) return;
-    
-    cy.nodes().hide();
-    cy.edges().hide();
-    
-    const matchingIds = new Set(objIds);
-    const matchingNodes = cy.nodes().filter(n => matchingIds.has(n.id()));
-    matchingNodes.show();
-    matchingNodes.connectedEdges().show();
-    matchingNodes.neighborhood().show();
-    
-    document.getElementById('emptyGraphMessage').style.display = 'none';
+    if (cy) {
+        cy.nodes().show();
+        cy.edges().show();
+        document.getElementById('emptyGraphMessage').style.display = 'none';
+        cy.fit(null, 50);
+    }
 }
 
 function toggleOnlyWithRelations() {
     if (!cy) return;
-    
     const filtered = document.getElementById('onlyWithRelations').checked;
-    
     if (filtered) {
         const nodesWithEdges = cy.edges().sources().union(cy.edges().targets());
-        const nodesWithoutEdges = cy.nodes().difference(nodesWithEdges);
-        nodesWithoutEdges.hide();
+        cy.nodes().difference(nodesWithEdges).hide();
     } else {
         cy.nodes().show();
         cy.edges().show();
@@ -1481,167 +944,65 @@ function toggleOnlyWithRelations() {
 function toggleControlsPanel() {
     const controls = document.getElementById('graphControls');
     const icon = document.getElementById('toggleControlsIcon');
-    
     controls.classList.toggle('collapsed');
-    
-    if (controls.classList.contains('collapsed')) {
-        icon.classList.remove('bi-chevron-left');
-        icon.classList.add('bi-chevron-right');
-    } else {
-        icon.classList.remove('bi-chevron-right');
-        icon.classList.add('bi-chevron-left');
-    }
+    icon.classList.toggle('bi-chevron-left');
+    icon.classList.toggle('bi-chevron-right');
 }
 
 function updateDepthValue() {
     const depth = parseInt(document.getElementById('relationshipDepth').value) || 1;
-    const depthValue = document.getElementById('depthValue');
-    const depthDescription = document.getElementById('depthDescription');
+    document.getElementById('depthValue').textContent = depth;
+    const descriptions = { '1': 'Direct relations', '2': 'Up to 2 levels', '3': 'Up to 3 levels', '4': 'Up to 4 levels', '5': 'Up to 5 levels (max)' };
+    document.getElementById('depthDescription').textContent = descriptions[depth] || 'Direct relations';
     
-    console.log('[updateDepthValue] Depth changed to:', depth);
+    // Reload graph with new depth but preserve search state
+    if (!cy) return;
     
-    depthValue.textContent = depth;
-    
-    const descriptions = {
-        '1': 'Direct relations only',
-        '2': 'Up to 2 levels of relations',
-        '3': 'Up to 3 levels of relations',
-        '4': 'Up to 4 levels of relations',
-        '5': 'Up to 5 levels of relations (maximum)'
-    };
-    
-    depthDescription.textContent = descriptions[depth] || 'Direct relations only';
-    
+    $.ajax({
+        url: '/api/stix/graph-data', method: 'GET', data: { depth },
+        success: response => {
+            const nodes = response.nodes || [];
+            const edges = response.edges || [];
+            
+            nodes.forEach(node => {
+                const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
+                node.data.color = getColorForType(type);
+                node.data.icon = getIconForType(type);
+            });
 
-    if (cy && currentFocusNodeId) {
-        console.log('[updateDepthValue] Showing focused node with depth:', depth);
-        showNodeAtDepth(currentFocusNodeId, depth);
-    } else {
-
-        console.log('[updateDepthValue] No focused node, reloading graph...');
-        currentSearchTerm = '';
-        document.getElementById('searchSTIX').value = '';
-        document.getElementById('searchResultsDropdown').style.display = 'none';
-        loadGraph(currentFocusNodeId);
-    }
-}
-
-
-function showNodeAtDepth(nodeId, maxDepth) {
-    if (!cy || maxDepth < 1) return;
-    
-    console.log('[showNodeAtDepth] Showing node', nodeId, 'with depth', maxDepth);
-    
-
-    cy.nodes().forEach(node => node.hide());
-    cy.edges().forEach(edge => edge.hide());
-    
-
-    const nodesToShow = new Set();
-    const queue = [{ nodeId: nodeId, currentDepth: 0 }];
-    const visited = new Set();
-    
-    while (queue.length > 0) {
-        const { nodeId: currentNodeId, currentDepth } = queue.shift();
-        
-        if (visited.has(currentNodeId)) continue;
-        visited.add(currentNodeId);
-        nodesToShow.add(currentNodeId);
-        
-
-        if (currentDepth < maxDepth) {
-            const node = cy.$id(currentNodeId);
-            if (node && node.length > 0) {
-                const neighbors = node.neighborhood().nodes();
-                neighbors.forEach(neighbor => {
-                    const neighborId = neighbor.id();
-                    if (!visited.has(neighborId)) {
-                        queue.push({ nodeId: neighborId, currentDepth: currentDepth + 1 });
-                    }
-                });
+            initGraph(nodes, edges);
+            
+            // Restore search filter if exists and not locked
+            if (currentSearchTerm && currentSearchTerm.length >= 2 && !isSearchLocked) {
+                applySearchFilter(currentSearchTerm);
+            } else {
+                cy.fit(null, 50);
             }
-        }
-    }
-    
-    console.log('[showNodeAtDepth] Found', nodesToShow.size, 'nodes within depth', maxDepth);
-    
-
-    nodesToShow.forEach(id => {
-        const node = cy.$id(id);
-        if (node && node.length > 0) {
-            node.show();
-        }
+        },
+        error: () => alert('Failed to load graph data with new depth')
     });
-    
-
-    cy.edges().forEach(edge => {
-        const source = edge.source();
-        const target = edge.target();
-        if (source.visible() && target.visible()) {
-            edge.show();
-        }
-    });
-    
-
-    const focusNode = cy.$id(nodeId);
-    if (focusNode && focusNode.length > 0) {
-        focusNode.select();
-        const visibleNodes = cy.nodes(':visible');
-        if (visibleNodes.length > 0) {
-            cy.fit(visibleNodes, 50);
-        }
-    }
 }
 
 function toggleNodeTypeVisibility() {
     if (!cy) return;
-    
-
-    const checkedTypes = new Set();
-    document.querySelectorAll('.legend-checkbox:checked').forEach(checkbox => {
-        checkedTypes.add(checkbox.dataset.type);
+    const checked = new Set([...document.querySelectorAll('.legend-checkbox:checked')].map(cb => cb.dataset.type));
+    cy.nodes().forEach(n => {
+        const type = n.data('type') || n.data('entity_type') || 'stix';
+        n[checked.has(type) ? 'show' : 'hide']();
     });
-    
-
-    cy.nodes().forEach(node => {
-        const nodeType = node.data('type') || node.data('entity_type') || 'stix';
-        
-        if (checkedTypes.has(nodeType)) {
-            node.show();
-        } else {
-            node.hide();
-        }
+    cy.edges().forEach(e => {
+        e[e.source().visible() && e.target().visible() ? 'show' : 'hide']();
     });
-    
-
-    cy.edges().forEach(edge => {
-        const source = edge.source();
-        const target = edge.target();
-        
-        if (source.visible() && target.visible()) {
-            edge.show();
-        } else {
-            edge.hide();
-        }
-    });
-    
-
-    if (cy.elements(':visible').length > 0) {
-        cy.fit(cy.elements(':visible'), 50);
-    }
+    if (cy.elements(':visible').length > 0) cy.fit(cy.elements(':visible'), 50);
 }
 
-$(document).ready(function() {
+$(document).ready(() => {
     loadGraph();
-    
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', e => {
         const dropdown = document.getElementById('searchResultsDropdown');
-        const searchInput = document.getElementById('searchSTIX');
-        
-        if (event.target !== searchInput && !dropdown.contains(event.target)) {
-            dropdown.style.display = 'none';
-        }
+        if (e.target.id !== 'searchSTIX' && !dropdown.contains(e.target)) dropdown.style.display = 'none';
     });
 });
 </script>
+
 {% endblock %}
