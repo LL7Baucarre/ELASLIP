@@ -210,11 +210,81 @@
                         
                         {% elif stix_object.type == 'vulnerability' %}
                         <div class="field-group">
-                            <label class="form-label">External References (CVE/CWE)</label>
-                            <p class="text-muted small mb-2">
+                            <label class="form-label">Vulnerability Information</label>
+                            <p class="text-muted small mb-3">
                                 <i class="bi bi-info-circle me-1"></i>
-                                External references are managed via the External References section.
+                                External references (CVE, CWE) are managed via the External References section below.
                             </p>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 field-group">
+                                <label for="x_severity" class="form-label">Severity</label>
+                                <select id="x_severity" name="x_severity" class="form-select">
+                                    <option value="">-- Not specified --</option>
+                                    {% for s in ['low', 'medium', 'high', 'critical'] %}
+                                    <option value="{{ s }}" {{ 'selected' if stix_object.get('x_severity') == s else '' }}>{{ s|capitalize }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 field-group">
+                                <label for="x_cvss_score" class="form-label">CVSS Score</label>
+                                <input type="number" id="x_cvss_score" name="x_cvss_score" class="form-control"
+                                       value="{{ stix_object.get('x_cvss_score', '') }}"
+                                       min="0" max="10" step="0.1" placeholder="e.g., 7.5">
+                            </div>
+                            <div class="col-md-4 field-group">
+                                <label for="x_cvss_vector" class="form-label">CVSS Vector</label>
+                                <input type="text" id="x_cvss_vector" name="x_cvss_vector" class="form-control"
+                                       value="{{ stix_object.get('x_cvss_vector', '') }}"
+                                       placeholder="e.g., CVSS:3.1/AV:N/...">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="x_affected_software" class="form-label">Affected Software</label>
+                            <input type="text" id="x_affected_software" name="x_affected_software" class="form-control"
+                                   value="{{ stix_object.get('x_affected_software', '') | join(', ') if stix_object.get('x_affected_software') else '' }}"
+                                   placeholder="Software affected (comma-separated)">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="x_published" class="form-label">Published Date</label>
+                                <input type="date" id="x_published" name="x_published" class="form-control"
+                                       value="{{ stix_object.get('x_published', '')[:10] if stix_object.get('x_published') else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="x_modified" class="form-label">Modified Date</label>
+                                <input type="date" id="x_modified" name="x_modified" class="form-control"
+                                       value="{{ stix_object.get('x_modified', '')[:10] if stix_object.get('x_modified') else '' }}">
+                            </div>
+                        </div>
+                        
+                        {% elif stix_object.type == 'infrastructure' %}
+                        <div class="field-group">
+                            <label for="infrastructure_types" class="form-label">Infrastructure Types</label>
+                            <select id="infrastructure_types" name="infrastructure_types" class="form-select" multiple>
+                                {% for t in ['amplification', 'anonymization', 'botnet', 'command-and-control', 'control-system', 'exfiltration', 'firewall', 'hosting-malware', 'hosting-target-lists', 'phishing', 'reconnaissance', 'routers-switches', 'staging', 'workstation', 'unknown'] %}
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.infrastructure_types or []) else '' }}>{{ t|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this infrastructure (comma-separated)">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_seen" class="form-label">First Seen</label>
+                                <input type="datetime-local" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:16] if stix_object.first_seen else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_seen" class="form-label">Last Seen</label>
+                                <input type="datetime-local" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:16] if stix_object.last_seen else '' }}">
+                            </div>
                         </div>
                         
                         {% elif stix_object.type == 'attack-pattern' %}
@@ -328,6 +398,105 @@
                             <label for="number_observed" class="form-label">Number Observed</label>
                             <input type="number" id="number_observed" name="number_observed" class="form-control"
                                    value="{{ stix_object.number_observed or 1 }}" min="1">
+                        </div>
+                        
+                        {% elif stix_object.type == 'intrusion-set' %}
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this group (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="goals" class="form-label">Goals</label>
+                            <input type="text" id="goals" name="goals" class="form-control"
+                                   value="{{ stix_object.goals | join(', ') if stix_object.goals else '' }}"
+                                   placeholder="Primary goals (comma-separated)">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_seen" class="form-label">First Seen</label>
+                                <input type="date" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:10] if stix_object.first_seen else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_seen" class="form-label">Last Seen</label>
+                                <input type="date" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:10] if stix_object.last_seen else '' }}">
+                            </div>
+                        </div>
+                        
+                        {% elif stix_object.type == 'identity' %}
+                        <div class="field-group">
+                            <label for="identity_class" class="form-label">Identity Class</label>
+                            <select id="identity_class" name="identity_class" class="form-select">
+                                {% for ic in ['individual', 'group', 'organization', 'class', 'unknown'] %}
+                                <option value="{{ ic }}" {{ 'selected' if stix_object.identity_class == ic else '' }}>{{ ic|title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label for="sectors" class="form-label">Sectors</label>
+                            <input type="text" id="sectors" name="sectors" class="form-control"
+                                   value="{{ stix_object.sectors | join(', ') if stix_object.sectors else '' }}"
+                                   placeholder="Industry sectors (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="contact_information" class="form-label">Contact Information</label>
+                            <input type="text" id="contact_information" name="contact_information" class="form-control"
+                                   value="{{ stix_object.contact_information or '' }}"
+                                   placeholder="Contact details">
+                        </div>
+                        
+                        {% elif stix_object.type == 'location' %}
+                        <div class="field-group">
+                            <label for="country" class="form-label">Country</label>
+                            <input type="text" id="country" name="country" class="form-control"
+                                   value="{{ stix_object.country or '' }}"
+                                   placeholder="Country name">
+                        </div>
+                        <div class="field-group">
+                            <label for="region" class="form-label">Region/State</label>
+                            <input type="text" id="region" name="region" class="form-control"
+                                   value="{{ stix_object.region or '' }}"
+                                   placeholder="Region or state">
+                        </div>
+                        <div class="field-group">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" id="city" name="city" class="form-control"
+                                   value="{{ stix_object.city or '' }}"
+                                   placeholder="City name">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="latitude" class="form-label">Latitude</label>
+                                <input type="number" id="latitude" name="latitude" class="form-control"
+                                       value="{{ stix_object.latitude or '' }}"
+                                       placeholder="-90 to 90" min="-90" max="90" step="0.000001">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="longitude" class="form-label">Longitude</label>
+                                <input type="number" id="longitude" name="longitude" class="form-control"
+                                       value="{{ stix_object.longitude or '' }}"
+                                       placeholder="-180 to 180" min="-180" max="180" step="0.000001">
+                            </div>
+                        </div>
+                        
+                        {% elif stix_object.type == 'course-of-action' %}
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="action_type" class="form-label">Action Type</label>
+                            <select id="action_type" name="action_type" class="form-select">
+                                <option value="">-- Not specified --</option>
+                                {% for at in ['remediation', 'mitigation', 'detection', 'prevention'] %}
+                                <option value="{{ at }}" {{ 'selected' if stix_object.get('x_action_type') == at else '' }}>{{ at|title }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
                         
                         {% else %}

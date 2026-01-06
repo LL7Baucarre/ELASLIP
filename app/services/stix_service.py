@@ -78,7 +78,7 @@ class STIXService:
         },
         "observed-data": {
             "required": ["first_observed", "last_observed", "number_observed"],
-            "optional": ["objects", "object_refs"]
+            "optional": ["name", "description", "objects", "object_refs", "x_observation_source"]
         },
         "report": {
             "required": ["name", "published"],
@@ -94,7 +94,7 @@ class STIXService:
         },
         "opinion": {
             "required": ["opinion", "object_refs"],
-            "optional": ["explanation", "authors"]
+            "optional": ["abstract", "explanation", "authors"]
         },
         "malware-analysis": {
             "required": ["product", "result"],

@@ -302,17 +302,71 @@
                         </div>
                         {% endif %}
                     
-                    {% elif stix_object.type == 'vulnerability' %}
-                        {% if stix_object.external_references %}
+                    {% elif stix_object.type == 'intrusion-set' %}
+                        {% if stix_object.aliases %}
                         <div class="property-row">
-                            <span class="property-label">External IDs:</span>
-                            {% for ref in stix_object.external_references %}
-                                {% if ref.external_id %}
-                                <a href="{{ ref.url }}" target="_blank" class="badge bg-danger text-decoration-none ms-1">
-                                    {{ ref.external_id }} <i class="bi bi-box-arrow-up-right ms-1"></i>
-                                </a>
-                                {% endif %}
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
                             {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.goals %}
+                        <div class="property-row">
+                            <span class="property-label">Goals:</span>
+                            {% for goal in stix_object.goals %}
+                            <span class="badge bg-info ms-1">{{ goal }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.first_seen %}
+                        <div class="property-row">
+                            <span class="property-label">First Seen:</span>
+                            <span class="ms-2">{{ stix_object.first_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.last_seen %}
+                        <div class="property-row">
+                            <span class="property-label">Last Seen:</span>
+                            <span class="ms-2">{{ stix_object.last_seen }}</span>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'identity' %}
+                        {% if stix_object.identity_class %}
+                        <div class="property-row">
+                            <span class="property-label">Identity Class:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.identity_class|capitalize }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.sectors %}
+                        <div class="property-row">
+                            <span class="property-label">Sectors:</span>
+                            {% for sector in stix_object.sectors %}
+                            <span class="badge bg-secondary ms-1">{{ sector }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.contact_information %}
+                        <div class="property-row">
+                            <span class="property-label">Contact Information:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.contact_information }}</p>
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'course-of-action' %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.get('x_action_type') %}
+                        <div class="property-row">
+                            <span class="property-label">Action Type:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.x_action_type|capitalize }}</span>
                         </div>
                         {% endif %}
                     
@@ -397,11 +451,17 @@
                         {% endif %}
                     
                     {% elif stix_object.type == 'opinion' %}
+                        {% if stix_object.abstract %}
+                        <div class="property-row">
+                            <span class="property-label">Abstract:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.abstract }}</p>
+                        </div>
+                        {% endif %}
                         {% if stix_object.opinion %}
                         <div class="property-row">
-                            <span class="property-label">Opinion:</span>
+                            <span class="property-label">Opinion Assessment:</span>
                             {% set opinion_colors = {'strongly-disagree': 'danger', 'disagree': 'warning', 'neutral': 'secondary', 'agree': 'info', 'strongly-agree': 'success'} %}
-                            <span class="badge bg-{{ opinion_colors.get(stix_object.opinion, 'secondary') }} ms-2">{{ stix_object.opinion }}</span>
+                            <span class="badge bg-{{ opinion_colors.get(stix_object.opinion, 'secondary') }} ms-2">{{ stix_object.opinion|replace('-', ' ')|title }}</span>
                         </div>
                         {% endif %}
                         {% if stix_object.explanation %}
@@ -467,13 +527,93 @@
                         {% if stix_object.objects %}
                         <div class="property-row">
                             <span class="property-label">Observable Objects:</span>
-                            <span class="badge bg-primary ms-1">{{ stix_object.objects | length }} object(s)</span>
+                            <div class="mt-2">
+                                {% for key, obj in stix_object.objects.items() %}
+                                {% set obj_str = obj.value|default(obj|string) %}
+                                <div class="badge bg-primary me-2 mb-2">
+                                    {{ obj.type|default('unknown') }}: {{ obj_str[:50] }}{% if obj_str|length > 50 %}...{% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                         {% endif %}
                         {% if stix_object.object_refs %}
                         <div class="property-row">
-                            <span class="property-label">Object Refs:</span>
-                            <span class="badge bg-primary ms-1">{{ stix_object.object_refs | length }} reference(s)</span>
+                            <span class="property-label">Referenced Objects:</span>
+                            {% for ref in stix_object.object_refs %}
+                            <span class="badge bg-secondary ms-1">{{ ref }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'vulnerability' %}
+                        {% if stix_object.get('x_severity') %}
+                        <div class="property-row">
+                            <span class="property-label">Severity:</span>
+                            {% set severity_color = {'low': 'success', 'medium': 'warning', 'high': 'danger', 'critical': 'danger'}.get(stix_object.x_severity, 'secondary') %}
+                            <span class="badge bg-{{ severity_color }} ms-2">{{ stix_object.x_severity|capitalize }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.get('x_cvss_score') %}
+                        <div class="property-row">
+                            <span class="property-label">CVSS Score:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.x_cvss_score }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.get('x_cvss_vector') %}
+                        <div class="property-row">
+                            <span class="property-label">CVSS Vector:</span>
+                            <code class="ms-2">{{ stix_object.x_cvss_vector }}</code>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.get('x_affected_software') %}
+                        <div class="property-row">
+                            <span class="property-label">Affected Software:</span>
+                            {% for soft in stix_object.x_affected_software %}
+                            <span class="badge bg-secondary ms-1">{{ soft }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.external_references %}
+                        <div class="property-row">
+                            <span class="property-label">External References:</span>
+                            {% for ref in stix_object.external_references %}
+                                {% if ref.external_id %}
+                                <a href="{{ ref.url or '#' }}" target="_blank" class="badge bg-danger text-decoration-none ms-1">
+                                    {{ ref.external_id }} <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                </a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    
+                    {% elif stix_object.type == 'infrastructure' %}
+                        {% if stix_object.infrastructure_types %}
+                        <div class="property-row">
+                            <span class="property-label">Infrastructure Types:</span>
+                            {% for t in stix_object.infrastructure_types %}
+                            <span class="badge bg-info ms-1">{{ t|replace('-', ' ')|title }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.first_seen %}
+                        <div class="property-row">
+                            <span class="property-label">First Seen:</span>
+                            <span class="ms-2">{{ stix_object.first_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.last_seen %}
+                        <div class="property-row">
+                            <span class="property-label">Last Seen:</span>
+                            <span class="ms-2">{{ stix_object.last_seen }}</span>
                         </div>
                         {% endif %}
                     {% endif %}

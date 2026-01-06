@@ -386,9 +386,9 @@ def generate_coherent_threat_scenarios():
                 'threat_actor_types': ['nation-state'],
                 'sophistication': 'expert',
                 'primary_motivation': 'organizational-gain',
-                'secondary_motivations': ['ideology'],
                 'resource_level': 'government',
                 'aliases': ['Cozy Bear', 'The Dukes', 'YTTRIUM', 'Iron Hemlock', 'Grizzly Steppe'],
+                'roles': ['director', 'sponsor'],
                 'goals': ['Espionage', 'Intelligence gathering', 'Political influence'],
                 'labels': ['apt', 'nation-state', 'russia'],
             },
@@ -407,6 +407,7 @@ def generate_coherent_threat_scenarios():
                 'type': 'campaign',
                 'name': 'Operation SUNBURST',
                 'description': 'Advanced persistent threat campaign leveraging compromised SolarWinds Orion updates to deploy SUNBURST backdoor across thousands of organizations.',
+                'aliases': ['SUNBURST', 'SolarWinds Supply Chain Compromise'],
                 'objective': 'Espionage and long-term persistent access to high-value government and corporate networks',
                 'first_seen': '2020-03-01T00:00:00.000Z',
                 'last_seen': '2021-01-15T00:00:00.000Z',
@@ -420,6 +421,9 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['backdoor', 'trojan'],
                     'capabilities': ['anti-analysis', 'modular-payload', 'dga-c2'],
+                    'first_seen': '2020-03-01T00:00:00.000Z',
+                    'last_seen': '2021-06-30T00:00:00.000Z',
+                    'aliases': ['SUNBURST', 'Solorigate'],
                     'labels': ['sunburst', 'backdoor', 'apt29'],
                 },
                 {
@@ -429,6 +433,8 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['dropper'],
                     'capabilities': ['memory-resident', 'cobalt-strike-loader'],
+                    'first_seen': '2020-06-01T00:00:00.000Z',
+                    'last_seen': '2021-06-30T00:00:00.000Z',
                     'labels': ['teardrop', 'dropper', 'apt29'],
                 },
                 {
@@ -437,6 +443,8 @@ def generate_coherent_threat_scenarios():
                     'description': 'Loader malware similar to TEARDROP, used for deploying Cobalt Strike on specific high-value targets.',
                     'is_family': True,
                     'malware_types': ['loader', 'dropper'],
+                    'first_seen': '2020-08-01T00:00:00.000Z',
+                    'last_seen': '2021-06-30T00:00:00.000Z',
                     'labels': ['raindrop', 'loader', 'apt29'],
                 },
             ],
@@ -487,14 +495,20 @@ def generate_coherent_threat_scenarios():
                     'type': 'infrastructure',
                     'name': 'APT29 C2 Infrastructure - US East',
                     'description': 'Command and control servers hosted on US-based VPS providers, using legitimate cloud services for blending.',
+                    'aliases': ['us-east-c2-cluster', 'east-relay-infrastructure'],
                     'infrastructure_types': ['command-and-control'],
+                    'first_seen': '2020-06-01T00:00:00.000Z',
+                    'last_seen': '2021-06-30T00:00:00.000Z',
                     'labels': ['c2', 'apt29', 'us-based'],
                 },
                 {
                     'type': 'infrastructure',
                     'name': 'APT29 Staging Server - Europe',
                     'description': 'Staging infrastructure for payload delivery and data exfiltration, using European hosting providers.',
+                    'aliases': ['eu-staging-cluster', 'europe-exfil-nodes'],
                     'infrastructure_types': ['staging', 'exfiltration'],
+                    'first_seen': '2020-08-01T00:00:00.000Z',
+                    'last_seen': '2021-06-30T00:00:00.000Z',
                     'labels': ['staging', 'apt29', 'europe'],
                 },
             ],
@@ -596,7 +610,8 @@ def generate_coherent_threat_scenarios():
                 'sophistication': 'advanced',
                 'primary_motivation': 'personal-gain',
                 'resource_level': 'organization',
-                'aliases': ['LockBit', 'ABCD Ransomware'],
+                'aliases': ['LockBit', 'ABCD Ransomware', 'LockBit-RaaS'],
+                'roles': ['malware-author', 'infrastructure-operator'],
                 'goals': ['Financial extortion', 'Data theft', 'Ransomware deployment'],
                 'labels': ['ransomware', 'raas', 'lockbit'],
             },
@@ -604,6 +619,7 @@ def generate_coherent_threat_scenarios():
                 'type': 'campaign',
                 'name': 'LockBit Healthcare Campaign Q4 2025',
                 'description': 'Targeted ransomware campaign against healthcare organizations exploiting vulnerable VPN appliances and RDP exposure.',
+                'aliases': ['LockBit-Healthcare-Q4', 'LockBit-RaaS-Wave-2025'],
                 'objective': 'Encrypt critical healthcare systems and extort ransom payments through double extortion (encryption + data leak threat)',
                 'first_seen': '2025-10-01T00:00:00.000Z',
                 'last_seen': '2025-12-31T00:00:00.000Z',
@@ -617,6 +633,9 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['ransomware'],
                     'capabilities': ['encrypts-files', 'deletes-backups', 'spreads-via-network', 'anti-analysis'],
+                    'first_seen': '2023-06-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
+                    'aliases': ['LockBit 3.0', 'LBita'],
                     'labels': ['lockbit3', 'ransomware'],
                 },
                 {
@@ -626,6 +645,8 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['spyware', 'trojan'],
                     'capabilities': ['data-exfiltration', 'credential-theft'],
+                    'first_seen': '2023-06-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['stealbit', 'exfiltration', 'lockbit'],
                 },
             ],
@@ -683,14 +704,20 @@ def generate_coherent_threat_scenarios():
                     'type': 'infrastructure',
                     'name': 'LockBit Data Leak Site',
                     'description': 'Tor-based data leak site where LockBit publishes stolen data from non-paying victims.',
+                    'aliases': ['lockbit-leak-site', 'lockbit-data-dumps'],
                     'infrastructure_types': ['anonymization', 'exfiltration'],
+                    'first_seen': '2020-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['tor', 'leak-site', 'lockbit'],
                 },
                 {
                     'type': 'infrastructure',
                     'name': 'LockBit Affiliate C2 Panel',
                     'description': 'Web-based panel used by LockBit affiliates to manage ransomware deployments and track payments.',
+                    'aliases': ['lockbit-panel', 'lockbit-dashboard'],
                     'infrastructure_types': ['command-and-control'],
+                    'first_seen': '2020-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['c2', 'raas', 'lockbit'],
                 },
             ],
@@ -793,6 +820,7 @@ def generate_coherent_threat_scenarios():
                 'primary_motivation': 'personal-gain',
                 'resource_level': 'organization',
                 'aliases': ['Carbanak', 'Navigator Group', 'Anunak'],
+                'roles': ['infrastructure-operator', 'malware-author'],
                 'goals': ['Financial theft', 'Credit card fraud', 'Wire fraud'],
                 'labels': ['fin7', 'carbanak', 'financial-crime'],
             },
@@ -800,6 +828,7 @@ def generate_coherent_threat_scenarios():
                 'type': 'campaign',
                 'name': 'FIN7 Banking Trojan Campaign 2025',
                 'description': 'Targeted phishing campaign against financial institutions using malicious document attachments to deploy banking trojans.',
+                'aliases': ['FIN7-Banking-Wave-2025', 'Carbanak-Campaign-Q4'],
                 'objective': 'Compromise financial institution networks to steal funds and customer financial data',
                 'first_seen': '2025-09-01T00:00:00.000Z',
                 'last_seen': '2025-12-31T00:00:00.000Z',
@@ -813,6 +842,9 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['backdoor', 'trojan', 'spyware'],
                     'capabilities': ['keylogging', 'screen-capture', 'remote-access'],
+                    'first_seen': '2013-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
+                    'aliases': ['Carbanak', 'Anunak', 'Bkdr_Carbanak'],
                     'labels': ['carbanak', 'banking-trojan', 'fin7'],
                 },
                 {
@@ -822,6 +854,8 @@ def generate_coherent_threat_scenarios():
                     'is_family': True,
                     'malware_types': ['backdoor'],
                     'capabilities': ['javascript-based', 'reconnaissance'],
+                    'first_seen': '2018-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['griffon', 'backdoor', 'fin7'],
                 },
                 {
@@ -830,6 +864,8 @@ def generate_coherent_threat_scenarios():
                     'description': 'Loader malware used by FIN7 to deploy additional payloads on compromised systems.',
                     'is_family': True,
                     'malware_types': ['loader', 'dropper'],
+                    'first_seen': '2019-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['boostwrite', 'loader', 'fin7'],
                 },
             ],
@@ -880,14 +916,20 @@ def generate_coherent_threat_scenarios():
                     'type': 'infrastructure',
                     'name': 'FIN7 Phishing Infrastructure',
                     'description': 'Bulletproof hosting used for phishing campaigns and malware delivery.',
+                    'aliases': ['fin7-phishing-cluster', 'fin7-hosting-nodes'],
                     'infrastructure_types': ['hosting-malware', 'phishing'],
+                    'first_seen': '2015-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['phishing', 'fin7'],
                 },
                 {
                     'type': 'infrastructure',
                     'name': 'FIN7 C2 Server Network',
                     'description': 'Distributed command and control infrastructure using compromised websites.',
+                    'aliases': ['fin7-c2-network', 'fin7-command-cluster'],
                     'infrastructure_types': ['command-and-control'],
+                    'first_seen': '2015-01-01T00:00:00.000Z',
+                    'last_seen': '2025-12-31T00:00:00.000Z',
                     'labels': ['c2', 'fin7'],
                 },
             ],
@@ -1324,6 +1366,149 @@ def populate_demo_data():
                     print(f"   ✓ Course of Action: {obj_data['name']}")
                 except Exception as e:
                     print(f"   ✗ Course of Action error: {e}")
+            
+            # Create Observed Data objects
+            print(f"\n   Creating Observed Data objects for {scenario_name}...")
+            scenario_objects[scenario_name]['observed_data'] = []
+            try:
+                # Create a few observed_data entries linking indicators to malware
+                num_observed = random.randint(2, 4)
+                for i in range(num_observed):
+                    first_obs = datetime.utcnow() - timedelta(days=random.randint(5, 30))
+                    last_obs = first_obs + timedelta(hours=random.randint(1, 48))
+                    
+                    observed_obj = {
+                        'type': 'observed-data',
+                        'name': f"Network Traffic Observation - {scenario_name.replace('_', ' ').title()} (Sample {i+1})",
+                        'description': f"Observed malicious network activity related to {scenario_name}. Traffic patterns consistent with known C2 communications.",
+                        'first_observed': first_obs.isoformat() + 'Z',
+                        'last_observed': last_obs.isoformat() + 'Z',
+                        'number_observed': random.randint(10, 1000),
+                        'x_observation_source': random.choice(['IDS Alert', 'Firewall Log', 'DNS Sinkhole', 'Proxy Log', 'EDR Detection']),
+                        'objects': {
+                            '0': {
+                                'type': 'ipv4-addr',
+                                'value': generate_ipv4()
+                            },
+                            '1': {
+                                'type': 'domain-name',
+                                'value': generate_domain()
+                            }
+                        },
+                        'object_refs': ['0', '1'],
+                        'labels': ['network-traffic', scenario_name],
+                    }
+                    stix_obj = STIXService.create_sdo('observed-data', observed_obj, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['observed_data'].append(stix_obj['id'])
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Observed Data: {observed_obj['name']}")
+            except Exception as e:
+                print(f"   ✗ Observed Data error: {e}")
+            
+            # Create Reports
+            print(f"\n   Creating Reports for {scenario_name}...")
+            scenario_objects[scenario_name]['reports'] = []
+            try:
+                num_reports = random.randint(1, 2)
+                for i in range(num_reports):
+                    # Collect some object IDs to reference
+                    report_refs = []
+                    if 'threat_actor' in scenario_objects[scenario_name]:
+                        report_refs.append(scenario_objects[scenario_name]['threat_actor'])
+                    if 'campaign' in scenario_objects[scenario_name]:
+                        report_refs.append(scenario_objects[scenario_name]['campaign'])
+                    if 'malware' in scenario_objects[scenario_name]:
+                        report_refs.extend(scenario_objects[scenario_name]['malware'][:2])
+                    if 'indicators' in scenario_objects[scenario_name]:
+                        report_refs.extend(scenario_objects[scenario_name]['indicators'][:2])
+                    if 'observed_data' in scenario_objects[scenario_name]:
+                        report_refs.extend(scenario_objects[scenario_name]['observed_data'][:1])
+                    
+                    if report_refs:  # Only create if we have objects to reference
+                        report_obj = {
+                            'type': 'report',
+                            'name': f"Threat Intelligence Report: {scenario_name.replace('_', ' ').title()} Analysis #{i+1}",
+                            'description': f"Comprehensive threat intelligence report covering observed tactics, techniques, and procedures (TTPs) related to {scenario_name} campaign.",
+                            'report_types': ['threat-report', 'campaign', 'malware-analysis'],
+                            'published': datetime.utcnow().isoformat() + 'Z',
+                            'object_refs': report_refs,
+                            'labels': ['threat-analysis', scenario_name],
+                            'x_report_source': 'ELASLIP Automated Analysis',
+                        }
+                        stix_obj = STIXService.create_sdo('report', report_obj, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['reports'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Report: {report_obj['name']}")
+            except Exception as e:
+                print(f"   ✗ Report error: {e}")
+            
+            # Create Opinions
+            print(f"\n   Creating Opinions for {scenario_name}...")
+            scenario_objects[scenario_name]['opinions'] = []
+            try:
+                num_opinions = random.randint(2, 3)
+                for i in range(num_opinions):
+                    # Opinion on threat actor or malware
+                    opinion_abstract = ""
+                    opinion_assessment = "neutral"
+                    
+                    if i % 3 == 0 and 'threat_actor' in scenario_objects[scenario_name]:
+                        opinion_abstract = f"Attribution Assessment for {scenario_name.replace('_', ' ').title()}"
+                        opinion_assessment = "agree"
+                    elif i % 3 == 1 and 'malware' in scenario_objects[scenario_name]:
+                        opinion_abstract = f"Malware Family Confidence Assessment"
+                        opinion_assessment = "strongly-agree"
+                    else:
+                        opinion_abstract = f"Threat Analysis Opinion #{i+1}"
+                        opinion_assessment = "agree"
+                    
+                    opinion_obj = {
+                        'type': 'opinion',
+                        'name': opinion_abstract,
+                        'abstract': opinion_abstract,
+                        'opinion': opinion_assessment,
+                        'explanation': f"Assessment based on technical analysis, threat intelligence correlation, and tactical patterns observed in {scenario_name} campaign.",
+                        'authors': ['SOC Team', 'Threat Intelligence'],
+                        'x_confidence_level': random.choice(['high', 'medium', 'low']),
+                        'labels': ['assessment', scenario_name],
+                    }
+                    stix_obj = STIXService.create_sdo('opinion', opinion_obj, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['opinions'].append(stix_obj['id'])
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Opinion: {opinion_obj['abstract']}")
+            except Exception as e:
+                print(f"   ✗ Opinion error: {e}")
+            
+            # Create Notes
+            print(f"\n   Creating Notes for {scenario_name}...")
+            scenario_objects[scenario_name]['notes'] = []
+            try:
+                num_notes = random.randint(2, 3)
+                for i in range(num_notes):
+                    # Get a random object to attach the note to
+                    note_target_refs = []
+                    if 'indicators' in scenario_objects[scenario_name] and scenario_objects[scenario_name]['indicators']:
+                        note_target_refs.append(scenario_objects[scenario_name]['indicators'][i % len(scenario_objects[scenario_name]['indicators'])])
+                    elif 'malware' in scenario_objects[scenario_name] and scenario_objects[scenario_name]['malware']:
+                        note_target_refs.append(scenario_objects[scenario_name]['malware'][i % len(scenario_objects[scenario_name]['malware'])])
+                    
+                    if note_target_refs:
+                        note_obj = {
+                            'type': 'note',
+                            'name': f"Note: {scenario_name.replace('_', ' ').title()} - Note #{i+1}",
+                            'abstract': f"Analyst Note: {scenario_name.replace('_', ' ').title()} - Note #{i+1}",
+                            'content': f"Investigation note regarding {scenario_name} scenario. Additional context and analyst observations included. This note documents important findings and tactical recommendations for the SOC team.",
+                            'authors': ['Threat Analyst', 'SOC Team'],
+                            'object_refs': note_target_refs,
+                            'x_authority': random.choice(['personal', 'team', 'organization']),
+                            'labels': ['analyst-comment', scenario_name],
+                        }
+                        stix_obj = STIXService.create_sdo('note', note_obj, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['notes'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Note: {note_obj['abstract']}")
+            except Exception as e:
+                print(f"   ✗ Note error: {e}")
         
         print(f"\n   Total STIX objects created: {len(all_created_ids)}")
         
@@ -1493,6 +1678,138 @@ def populate_demo_data():
                         relations_created += 1
                         print(f"   ✓ Course of Action → mitigates → Malware")
                     except: pass
+            
+            # Report → Threat Actor, Campaign, Malware, Indicators (create explicit relationships)
+            if 'reports' in objs:
+                for report_id in objs['reports']:
+                    # Link report to threat actor
+                    if 'threat_actor' in objs:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=report_id,
+                                target_ref=objs['threat_actor'],
+                                relationship_type='documents',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Report → documents → Threat Actor")
+                        except: pass
+                    
+                    # Link report to campaign
+                    if 'campaign' in objs:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=report_id,
+                                target_ref=objs['campaign'],
+                                relationship_type='documents',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Report → documents → Campaign")
+                        except: pass
+                    
+                    # Link report to malware
+                    if 'malware' in objs:
+                        for malware_id in objs['malware'][:2]:
+                            try:
+                                STIXService.create_relationship(
+                                    source_ref=report_id,
+                                    target_ref=malware_id,
+                                    relationship_type='documents',
+                                    user_id='demo-user', username='demo'
+                                )
+                                relations_created += 1
+                                print(f"   ✓ Report → documents → Malware")
+                            except: pass
+                    
+                    # Link report to indicators
+                    if 'indicators' in objs:
+                        for indicator_id in objs['indicators'][:2]:
+                            try:
+                                STIXService.create_relationship(
+                                    source_ref=report_id,
+                                    target_ref=indicator_id,
+                                    relationship_type='documents',
+                                    user_id='demo-user', username='demo'
+                                )
+                                relations_created += 1
+                                print(f"   ✓ Report → documents → Indicator")
+                            except: pass
+                    
+                    # Link report to observed data
+                    if 'observed_data' in objs:
+                        for obs_id in objs['observed_data'][:1]:
+                            try:
+                                STIXService.create_relationship(
+                                    source_ref=report_id,
+                                    target_ref=obs_id,
+                                    relationship_type='documents',
+                                    user_id='demo-user', username='demo'
+                                )
+                                relations_created += 1
+                                print(f"   ✓ Report → documents → Observed Data")
+                            except: pass
+            
+            # Observed Data → Malware (based-on)
+            if 'observed_data' in objs and 'malware' in objs:
+                for obs_id in objs['observed_data']:
+                    for malware_id in objs['malware']:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=obs_id,
+                                target_ref=malware_id,
+                                relationship_type='based-on',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Observed Data → based-on → Malware")
+                        except: pass
+            
+            # Observed Data → Indicators (related-to)
+            if 'observed_data' in objs and 'indicators' in objs:
+                for obs_id in objs['observed_data']:
+                    for indicator_id in objs['indicators'][:2]:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=obs_id,
+                                target_ref=indicator_id,
+                                relationship_type='related-to',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Observed Data → related-to → Indicator")
+                        except: pass
+            
+            # Opinion → referenced objects (create relationships)
+            if 'opinions' in objs:
+                for opinion_id in objs['opinions']:
+                    # Try to link opinion to threat actor
+                    if 'threat_actor' in objs:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=opinion_id,
+                                target_ref=objs['threat_actor'],
+                                relationship_type='related-to',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Opinion → related-to → Threat Actor")
+                        except: pass
+            
+            # Note → Indicators / Malware (via object_refs in note and relationships)
+            if 'notes' in objs and 'indicators' in objs:
+                for note_id in objs['notes']:
+                    for indicator_id in objs['indicators'][:1]:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=note_id,
+                                target_ref=indicator_id,
+                                relationship_type='related-to',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Note → related-to → Indicator")
+                        except: pass
         
         print(f"\n   Total relationships created: {relations_created}")
         
@@ -2065,9 +2382,19 @@ def populate_demo_data():
         
         print(f"   ✓ Added {incident_comments_created} comments to incidents")
         
+        # Count observed_data, reports, opinions, and notes created
+        observed_data_count = sum(len(objs.get('observed_data', [])) for objs in scenario_objects.values())
+        reports_count = sum(len(objs.get('reports', [])) for objs in scenario_objects.values())
+        opinions_count = sum(len(objs.get('opinions', [])) for objs in scenario_objects.values())
+        notes_count = sum(len(objs.get('notes', [])) for objs in scenario_objects.values())
+        
         print("\n" + "=" * 60)
         print("Demo data population complete!")
         print(f"Total STIX objects created: {len(all_created_ids)}")
+        print(f"  - Observed Data objects: {observed_data_count}")
+        print(f"  - Reports: {reports_count}")
+        print(f"  - Opinions: {opinions_count}")
+        print(f"  - Notes: {notes_count}")
         print(f"Total STIX relationships: {relations_created}")
         print(f"Total cases created: {len(created_cases)}")
         print(f"Total incidents created: {len(created_incidents)}")
