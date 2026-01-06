@@ -1223,6 +1223,122 @@ function initRelationshipGraph() {
                     'text-rotation': 'autorotate',
                     'text-margin-y': -10
                 }
+            },
+            // STIX relationship types styling
+            {
+                selector: 'edge[label="uses"]',
+                style: {
+                    'line-color': '#FF6B6B',
+                    'target-arrow-color': '#FF6B6B'
+                }
+            },
+            {
+                selector: 'edge[label="targets"]',
+                style: {
+                    'line-color': '#FF4444',
+                    'target-arrow-color': '#FF4444',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge[label="attributed-to"]',
+                style: {
+                    'line-color': '#9b59b6',
+                    'target-arrow-color': '#9b59b6'
+                }
+            },
+            {
+                selector: 'edge[label="indicates"]',
+                style: {
+                    'line-color': '#FFD700',
+                    'target-arrow-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'edge[label="related-to"]',
+                style: {
+                    'line-color': '#3498db',
+                    'target-arrow-color': '#3498db',
+                    'line-style': 'dashed'
+                }
+            },
+            {
+                selector: 'edge[label="has"]',
+                style: {
+                    'line-color': '#1abc9c',
+                    'target-arrow-color': '#1abc9c'
+                }
+            },
+            {
+                selector: 'edge[label="part-of"]',
+                style: {
+                    'line-color': '#27ae60',
+                    'target-arrow-color': '#27ae60'
+                }
+            },
+            {
+                selector: 'edge[label="based-on"]',
+                style: {
+                    'line-color': '#e67e22',
+                    'target-arrow-color': '#e67e22'
+                }
+            },
+            {
+                selector: 'edge[label="authored-by"]',
+                style: {
+                    'line-color': '#34495e',
+                    'target-arrow-color': '#34495e'
+                }
+            },
+            {
+                selector: 'edge[label="located-at"]',
+                style: {
+                    'line-color': '#16a085',
+                    'target-arrow-color': '#16a085'
+                }
+            },
+            {
+                selector: 'edge[label="variant-of"]',
+                style: {
+                    'line-color': '#c0392b',
+                    'target-arrow-color': '#c0392b'
+                }
+            },
+            {
+                selector: 'edge[label="mitigates"]',
+                style: {
+                    'line-color': '#2ecc71',
+                    'target-arrow-color': '#2ecc71',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge[label="exploits"]',
+                style: {
+                    'line-color': '#e74c3c',
+                    'target-arrow-color': '#e74c3c',
+                    'width': 3
+                }
+            },
+            {
+                selector: 'edge[label="found-in-incident"]',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'line-style': 'dashed',
+                    'opacity': 0.6,
+                    'font-size': 0
+                }
+            },
+            {
+                selector: 'edge[label="found-in-case"]',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'line-style': 'dashed',
+                    'opacity': 0.6,
+                    'font-size': 0
+                }
             }
         ],
         layout: {

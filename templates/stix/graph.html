@@ -410,6 +410,11 @@
             </div>
         </div>
 
+        <div class="control-group" id="nodeSpacingControl">
+            <label for="nodeSpacing">Node Spacing:</label>
+            <input type="range" id="nodeSpacing" min="10" max="200" value="50" onchange="updateNodeSpacing()" style="width: 100%; cursor: pointer;">
+        </div>
+
         <div class="control-group">
             <label for="layoutSelect">Layout:</label>
             <select id="layoutSelect" onchange="changeLayout()">
@@ -418,23 +423,6 @@
                 <option value="grid">Grid</option>
                 <option value="breadthfirst">Breadth-First</option>
                 <option value="concentric">Concentric</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label for="filterSTIXType">Filter by STIX Type:</label>
-            <select id="filterSTIXType" onchange="filterBySTIXType()">
-                <option value="">All Types</option>
-                <option value="indicator">Indicator</option>
-                <option value="malware">Malware</option>
-                <option value="attack-pattern">Attack Pattern</option>
-                <option value="threat-actor">Threat Actor</option>
-                <option value="campaign">Campaign</option>
-                <option value="infrastructure">Infrastructure</option>
-                <option value="tool">Tool</option>
-                <option value="vulnerability">Vulnerability</option>
-                <option value="identity">Identity</option>
-                <option value="location">Location</option>
             </select>
         </div>
 
@@ -576,7 +564,9 @@ let showEdgeLabels = true;
 let allNodes = [];
 let allEdges = [];
 let searchTimeout = null;
-let currentFocusNodeId = null;  // Track the currently focused node
+let currentFocusNodeId = null;
+let currentSearchTerm = '';
+let originalNodePositions = {};  // Store original positions for spacing calculations
 
 function escapeHtml(text) {
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
@@ -633,8 +623,10 @@ function initGraph(nodes, edges) {
                     'background-color': '#3498db',
                     'background-image': 'data(icon)',
                     'shape': 'round-rectangle',
-                    'width': 45,
-                    'height': 45
+                    'width': 55,
+                    'height': 55,
+                    'border-width': 2,
+                    'border-color': '#2980b9'
                 }
             },
             {
@@ -643,8 +635,10 @@ function initGraph(nodes, edges) {
                     'background-color': '#e74c3c',
                     'background-image': 'data(icon)',
                     'shape': 'diamond',
-                    'width': 50,
-                    'height': 50
+                    'width': 60,
+                    'height': 60,
+                    'border-width': 2,
+                    'border-color': '#c0392b'
                 }
             },
             {
@@ -664,6 +658,124 @@ function initGraph(nodes, edges) {
                     'text-background-color': '#fff',
                     'text-background-opacity': 0.8,
                     'text-background-padding': '2px'
+                }
+            },
+            // STIX relationship types styling
+            {
+                selector: 'edge[label="uses"]',
+                style: {
+                    'line-color': '#FF6B6B',
+                    'target-arrow-color': '#FF6B6B'
+                }
+            },
+            {
+                selector: 'edge[label="targets"]',
+                style: {
+                    'line-color': '#FF4444',
+                    'target-arrow-color': '#FF4444',
+                    'width': 4
+                }
+            },
+            {
+                selector: 'edge[label="attributed-to"]',
+                style: {
+                    'line-color': '#9b59b6',
+                    'target-arrow-color': '#9b59b6'
+                }
+            },
+            {
+                selector: 'edge[label="indicates"]',
+                style: {
+                    'line-color': '#FFD700',
+                    'target-arrow-color': '#FFD700'
+                }
+            },
+            {
+                selector: 'edge[label="related-to"]',
+                style: {
+                    'line-color': '#3498db',
+                    'target-arrow-color': '#3498db',
+                    'line-style': 'dashed'
+                }
+            },
+            {
+                selector: 'edge[label="has"]',
+                style: {
+                    'line-color': '#1abc9c',
+                    'target-arrow-color': '#1abc9c'
+                }
+            },
+            {
+                selector: 'edge[label="part-of"]',
+                style: {
+                    'line-color': '#27ae60',
+                    'target-arrow-color': '#27ae60'
+                }
+            },
+            {
+                selector: 'edge[label="based-on"]',
+                style: {
+                    'line-color': '#e67e22',
+                    'target-arrow-color': '#e67e22'
+                }
+            },
+            {
+                selector: 'edge[label="authored-by"]',
+                style: {
+                    'line-color': '#34495e',
+                    'target-arrow-color': '#34495e'
+                }
+            },
+            {
+                selector: 'edge[label="located-at"]',
+                style: {
+                    'line-color': '#16a085',
+                    'target-arrow-color': '#16a085'
+                }
+            },
+            {
+                selector: 'edge[label="variant-of"]',
+                style: {
+                    'line-color': '#c0392b',
+                    'target-arrow-color': '#c0392b'
+                }
+            },
+            {
+                selector: 'edge[label="mitigates"]',
+                style: {
+                    'line-color': '#2ecc71',
+                    'target-arrow-color': '#2ecc71',
+                    'width': 4
+                }
+            },
+            {
+                selector: 'edge[label="exploits"]',
+                style: {
+                    'line-color': '#e74c3c',
+                    'target-arrow-color': '#e74c3c',
+                    'width': 4
+                }
+            },
+            {
+                selector: 'edge[label="found-in-incident"]',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'line-style': 'dashed',
+                    'opacity': 0.6,
+                    'width': 2,
+                    'font-size': 0
+                }
+            },
+            {
+                selector: 'edge[label="found-in-case"]',
+                style: {
+                    'line-color': '#95a5a6',
+                    'target-arrow-color': '#95a5a6',
+                    'line-style': 'dashed',
+                    'opacity': 0.6,
+                    'width': 2,
+                    'font-size': 0
                 }
             },
             {
@@ -696,13 +808,13 @@ function initGraph(nodes, edges) {
     cy.on('tap', 'node', function(e) {
         e.stopPropagation();
         const selectedNode = e.target;
-        currentFocusNodeId = selectedNode.id();  // Update focused node
+        currentFocusNodeId = selectedNode.id();
         showNodeInfo(selectedNode);
     });
 
     cy.on('tap', function(e) {
         if (e.target === cy) {
-            currentFocusNodeId = null;  // Clear focus when clicking empty space
+            currentFocusNodeId = null;
             document.getElementById('infoPanel').style.display = 'none';
         }
     });
@@ -722,10 +834,24 @@ function initGraph(nodes, edges) {
     });
 
     fitGraph();
+    
+    // Save original node positions for spacing calculations
+    setTimeout(() => {
+        if (cy) {
+            originalNodePositions = {};
+            cy.nodes().forEach(node => {
+                originalNodePositions[node.id()] = {
+                    x: node.position().x,
+                    y: node.position().y
+                };
+            });
+            console.log('[initGraph] Saved', Object.keys(originalNodePositions).length, 'node positions');
+        }
+    }, 600);  // Wait for layout animation to complete
 }
 
 function loadGraph(focusNodeId) {
-    // If no focus node specified but we have one, use it
+
     if (!focusNodeId && currentFocusNodeId) {
         focusNodeId = currentFocusNodeId;
     }
@@ -733,7 +859,9 @@ function loadGraph(focusNodeId) {
     const depth = parseInt(document.getElementById('relationshipDepth').value) || 1;
     const params = { depth: depth };
     
-    // If focusing on a specific node, add it to the request
+    console.log('[loadGraph] Loading graph with depth:', depth, ', focusNodeId:', focusNodeId, ', searchTerm:', currentSearchTerm);
+    
+
     if (focusNodeId) {
         params.start_id = focusNodeId;
     }
@@ -767,28 +895,51 @@ function loadGraph(focusNodeId) {
             });
 
             initGraph(nodes, edges);
+            console.log('[loadGraph] Graph initialized with', nodes.length, 'nodes and', edges.length, 'edges');
+            console.log('[loadGraph] currentSearchTerm value:', JSON.stringify(currentSearchTerm), 'type:', typeof currentSearchTerm, 'length:', currentSearchTerm ? currentSearchTerm.length : 'N/A');
             
-            // Show all objects by default for general view
+
             if (nodes.length > 0) {
-                cy.nodes().show();
-                cy.edges().show();
-                document.getElementById('emptyGraphMessage').style.display = 'none';
-                
-                // If focusing on a node, center on it
-                if (focusNodeId) {
-                    const focusNode = cy.$id(focusNodeId);
-                    if (focusNode && focusNode.length > 0) {
-                        focusNode.select();
-                        cy.animate({
-                            fit: { eles: focusNode.union(focusNode.neighborhood()), padding: 50 },
-                            duration: 300
-                        });
-                    } else {
-                        cy.fit(null, 50);
+
+                setTimeout(() => {
+                    try {
+                        cy.nodes().show();
+                        cy.edges().show();
+                        document.getElementById('emptyGraphMessage').style.display = 'none';
+                        
+                        console.log('[loadGraph] Checking if search should be reapplied...');
+                        if (currentSearchTerm && currentSearchTerm.length >= 2) {
+                            console.log('[loadGraph] YES - Reapplying search filter for term:', currentSearchTerm);
+                            applySearchFilter(currentSearchTerm);
+                        } else {
+                            console.log('[loadGraph] NO - No active search term to reapply (currentSearchTerm=', currentSearchTerm, ')');
+                            
+
+
+                            if (focusNodeId) {
+                                const focusNode = cy.$id(focusNodeId);
+                                if (focusNode && focusNode.length > 0) {
+                                    focusNode.select();
+                                    const toFit = focusNode.union(focusNode.neighborhood());
+                                    if (toFit && toFit.length > 0) {
+                                        cy.animate({
+                                            fit: { eles: toFit, padding: 50 },
+                                            duration: 300
+                                        });
+                                    } else {
+                                        cy.fit(null, 50);
+                                    }
+                                } else {
+                                    cy.fit(null, 50);
+                                }
+                            } else {
+                                cy.fit(null, 50);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[loadGraph] Error in setTimeout:', e);
                     }
-                } else {
-                    cy.fit(null, 50);
-                }
+                }, 100);
             } else {
                 cy.nodes().hide();
                 cy.edges().hide();
@@ -812,18 +963,79 @@ function changeLayout() {
     const layoutName = document.getElementById('layoutSelect').value;
     currentLayout = layoutName;
     
+    // Show/hide node spacing control based on layout
+    const nodeSpacingControl = document.getElementById('nodeSpacingControl');
+    if (layoutName === 'cose') {
+        nodeSpacingControl.style.display = 'block';
+    } else {
+        nodeSpacingControl.style.display = 'none';
+    }
+    
     if (cy) {
-        const layout = cy.layout({
+        const nodeSpacing = parseInt(document.getElementById('nodeSpacing').value) || 50;
+        
+        const layoutConfig = {
             name: layoutName,
             animate: true,
             animationDuration: 500,
             randomize: false,
-            nodeSpacing: 50,
+            nodeSpacing: nodeSpacing,
             padding: 50
-        });
+        };
+        
+        // Add COSE-specific parameters for case/incident gravity (galaxies)
+        if (layoutName === 'cose') {
+            layoutConfig.gravity = 0.5;  // Gentle overall gravity
+            layoutConfig.nodeRepulsion = 25000;  // Repulsion between nodes
+            layoutConfig.edgeElasticity = 0.5;  // Edge spring strength
+        }
+        
+        const layout = cy.layout(layoutConfig);
         layout.run();
     }
 }
+
+function updateNodeSpacing() {
+    const spacing = parseInt(document.getElementById('nodeSpacing').value);
+    
+    if (!cy || Object.keys(originalNodePositions).length === 0) return;
+    
+    console.log('[updateNodeSpacing] Updating spacing to:', spacing);
+    
+    // Adjust spacing with a more conservative formula
+    // spacing 50 = normal (factor 1), 100 = 1.25x spread, 25 = 0.75x spread
+    const spreadFactor = 1 + (spacing - 50) / 200;
+    
+    // Calculate center from original positions
+    let centerX = 0, centerY = 0;
+    let count = 0;
+    Object.values(originalNodePositions).forEach(pos => {
+        centerX += pos.x;
+        centerY += pos.y;
+        count++;
+    });
+    centerX /= count;
+    centerY /= count;
+    
+    // Apply spread factor to ALL nodes based on their ORIGINAL positions
+    cy.nodes().forEach(node => {
+        const nodeId = node.id();
+        if (originalNodePositions[nodeId]) {
+            const origPos = originalNodePositions[nodeId];
+            const distX = origPos.x - centerX;
+            const distY = origPos.y - centerY;
+            
+            // Apply spread factor to distances from center
+            node.position({
+                x: centerX + (distX * spreadFactor),
+                y: centerY + (distY * spreadFactor)
+            });
+        }
+    });
+    
+    console.log('[updateNodeSpacing] Spread nodes by factor:', spreadFactor);
+}
+
 
 function clearSelection() {
     if (cy) {
@@ -916,7 +1128,7 @@ function showNodeInfo(node) {
     infoPanel.style.display = 'block';
 }
 
-// STIX SDO type configuration with colors and Bootstrap Icons
+
 const stixTypeConfig = {
     'indicator': { color: '#FF6B6B', icon: 'crosshair' },
     'malware': { color: '#e74c3c', icon: 'bug-fill' },
@@ -939,7 +1151,7 @@ const stixTypeConfig = {
     'incident': { color: '#e74c3c', icon: 'exclamation-triangle-fill' }
 };
 
-// Generate SVG data URI for Bootstrap Icon
+
 function getIconSvg(iconName, color = 'white') {
     const icons = {
         'crosshair': '<path d="M8.5.5a.5.5 0 0 0-1 0v.518A7.001 7.001 0 0 0 1.018 7.5H.5a.5.5 0 0 0 0 1h.518a7.001 7.001 0 0 0 6.482 6.482v.518a.5.5 0 0 0 1 0v-.518A7.001 7.001 0 0 0 14.982 8.5h.518a.5.5 0 0 0 0-1h-.518A7.001 7.001 0 0 0 8.5 1.018V.5Zm-6.48 7A6.001 6.001 0 0 1 7.5 2.02v.48a.5.5 0 0 0 1 0v-.48a6.001 6.001 0 0 1 5.48 5.48h-.48a.5.5 0 0 0 0 1h.48a6.002 6.002 0 0 1-5.48 5.48v-.48a.5.5 0 0 0-1 0v.48A6.001 6.001 0 0 1 2.02 8.5h.48a.5.5 0 0 0 0-1h-.48ZM8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>',
@@ -983,8 +1195,81 @@ function debouncedSearch() {
 
 function showShowAllOption() {
     const dropdown = document.getElementById('searchResultsDropdown');
+    if (!dropdown) return;
     dropdown.innerHTML = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
     dropdown.style.display = 'block';
+}
+
+
+function applySearchFilter(searchTerm) {
+    if (!cy || !searchTerm) {
+        console.log('[applySearchFilter] Skipped: cy=', !!cy, ', searchTerm=', searchTerm);
+        return;
+    }
+    
+    try {
+        console.log('[applySearchFilter] Applying filter for term:', searchTerm);
+        
+        const searchTermLower = searchTerm.toLowerCase();
+        const matchingIds = new Set();
+        
+
+        cy.nodes().forEach(node => {
+            try {
+                const nodeLabel = (node.data('label') || node.data('name') || node.id()).toLowerCase();
+                if (nodeLabel.includes(searchTermLower)) {
+                    matchingIds.add(node.id());
+                }
+            } catch (e) {
+                console.error('[applySearchFilter] Error checking node:', e);
+            }
+        });
+        
+        console.log('[applySearchFilter] Found', matchingIds.size, 'matching nodes');
+        
+        if (matchingIds.size > 0) {
+
+            cy.nodes().forEach(node => {
+                node.hide();
+            });
+            
+
+            cy.nodes().forEach(node => {
+                if (matchingIds.has(node.id())) {
+                    node.show();
+                }
+            });
+            
+
+            cy.edges().forEach(edge => {
+                edge.hide();
+            });
+            
+
+            cy.edges().forEach(edge => {
+                try {
+                    const source = edge.source();
+                    const target = edge.target();
+                    if (source && target && source.visible() && target.visible()) {
+                        edge.show();
+                    }
+                } catch (e) {
+                    console.error('[applySearchFilter] Error checking edge:', e);
+                }
+            });
+            
+            const visibleCount = cy.elements(':visible').length;
+            console.log('[applySearchFilter] Visible elements:', visibleCount);
+            
+            if (visibleCount > 0) {
+                cy.fit(cy.elements(':visible'), 50);
+            }
+        } else {
+            console.log('[applySearchFilter] No matching nodes found');
+        }
+    } catch (e) {
+        console.error('[applySearchFilter] Error:', e);
+    }
 }
 
 function searchSTIX() {
@@ -994,17 +1279,37 @@ function searchSTIX() {
     const searchTermLower = searchTerm.toLowerCase();
     const dropdown = document.getElementById('searchResultsDropdown');
     
+    console.log('[searchSTIX] Search term:', searchTerm);
+    
+    if (!dropdown) return;
+    
+
+    currentSearchTerm = searchTerm;
+    console.log('[searchSTIX] Saved currentSearchTerm:', currentSearchTerm);
+    
     if (!searchTerm) {
+        console.log('[searchSTIX] Search term cleared');
         dropdown.style.display = 'none';
+
+        cy.nodes().show();
+        cy.edges().show();
         return;
     }
     
     if (searchTerm.length >= 2) {
+        console.log('[searchSTIX] Applying filter to graph');
+
+        applySearchFilter(searchTerm);
+        
+
         $.ajax({
             url: '/api/search',
             method: 'GET',
             data: { q: searchTerm, per_page: 20 },
             success: function(response) {
+                const dropdown = document.getElementById('searchResultsDropdown');
+                if (!dropdown) return;
+                
                 const items = response.items || response.results || [];
                 
                 if (items.length === 0) {
@@ -1013,14 +1318,14 @@ function searchSTIX() {
                     return;
                 }
                 
-                // Separate exact matches from partial matches
+
                 const exactMatches = [];
                 const partialMatches = [];
                 
                 for (const item of items) {
                     const itemName = (item.name || item.title || item.value || 'Unknown').toLowerCase();
                     
-                    // Check for exact match (case-insensitive)
+
                     if (itemName === searchTermLower || itemName === searchTermLower.replace(/\s+/g, ' ')) {
                         exactMatches.push(item);
                     } else {
@@ -1030,7 +1335,7 @@ function searchSTIX() {
                 
                 let html = '<div class="search-result-item" onclick="showAllObjects(event)" style="background-color: #f8f9fa; font-weight: bold;"><i class="bi bi-collection me-2"></i>Show All Objects</div>';
                 
-                // Show exact matches first
+
                 if (exactMatches.length > 0) {
                     html += '<div style="padding: 8px 12px; background-color: #e8f5e9; font-size: 0.75rem; font-weight: bold; color: #2e7d32; border-bottom: 1px solid #c8e6c9;">EXACT MATCHES</div>';
                     for (const item of exactMatches) {
@@ -1048,7 +1353,7 @@ function searchSTIX() {
                     }
                 }
                 
-                // Show partial matches
+
                 if (partialMatches.length > 0) {
                     if (exactMatches.length > 0) {
                         html += '<div style="padding: 8px 12px; background-color: #e3f2fd; font-size: 0.75rem; font-weight: bold; color: #1565c0; border-bottom: 1px solid #bbdefb;">PARTIAL MATCHES</div>';
@@ -1072,7 +1377,8 @@ function searchSTIX() {
                 dropdown.style.display = 'block';
             },
             error: function() {
-                dropdown.style.display = 'none';
+                const dropdown = document.getElementById('searchResultsDropdown');
+                if (dropdown) dropdown.style.display = 'none';
             }
         });
     }
@@ -1082,12 +1388,48 @@ function selectFromSearch(objId, objValue, event) {
     event.preventDefault();
     event.stopPropagation();
     
+    console.log('[selectFromSearch] Selected:', objId, objValue);
+    
     document.getElementById('searchSTIX').value = objValue;
     document.getElementById('searchResultsDropdown').style.display = 'none';
     
-    // Set the focus node and reload the graph
+
     currentFocusNodeId = objId;
-    loadGraph(objId);
+    console.log('[selectFromSearch] Set currentFocusNodeId:', currentFocusNodeId);
+    
+    if (cy) {
+        const focusNode = cy.$id(objId);
+        if (focusNode && focusNode.length > 0) {
+            console.log('[selectFromSearch] Node found in graph, showing with relations');
+            
+
+            cy.nodes().forEach(node => node.hide());
+            cy.edges().forEach(edge => edge.hide());
+            
+
+            const neighborhood = focusNode.neighborhood();
+            focusNode.show();
+            neighborhood.show();
+            
+
+            cy.edges().forEach(edge => {
+                if (edge.source().visible() && edge.target().visible()) {
+                    edge.show();
+                }
+            });
+            
+            focusNode.select();
+            cy.animate({
+                fit: { eles: focusNode.union(neighborhood), padding: 50 },
+                duration: 300
+            });
+            showNodeInfo(focusNode);
+        } else {
+
+            console.log('[selectFromSearch] Node not in graph, reloading...');
+            loadGraph(objId);
+        }
+    }
 }
 
 function showAllObjects(event) {
@@ -1096,6 +1438,7 @@ function showAllObjects(event) {
     
     document.getElementById('searchSTIX').value = '';
     document.getElementById('searchResultsDropdown').style.display = 'none';
+    currentSearchTerm = '';
     
     if (!cy) return;
     
@@ -1151,9 +1494,11 @@ function toggleControlsPanel() {
 }
 
 function updateDepthValue() {
-    const depth = document.getElementById('relationshipDepth').value;
+    const depth = parseInt(document.getElementById('relationshipDepth').value) || 1;
     const depthValue = document.getElementById('depthValue');
     const depthDescription = document.getElementById('depthDescription');
+    
+    console.log('[updateDepthValue] Depth changed to:', depth);
     
     depthValue.textContent = depth;
     
@@ -1167,20 +1512,97 @@ function updateDepthValue() {
     
     depthDescription.textContent = descriptions[depth] || 'Direct relations only';
     
-    // Reload the graph while keeping the currently focused node
-    loadGraph(currentFocusNodeId);
+
+    if (cy && currentFocusNodeId) {
+        console.log('[updateDepthValue] Showing focused node with depth:', depth);
+        showNodeAtDepth(currentFocusNodeId, depth);
+    } else {
+
+        console.log('[updateDepthValue] No focused node, reloading graph...');
+        currentSearchTerm = '';
+        document.getElementById('searchSTIX').value = '';
+        document.getElementById('searchResultsDropdown').style.display = 'none';
+        loadGraph(currentFocusNodeId);
+    }
+}
+
+
+function showNodeAtDepth(nodeId, maxDepth) {
+    if (!cy || maxDepth < 1) return;
+    
+    console.log('[showNodeAtDepth] Showing node', nodeId, 'with depth', maxDepth);
+    
+
+    cy.nodes().forEach(node => node.hide());
+    cy.edges().forEach(edge => edge.hide());
+    
+
+    const nodesToShow = new Set();
+    const queue = [{ nodeId: nodeId, currentDepth: 0 }];
+    const visited = new Set();
+    
+    while (queue.length > 0) {
+        const { nodeId: currentNodeId, currentDepth } = queue.shift();
+        
+        if (visited.has(currentNodeId)) continue;
+        visited.add(currentNodeId);
+        nodesToShow.add(currentNodeId);
+        
+
+        if (currentDepth < maxDepth) {
+            const node = cy.$id(currentNodeId);
+            if (node && node.length > 0) {
+                const neighbors = node.neighborhood().nodes();
+                neighbors.forEach(neighbor => {
+                    const neighborId = neighbor.id();
+                    if (!visited.has(neighborId)) {
+                        queue.push({ nodeId: neighborId, currentDepth: currentDepth + 1 });
+                    }
+                });
+            }
+        }
+    }
+    
+    console.log('[showNodeAtDepth] Found', nodesToShow.size, 'nodes within depth', maxDepth);
+    
+
+    nodesToShow.forEach(id => {
+        const node = cy.$id(id);
+        if (node && node.length > 0) {
+            node.show();
+        }
+    });
+    
+
+    cy.edges().forEach(edge => {
+        const source = edge.source();
+        const target = edge.target();
+        if (source.visible() && target.visible()) {
+            edge.show();
+        }
+    });
+    
+
+    const focusNode = cy.$id(nodeId);
+    if (focusNode && focusNode.length > 0) {
+        focusNode.select();
+        const visibleNodes = cy.nodes(':visible');
+        if (visibleNodes.length > 0) {
+            cy.fit(visibleNodes, 50);
+        }
+    }
 }
 
 function toggleNodeTypeVisibility() {
     if (!cy) return;
     
-    // Get all checked types
+
     const checkedTypes = new Set();
     document.querySelectorAll('.legend-checkbox:checked').forEach(checkbox => {
         checkedTypes.add(checkbox.dataset.type);
     });
     
-    // Hide/show nodes and their edges based on the checked types
+
     cy.nodes().forEach(node => {
         const nodeType = node.data('type') || node.data('entity_type') || 'stix';
         
@@ -1191,7 +1613,7 @@ function toggleNodeTypeVisibility() {
         }
     });
     
-    // Hide edges that don't have both endpoints visible
+
     cy.edges().forEach(edge => {
         const source = edge.source();
         const target = edge.target();
@@ -1203,7 +1625,7 @@ function toggleNodeTypeVisibility() {
         }
     });
     
-    // Fit the graph if there are visible elements
+
     if (cy.elements(':visible').length > 0) {
         cy.fit(cy.elements(':visible'), 50);
     }
