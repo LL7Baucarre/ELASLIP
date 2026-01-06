@@ -367,256 +367,786 @@ def generate_checklists():
     return checklists
 
 
-def generate_random_stix_objects(count=100):
-    """Generate random STIX 2.1 Domain Objects of all available types."""
-    # IOC types that can be converted to indicators
-    ioc_types = ['ipv4', 'domain', 'email', 'url', 'md5', 'sha1', 'sha256', 'asn']
+def generate_coherent_threat_scenarios():
+    """
+    Generate coherent STIX 2.1 objects organized by realistic threat scenarios.
+    Each scenario includes a complete attack chain with proper relationships.
+    Returns: dict with 'objects' list and 'relationships' list for logical linking.
+    """
     
-    # All STIX 2.1 SDO types
-    sdo_types = ['indicator', 'malware', 'threat-actor', 'attack-pattern', 'campaign', 'tool', 
-                 'vulnerability', 'infrastructure', 'course-of-action', 'identity', 'intrusion-set',
-                 'report', 'observed-data', 'note', 'opinion']
-    
-    objects = []
-    
-    for _ in range(count):
-        # Randomly select a STIX object type
-        selected_type = random.choice(sdo_types)
-        
-        # Create indicator (IOC-based)
-        if selected_type == 'indicator':
-            ioc_type = random.choice(ioc_types)
-            
-            if ioc_type == 'ipv4':
-                value = generate_ipv4()
-                pattern = f"[ipv4-addr:value = '{value}']"
-            elif ioc_type == 'domain':
-                value = generate_domain()
-                pattern = f"[domain-name:value = '{value}']"
-            elif ioc_type == 'email':
-                value = generate_email()
-                pattern = f"[email-addr:value = '{value}']"
-            elif ioc_type == 'url':
-                value = generate_url()
-                pattern = f"[url:value = '{value}']"
-            elif ioc_type in ['md5', 'sha1', 'sha256']:
-                hash_type = ioc_type
-                value = generate_hash(hash_type)
-                hash_algo = 'MD5' if hash_type == 'md5' else hash_type.upper()
-                pattern = f"[file:hashes.'{hash_algo}' = '{value}']"
-            elif ioc_type == 'asn':
-                value = generate_asn()
-                pattern = f"[autonomous-system:number = {value.replace('AS', '')}]"
-            else:
-                value = 'unknown'
-                pattern = "[file:name = 'unknown']"
-            
-            threat_levels = ['low', 'medium', 'high', 'critical']
-            tlp_levels = ['TLP:CLEAR', 'TLP:GREEN', 'TLP:AMBER', 'TLP:RED']
-            labels = ['malicious', 'benign', 'anomalous-activity', 'anonymization', 'compromised']
-            
-            obj = {
-                'type': 'indicator',
-                'name': f'{ioc_type.upper()} - {value[:30]}',
-                'description': f'Demo indicator for {ioc_type}: {value}',
-                'pattern': pattern,
-                'pattern_type': 'stix',
-                'valid_from': (datetime.utcnow() - timedelta(days=random.randint(1, 365))).isoformat() + 'Z',
-                'valid_until': (datetime.utcnow() + timedelta(days=random.randint(1, 365))).isoformat() + 'Z',
-                'x_ioc_type': ioc_type,
-                'x_ioc_value': value,
-                'x_threat_level': random.choice(threat_levels),
-                'x_tlp': random.choice(tlp_levels),
-                'labels': random.sample(labels, random.randint(1, 2)),
-                'confidence': random.randint(30, 100),
-            }
-        
-        elif selected_type == 'malware':
-            malware_types = ['ransomware', 'trojan', 'backdoor', 'dropper', 'rootkit', 'worm', 'bot', 'spyware']
-            obj = {
-                'type': 'malware',
-                'name': f"Malware-{random.choice(['Banker', 'Loader', 'Stealer', 'Worm', 'Bot'])}-{random.randint(1000, 9999)}",
-                'description': f"Demo malware family for threat intelligence",
-                'is_family': random.choice([True, False]),
-                'malware_types': random.sample(malware_types, random.randint(1, 3)),
-                'labels': ['malware'],
-            }
-        
-        elif selected_type == 'threat-actor':
-            actor_types = ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'nation-state', 'insider-threat']
-            motivations = ['coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'vengeance']
-            obj = {
+    scenarios = {
+        # ============================================================
+        # SCENARIO 1: APT29 (Cozy Bear) - Espionnage gouvernemental
+        # ============================================================
+        'apt29_solarwinds': {
+            'threat_actor': {
                 'type': 'threat-actor',
-                'name': f"APT-{random.randint(1, 50)}",
-                'description': f"Demo threat actor group for testing",
-                'threat_actor_types': random.sample(actor_types, random.randint(1, 2)),
-                'sophistication': random.choice(['minimal', 'intermediate', 'advanced', 'expert']),
-                'primary_motivation': random.choice(motivations),
-                'resource_level': random.choice(['individual', 'club', 'organization', 'government']),
-                'labels': ['threat-actor'],
-            }
-        
-        elif selected_type == 'attack-pattern':
-            techniques = ['Spearphishing', 'Credential Dumping', 'PowerShell', 'Remote Services', 
-                         'Data Encrypted', 'Scheduled Task', 'Registry Run Keys', 'DLL Side-Loading',
-                         'SQL Injection', 'Cross-Site Scripting', 'Privilege Escalation', 'Data Exfiltration']
-            obj = {
-                'type': 'attack-pattern',
-                'name': random.choice(techniques),
-                'description': f"Demo attack pattern commonly used in campaigns",
-                'kill_chain_phases': [{'kill_chain_name': 'lockheed-martin-cyber-kill-chain', 
-                                     'phase_name': random.choice(['reconnaissance', 'weaponization', 'delivery', 'exploitation', 'installation'])}],
-                'labels': ['attack-pattern'],
-            }
-        
-        elif selected_type == 'campaign':
-            obj = {
-                'type': 'campaign',
-                'name': f"Operation Demo-{random.randint(100, 999)}",
-                'description': f"Demo campaign for ELASLIP testing",
-                'objective': random.choice(['Espionage', 'Financial gain', 'Sabotage', 'Credential theft']),
-                'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 365))).isoformat() + 'Z',
-                'last_seen': datetime.utcnow().isoformat() + 'Z',
-                'labels': ['campaign'],
-            }
-        
-        elif selected_type == 'tool':
-            tools = ['Mimikatz', 'Cobalt Strike', 'Metasploit', 'BloodHound', 'Empire', 'PsExec', 'Invoke-PSExec', 'Evil-WinRM']
-            obj = {
-                'type': 'tool',
-                'name': random.choice(tools),
-                'description': f"Demo tool commonly used in cyberattacks",
-                'tool_types': random.sample(['remote-access', 'credential-exploitation', 'exploitation', 
-                                            'command-and-control', 'execution', 'lateral-movement'], random.randint(1, 3)),
-                'labels': ['tool'],
-            }
-        
-        elif selected_type == 'vulnerability':
-            cves = [f"CVE-{random.randint(2010, 2024)}-{random.randint(1000, 50000)}" for _ in range(random.randint(1, 3))]
-            obj = {
-                'type': 'vulnerability',
-                'name': f"Vuln-{random.randint(1000, 9999)}",
-                'description': f"Demo vulnerability for testing purposes",
-                'x_severity': random.choice(['low', 'medium', 'high', 'critical']),
-                'x_cvss_score': round(random.uniform(3.0, 10.0), 1),
-                'x_affected_products': [f"Software-{random.randint(1, 50)}", f"System-{random.randint(1, 20)}"],
-                'labels': ['vulnerability'],
-            }
-        
-        elif selected_type == 'infrastructure':
-            infrastructure_types = ['c2', 'malware-repository', 'website', 'cloud-storage', 'hosting-provider']
-            obj = {
-                'type': 'infrastructure',
-                'name': f"Infrastructure-{random.randint(1000, 9999)}",
-                'description': f"Demo infrastructure used in campaigns",
-                'infrastructure_types': random.sample(infrastructure_types, random.randint(1, 2)),
-                'labels': ['infrastructure'],
-            }
-        
-        elif selected_type == 'course-of-action':
-            obj = {
-                'type': 'course-of-action',
-                'name': f"Mitigation-{random.randint(100, 999)}",
-                'description': f"Demo mitigation strategy for detected threats",
-                'x_recommended_remediation': random.choice(['Patch immediately', 'Block at firewall', 'Isolate systems', 'Reset credentials']),
-                'labels': ['course-of-action'],
-            }
-        
-        elif selected_type == 'identity':
-            identity_classes = ['individual', 'organization', 'system']
-            obj = {
-                'type': 'identity',
-                'name': f"Entity-{random.randint(1000, 9999)}",
-                'description': f"Demo organization/entity for testing",
-                'identity_class': random.choice(identity_classes),
-                'sector': random.choice(['healthcare', 'finance', 'government', 'technology', 'manufacturing']),
-                'labels': ['identity'],
-            }
-        
-        elif selected_type == 'intrusion-set':
-            obj = {
+                'name': 'APT29 (Cozy Bear)',
+                'description': 'Russian state-sponsored threat actor known for sophisticated espionage campaigns targeting government, diplomatic, and policy organizations. Linked to Russian Foreign Intelligence Service (SVR).',
+                'threat_actor_types': ['nation-state'],
+                'sophistication': 'expert',
+                'primary_motivation': 'organizational-gain',
+                'secondary_motivations': ['ideology'],
+                'resource_level': 'government',
+                'aliases': ['Cozy Bear', 'The Dukes', 'YTTRIUM', 'Iron Hemlock', 'Grizzly Steppe'],
+                'goals': ['Espionage', 'Intelligence gathering', 'Political influence'],
+                'labels': ['apt', 'nation-state', 'russia'],
+            },
+            'intrusion_set': {
                 'type': 'intrusion-set',
-                'name': f"Intrusion-Set-{random.randint(1, 100)}",
-                'description': f"Demo intrusion set for grouping related activity",
-                'first_seen': (datetime.utcnow() - timedelta(days=random.randint(30, 730))).isoformat() + 'Z',
-                'last_seen': datetime.utcnow().isoformat() + 'Z',
-                'goals': [random.choice(['Espionage', 'Financial gain', 'Sabotage'])],
-                'labels': ['intrusion-set'],
-            }
+                'name': 'SolarWinds Supply Chain Compromise',
+                'description': 'Sophisticated supply chain attack targeting SolarWinds Orion software to gain access to multiple government and enterprise networks.',
+                'first_seen': '2020-03-01T00:00:00.000Z',
+                'last_seen': '2021-06-30T00:00:00.000Z',
+                'goals': ['Long-term access', 'Data exfiltration', 'Lateral movement'],
+                'resource_level': 'government',
+                'primary_motivation': 'organizational-gain',
+                'labels': ['supply-chain', 'apt29'],
+            },
+            'campaign': {
+                'type': 'campaign',
+                'name': 'Operation SUNBURST',
+                'description': 'Advanced persistent threat campaign leveraging compromised SolarWinds Orion updates to deploy SUNBURST backdoor across thousands of organizations.',
+                'objective': 'Espionage and long-term persistent access to high-value government and corporate networks',
+                'first_seen': '2020-03-01T00:00:00.000Z',
+                'last_seen': '2021-01-15T00:00:00.000Z',
+                'labels': ['campaign', 'supply-chain', 'sunburst'],
+            },
+            'malware': [
+                {
+                    'type': 'malware',
+                    'name': 'SUNBURST',
+                    'description': 'Sophisticated backdoor delivered via trojanized SolarWinds Orion updates. Features domain generation algorithm (DGA) for C2, anti-analysis techniques, and modular payload delivery.',
+                    'is_family': True,
+                    'malware_types': ['backdoor', 'trojan'],
+                    'capabilities': ['anti-analysis', 'modular-payload', 'dga-c2'],
+                    'labels': ['sunburst', 'backdoor', 'apt29'],
+                },
+                {
+                    'type': 'malware',
+                    'name': 'TEARDROP',
+                    'description': 'Memory-only dropper used to deploy Cobalt Strike beacons. Loaded directly into memory to evade disk-based detection.',
+                    'is_family': True,
+                    'malware_types': ['dropper'],
+                    'capabilities': ['memory-resident', 'cobalt-strike-loader'],
+                    'labels': ['teardrop', 'dropper', 'apt29'],
+                },
+                {
+                    'type': 'malware',
+                    'name': 'RAINDROP',
+                    'description': 'Loader malware similar to TEARDROP, used for deploying Cobalt Strike on specific high-value targets.',
+                    'is_family': True,
+                    'malware_types': ['loader', 'dropper'],
+                    'labels': ['raindrop', 'loader', 'apt29'],
+                },
+            ],
+            'tools': [
+                {
+                    'type': 'tool',
+                    'name': 'Cobalt Strike',
+                    'description': 'Commercial adversary simulation framework abused by APT29 for post-exploitation, lateral movement, and C2 communications.',
+                    'tool_types': ['remote-access', 'command-and-control'],
+                    'labels': ['cobalt-strike', 'c2', 'post-exploitation'],
+                },
+                {
+                    'type': 'tool',
+                    'name': 'AdFind',
+                    'description': 'Active Directory reconnaissance tool used by APT29 to enumerate AD environments after initial access.',
+                    'tool_types': ['information-gathering'],
+                    'labels': ['adfind', 'reconnaissance', 'active-directory'],
+                },
+            ],
+            'attack_patterns': [
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Supply Chain Compromise - T1195.002',
+                    'description': 'Compromise of software supply chain to insert malicious code into legitimate software updates.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1195.002'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'initial-access'}],
+                    'labels': ['supply-chain', 'initial-access'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Domain Trust Discovery - T1482',
+                    'description': 'Enumeration of domain trust relationships to identify paths for lateral movement.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1482'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'discovery'}],
+                    'labels': ['discovery', 'active-directory'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'SAML Token Forging (Golden SAML) - T1606.002',
+                    'description': 'Forging SAML tokens to access cloud resources without valid credentials.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1606.002'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'credential-access'}],
+                    'labels': ['golden-saml', 'credential-access', 'cloud'],
+                },
+            ],
+            'infrastructure': [
+                {
+                    'type': 'infrastructure',
+                    'name': 'APT29 C2 Infrastructure - US East',
+                    'description': 'Command and control servers hosted on US-based VPS providers, using legitimate cloud services for blending.',
+                    'infrastructure_types': ['command-and-control'],
+                    'labels': ['c2', 'apt29', 'us-based'],
+                },
+                {
+                    'type': 'infrastructure',
+                    'name': 'APT29 Staging Server - Europe',
+                    'description': 'Staging infrastructure for payload delivery and data exfiltration, using European hosting providers.',
+                    'infrastructure_types': ['staging', 'exfiltration'],
+                    'labels': ['staging', 'apt29', 'europe'],
+                },
+            ],
+            'indicators': [
+                {
+                    'type': 'indicator',
+                    'name': 'SUNBURST C2 Domain',
+                    'description': 'Command and control domain used by SUNBURST malware for beacon communications.',
+                    'pattern': "[domain-name:value = 'avsvmcloud.com']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'domain',
+                    'x_ioc_value': 'avsvmcloud.com',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['sunburst', 'c2', 'apt29'],
+                    'confidence': 95,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'SUNBURST Malicious DLL Hash',
+                    'description': 'SHA256 hash of trojanized SolarWinds.Orion.Core.BusinessLayer.dll containing SUNBURST backdoor.',
+                    'pattern': "[file:hashes.'SHA-256' = 'd0d626deb3f9484e649294a8dfa814c5568f846d5aa02d4cdad5d041a29d5600']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'sha256',
+                    'x_ioc_value': 'd0d626deb3f9484e649294a8dfa814c5568f846d5aa02d4cdad5d041a29d5600',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['sunburst', 'backdoor', 'apt29'],
+                    'confidence': 100,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'APT29 C2 IP Address',
+                    'description': 'IP address associated with APT29 command and control infrastructure.',
+                    'pattern': "[ipv4-addr:value = '185.225.69.69']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'ipv4',
+                    'x_ioc_value': '185.225.69.69',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['c2', 'apt29'],
+                    'confidence': 85,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'TEARDROP Dropper Hash',
+                    'description': 'SHA256 hash of TEARDROP memory-only dropper.',
+                    'pattern': "[file:hashes.'SHA-256' = '118189f90da3788fe0f99c96f3f76ad2e1b8c6f4f3f9b7e8d3c4a5b6c7d8e9f0']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'sha256',
+                    'x_ioc_value': '118189f90da3788fe0f99c96f3f76ad2e1b8c6f4f3f9b7e8d3c4a5b6c7d8e9f0',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['teardrop', 'dropper', 'apt29'],
+                    'confidence': 90,
+                },
+            ],
+            'vulnerabilities': [
+                {
+                    'type': 'vulnerability',
+                    'name': 'SolarWinds Orion Supply Chain Compromise',
+                    'description': 'Build process compromise allowing insertion of malicious code into SolarWinds Orion updates.',
+                    'x_severity': 'critical',
+                    'x_cvss_score': 10.0,
+                    'x_affected_products': ['SolarWinds Orion Platform 2019.4 HF5', 'SolarWinds Orion Platform 2020.2', 'SolarWinds Orion Platform 2020.2.1'],
+                    'labels': ['supply-chain', 'solarwinds'],
+                },
+            ],
+            'identity': {
+                'type': 'identity',
+                'name': 'US Government Agencies',
+                'description': 'Multiple US government agencies targeted by APT29 including Treasury, Commerce, and DHS.',
+                'identity_class': 'organization',
+                'sectors': ['government-national', 'defense'],
+                'labels': ['victim', 'government'],
+            },
+            'course_of_action': {
+                'type': 'course-of-action',
+                'name': 'SUNBURST Mitigation',
+                'description': 'Immediate isolation of affected SolarWinds servers, credential reset for all accounts with access, and enhanced monitoring for lateral movement indicators.',
+                'x_recommended_remediation': 'Isolate SolarWinds servers, reset all credentials, deploy EDR, monitor for SAML token abuse',
+                'labels': ['mitigation', 'sunburst'],
+            },
+        },
         
-        elif selected_type == 'report':
-            report_names = [
-                'APT29 Campaign Analysis', 'Ransomware Trends Q4 2025', 'Financial Sector Threat Report',
-                'Critical Infrastructure Security Assessment', 'Phishing Campaign Investigation',
-                'Malware Family Analysis Report', 'Supply Chain Attack Summary', 'Nation-State Actor Profile'
-            ]
-            obj = {
-                'type': 'report',
-                'name': random.choice(report_names) + f" - {random.randint(1, 100)}",
-                'description': f"Demo threat intelligence report covering recent threat activity and indicators.",
-                'published': datetime.utcnow().isoformat() + 'Z',
-                'report_types': random.sample(['threat-report', 'campaign', 'attack-pattern', 'malware', 'tool', 'vulnerability'], k=random.randint(1, 3)),
-                'object_refs': [],
-                'labels': ['report'],
-            }
+        # ============================================================
+        # SCENARIO 2: LockBit 3.0 - Ransomware Healthcare
+        # ============================================================
+        'lockbit_healthcare': {
+            'threat_actor': {
+                'type': 'threat-actor',
+                'name': 'LockBit Gang',
+                'description': 'Prolific ransomware-as-a-service (RaaS) operation responsible for thousands of attacks globally. Known for aggressive extortion tactics and data leak site.',
+                'threat_actor_types': ['crime-syndicate', 'criminal'],
+                'sophistication': 'advanced',
+                'primary_motivation': 'personal-gain',
+                'resource_level': 'organization',
+                'aliases': ['LockBit', 'ABCD Ransomware'],
+                'goals': ['Financial extortion', 'Data theft', 'Ransomware deployment'],
+                'labels': ['ransomware', 'raas', 'lockbit'],
+            },
+            'campaign': {
+                'type': 'campaign',
+                'name': 'LockBit Healthcare Campaign Q4 2025',
+                'description': 'Targeted ransomware campaign against healthcare organizations exploiting vulnerable VPN appliances and RDP exposure.',
+                'objective': 'Encrypt critical healthcare systems and extort ransom payments through double extortion (encryption + data leak threat)',
+                'first_seen': '2025-10-01T00:00:00.000Z',
+                'last_seen': '2025-12-31T00:00:00.000Z',
+                'labels': ['campaign', 'ransomware', 'healthcare'],
+            },
+            'malware': [
+                {
+                    'type': 'malware',
+                    'name': 'LockBit 3.0',
+                    'description': 'Latest version of LockBit ransomware featuring improved encryption, anti-analysis, and the LockBit bug bounty program. Encrypts files with .lockbit extension.',
+                    'is_family': True,
+                    'malware_types': ['ransomware'],
+                    'capabilities': ['encrypts-files', 'deletes-backups', 'spreads-via-network', 'anti-analysis'],
+                    'labels': ['lockbit3', 'ransomware'],
+                },
+                {
+                    'type': 'malware',
+                    'name': 'StealBit',
+                    'description': 'Data exfiltration tool used by LockBit affiliates to steal sensitive data before encryption for double extortion.',
+                    'is_family': True,
+                    'malware_types': ['spyware', 'trojan'],
+                    'capabilities': ['data-exfiltration', 'credential-theft'],
+                    'labels': ['stealbit', 'exfiltration', 'lockbit'],
+                },
+            ],
+            'tools': [
+                {
+                    'type': 'tool',
+                    'name': 'Mimikatz',
+                    'description': 'Credential extraction tool used by LockBit affiliates for privilege escalation and lateral movement.',
+                    'tool_types': ['credential-exploitation'],
+                    'labels': ['mimikatz', 'credentials', 'lateral-movement'],
+                },
+                {
+                    'type': 'tool',
+                    'name': 'PsExec',
+                    'description': 'Microsoft Sysinternals tool abused for remote execution and ransomware deployment across network.',
+                    'tool_types': ['remote-access', 'execution'],
+                    'labels': ['psexec', 'lateral-movement'],
+                },
+                {
+                    'type': 'tool',
+                    'name': 'Advanced IP Scanner',
+                    'description': 'Network scanning tool used to identify targets for lateral movement.',
+                    'tool_types': ['network-capture', 'information-gathering'],
+                    'labels': ['scanner', 'reconnaissance'],
+                },
+            ],
+            'attack_patterns': [
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Exploit Public-Facing Application - T1190',
+                    'description': 'Exploitation of vulnerable VPN appliances (Fortinet, Citrix) for initial access.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1190'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'initial-access'}],
+                    'labels': ['exploitation', 'vpn', 'initial-access'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Data Encrypted for Impact - T1486',
+                    'description': 'Encryption of data on target systems to interrupt availability and extort payment.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1486'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'impact'}],
+                    'labels': ['encryption', 'ransomware', 'impact'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Inhibit System Recovery - T1490',
+                    'description': 'Deletion of volume shadow copies and backup catalogs to prevent recovery.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1490'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'impact'}],
+                    'labels': ['backup-deletion', 'ransomware'],
+                },
+            ],
+            'infrastructure': [
+                {
+                    'type': 'infrastructure',
+                    'name': 'LockBit Data Leak Site',
+                    'description': 'Tor-based data leak site where LockBit publishes stolen data from non-paying victims.',
+                    'infrastructure_types': ['anonymization', 'exfiltration'],
+                    'labels': ['tor', 'leak-site', 'lockbit'],
+                },
+                {
+                    'type': 'infrastructure',
+                    'name': 'LockBit Affiliate C2 Panel',
+                    'description': 'Web-based panel used by LockBit affiliates to manage ransomware deployments and track payments.',
+                    'infrastructure_types': ['command-and-control'],
+                    'labels': ['c2', 'raas', 'lockbit'],
+                },
+            ],
+            'indicators': [
+                {
+                    'type': 'indicator',
+                    'name': 'LockBit 3.0 Ransomware Hash',
+                    'description': 'SHA256 hash of LockBit 3.0 ransomware binary.',
+                    'pattern': "[file:hashes.'SHA-256' = 'a56b41a6023f828cccaaef470874571d169fdb8f683a75eda018c6f5ad5797a3']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'sha256',
+                    'x_ioc_value': 'a56b41a6023f828cccaaef470874571d169fdb8f683a75eda018c6f5ad5797a3',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['lockbit3', 'ransomware'],
+                    'confidence': 100,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'LockBit Affiliate Initial Access IP',
+                    'description': 'IP address used by LockBit affiliate for initial VPN exploitation attempts.',
+                    'pattern': "[ipv4-addr:value = '91.243.44.142']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'ipv4',
+                    'x_ioc_value': '91.243.44.142',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['lockbit', 'initial-access'],
+                    'confidence': 80,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'StealBit Exfiltration Domain',
+                    'description': 'Domain used by StealBit for data exfiltration before encryption.',
+                    'pattern': "[domain-name:value = 'data-transfer-sec.xyz']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'domain',
+                    'x_ioc_value': 'data-transfer-sec.xyz',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['stealbit', 'exfiltration'],
+                    'confidence': 90,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'LockBit Ransom Note Filename',
+                    'description': 'Standard ransom note filename dropped by LockBit 3.0.',
+                    'pattern': "[file:name = 'LockBit_3.0_Ransomware_Note.txt']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'filename',
+                    'x_ioc_value': 'LockBit_3.0_Ransomware_Note.txt',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['lockbit', 'ransom-note'],
+                    'confidence': 95,
+                },
+            ],
+            'vulnerabilities': [
+                {
+                    'type': 'vulnerability',
+                    'name': 'CVE-2023-27997 - Fortinet SSL VPN RCE',
+                    'description': 'Critical heap-based buffer overflow vulnerability in FortiOS SSL VPN allowing remote code execution.',
+                    'x_severity': 'critical',
+                    'x_cvss_score': 9.8,
+                    'x_affected_products': ['FortiOS 7.2.x', 'FortiOS 7.0.x', 'FortiOS 6.4.x'],
+                    'labels': ['fortinet', 'vpn', 'rce'],
+                },
+            ],
+            'identity': {
+                'type': 'identity',
+                'name': 'Regional Healthcare Network',
+                'description': 'Mid-sized healthcare organization with multiple hospitals and clinics targeted by LockBit.',
+                'identity_class': 'organization',
+                'sectors': ['healthcare'],
+                'labels': ['victim', 'healthcare'],
+            },
+            'course_of_action': {
+                'type': 'course-of-action',
+                'name': 'LockBit Ransomware Response',
+                'description': 'Immediate network isolation, backup verification, and incident response engagement. Do not pay ransom.',
+                'x_recommended_remediation': 'Isolate affected systems, verify backup integrity, engage IR team, patch VPN vulnerabilities',
+                'labels': ['mitigation', 'ransomware', 'lockbit'],
+            },
+        },
         
-        elif selected_type == 'observed-data':
-            observation_names = [
-                'Network Traffic Analysis', 'Endpoint Detection Event', 'Firewall Log Analysis',
-                'DNS Query Observation', 'File Hash Detection', 'Process Execution Monitor',
-                'Registry Change Detection', 'Authentication Event Capture'
-            ]
-            obj = {
-                'type': 'observed-data',
-                'name': random.choice(observation_names) + f" - {random.randint(1000, 9999)}",
-                'first_observed': (datetime.utcnow() - timedelta(hours=random.randint(1, 168))).isoformat() + 'Z',
-                'last_observed': datetime.utcnow().isoformat() + 'Z',
-                'number_observed': random.randint(1, 1000),
-                'object_refs': {'0': {'type': 'file', 'name': f'file-{random.randint(1, 10000)}.exe'}},
-                'description': f"Demo observed data from network detection",
-                'labels': ['observed-data'],
-            }
-        
-        elif selected_type == 'note':
-            note_titles = [
-                'Analyst Note: Attribution Assessment', 'Investigation Update', 'Threat Intelligence Summary',
-                'Malware Behavior Analysis', 'Network IOC Correlation', 'Incident Timeline Notes',
-                'Adversary TTP Documentation', 'Vulnerability Assessment Notes'
-            ]
-            obj = {
-                'type': 'note',
-                'name': random.choice(note_titles) + f" #{random.randint(1, 1000)}",
-                'abstract': f"Summary of analyst findings on threat activity.",
-                'content': f"Demo analyst note with detailed observations regarding threat activity, indicators of compromise, and recommended actions for mitigation.",
-                'object_refs': [],
-                'labels': ['note'],
-            }
-        
-        elif selected_type == 'opinion':
-            opinion_titles = [
-                'Attribution Confidence Assessment', 'Threat Severity Evaluation', 'IOC Validity Opinion',
-                'Campaign Attribution Analysis', 'Tool Classification Assessment', 'Actor Motivation Analysis',
-                'Infrastructure Assessment', 'Malware Family Classification'
-            ]
-            obj = {
-                'type': 'opinion',
-                'name': random.choice(opinion_titles) + f" #{random.randint(1, 1000)}",
-                'abstract': f"Analyst assessment of threat intelligence data quality and accuracy.",
-                'opinion': random.choice(['strongly-disagree', 'disagree', 'neutral', 'agree', 'strongly-agree']),
-                'explanation': f"This is an analyst opinion on the attribution and severity of the threat, based on corroborating evidence and historical patterns.",
-                'object_refs': [],
-                'labels': ['opinion'],
-            }
-        
-        objects.append(obj)
+        # ============================================================
+        # SCENARIO 3: FIN7 - Financial Sector Attacks
+        # ============================================================
+        'fin7_financial': {
+            'threat_actor': {
+                'type': 'threat-actor',
+                'name': 'FIN7 (Carbanak Group)',
+                'description': 'Sophisticated financially-motivated threat actor targeting retail, hospitality, and financial sectors. Known for point-of-sale malware and business email compromise.',
+                'threat_actor_types': ['crime-syndicate'],
+                'sophistication': 'advanced',
+                'primary_motivation': 'personal-gain',
+                'resource_level': 'organization',
+                'aliases': ['Carbanak', 'Navigator Group', 'Anunak'],
+                'goals': ['Financial theft', 'Credit card fraud', 'Wire fraud'],
+                'labels': ['fin7', 'carbanak', 'financial-crime'],
+            },
+            'campaign': {
+                'type': 'campaign',
+                'name': 'FIN7 Banking Trojan Campaign 2025',
+                'description': 'Targeted phishing campaign against financial institutions using malicious document attachments to deploy banking trojans.',
+                'objective': 'Compromise financial institution networks to steal funds and customer financial data',
+                'first_seen': '2025-09-01T00:00:00.000Z',
+                'last_seen': '2025-12-31T00:00:00.000Z',
+                'labels': ['campaign', 'banking-trojan', 'fin7'],
+            },
+            'malware': [
+                {
+                    'type': 'malware',
+                    'name': 'Carbanak',
+                    'description': 'Advanced banking trojan with capabilities for video recording, keylogging, and remote access. Used to steal millions from financial institutions.',
+                    'is_family': True,
+                    'malware_types': ['backdoor', 'trojan', 'spyware'],
+                    'capabilities': ['keylogging', 'screen-capture', 'remote-access'],
+                    'labels': ['carbanak', 'banking-trojan', 'fin7'],
+                },
+                {
+                    'type': 'malware',
+                    'name': 'GRIFFON',
+                    'description': 'JavaScript-based backdoor used by FIN7 for initial reconnaissance and payload delivery.',
+                    'is_family': True,
+                    'malware_types': ['backdoor'],
+                    'capabilities': ['javascript-based', 'reconnaissance'],
+                    'labels': ['griffon', 'backdoor', 'fin7'],
+                },
+                {
+                    'type': 'malware',
+                    'name': 'BOOSTWRITE',
+                    'description': 'Loader malware used by FIN7 to deploy additional payloads on compromised systems.',
+                    'is_family': True,
+                    'malware_types': ['loader', 'dropper'],
+                    'labels': ['boostwrite', 'loader', 'fin7'],
+                },
+            ],
+            'tools': [
+                {
+                    'type': 'tool',
+                    'name': 'PowerShell Empire',
+                    'description': 'Post-exploitation framework used by FIN7 for command execution and lateral movement.',
+                    'tool_types': ['remote-access', 'command-and-control'],
+                    'labels': ['empire', 'powershell', 'post-exploitation'],
+                },
+                {
+                    'type': 'tool',
+                    'name': 'SQLMap',
+                    'description': 'SQL injection automation tool used for database exploitation.',
+                    'tool_types': ['exploitation'],
+                    'labels': ['sqlmap', 'sql-injection'],
+                },
+            ],
+            'attack_patterns': [
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Spearphishing Attachment - T1566.001',
+                    'description': 'Targeted phishing emails with malicious Office documents containing macros.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1566.001'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'initial-access'}],
+                    'labels': ['phishing', 'initial-access'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Command and Scripting Interpreter: PowerShell - T1059.001',
+                    'description': 'Abuse of PowerShell for malware execution and persistence.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1059.001'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'execution'}],
+                    'labels': ['powershell', 'execution'],
+                },
+                {
+                    'type': 'attack-pattern',
+                    'name': 'Video Capture - T1125',
+                    'description': 'Recording of victim screens to observe banking operations and procedures.',
+                    'external_references': [{'source_name': 'mitre-attack', 'external_id': 'T1125'}],
+                    'kill_chain_phases': [{'kill_chain_name': 'mitre-attack', 'phase_name': 'collection'}],
+                    'labels': ['video-capture', 'collection'],
+                },
+            ],
+            'infrastructure': [
+                {
+                    'type': 'infrastructure',
+                    'name': 'FIN7 Phishing Infrastructure',
+                    'description': 'Bulletproof hosting used for phishing campaigns and malware delivery.',
+                    'infrastructure_types': ['hosting-malware', 'phishing'],
+                    'labels': ['phishing', 'fin7'],
+                },
+                {
+                    'type': 'infrastructure',
+                    'name': 'FIN7 C2 Server Network',
+                    'description': 'Distributed command and control infrastructure using compromised websites.',
+                    'infrastructure_types': ['command-and-control'],
+                    'labels': ['c2', 'fin7'],
+                },
+            ],
+            'indicators': [
+                {
+                    'type': 'indicator',
+                    'name': 'FIN7 Phishing Email Sender',
+                    'description': 'Email address used in FIN7 spearphishing campaign targeting banks.',
+                    'pattern': "[email-addr:value = 'compliance-update@secure-banking-docs.com']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'email',
+                    'x_ioc_value': 'compliance-update@secure-banking-docs.com',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['phishing', 'fin7'],
+                    'confidence': 85,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'Carbanak C2 Domain',
+                    'description': 'Command and control domain used by Carbanak malware.',
+                    'pattern': "[domain-name:value = 'cdn-update-service.net']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'domain',
+                    'x_ioc_value': 'cdn-update-service.net',
+                    'x_threat_level': 'critical',
+                    'x_tlp': 'TLP:RED',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['carbanak', 'c2'],
+                    'confidence': 90,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'GRIFFON Backdoor Hash',
+                    'description': 'SHA256 hash of GRIFFON JavaScript backdoor.',
+                    'pattern': "[file:hashes.'SHA-256' = 'b7e3f45a9c2d1e8f6a0b4c5d7e9f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'sha256',
+                    'x_ioc_value': 'b7e3f45a9c2d1e8f6a0b4c5d7e9f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['griffon', 'fin7'],
+                    'confidence': 88,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'FIN7 Malicious Document',
+                    'description': 'Malicious Word document with macro used for initial access.',
+                    'pattern': "[file:name MATCHES 'Invoice_[0-9]+\\.docm']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'filename',
+                    'x_ioc_value': 'Invoice_*.docm',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['phishing', 'macro', 'fin7'],
+                    'confidence': 75,
+                },
+                {
+                    'type': 'indicator',
+                    'name': 'FIN7 Exfiltration IP',
+                    'description': 'IP address used for data exfiltration in FIN7 operations.',
+                    'pattern': "[ipv4-addr:value = '45.142.213.17']",
+                    'pattern_type': 'stix',
+                    'x_ioc_type': 'ipv4',
+                    'x_ioc_value': '45.142.213.17',
+                    'x_threat_level': 'high',
+                    'x_tlp': 'TLP:AMBER',
+                    'indicator_types': ['malicious-activity'],
+                    'labels': ['exfiltration', 'fin7'],
+                    'confidence': 82,
+                },
+            ],
+            'identity': {
+                'type': 'identity',
+                'name': 'Global Financial Institution',
+                'description': 'Major international bank targeted by FIN7 for financial theft.',
+                'identity_class': 'organization',
+                'sectors': ['financial-services'],
+                'labels': ['victim', 'banking'],
+            },
+            'course_of_action': {
+                'type': 'course-of-action',
+                'name': 'FIN7 Mitigation Strategies',
+                'description': 'Email security hardening, macro execution policies, network segmentation for banking systems.',
+                'x_recommended_remediation': 'Block macros in Office, implement email security gateway, segment SWIFT systems',
+                'labels': ['mitigation', 'fin7', 'banking'],
+            },
+        },
+    }
     
-    return objects
+    return scenarios
 
+
+def generate_coherent_cases_and_incidents(scenario_objects):
+    """
+    Generate cases and incidents that are coherent with the STIX scenarios.
+    Links real STIX objects to cases/incidents for meaningful relationships.
+    """
+    cases_data = [
+        {
+            'title': 'APT29 SolarWinds Compromise Investigation',
+            'description': 'Active investigation into potential compromise via trojanized SolarWinds Orion update. Multiple government agencies affected. CISA Emergency Directive 21-01 compliance required.',
+            'status': 'in-progress',
+            'priority': 'critical',
+            'severity': 'critical',
+            'case_type': 'incident_response',
+            'tags': ['apt29', 'solarwinds', 'sunburst', 'supply-chain', 'nation-state'],
+            'tlp': 'red',
+            'scenario': 'apt29_solarwinds',
+            'incidents': [
+                {
+                    'title': 'SUNBURST Backdoor Detection - DC01',
+                    'description': 'SUNBURST backdoor detected on primary domain controller DC01. Indicators match known APT29 TTPs. Immediate isolation required.',
+                    'status': 'containment',
+                    'severity': 'critical',
+                    'category': 'malware',
+                    'affected_assets': 'DC01.corp.local, DC02.corp.local',
+                    'attack_vector': 'supply_chain',
+                    'mitre_tactics': ['initial-access', 'persistence', 'command-and-control'],
+                    'mitre_techniques': ['T1195.002', 'T1546', 'T1071.001'],
+                },
+                {
+                    'title': 'Lateral Movement Activity Detected',
+                    'description': 'AdFind and BloodHound artifacts discovered indicating Active Directory reconnaissance. Multiple service accounts compromised.',
+                    'status': 'investigating',
+                    'severity': 'high',
+                    'category': 'intrusion',
+                    'affected_assets': 'Active Directory Forest',
+                    'attack_vector': 'network',
+                    'mitre_tactics': ['discovery', 'lateral-movement', 'credential-access'],
+                    'mitre_techniques': ['T1482', 'T1021.002', 'T1003.001'],
+                },
+                {
+                    'title': 'SAML Token Abuse Investigation',
+                    'description': 'Evidence of Golden SAML attack targeting Azure AD and O365. Investigating unauthorized access to cloud resources.',
+                    'status': 'investigating',
+                    'severity': 'critical',
+                    'category': 'data_breach',
+                    'affected_assets': 'Azure AD, Microsoft 365, AWS',
+                    'attack_vector': 'credential',
+                    'mitre_tactics': ['credential-access', 'defense-evasion'],
+                    'mitre_techniques': ['T1606.002', 'T1550.001'],
+                },
+            ],
+        },
+        {
+            'title': 'LockBit 3.0 Ransomware - Healthcare Network',
+            'description': 'Active ransomware incident affecting regional healthcare network. Patient data at risk. Business continuity severely impacted across 3 hospitals.',
+            'status': 'in-progress',
+            'priority': 'critical',
+            'severity': 'critical',
+            'case_type': 'incident_response',
+            'tags': ['lockbit', 'ransomware', 'healthcare', 'hipaa', 'double-extortion'],
+            'tlp': 'red',
+            'scenario': 'lockbit_healthcare',
+            'incidents': [
+                {
+                    'title': 'Initial VPN Exploitation',
+                    'description': 'FortiGate VPN appliance exploited via CVE-2023-27997. Attacker gained initial foothold on perimeter network.',
+                    'status': 'closed',
+                    'severity': 'critical',
+                    'category': 'exploit',
+                    'affected_assets': 'FW-EDGE-01 (FortiGate 600E)',
+                    'attack_vector': 'network',
+                    'mitre_tactics': ['initial-access'],
+                    'mitre_techniques': ['T1190'],
+                },
+                {
+                    'title': 'LockBit Ransomware Deployment',
+                    'description': 'LockBit 3.0 ransomware deployed across hospital network. 847 systems encrypted. Ransom demand: $5M in Bitcoin.',
+                    'status': 'containment',
+                    'severity': 'critical',
+                    'category': 'ransomware',
+                    'affected_assets': '847 Windows servers and workstations',
+                    'attack_vector': 'network',
+                    'mitre_tactics': ['impact', 'execution'],
+                    'mitre_techniques': ['T1486', 'T1490', 'T1059.001'],
+                },
+                {
+                    'title': 'Patient Data Exfiltration',
+                    'description': 'StealBit tool detected exfiltrating patient records before encryption. Approximately 2.3M patient records potentially stolen.',
+                    'status': 'investigating',
+                    'severity': 'critical',
+                    'category': 'data_breach',
+                    'affected_assets': 'EMR Database, Patient Records Server',
+                    'attack_vector': 'network',
+                    'mitre_tactics': ['exfiltration', 'collection'],
+                    'mitre_techniques': ['T1041', 'T1560.001'],
+                },
+                {
+                    'title': 'Backup System Compromise',
+                    'description': 'Veeam backup infrastructure targeted and encrypted. Offline backups being verified for recovery.',
+                    'status': 'recovery',
+                    'severity': 'high',
+                    'category': 'ransomware',
+                    'affected_assets': 'VEEAM-01, Backup Repository',
+                    'attack_vector': 'network',
+                    'mitre_tactics': ['impact'],
+                    'mitre_techniques': ['T1490', 'T1485'],
+                },
+            ],
+        },
+        {
+            'title': 'FIN7 Banking Trojan Investigation',
+            'description': 'Investigation into targeted phishing campaign delivering Carbanak banking trojan to financial institution employees. Wire fraud attempt detected.',
+            'status': 'in-progress',
+            'priority': 'high',
+            'severity': 'high',
+            'case_type': 'investigation',
+            'tags': ['fin7', 'carbanak', 'banking', 'phishing', 'wire-fraud'],
+            'tlp': 'amber',
+            'scenario': 'fin7_financial',
+            'incidents': [
+                {
+                    'title': 'Spearphishing Campaign Detection',
+                    'description': 'Targeted phishing emails detected targeting treasury department. Malicious macro-enabled documents attached.',
+                    'status': 'closed',
+                    'severity': 'high',
+                    'category': 'phishing',
+                    'affected_assets': '23 email accounts',
+                    'attack_vector': 'email',
+                    'mitre_tactics': ['initial-access'],
+                    'mitre_techniques': ['T1566.001'],
+                },
+                {
+                    'title': 'Carbanak Malware Infection',
+                    'description': 'Carbanak banking trojan installed on 5 treasury workstations. Keylogging and screen capture capabilities active.',
+                    'status': 'eradication',
+                    'severity': 'critical',
+                    'category': 'malware',
+                    'affected_assets': 'TREAS-WS01 through TREAS-WS05',
+                    'attack_vector': 'email',
+                    'mitre_tactics': ['execution', 'collection', 'persistence'],
+                    'mitre_techniques': ['T1059.001', 'T1056.001', 'T1125'],
+                },
+                {
+                    'title': 'Wire Transfer Fraud Attempt',
+                    'description': 'Attempted fraudulent wire transfer of $2.4M to offshore account. Transaction blocked by fraud detection system.',
+                    'status': 'closed',
+                    'severity': 'critical',
+                    'category': 'fraud',
+                    'affected_assets': 'SWIFT Terminal, Treasury Systems',
+                    'attack_vector': 'insider',
+                    'mitre_tactics': ['impact'],
+                    'mitre_techniques': ['T1657'],
+                },
+            ],
+        },
+    ]
+    
+    return cases_data
 
 def populate_demo_data():
-    """Populate database with demo data."""
+    """Populate database with coherent demo data based on realistic threat scenarios."""
     print("=" * 60)
-    print("ELASLIP Demo Data Generator")
+    print("ELASLIP Demo Data Generator - Coherent Threat Scenarios")
     print("=" * 60)
     
     if not is_demo_enabled():
@@ -624,213 +1154,429 @@ def populate_demo_data():
         print("To enable, set DEMO_DATA_ENABLED=true in your .env file")
         return
     
-    print("\nGenerating demo data...")
+    print("\nGenerating coherent demo data with realistic threat scenarios...")
+    print("Scenarios: APT29 (SolarWinds), LockBit 3.0 (Healthcare), FIN7 (Financial)")
     
     # Create app context
     app = create_app()
     
     with app.app_context():
-        # Generate and insert STIX objects (increase total to ~200)
-        print("\n1. Generating 200 random STIX 2.1 objects with diverse types...")
-        stix_objects = generate_random_stix_objects(200)
+        # Get coherent threat scenarios
+        scenarios = generate_coherent_threat_scenarios()
         
-        created_ids = []
-        for i, obj_data in enumerate(stix_objects, 1):
-            try:
-                sdo_type = obj_data.pop('type')
-                stix_object = STIXService.create_sdo(
-                    sdo_type=sdo_type,
-                    data=obj_data,
-                    user_id='demo-user',
-                    username='demo'
-                )
-                created_ids.append(stix_object['id'])
-                if i % 10 == 0:
-                    print(f"   Created {i}/200 STIX objects...")
-            except Exception as e:
-                print(f"   Error creating STIX object {i}: {str(e)}")
+        # Track created objects by scenario for proper relationship building
+        scenario_objects = {}  # {scenario_name: {object_type: [created_ids]}}
+        all_created_ids = []
         
-        print(f"   ✓ Created {len(created_ids)} STIX objects successfully")
+        print("\n" + "=" * 60)
+        print("PHASE 1: Creating STIX Domain Objects by Scenario")
+        print("=" * 60)
         
-        # Create multi-level STIX 2.1 relationships for graph testing
-        print("\n1b. Creating multi-level STIX 2.1 relationships...")
+        for scenario_name, scenario_data in scenarios.items():
+            print(f"\n--- Scenario: {scenario_name.upper()} ---")
+            scenario_objects[scenario_name] = {}
+            
+            # Create Threat Actor
+            if 'threat_actor' in scenario_data:
+                try:
+                    obj_data = scenario_data['threat_actor'].copy()
+                    sdo_type = obj_data.pop('type')
+                    stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['threat_actor'] = stix_obj['id']
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Threat Actor: {obj_data['name']}")
+                except Exception as e:
+                    print(f"   ✗ Threat Actor error: {e}")
+            
+            # Create Intrusion Set (if present)
+            if 'intrusion_set' in scenario_data:
+                try:
+                    obj_data = scenario_data['intrusion_set'].copy()
+                    sdo_type = obj_data.pop('type')
+                    stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['intrusion_set'] = stix_obj['id']
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Intrusion Set: {obj_data['name']}")
+                except Exception as e:
+                    print(f"   ✗ Intrusion Set error: {e}")
+            
+            # Create Campaign
+            if 'campaign' in scenario_data:
+                try:
+                    obj_data = scenario_data['campaign'].copy()
+                    sdo_type = obj_data.pop('type')
+                    stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['campaign'] = stix_obj['id']
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Campaign: {obj_data['name']}")
+                except Exception as e:
+                    print(f"   ✗ Campaign error: {e}")
+            
+            # Create Malware families
+            if 'malware' in scenario_data:
+                scenario_objects[scenario_name]['malware'] = []
+                for malware_data in scenario_data['malware']:
+                    try:
+                        obj_data = malware_data.copy()
+                        sdo_type = obj_data.pop('type')
+                        stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['malware'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Malware: {obj_data['name']}")
+                    except Exception as e:
+                        print(f"   ✗ Malware error: {e}")
+            
+            # Create Tools
+            if 'tools' in scenario_data:
+                scenario_objects[scenario_name]['tools'] = []
+                for tool_data in scenario_data['tools']:
+                    try:
+                        obj_data = tool_data.copy()
+                        sdo_type = obj_data.pop('type')
+                        stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['tools'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Tool: {obj_data['name']}")
+                    except Exception as e:
+                        print(f"   ✗ Tool error: {e}")
+            
+            # Create Attack Patterns
+            if 'attack_patterns' in scenario_data:
+                scenario_objects[scenario_name]['attack_patterns'] = []
+                for ap_data in scenario_data['attack_patterns']:
+                    try:
+                        obj_data = ap_data.copy()
+                        sdo_type = obj_data.pop('type')
+                        stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['attack_patterns'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Attack Pattern: {obj_data['name']}")
+                    except Exception as e:
+                        print(f"   ✗ Attack Pattern error: {e}")
+            
+            # Create Infrastructure
+            if 'infrastructure' in scenario_data:
+                scenario_objects[scenario_name]['infrastructure'] = []
+                for infra_data in scenario_data['infrastructure']:
+                    try:
+                        obj_data = infra_data.copy()
+                        sdo_type = obj_data.pop('type')
+                        stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['infrastructure'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Infrastructure: {obj_data['name']}")
+                    except Exception as e:
+                        print(f"   ✗ Infrastructure error: {e}")
+            
+            # Create Indicators (IOCs)
+            if 'indicators' in scenario_data:
+                scenario_objects[scenario_name]['indicators'] = []
+                for ind_data in scenario_data['indicators']:
+                    try:
+                        obj_data = ind_data.copy()
+                        sdo_type = obj_data.pop('type')
+                        # Add valid_from/valid_until for indicators
+                        obj_data['valid_from'] = (datetime.utcnow() - timedelta(days=90)).isoformat() + 'Z'
+                        obj_data['valid_until'] = (datetime.utcnow() + timedelta(days=365)).isoformat() + 'Z'
+                        stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                        scenario_objects[scenario_name]['indicators'].append(stix_obj['id'])
+                        all_created_ids.append(stix_obj['id'])
+                        print(f"   ✓ Indicator: {obj_data['name']}")
+                    except Exception as e:
+                        print(f"   ✗ Indicator error: {e}")
+            
+            # Create Vulnerabilities
+            if 'vulnerabilities' in scenario_data:
+                vuln_data = scenario_data['vulnerabilities']
+                if isinstance(vuln_data, list):
+                    scenario_objects[scenario_name]['vulnerabilities'] = []
+                    for v in vuln_data:
+                        try:
+                            obj_data = v.copy()
+                            sdo_type = obj_data.pop('type')
+                            stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                            scenario_objects[scenario_name]['vulnerabilities'].append(stix_obj['id'])
+                            all_created_ids.append(stix_obj['id'])
+                            print(f"   ✓ Vulnerability: {obj_data['name']}")
+                        except Exception as e:
+                            print(f"   ✗ Vulnerability error: {e}")
+            
+            # Create Identity (victim)
+            if 'identity' in scenario_data:
+                try:
+                    obj_data = scenario_data['identity'].copy()
+                    sdo_type = obj_data.pop('type')
+                    stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['identity'] = stix_obj['id']
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Identity: {obj_data['name']}")
+                except Exception as e:
+                    print(f"   ✗ Identity error: {e}")
+            
+            # Create Course of Action
+            if 'course_of_action' in scenario_data:
+                try:
+                    obj_data = scenario_data['course_of_action'].copy()
+                    sdo_type = obj_data.pop('type')
+                    stix_obj = STIXService.create_sdo(sdo_type, obj_data, 'demo-user', 'demo')
+                    scenario_objects[scenario_name]['course_of_action'] = stix_obj['id']
+                    all_created_ids.append(stix_obj['id'])
+                    print(f"   ✓ Course of Action: {obj_data['name']}")
+                except Exception as e:
+                    print(f"   ✗ Course of Action error: {e}")
         
-        # Use STIX 2.1 standard relationship types
-        stix_relationship_types = ['indicates', 'uses', 'related-to', 'derived-from', 
-                                    'targets', 'attributed-to', 'communicates-with', 'exploits', 'drops']
+        print(f"\n   Total STIX objects created: {len(all_created_ids)}")
+        
+        # ============================================================
+        # PHASE 2: Create STIX Relationships (coherent attack chains)
+        # ============================================================
+        print("\n" + "=" * 60)
+        print("PHASE 2: Creating Coherent STIX Relationships")
+        print("=" * 60)
+        
         relations_created = 0
         
-        try:
-            # Create multiple levels of STIX relationships for graph traversal testing
-            if len(created_ids) >= 10:
-                # Level 1: Create a primary node with 3-4 direct connections
-                primary_node = created_ids[0]
-                level1_nodes = created_ids[1:4]  # 3 nodes at level 1
-                
-                for target_id in level1_nodes:
+        for scenario_name, objs in scenario_objects.items():
+            print(f"\n--- Relationships for: {scenario_name.upper()} ---")
+            
+            # Threat Actor → Campaign (attributed-to)
+            if 'threat_actor' in objs and 'campaign' in objs:
+                try:
                     STIXService.create_relationship(
-                        source_ref=primary_node,
-                        target_ref=target_id,
-                        relationship_type=random.choice(stix_relationship_types),
-                        user_id='demo-user',
-                        username='demo'
+                        source_ref=objs['campaign'],
+                        target_ref=objs['threat_actor'],
+                        relationship_type='attributed-to',
+                        user_id='demo-user', username='demo'
                     )
                     relations_created += 1
-                
-                # Level 2: Create relationships from level 1 nodes to level 2 nodes
-                level2_nodes = created_ids[4:8]  # 4 nodes at level 2
-                
-                for level1_id in level1_nodes:
-                    for level2_id in random.sample(level2_nodes, random.randint(1, 2)):
+                    print(f"   ✓ Campaign → attributed-to → Threat Actor")
+                except: pass
+            
+            # Threat Actor → Intrusion Set (attributed-to)
+            if 'threat_actor' in objs and 'intrusion_set' in objs:
+                try:
+                    STIXService.create_relationship(
+                        source_ref=objs['intrusion_set'],
+                        target_ref=objs['threat_actor'],
+                        relationship_type='attributed-to',
+                        user_id='demo-user', username='demo'
+                    )
+                    relations_created += 1
+                    print(f"   ✓ Intrusion Set → attributed-to → Threat Actor")
+                except: pass
+            
+            # Campaign → Malware (uses)
+            if 'campaign' in objs and 'malware' in objs:
+                for malware_id in objs['malware']:
+                    try:
                         STIXService.create_relationship(
-                            source_ref=level1_id,
-                            target_ref=level2_id,
-                            relationship_type=random.choice(stix_relationship_types),
-                            user_id='demo-user',
-                            username='demo'
+                            source_ref=objs['campaign'],
+                            target_ref=malware_id,
+                            relationship_type='uses',
+                            user_id='demo-user', username='demo'
                         )
                         relations_created += 1
-                
-                # Level 3: Create relationships from level 2 nodes to level 3 nodes
-                if len(created_ids) >= 12:
-                    level3_nodes = created_ids[8:12]  # 4 nodes at level 3
-                    
-                    for level2_id in level2_nodes:
-                        for level3_id in random.sample(level3_nodes, random.randint(1, 2)):
-                            STIXService.create_relationship(
-                                source_ref=level2_id,
-                                target_ref=level3_id,
-                                relationship_type=random.choice(stix_relationship_types),
-                                user_id='demo-user',
-                                username='demo'
-                            )
-                            relations_created += 1
-                
-                # Level 4: Create relationships from level 3 nodes to level 4 nodes
-                if len(created_ids) >= 16:
-                    level4_nodes = created_ids[12:16]  # 4 nodes at level 4
-                    
-                    for level3_id in level3_nodes:
-                        for level4_id in random.sample(level4_nodes, random.randint(1, 2)):
-                            STIXService.create_relationship(
-                                source_ref=level3_id,
-                                target_ref=level4_id,
-                                relationship_type=random.choice(stix_relationship_types),
-                                user_id='demo-user',
-                                username='demo'
-                            )
-                            relations_created += 1
-                
-                # Add many cross-level relationships for complexity
-                for _ in range(25):
-                    if len(created_ids) > 1:
-                        source_id = random.choice(created_ids)
-                        target_id = random.choice([cid for cid in created_ids if cid != source_id])
-                        
+                        print(f"   ✓ Campaign → uses → Malware")
+                    except: pass
+            
+            # Campaign → Tools (uses)
+            if 'campaign' in objs and 'tools' in objs:
+                for tool_id in objs['tools']:
+                    try:
                         STIXService.create_relationship(
-                            source_ref=source_id,
-                            target_ref=target_id,
-                            relationship_type=random.choice(stix_relationship_types),
-                            user_id='demo-user',
-                            username='demo'
+                            source_ref=objs['campaign'],
+                            target_ref=tool_id,
+                            relationship_type='uses',
+                            user_id='demo-user', username='demo'
                         )
                         relations_created += 1
+                        print(f"   ✓ Campaign → uses → Tool")
+                    except: pass
             
-            print(f"   ✓ Created {relations_created} multi-level STIX 2.1 relationships (4+ levels deep)")
+            # Campaign → Attack Patterns (uses)
+            if 'campaign' in objs and 'attack_patterns' in objs:
+                for ap_id in objs['attack_patterns']:
+                    try:
+                        STIXService.create_relationship(
+                            source_ref=objs['campaign'],
+                            target_ref=ap_id,
+                            relationship_type='uses',
+                            user_id='demo-user', username='demo'
+                        )
+                        relations_created += 1
+                        print(f"   ✓ Campaign → uses → Attack Pattern")
+                    except: pass
             
-        except Exception as e:
-            print(f"   Warning: Failed to create STIX relationships: {str(e)}")
+            # Malware → Infrastructure (uses/communicates-with)
+            if 'malware' in objs and 'infrastructure' in objs:
+                for malware_id in objs['malware']:
+                    for infra_id in objs['infrastructure']:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=malware_id,
+                                target_ref=infra_id,
+                                relationship_type='communicates-with',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Malware → communicates-with → Infrastructure")
+                        except: pass
+            
+            # Indicators → Malware (indicates)
+            if 'indicators' in objs and 'malware' in objs:
+                for i, ind_id in enumerate(objs['indicators']):
+                    if i < len(objs['malware']):
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=ind_id,
+                                target_ref=objs['malware'][i % len(objs['malware'])],
+                                relationship_type='indicates',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Indicator → indicates → Malware")
+                        except: pass
+            
+            # Indicators → Infrastructure (indicates)
+            if 'indicators' in objs and 'infrastructure' in objs:
+                for i, ind_id in enumerate(objs['indicators']):
+                    if objs['infrastructure']:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=ind_id,
+                                target_ref=objs['infrastructure'][i % len(objs['infrastructure'])],
+                                relationship_type='indicates',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Indicator → indicates → Infrastructure")
+                        except: pass
+            
+            # Campaign → Identity (targets)
+            if 'campaign' in objs and 'identity' in objs:
+                try:
+                    STIXService.create_relationship(
+                        source_ref=objs['campaign'],
+                        target_ref=objs['identity'],
+                        relationship_type='targets',
+                        user_id='demo-user', username='demo'
+                    )
+                    relations_created += 1
+                    print(f"   ✓ Campaign → targets → Identity (victim)")
+                except: pass
+            
+            # Malware → Vulnerabilities (exploits)
+            if 'malware' in objs and 'vulnerabilities' in objs:
+                for malware_id in objs['malware']:
+                    for vuln_id in objs['vulnerabilities']:
+                        try:
+                            STIXService.create_relationship(
+                                source_ref=malware_id,
+                                target_ref=vuln_id,
+                                relationship_type='exploits',
+                                user_id='demo-user', username='demo'
+                            )
+                            relations_created += 1
+                            print(f"   ✓ Malware → exploits → Vulnerability")
+                        except: pass
+            
+            # Course of Action → Malware (mitigates)
+            if 'course_of_action' in objs and 'malware' in objs:
+                for malware_id in objs['malware']:
+                    try:
+                        STIXService.create_relationship(
+                            source_ref=objs['course_of_action'],
+                            target_ref=malware_id,
+                            relationship_type='mitigates',
+                            user_id='demo-user', username='demo'
+                        )
+                        relations_created += 1
+                        print(f"   ✓ Course of Action → mitigates → Malware")
+                    except: pass
         
-        # Create cases and incidents with STIX object links
-        print("\n2. Creating cases with related incidents...")
+        print(f"\n   Total relationships created: {relations_created}")
+        
+        # ============================================================
+        # PHASE 3: Create Cases and Incidents (linked to scenarios)
+        # ============================================================
+        print("\n" + "=" * 60)
+        print("PHASE 3: Creating Cases and Incidents")
+        print("=" * 60)
+        
         case_service = CaseService()
         incident_service = IncidentService()
-        
-        case_titles = [
-            'APT Campaign - Eastern Europe',
-            'Ransomware Investigation - Healthcare',
-            'Phishing Campaign - Financial Sector',
-            'Malware Analysis - Infrastructure',
-            'Data Breach - Government'
-        ]
-        
-        incident_categories = ['malware', 'phishing', 'data_breach', 'ransomware', 'ddos', 'exploit']
-        severities = ['low', 'medium', 'high', 'critical']
-        statuses_case = ['open', 'in-progress', 'closed']
+        cases_data = generate_coherent_cases_and_incidents(scenario_objects)
         
         created_cases = []
         created_incidents = []
         
-        # Create 5 cases
-        for i, case_title in enumerate(case_titles):
+        for case_config in cases_data:
+            scenario_key = case_config.get('scenario')
+            scenario_objs = scenario_objects.get(scenario_key, {})
+            
+            # Collect IOCs for this case from its scenario
+            case_iocs = []
+            if 'indicators' in scenario_objs:
+                case_iocs.extend(scenario_objs['indicators'])
+            if 'malware' in scenario_objs:
+                case_iocs.extend(scenario_objs['malware'])
+            if 'infrastructure' in scenario_objs:
+                case_iocs.extend(scenario_objs['infrastructure'])
+            
             try:
-                # Select 5-10 random IOCs for this case
-                num_iocs = random.randint(5, min(10, len(created_ids)))
-                case_iocs = random.sample(created_ids, num_iocs)
-                
                 case_data = {
-                    'title': case_title,
-                    'description': f'Investigation into {case_title.lower()}',
-                    'status': random.choice(statuses_case),
-                    'priority': random.choice(['low', 'medium', 'high', 'critical']),
-                    'severity': random.choice(severities),
-                    'case_type': random.choice(['investigation', 'threat_hunt', 'incident_response']),
-                    'tags': [random.choice(['urgent', 'high-profile', 'ongoing', 'suspicious'])],
-                    'tlp': random.choice(['white', 'green', 'amber', 'red']),
-                    'ioc_ids': case_iocs
+                    'title': case_config['title'],
+                    'description': case_config['description'],
+                    'status': case_config['status'],
+                    'priority': case_config['priority'],
+                    'severity': case_config['severity'],
+                    'case_type': case_config['case_type'],
+                    'tags': case_config['tags'],
+                    'tlp': case_config['tlp'],
+                    'ioc_ids': case_iocs[:10]  # Link first 10 relevant IOCs
                 }
                 
                 case = case_service.create_case(case_data, 'demo_user', 'Demo User')
-                created_cases.append(case)
-                print(f"   Created case: {case_title}")
+                created_cases.append({'case': case, 'scenario': scenario_key})
+                print(f"\n   ✓ Case: {case_config['title']}")
                 
-                # Create 2-4 incidents for this case
-                num_incidents = random.randint(2, 4)
-                for j in range(num_incidents):
+                # Create incidents for this case
+                for inc_config in case_config.get('incidents', []):
                     try:
-                        # Each incident gets 3-6 random IOCs
-                        num_iocs_incident = random.randint(3, min(6, len(created_ids)))
-                        incident_iocs = random.sample(created_ids, num_iocs_incident)
+                        # Get subset of IOCs for this incident
+                        incident_iocs = case_iocs[:5] if case_iocs else []
                         
                         incident_data = {
                             'case_id': case['id'],
-                            'title': f'Incident {j+1}: {random.choice(["Attack", "Detection", "Alert"])} in {case_title}',
-                            'description': f'Security incident related to {case_title}',
-                            'status': random.choice(['detected', 'investigating', 'containment', 'eradication', 'recovery', 'closed']),
-                            'severity': random.choice(severities),
-                            'category': random.choice(incident_categories),
+                            'title': inc_config['title'],
+                            'description': inc_config['description'],
+                            'status': inc_config['status'],
+                            'severity': inc_config['severity'],
+                            'category': inc_config['category'],
                             'ioc_ids': incident_iocs,
-                            'affected_assets': f'Asset Group {chr(65+j)}',
-                            'attack_vector': random.choice(['network', 'email', 'physical', 'supply_chain']),
-                            'mitre_tactics': random.sample(['reconnaissance', 'initial-access', 'execution', 'persistence', 'privilege-escalation'], random.randint(1, 3)),
-                            'mitre_techniques': ['T1234', 'T1567', 'T1890']
+                            'affected_assets': inc_config.get('affected_assets', ''),
+                            'attack_vector': inc_config.get('attack_vector', 'network'),
+                            'mitre_tactics': inc_config.get('mitre_tactics', []),
+                            'mitre_techniques': inc_config.get('mitre_techniques', [])
                         }
                         
                         incident = incident_service.create_incident(incident_data, 'demo_user', 'Demo User')
                         created_incidents.append(incident)
-                        print(f"      Created incident: {incident_data['title']}")
+                        print(f"      ✓ Incident: {inc_config['title']}")
                     except Exception as e:
-                        print(f"      Warning: Failed to create incident {j+1}: {str(e)}")
+                        print(f"      ✗ Incident error: {e}")
+                
             except Exception as e:
-                print(f"   Warning: Failed to create case {i+1}: {str(e)}")
+                print(f"   ✗ Case error: {e}")
         
-        print(f"   ✓ Created {len(created_cases)} cases with {len(created_incidents)} incidents")
+        print(f"\n   Created {len(created_cases)} cases with {len(created_incidents)} incidents")
         
-        # Create case-to-incident relationships
-        print("\n3. Creating relationships between cases and incidents...")
-        created_relations = 0
-        for case in created_cases:
-            # Link 1-2 random incidents to this case
-            num_links = random.randint(1, min(2, len(created_incidents)))
-            if num_links > 0:
-                for incident in random.sample(created_incidents, min(num_links, len(created_incidents))):
-                    try:
-                        case_service.link_incident(case['id'], incident['id'])
-                        created_relations += 1
-                    except Exception as e:
-                        print(f"      Warning: Failed to link incident: {str(e)}")
-        
-        print(f"   ✓ Created {created_relations} case-incident relationships")
+        # ============================================================
+        # PHASE 4: Create Users, API Keys, and Other Resources
+        # ============================================================
+        print("\n" + "=" * 60)
+        print("PHASE 4: Creating Users and Resources")
+        print("=" * 60)
         
         # Create demo users with different roles
         print("\n4. Creating demo users with different roles...")
@@ -840,7 +1586,6 @@ def populate_demo_data():
             ('analyst2', 'analyst2@demo.local', 'Security Analyst #2', 'analyst'),
             ('threat_intel', 'threat_intel@demo.local', 'Threat Intelligence Officer', 'threat_intel'),
             ('responder', 'responder@demo.local', 'Incident Responder', 'incident_responder'),
-
             ('viewer', 'viewer@demo.local', 'Read-Only Viewer', 'viewer'),
         ]
         
@@ -849,24 +1594,25 @@ def populate_demo_data():
                 user, error = User.create(username, email, 'demo_password_123', is_admin=False, role=role)
                 if user:
                     created_users.append(user)
-                    print(f"   Created {role:20s} | {username}")
+                    print(f"   ✓ Created {role:20s} | {username}")
                 else:
-                    print(f"   User {username} already exists")
+                    print(f"   → User {username} already exists")
             except Exception as e:
-                print(f"      Warning: Failed to create user {username}: {str(e)}")
+                print(f"   ✗ Failed to create user {username}: {str(e)}")
         
-        print(f"   ✓ Created {len(created_users)} users with granular roles")
+        print(f"   Created {len(created_users)} users")
         
         # Create API keys
         print("\n5. Creating API keys...")
         api_keys_created = 0
-        users_for_api_keys = created_users if created_users else []
-        for user in users_for_api_keys[:1]:  # Create API key for first user
+        api_key_user_id = None
+        for user in created_users[:1]:
             try:
                 key, key_obj = APIKey.create(user.id, 'Demo API Key')
                 api_keys_created += 1
                 api_key_user_id = user.id
-                print(f"   Created API key for user: {user.username}")
+                print(f"   ✓ Created API key for user: {user.username}")
+
                 # Don't print the actual key, just confirmation
             except Exception as e:
                 print(f"      Warning: Failed to create API key: {str(e)}")
@@ -1022,47 +1768,80 @@ def populate_demo_data():
         
         print(f"   ✓ Created {checklists_created} checklists")
         
-        # Create relationships between checklists and cases
+        # Create relationships between checklists and cases (prefer checklists that match case tags for coherence)
         print("\n10a. Linking checklists to cases...")
         checklist_case_relations = 0
         
         try:
-            # Get all checklist IDs from the created checklists
-            checklist_ids = []
+            # Get checklist metadata from ES so we can match by tags/title
+            checklists_info = []
             try:
-                # Query to get created checklist IDs
                 es_service = ElasticsearchService()
                 checklists_result = es_service.search('checklists', {
-                    "size": 100,
+                    "size": 200,
                     "query": {"match_all": {}}
                 })
                 if checklists_result and 'hits' in checklists_result:
-                    checklist_ids = [hit['_id'] for hit in checklists_result['hits']['hits']]
+                    for hit in checklists_result['hits']['hits']:
+                        src = hit.get('_source', {})
+                        checklists_info.append({
+                            'id': hit['_id'],
+                            'title': src.get('title', ''),
+                            'tags': src.get('tags', [])
+                        })
             except Exception as e:
-                print(f"      Warning: Could not fetch checklist IDs: {str(e)}")
+                print(f"      Warning: Could not fetch checklists metadata: {str(e)}")
             
-            # Link 1-2 random checklists to each case
-            if checklist_ids:
+            comment_service = CommentService()
+
+            # Link 1-2 relevant checklists to each case
+            if checklists_info:
                 for case in created_cases:
                     try:
-                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
-                        selected_checklists = random.sample(checklist_ids, num_checklists)
-                        
-                        for checklist_id in selected_checklists:
+                        # Support both stored shapes: either case is a dict with key 'case' or a raw case dict
+                        case_obj = case.get('case') if isinstance(case, dict) and 'case' in case else case
+                        case_tags = set(case_obj.get('tags', []) or [])
+
+                        # Prefer checklists that share tags with the case
+                        candidates = [c for c in checklists_info if case_tags.intersection(set(c.get('tags', [])))]
+                        if not candidates:
+                            # fallback to checklists with generic incident/case tag
+                            candidates = [c for c in checklists_info if 'incident' in c.get('tags', []) or 'case' in c.get('tags', [])]
+                        if not candidates:
+                            candidates = checklists_info
+
+                        num_checklists = random.randint(1, min(2, len(candidates)))
+                        selected_checklists = random.sample(candidates, num_checklists)
+
+                        for checklist in selected_checklists:
                             try:
-                                # Create a relationship document between case and checklist
+                                # Create a relationship document between case and checklist (include a bit of context)
                                 relation_id = str(uuid.uuid4())
                                 relation = {
                                     'source_type': 'case',
-                                    'source_id': case['id'],
+                                    'source_id': case_obj['id'],
                                     'target_type': 'checklist',
-                                    'target_id': checklist_id,
+                                    'target_id': checklist['id'],
                                     'relation_type': 'uses_checklist',
+                                    'context': {'case_title': case_obj.get('title', '')},
                                     'created_at': datetime.utcnow().isoformat(),
                                     'created_by': 'demo_user'
                                 }
                                 es_service.index('case_checklist_relations', relation_id, relation)
                                 checklist_case_relations += 1
+
+                                # Add a comment to the case noting the assigned checklist for traceability
+                                try:
+                                    comment_service.create_comment(
+                                        target_id=case_obj['id'],
+                                        target_type='case',
+                                        content=f"Assigned checklist '{checklist['title']}' to this case.",
+                                        user_id='demo_user',
+                                        username='Demo Analyst'
+                                    )
+                                except Exception:
+                                    pass
+
                             except Exception as e:
                                 print(f"         Warning: Failed to link checklist to case: {str(e)}")
                     except Exception as e:
@@ -1072,32 +1851,79 @@ def populate_demo_data():
         
         print(f"   ✓ Created {checklist_case_relations} case-checklist relationships")
         
-        # Create relationships between checklists and incidents
+        # Create relationships between checklists and incidents (prefer checklists matching incident tags/campaigns)
         print("\n10b. Linking checklists to incidents...")
         checklist_incident_relations = 0
         
         try:
-            if checklist_ids:
+            # Reuse checklists_info from above (if built) otherwise fetch
+            if 'checklists_info' not in locals() or not checklists_info:
+                checklists_info = []
+                try:
+                    es_service = ElasticsearchService()
+                    checklists_result = es_service.search('checklists', {
+                        "size": 200,
+                        "query": {"match_all": {}}
+                    })
+                    if checklists_result and 'hits' in checklists_result:
+                        for hit in checklists_result['hits']['hits']:
+                            src = hit.get('_source', {})
+                            checklists_info.append({
+                                'id': hit['_id'],
+                                'title': src.get('title', ''),
+                                'tags': src.get('tags', [])
+                            })
+                except Exception as e:
+                    print(f"      Warning: Could not fetch checklists metadata: {str(e)}")
+
+            comment_service = CommentService()
+
+            if checklists_info:
                 for incident in created_incidents:
                     try:
-                        num_checklists = random.randint(1, min(2, len(checklist_ids)))
-                        selected_checklists = random.sample(checklist_ids, num_checklists)
-                        
-                        for checklist_id in selected_checklists:
+                        incident_obj = incident.get('incident') if isinstance(incident, dict) and 'incident' in incident else incident
+                        incident_tags = set(incident_obj.get('tags', []) or [])
+                        incident_campaigns = set(incident_obj.get('campaigns', []) or [])
+
+                        # Prefer checklists that share tags or campaigns
+                        candidates = [c for c in checklists_info if incident_tags.intersection(set(c.get('tags', [])))]
+                        if not candidates:
+                            # fallback to checklists that mention campaigns or generic incident tag
+                            candidates = [c for c in checklists_info if incident_campaigns.intersection(set(c.get('tags', []))) or 'incident' in c.get('tags', [])]
+                        if not candidates:
+                            candidates = checklists_info
+
+                        num_checklists = random.randint(1, min(2, len(candidates)))
+                        selected_checklists = random.sample(candidates, num_checklists)
+
+                        for checklist in selected_checklists:
                             try:
-                                # Create a relationship document between incident and checklist
                                 relation_id = str(uuid.uuid4())
                                 relation = {
                                     'source_type': 'incident',
-                                    'source_id': incident['id'],
+                                    'source_id': incident_obj['id'],
                                     'target_type': 'checklist',
-                                    'target_id': checklist_id,
+                                    'target_id': checklist['id'],
                                     'relation_type': 'uses_checklist',
+                                    'context': {'incident_title': incident_obj.get('title', '')},
                                     'created_at': datetime.utcnow().isoformat(),
                                     'created_by': 'demo_user'
                                 }
                                 es_service.index('incident_checklist_relations', relation_id, relation)
                                 checklist_incident_relations += 1
+
+                                # Add a comment to the incident noting the assigned checklist for traceability
+                                try:
+                                    comment_service.create_comment(
+                                        target_id=incident_obj['id'],
+                                        target_type='incident',
+                                        content=f"Assigned checklist '{checklist['title']}' to this incident.",
+                                        user_id='demo_user',
+                                        username='Demo Analyst'
+                                    )
+                                except Exception:
+                                    pass
+
                             except Exception as e:
                                 print(f"         Warning: Failed to link checklist to incident: {str(e)}")
                     except Exception as e:
@@ -1140,137 +1966,9 @@ def populate_demo_data():
             print(f"      Warning: Failed to create incident-to-incident relationships: {str(e)}")
         
         print(f"   ✓ Created {incident_to_incident_relations} incident-to-incident relationships")
-                # Create random STIX 2.1 relationships between IOCs
-        if len(created_ids) > 1:
-            print("\n11. Creating random STIX 2.1 relationships...")
-            # Use STIX 2.1 standard relationship types
-            stix_rel_types = [
-                'communicates-with',
-                'exploits',
-                'targets',
-                'indicates',
-                'based-on',
-                'attributed-to',
-                'drops',
-                'delivers',
-                'uses',
-                'related-to'
-            ]
-            
-            es = ElasticsearchService()
-            created_relations = 0
-            failed_relations = 0
-            
-            # Create random number of relationships between 100-200 (increase for demo density)
-            num_relations = random.randint(100, 200)
-            
-            for attempt in range(num_relations):
-                try:
-                    source_id = random.choice(created_ids)
-                    target_id = random.choice([id for id in created_ids if id != source_id])
-                    relationship_type = random.choice(stix_rel_types)
-                    
-                    # Create STIX 2.1 compliant relationship
-                    rel_id = str(uuid.uuid4())
-                    now = datetime.utcnow().isoformat() + 'Z'
-                    
-                    # source_id and target_id already have indicator-- prefix
-                    stix_rel_doc = {
-                        'id': f'relationship--{rel_id}',
-                        'type': 'relationship',
-                        'spec_version': '2.1',
-                        'created': now,
-                        'modified': now,
-                        'relationship_type': relationship_type,
-                        'source_ref': source_id,
-                        'target_ref': target_id
-                    }
-                    
-                    # Index the STIX relationship
-                    response = es.index('stix_relationships', rel_id, stix_rel_doc)
-                    
-                    if response:
-                        created_relations += 1
-                    else:
-                        failed_relations += 1
-                        
-                except Exception as e:
-                    failed_relations += 1
-                    print(f"      Warning: Failed to create STIX relationship {attempt + 1}: {str(e)}")
-            
-            print(f"   ✓ Created {created_relations} STIX relationships (out of {num_relations} attempts)")
-            if failed_relations > 0:
-                print(f"   ⚠ Failed to create {failed_relations} relationships")
-        
-        # Add comments to IOCs
-        print("\n12. Adding comments to IOCs...")
-        comment_service = CommentService()
-        ioc_comments_created = 0
-        
-        for ioc_id in random.sample(created_ids, min(20, len(created_ids))):
-            try:
-                # Add 1-3 random comments per IOC
-                num_comments = random.randint(1, 3)
-                for _ in range(num_comments):
-                    comment_service.create_comment(
-                        entity_type='ioc',
-                        entity_id=ioc_id,
-                        content=generate_comment(),
-                        user_id='demo_user',
-                        username='Demo Analyst'
-                    )
-                    ioc_comments_created += 1
-            except Exception as e:
-                print(f"      Warning: Failed to create IOC comment: {str(e)}")
-        
-        print(f"   ✓ Created {ioc_comments_created} comments on IOCs")
-        
-        # Add comments to cases
-        print("\n13. Adding comments to cases...")
-        case_comments_created = 0
-        
-        for case in created_cases:
-            try:
-                # Add 2-4 comments per case
-                num_comments = random.randint(2, 4)
-                for _ in range(num_comments):
-                    comment_service.create_comment(
-                        entity_type='case',
-                        entity_id=case['id'],
-                        content=generate_comment(),
-                        user_id='demo_user',
-                        username='Demo Analyst'
-                    )
-                    case_comments_created += 1
-            except Exception as e:
-                print(f"      Warning: Failed to create case comment: {str(e)}")
-        
-        print(f"   ✓ Created {case_comments_created} comments on cases")
-        
-        # Add comments to incidents
-        print("\n14. Adding comments to incidents...")
-        incident_comments_created = 0
-        
-        for incident in created_incidents:
-            try:
-                # Add 1-3 comments per incident
-                num_comments = random.randint(1, 3)
-                for _ in range(num_comments):
-                    comment_service.create_comment(
-                        entity_type='incident',
-                        entity_id=incident['id'],
-                        content=generate_comment(),
-                        user_id='demo_user',
-                        username='Demo Analyst'
-                    )
-                    incident_comments_created += 1
-            except Exception as e:
-                print(f"      Warning: Failed to create incident comment: {str(e)}")
-        
-        print(f"   ✓ Created {incident_comments_created} comments on incidents")
         
         # Create timeline events (audit log entries)
-        print("\n15. Creating timeline events...")
+        print("\n11. Creating timeline events...")
         timeline_service = TimelineService()
         timeline_events_created = 0
         
@@ -1322,15 +2020,57 @@ def populate_demo_data():
         
         print(f"   ✓ Created {timeline_events_created} timeline events")
         
+        # Add comments to cases
+        print("\n12. Adding comments to cases...")
+        comment_service = CommentService()
+        case_comments_created = 0
+        
+        for case in created_cases:
+            try:
+                # Add 2-4 comments per case
+                num_comments = random.randint(2, 4)
+                for _ in range(num_comments):
+                    comment_service.create_comment(
+                        entity_type='case',
+                        entity_id=case['id'],
+                        content=generate_comment(),
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    case_comments_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to add comment to case: {str(e)}")
+        
+        print(f"   ✓ Added {case_comments_created} comments to cases")
+        
+        # Add comments to incidents
+        print("\n13. Adding comments to incidents...")
+        incident_comments_created = 0
+        
+        for incident in created_incidents:
+            try:
+                # Add 1-3 comments per incident
+                num_comments = random.randint(1, 3)
+                for _ in range(num_comments):
+                    comment_service.create_comment(
+                        entity_type='incident',
+                        entity_id=incident['id'],
+                        content=generate_comment(),
+                        user_id='demo_user',
+                        username='Demo Analyst'
+                    )
+                    incident_comments_created += 1
+            except Exception as e:
+                print(f"      Warning: Failed to add comment to incident: {str(e)}")
+        
+        print(f"   ✓ Added {incident_comments_created} comments to incidents")
+        
         print("\n" + "=" * 60)
         print("Demo data population complete!")
-        print(f"Total IOCs created: {len(created_ids)}")
-        print(f"Total IOC comments: {ioc_comments_created}")
+        print(f"Total STIX objects created: {len(all_created_ids)}")
+        print(f"Total STIX relationships: {relations_created}")
         print(f"Total cases created: {len(created_cases)}")
-        print(f"Total case comments: {case_comments_created}")
         print(f"Total incidents created: {len(created_incidents)}")
-        print(f"Total incident comments: {incident_comments_created}")
-        print(f"Total timeline events: {timeline_events_created}")
         print(f"Total demo users created: {len(created_users)}")
         print(f"Total API keys created: {api_keys_created}")
         print(f"Total external API configs: {external_api_created}")
@@ -1338,9 +2078,6 @@ def populate_demo_data():
         print(f"Total snippets created: {snippets_created}")
         print(f"Total checklist templates created: {templates_created}")
         print(f"Total checklists created: {checklists_created}")
-        print(f"Total case-checklist relationships: {checklist_case_relations}")
-        print(f"Total incident-checklist relationships: {checklist_incident_relations}")
-        print(f"Total incident-to-incident relationships: {incident_to_incident_relations}")
         print("=" * 60)
 
 
