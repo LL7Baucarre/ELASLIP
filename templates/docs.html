@@ -1,0 +1,790 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation - {{ SITE_TITLE }}{% endblock %}
+
+{% block content %}
+<div class="top-bar">
+    <h4 class="mb-0">Documentation</h4>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- STIX 2.1 Overview -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>STIX 2.1 Overview</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>STIX (Structured Threat Information Expression) 2.1</strong> is a standardized language for communicating cyber threat intelligence. All indicators and objects in ELASLIP are stored as valid STIX 2.1 objects.</p>
+                
+                <h6 class="mt-4">Key Concepts</h6>
+                <ul>
+                    <li><strong>Indicator:</strong> A STIX object that contains a pattern for detecting potential IOCs (Indicators of Compromise)</li>
+                    <li><strong>Pattern:</strong> A query-like expression that defines what to look for (e.g., file hashes, IP addresses)</li>
+                    <li><strong>Objects:</strong> Malware, Threat Actors, Campaigns, Tools, Attack Patterns, etc.</li>
+                    <li><strong>Relationships:</strong> Links between objects showing how they relate to each other</li>
+                </ul>
+
+                <h6 class="mt-4">STIX Object Timestamps</h6>
+                <p>Every STIX object has:</p>
+                <ul>
+                    <li><code>created</code> - When the object was first created in ELASLIP</li>
+                    <li><code>modified</code> - When the object was last updated</li>
+                    <li><code>valid_from</code> - When the intelligence becomes valid (IOC indicator field)</li>
+                    <li><code>valid_until</code> - When the intelligence expires (IOC indicator field)</li>
+                </ul>
+
+                <h6 class="mt-4">Custom ELASLIP Metadata</h6>
+                <p>ELASLIP extends STIX with the <code>x_metadata</code> field for platform-specific data:</p>
+                <ul>
+                    <li><code>tlp</code> - Traffic Light Protocol level (white, green, amber, red)</li>
+                    <li><code>confidence</code> - Confidence level (low, medium, high)</li>
+                    <li><code>threat_level</code> - Threat severity (low, medium, high, critical)</li>
+                    <li><code>source</code> - Where the intelligence came from</li>
+                    <li><code>campaigns</code> - Associated campaigns</li>
+                    <li><code>labels</code> - Custom tags and categories</li>
+                    <li><code>versions</code> - Previous versions of the object</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Indicators & IOCs -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Indicators & IOCs</h5>
+            </div>
+            <div class="card-body">
+                <p>Indicators are STIX objects that encapsulate patterns for detecting malicious activity. Each indicator contains:</p>
+
+                <h6 class="mt-4">IOC Types Supported</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th>Example</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>ipv4</code></td>
+                                <td>IPv4 Address</td>
+                                <td>192.0.2.1</td>
+                            </tr>
+                            <tr>
+                                <td><code>ipv6</code></td>
+                                <td>IPv6 Address</td>
+                                <td>2001:db8::1</td>
+                            </tr>
+                            <tr>
+                                <td><code>domain</code></td>
+                                <td>Domain Name</td>
+                                <td>example.com</td>
+                            </tr>
+                            <tr>
+                                <td><code>url</code></td>
+                                <td>Full URL</td>
+                                <td>https://example.com/malware</td>
+                            </tr>
+                            <tr>
+                                <td><code>md5</code></td>
+                                <td>MD5 Hash</td>
+                                <td>5d41402abc4b2a76b9719d911017c592</td>
+                            </tr>
+                            <tr>
+                                <td><code>sha1</code></td>
+                                <td>SHA1 Hash</td>
+                                <td>aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d</td>
+                            </tr>
+                            <tr>
+                                <td><code>sha256</code></td>
+                                <td>SHA256 Hash</td>
+                                <td>e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</td>
+                            </tr>
+                            <tr>
+                                <td><code>email</code></td>
+                                <td>Email Address</td>
+                                <td>attacker@example.com</td>
+                            </tr>
+                            <tr>
+                                <td><code>asn</code></td>
+                                <td>Autonomous System Number</td>
+                                <td>AS15169</td>
+                            </tr>
+                            <tr>
+                                <td><code>file-path</code></td>
+                                <td>File Path</td>
+                                <td>C:\Windows\System32\malware.exe</td>
+                            </tr>
+                            <tr>
+                                <td><code>registry-key</code></td>
+                                <td>Registry Key</td>
+                                <td>HKEY_LOCAL_MACHINE\Software\Malware</td>
+                            </tr>
+                            <tr>
+                                <td><code>process-name</code></td>
+                                <td>Process Name</td>
+                                <td>svchost.exe</td>
+                            </tr>
+                            <tr>
+                                <td><code>mutex</code></td>
+                                <td>Windows Mutex</td>
+                                <td>Global\MalwareMutex</td>
+                            </tr>
+                            <tr>
+                                <td><code>certificate-serial</code></td>
+                                <td>SSL Certificate Serial</td>
+                                <td>00:d0:b2:ee:b5:f1:89:c0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h6 class="mt-4">IOC Fields</h6>
+                <ul>
+                    <li><strong>Type:</strong> Category of the indicator (from the list above)</li>
+                    <li><strong>Value:</strong> The actual indicator value</li>
+                    <li><strong>Pattern:</strong> Auto-generated STIX pattern for detection</li>
+                    <li><strong>Labels:</strong> Free-text tags (malware, c2, phishing, etc.)</li>
+                    <li><strong>Source:</strong> Origin of the intelligence</li>
+                    <li><strong>Threat Level:</strong> low, medium, high, critical</li>
+                    <li><strong>Confidence:</strong> low, medium, high</li>
+                    <li><strong>TLP:</strong> white, green, amber, red</li>
+                    <li><strong>Campaigns:</strong> Associated threat campaigns</li>
+                    <li><strong>Valid From/Until:</strong> Time window for validity</li>
+                </ul>
+
+                <h6 class="mt-4">Deduplication</h6>
+                <p>IOCs are automatically deduplicated based on (type, value) tuples. Adding the same IOC twice will create a new source link rather than duplicate the indicator.</p>
+
+                <h6 class="mt-4">Relationships</h6>
+                <p>Link IOCs together to show relationships such as:</p>
+                <ul>
+                    <li>IOC A communicates with IOC B</li>
+                    <li>File hash belongs to malware family X</li>
+                    <li>Domain is hosted on IP address</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Cases -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Cases</h5>
+            </div>
+            <div class="card-body">
+                <p>Cases are investigation containers that group related IOCs, incidents, and activities around a specific security event or campaign.</p>
+
+                <h6 class="mt-4">Case Lifecycle</h6>
+                <ul>
+                    <li><strong>Open:</strong> Initial state when case is created</li>
+                    <li><strong>In-Progress:</strong> Active investigation underway</li>
+                    <li><strong>On-Hold:</strong> Investigation paused, waiting for additional information</li>
+                    <li><strong>Closed:</strong> Investigation completed</li>
+                </ul>
+
+                <h6 class="mt-4">Case Structure</h6>
+                <p>A typical case contains:</p>
+                <ul>
+                    <li><strong>Title & Description:</strong> What is this case about?</li>
+                    <li><strong>Priority:</strong> low, medium, high, critical</li>
+                    <li><strong>Status:</strong> Current investigation state</li>
+                    <li><strong>Owner:</strong> Primary investigator responsible</li>
+                    <li><strong>Linked IOCs:</strong> Indicators associated with this case</li>
+                    <li><strong>Incidents:</strong> Security events that occurred as part of this case</li>
+                    <li><strong>Timeline:</strong> Chronological record of events and actions</li>
+                    <li><strong>Comments:</strong> Threaded discussion and notes</li>
+                    <li><strong>Checklists:</strong> Tasks to complete for the investigation</li>
+                </ul>
+
+                <h6 class="mt-4">Case Workflow Tips</h6>
+                <ul>
+                    <li>Create a case when you identify a security event requiring investigation</li>
+                    <li>Link all related IOCs to the case for unified tracking</li>
+                    <li>Create incidents within the case to document specific malicious activities</li>
+                    <li>Use the timeline to document discovery and analysis steps</li>
+                    <li>Add comments for team collaboration and technical notes</li>
+                    <li>Generate AI-powered reports to summarize findings</li>
+                </ul>
+
+                <h6 class="mt-4">Case Statistics</h6>
+                <p>Cases track:</p>
+                <ul>
+                    <li>Total IOCs linked</li>
+                    <li>Number of incidents</li>
+                    <li>Timeline events</li>
+                    <li>Days investigation has been open</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Incidents -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Incidents</h5>
+            </div>
+            <div class="card-body">
+                <p>Incidents represent specific security events within a case. They capture the details of what happened, when, and on which systems.</p>
+
+                <h6 class="mt-4">Incident Lifecycle (NIST IR Phases)</h6>
+                <ul>
+                    <li><strong>Investigating:</strong> Initial detection and investigation phase</li>
+                    <li><strong>Containment:</strong> Stopping the attack and preventing spread</li>
+                    <li><strong>Eradication:</strong> Removing the threat completely</li>
+                    <li><strong>Recovery:</strong> Restoring systems to normal operations</li>
+                    <li><strong>Closed:</strong> Incident fully resolved</li>
+                </ul>
+
+                <h6 class="mt-4">Incident Core Fields</h6>
+                <ul>
+                    <li><strong>Title:</strong> Summary of the incident</li>
+                    <li><strong>Description:</strong> Detailed incident description</li>
+                    <li><strong>Severity:</strong> critical, high, medium, low</li>
+                    <li><strong>Status:</strong> Current investigation phase</li>
+                    <li><strong>Detection Time:</strong> When the incident was first detected</li>
+                    <li><strong>Occurrence Time:</strong> When the malicious activity actually began</li>
+                    <li><strong>Affected Systems:</strong> Hosts, networks, or services impacted</li>
+                </ul>
+
+                <h6 class="mt-4">MITRE ATT&CK Integration</h6>
+                <p>Incidents can be tagged with MITRE ATT&CK framework identifiers:</p>
+                <ul>
+                    <li><strong>Tactics:</strong> High-level adversary goals (Reconnaissance, Exploitation, C2, Exfiltration, etc.)</li>
+                    <li><strong>Techniques:</strong> Specific methods used to achieve tactics (T1566 - Phishing, T1098 - Valid Accounts, etc.)</li>
+                </ul>
+                <p>This helps categorize attacks and compare them to known threat actor behaviors.</p>
+
+                <h6 class="mt-4">Incident Report Sections</h6>
+                <p>Incidents support detailed multi-section reports:</p>
+                <ul>
+                    <li><strong>Executive Summary:</strong> High-level overview for management</li>
+                    <li><strong>Technical Analysis:</strong> Deep-dive technical investigation</li>
+                    <li><strong>IOC Summary:</strong> Indicators discovered during investigation</li>
+                    <li><strong>Impact Assessment:</strong> Business and technical impact</li>
+                    <li><strong>Recommendations:</strong> Remediation and prevention steps</li>
+                    <li><strong>Lessons Learned:</strong> Future improvements and process updates</li>
+                </ul>
+
+                <h6 class="mt-4">Incident Workflow</h6>
+                <ol>
+                    <li>Create incident when malicious activity is detected</li>
+                    <li>Record detection time and when activity likely began</li>
+                    <li>Link relevant IOCs to document malicious infrastructure/artifacts</li>
+                    <li>Update status as investigation progresses through NIST phases</li>
+                    <li>Document technical details in report sections</li>
+                    <li>Generate AI-powered analysis for faster documentation</li>
+                    <li>Close incident when fully resolved</li>
+                </ol>
+
+                <h6 class="mt-4">Incident vs Case</h6>
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Aspect</th>
+                            <th>Case</th>
+                            <th>Incident</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Scope</strong></td>
+                            <td>Broad investigation container</td>
+                            <td>Specific malicious event</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Relationship</strong></td>
+                            <td>Parent container</td>
+                            <td>Child event within case</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Example</strong></td>
+                            <td>"Advanced Threat Campaign 2024"</td>
+                            <td>"Ransomware deployment on server-01"</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Timeline</strong></td>
+                            <td>Investigation timeline</td>
+                            <td>Event-specific timeline</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Checklists -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Checklists</h5>
+            </div>
+            <div class="card-body">
+                <p>Checklists are task lists used during investigations to ensure nothing is missed. They can be created from templates or customized for specific needs.</p>
+
+                <h6 class="mt-4">Types of Checklists</h6>
+                <ul>
+                    <li><strong>Response Checklists:</strong> Incident response playbooks and procedures</li>
+                    <li><strong>Investigation Checklists:</strong> Steps to investigate specific attack types</li>
+                    <li><strong>Containment Checklists:</strong> Actions to isolate and contain threats</li>
+                    <li><strong>Recovery Checklists:</strong> System restoration procedures</li>
+                    <li><strong>Custom Checklists:</strong> Organization-specific procedures</li>
+                </ul>
+
+                <h6 class="mt-4">Checklist Structure</h6>
+                <p>Each checklist contains:</p>
+                <ul>
+                    <li><strong>Title:</strong> Name of the checklist</li>
+                    <li><strong>Description:</strong> Purpose and use case</li>
+                    <li><strong>Items:</strong> Individual tasks with descriptions</li>
+                    <li><strong>Assigned To:</strong> Team member responsible</li>
+                    <li><strong>Status:</strong> Not Started, In Progress, Completed</li>
+                </ul>
+
+                <h6 class="mt-4">Checklist Item Fields</h6>
+                <ul>
+                    <li><strong>Title:</strong> Task description</li>
+                    <li><strong>Description:</strong> Detailed instructions or context</li>
+                    <li><strong>Completed:</strong> Checkbox to mark task as done</li>
+                    <li><strong>Assigned To:</strong> Responsible team member</li>
+                    <li><strong>Due Date (optional):</strong> Target completion date</li>
+                </ul>
+
+                <h6 class="mt-4">Using Templates</h6>
+                <p>Checklist templates provide standardized procedures:</p>
+                <ul>
+                    <li>Create reusable templates for common incident types</li>
+                    <li>Clone a template to create a new checklist quickly</li>
+                    <li>Share templates across the organization</li>
+                    <li>Update templates based on lessons learned</li>
+                </ul>
+
+                <h6 class="mt-4">Checklist Best Practices</h6>
+                <ul>
+                    <li>Create checklists at the start of investigations</li>
+                    <li>Assign items to specific team members for accountability</li>
+                    <li>Update progress regularly during active response</li>
+                    <li>Mark items complete when verified, not assumed</li>
+                    <li>Use templates to standardize critical procedures</li>
+                    <li>Review completed checklists in post-incident reports</li>
+                </ul>
+
+                <h6 class="mt-4">Checklist Reports</h6>
+                <p>Generate AI-powered reports from completed checklists to:</p>
+                <ul>
+                    <li>Summarize response actions taken</li>
+                    <li>Document what was completed vs. pending</li>
+                    <li>Create compliance evidence</li>
+                    <li>Support incident documentation</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- STIX Patterns -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>STIX Pattern Format</h5>
+            </div>
+            <div class="card-body">
+                <p>STIX patterns are filter expressions that define detection logic. ELASLIP automatically generates patterns from IOC type and value, but here's how they work:</p>
+
+                <h6 class="mt-4">Pattern Examples</h6>
+                <p><strong>IPv4 Address Detection:</strong></p>
+                <pre><code>[ipv4-addr:value = '192.0.2.1']</code></pre>
+
+                <p><strong>File Hash Detection:</strong></p>
+                <pre><code>[file:hashes.MD5 = 'd41d8cd98f00b204e9800998ecf8427e']</code></pre>
+
+                <p><strong>Domain Detection:</strong></p>
+                <pre><code>[domain-name:value = 'example.com']</code></pre>
+
+                <p><strong>URL Detection:</strong></p>
+                <pre><code>[url:value = 'http://example.com/malware']</code></pre>
+
+                <p><strong>File Path Detection:</strong></p>
+                <pre><code>[file:name = 'malware.exe']</code></pre>
+
+                <p><strong>Registry Key Detection:</strong></p>
+                <pre><code>[windows-registry-key:key = 'HKEY_LOCAL_MACHINE\\Software\\Malware']</code></pre>
+
+                <h6 class="mt-4">Pattern Operators</h6>
+                <ul>
+                    <li><code>=</code> - Equals</li>
+                    <li><code>!=</code> - Not equals</li>
+                    <li><code>LIKE</code> - Pattern matching</li>
+                    <li><code>IN</code> - In list</li>
+                    <li><code>AND</code> - Logical and</li>
+                    <li><code>OR</code> - Logical or</li>
+                </ul>
+
+                <h6 class="mt-4">Composite Patterns</h6>
+                <p><strong>Multiple conditions:</strong></p>
+                <pre><code>[file:hashes.MD5 = '5d41402abc4b2a76b9719d911017c592' AND file:name = 'malware.exe']</code></pre>
+
+                <p><strong>Alternative values:</strong></p>
+                <pre><code>[ipv4-addr:value = '192.0.2.1' OR ipv4-addr:value = '192.0.2.2']</code></pre>
+            </div>
+        </div>
+
+        <!-- Data Integration -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Data Integration & Enrichment</h5>
+            </div>
+            <div class="card-body">
+                <p>ELASLIP connects to external APIs for enrichment and threat intelligence.</p>
+
+                <h6 class="mt-4">Supported Integrations</h6>
+                <ul>
+                    <li><strong>VirusTotal:</strong> File reputation and URL scanning</li>
+                    <li><strong>MaxMind GeoIP:</strong> IP geolocation data</li>
+                    <li><strong>Shodan:</strong> Internet-facing device discovery</li>
+                    <li><strong>Custom APIs:</strong> Map any JSON API via templates</li>
+                </ul>
+
+                <h6 class="mt-4">Enrichment Templates</h6>
+                <p>Configure API enrichment templates in Settings to automatically enhance IOCs with external data:</p>
+                <ul>
+                    <li>Define API endpoint and authentication</li>
+                    <li>Map IOC fields to API parameters</li>
+                    <li>Extract relevant fields from responses using JSONPath</li>
+                    <li>Store enrichment in IOC metadata</li>
+                </ul>
+
+                <h6 class="mt-4">STIX Deduplication & Merging</h6>
+                <p>When importing STIX bundles:</p>
+                <ul>
+                    <li>Automatically deduplicates IOCs by (type, value)</li>
+                    <li>Merges intelligence from multiple sources</li>
+                    <li>Preserves audit trail and source attribution</li>
+                    <li>Detects and links related objects</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Security & Compliance -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Security & Compliance</h5>
+            </div>
+            <div class="card-body">
+                <h6>Traffic Light Protocol (TLP)</h6>
+                <p>TLP levels control information sharing:</p>
+                <ul>
+                    <li><strong>TLP:White</strong> - Unlimited distribution</li>
+                    <li><strong>TLP:Green</strong> - May share within community</li>
+                    <li><strong>TLP:Amber</strong> - Limited to participants on need-to-know</li>
+                    <li><strong>TLP:Red</strong> - Not for distribution, internal use only</li>
+                </ul>
+
+                <h6 class="mt-4">Audit & Compliance</h6>
+                <p>Every action in ELASLIP is logged:</p>
+                <ul>
+                    <li>Who made changes (user attribution)</li>
+                    <li>What changed (before/after values)</li>
+                    <li>When changes occurred (timestamps)</li>
+                    <li>From where (IP address)</li>
+                </ul>
+                <p>Access the Activity log to review the complete audit trail.</p>
+
+                <h6 class="mt-4">Role-Based Access Control (RBAC)</h6>
+                <p>Fine-grained permissions control who can:</p>
+                <ul>
+                    <li>Create, view, edit, or delete IOCs</li>
+                    <li>Manage cases and incidents</li>
+                    <li>Generate reports</li>
+                    <li>Configure integrations</li>
+                    <li>Manage users and roles</li>
+                </ul>
+                <p>See Settings → Users for permission management.</p>
+            </div>
+        </div>
+
+        <!-- API & Integration -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>API & Automation</h5>
+            </div>
+            <div class="card-body">
+                <p>ELASLIP provides a complete REST API for programmatic access. See the <a href="http://{{ request.host }}/apidocs/" target="_blank">Interactive Swagger UI</a> for complete API documentation with live testing.</p>
+
+                <h6 class="mt-4">API Authentication</h6>
+                <ul>
+                    <li><strong>Session-based:</strong> For web browser access</li>
+                    <li><strong>Token-based:</strong> For API client access (prefixed with <code>ioc_</code>)</li>
+                    <li><strong>OAuth:</strong> Integration with Google, GitHub, OIDC providers</li>
+                </ul>
+
+                <h6 class="mt-4">Generate an API Key</h6>
+                <ol>
+                    <li>Go to Settings → API Keys</li>
+                    <li>Click "Create API Key"</li>
+                    <li>Provide a name and select scopes (permissions)</li>
+                    <li>Copy the key (shown only once)</li>
+                    <li>Use in requests: <code>Authorization: Bearer ioc_your_key</code></li>
+                </ol>
+
+                <h6 class="mt-4">Common API Operations</h6>
+                <p><strong>Create an IOC:</strong></p>
+                <pre><code>POST /api/ioc
+Content-Type: application/json
+
+{
+  "type": "ipv4",
+  "value": "192.0.2.1",
+  "labels": ["c2", "malware"],
+  "source": "threat-feed",
+  "threat_level": "high",
+  "tlp": "amber"
+}</code></pre>
+
+                <p><strong>Search IOCs:</strong></p>
+                <pre><code>GET /api/search?query=192.0.2&threat_level=high&page=1&per_page=20</code></pre>
+
+                <p><strong>Webhook Automation:</strong></p>
+                <pre><code>Create webhooks to receive events:
+- ioc.created
+- ioc.updated  
+- report.llm_created
+- case.created
+- incident.status_changed
+
+Then integrate with SOAR, ticketing, or notification systems.</code></pre>
+            </div>
+        </div>
+
+        <!-- Common Workflows -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Common Workflows</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-4">Workflow 1: Threat Intelligence from External Feed</h6>
+                <ol>
+                    <li>Import IOCs from threat intelligence feed (JSON, CSV, STIX)</li>
+                    <li>Review and validate imported indicators</li>
+                    <li>Create case for related threat campaign</li>
+                    <li>Link IOCs to case</li>
+                    <li>Add labels, threat levels, and TLP marking</li>
+                    <li>Share case with team via webhooks or export</li>
+                </ol>
+
+                <h6 class="mt-4">Workflow 2: Incident Investigation & Response</h6>
+                <ol>
+                    <li>Create case when security event is detected</li>
+                    <li>Create incident(s) documenting malicious activities</li>
+                    <li>Link IOCs (attacker IPs, domains, file hashes)</li>
+                    <li>Create checklist from response template</li>
+                    <li>Assign tasks and track completion</li>
+                    <li>Document timeline of events and actions</li>
+                    <li>Generate incident report with AI assistance</li>
+                    <li>Close incident and document lessons learned</li>
+                </ol>
+
+                <h6 class="mt-4">Workflow 3: Indicator Deduplication & Enrichment</h6>
+                <ol>
+                    <li>Collect indicators from multiple sources</li>
+                    <li>Import into ELASLIP via API or bulk import</li>
+                    <li>System automatically deduplicates by (type, value)</li>
+                    <li>Enrichment APIs run automatically to add context</li>
+                    <li>Review and validate enriched indicators</li>
+                    <li>Export deduplicated list for defensive deployment</li>
+                </ol>
+
+                <h6 class="mt-4">Workflow 4: Compliance & Audit</h6>
+                <ol>
+                    <li>Configure role-based access for sensitive data</li>
+                    <li>Set TLP markings on sensitive indicators</li>
+                    <li>Review audit logs regularly (Settings → Activity)</li>
+                    <li>Generate compliance reports</li>
+                    <li>Export case/incident reports for documentation</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Troubleshooting & Tips -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Troubleshooting & Tips</h5>
+            </div>
+            <div class="card-body">
+                <h6 class="mt-4">Issue: IOC not appearing after import</h6>
+                <p><strong>Solution:</strong> Check that you have the <code>ioc.view</code> permission. IOCs may be filtered by threat level or search term. Clear search filters and reload.</p>
+
+                <h6 class="mt-4">Issue: Can't link IOC to case</h6>
+                <p><strong>Solution:</strong> Ensure you have <code>case.edit</code> permission. Verify the IOC and case both exist and aren't in deleted state.</p>
+
+                <h6 class="mt-4">Issue: Enrichment API not running</h6>
+                <p><strong>Solution:</strong> Check that API configuration is enabled in Settings. Verify API endpoint is reachable and returns valid JSON. Check application logs for errors.</p>
+
+                <h6 class="mt-4">Tip: Using Labels Effectively</h6>
+                <p>Use consistent label naming for better filtering and reporting. Common labels include:</p>
+                <ul>
+                    <li>Attack type: malware, phishing, ransomware, apt, data-exfil</li>
+                    <li>Source: threat-feed, customer-report, incident-response</li>
+                    <li>Status: unconfirmed, confirmed, whitelisted</li>
+                </ul>
+
+                <h6 class="mt-4">Tip: Effective Case Names</h6>
+                <p>Use descriptive names with date/timeline:</p>
+                <ul>
+                    <li>"Ransomware-Deployment-Finance-Dept-2024-Q1"</li>
+                    <li>"APT28-Campaign-Detection-Jan2026"</li>
+                    <li>"Third-Party-Breach-Investigation"</li>
+                </ul>
+
+                <h6 class="mt-4">Tip: Leveraging LLM Reports</h6>
+                <p>Use AI-powered report generation for:</p>
+                <ul>
+                    <li>Quick initial analysis of new IOCs</li>
+                    <li>Executive summaries for case status</li>
+                    <li>Technical write-ups for incident documentation</li>
+                    <li>Response procedure verification</li>
+                </ul>
+
+                <h6 class="mt-4">Tip: Organizing with Campaigns</h6>
+                <p>Tag related indicators with campaign names to group threat intelligence:</p>
+                <ul>
+                    <li>Tie together IOCs from the same threat actor</li>
+                    <li>Track campaigns over time</li>
+                    <li>Identify pattern changes and evolution</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar: Quick Reference -->
+    <div class="col-md-4">
+        <!-- Quick Links -->
+        <div class="card mb-4 sticky-top" style="top: 20px;">
+            <div class="card-header bg-white">
+                <h5>Quick Links</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-3">
+                        <a href="http://{{ request.host }}/apidocs/" target="_blank" class="btn btn-sm btn-primary w-100">
+                            <i class="bi bi-code-slash"></i> Interactive API Docs
+                        </a>
+                    </li>
+                    <li class="mb-3">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="mb-3">
+                        <a href="{{ url_for('stix.list_stix_objects_page') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-boxes"></i> IOCs & Objects
+                        </a>
+                    </li>
+                    <li class="mb-3">
+                        <a href="{{ url_for('main.cases_list') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-folder2-open"></i> Cases
+                        </a>
+                    </li>
+                    <li class="mb-3">
+                        <a href="{{ url_for('main.incidents_list') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-exclamation-triangle"></i> Incidents
+                        </a>
+                    </li>
+                    <li class="mb-3">
+                        <a href="{{ url_for('checklists.list_page') }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="bi bi-list-check"></i> Checklists
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Threat Levels -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Threat Levels</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <span class="badge bg-danger">Critical</span> - Immediate action required
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-danger">High</span> - Urgent response needed
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-warning">Medium</span> - Monitor and investigate
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-info">Low</span> - Background awareness
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- TLP Levels -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Traffic Light Protocol (TLP)</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <span class="badge bg-light text-dark border border-secondary">White</span> - Unlimited distribution
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-success">Green</span> - Community sharing
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-warning">Amber</span> - Limited sharing
+                    </li>
+                    <li class="mb-2">
+                        <span class="badge bg-danger">Red</span> - Internal only
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Confidence Levels -->
+        <div class="card mb-4">
+            <div class="card-header bg-white">
+                <h5>Confidence Levels</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <strong>High</strong> - Verified or verified by multiple sources
+                    </li>
+                    <li class="mb-2">
+                        <strong>Medium</strong> - Likely accurate but not fully verified
+                    </li>
+                    <li class="mb-2">
+                        <strong>Low</strong> - Unverified or single source
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- STIX Resources -->
+        <div class="card">
+            <div class="card-header bg-white">
+                <h5>Learn More</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <a href="https://oasis-open.github.io/cti-documentation/" target="_blank">
+                            <i class="bi bi-book"></i> STIX 2.1 Specification
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="https://attack.mitre.org/" target="_blank">
+                            <i class="bi bi-book"></i> MITRE ATT&CK Framework
+                        </a>
+                    </li>
+                    <li class="mb-2">
+                        <a href="https://www.us-cert.cisa.gov/incident-management-framework" target="_blank">
+                            <i class="bi bi-book"></i> CISA Incident Management
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
