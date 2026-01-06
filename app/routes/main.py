@@ -1645,11 +1645,11 @@ def elasticsearch_stats():
         }), 500
 
 
-@main_bp.route('/api-docs')
+@main_bp.route('/docs')
 @login_required
-def api_docs():
-    """API documentation page."""
-    return render_template('api_docs.html')
+def docs():
+    """Documentation page with STIX 2.1, Cases, Incidents, and Checklists guides."""
+    return render_template('docs.html')
 
 
 @main_bp.route('/admin/users')
