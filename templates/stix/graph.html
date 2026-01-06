@@ -463,82 +463,100 @@
         <h6 style="margin-top: 0; margin-bottom: 10px;">Entity Types</h6>
         
         <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">STIX Objects</div>
-        <div class="legend-item">
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="indicator" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #FF6B6B; display: flex; align-items: center; justify-content: center;"><i class="bi bi-crosshair" style="color: white; font-size: 12px;"></i></div>
             <span>Indicator</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="malware" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #e74c3c; display: flex; align-items: center; justify-content: center;"><i class="bi bi-bug-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Malware</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="attack_pattern" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #9b59b6; display: flex; align-items: center; justify-content: center;"><i class="bi bi-bullseye" style="color: white; font-size: 12px;"></i></div>
             <span>Attack Pattern</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="threat_actor" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #2c3e50; display: flex; align-items: center; justify-content: center;"><i class="bi bi-person-fill-exclamation" style="color: white; font-size: 12px;"></i></div>
             <span>Threat Actor</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="campaign" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #f39c12; display: flex; align-items: center; justify-content: center;"><i class="bi bi-megaphone-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Campaign</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="infrastructure" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #1abc9c; display: flex; align-items: center; justify-content: center;"><i class="bi bi-hdd-network-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Infrastructure</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="tool" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #3498db; display: flex; align-items: center; justify-content: center;"><i class="bi bi-tools" style="color: white; font-size: 12px;"></i></div>
             <span>Tool</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="vulnerability" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #e67e22; display: flex; align-items: center; justify-content: center;"><i class="bi bi-shield-exclamation" style="color: white; font-size: 12px;"></i></div>
             <span>Vulnerability</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="identity" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #27ae60; display: flex; align-items: center; justify-content: center;"><i class="bi bi-person-badge-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Identity</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="location" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #16a085; display: flex; align-items: center; justify-content: center;"><i class="bi bi-geo-alt-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Location</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="intrusion_set" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #8e44ad; display: flex; align-items: center; justify-content: center;"><i class="bi bi-diagram-3-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Intrusion Set</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="course_of_action" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #2ecc71; display: flex; align-items: center; justify-content: center;"><i class="bi bi-shield-check" style="color: white; font-size: 12px;"></i></div>
             <span>Course of Action</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="note" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #95a5a6; display: flex; align-items: center; justify-content: center;"><i class="bi bi-sticky-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Note</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="opinion" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #bdc3c7; display: flex; align-items: center; justify-content: center;"><i class="bi bi-chat-square-text-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Opinion</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="report" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #34495e; display: flex; align-items: center; justify-content: center;"><i class="bi bi-file-earmark-text-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Report</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="observed_data" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #1abc9c; display: flex; align-items: center; justify-content: center;"><i class="bi bi-eye-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Observed Data</span>
-        </div>
+        </label>
         
         <hr style="margin: 10px 0; border: none; border-top: 1px solid #ddd;">
         
         <div style="font-size: 0.9rem; margin-bottom: 10px; font-weight: bold; color: #666;">Investigations</div>
-        <div class="legend-item">
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="case" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #3498db; width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-folder-fill" style="color: white; font-size: 12px;"></i></div>
             <span>Case</span>
-        </div>
-        <div class="legend-item">
+        </label>
+        <label class="legend-item" style="cursor: pointer;">
+            <input type="checkbox" class="legend-checkbox" data-type="incident" checked onchange="toggleNodeTypeVisibility()" style="margin-right: 6px;">
             <div class="legend-color" style="background-color: #e74c3c; width: 20px; height: 20px; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); display: flex; align-items: center; justify-content: center;"><i class="bi bi-exclamation-triangle-fill" style="color: white; font-size: 10px;"></i></div>
             <span>Incident</span>
-        </div>
+        </label>
     </div>
 
     <!-- Info Panel -->
@@ -1151,6 +1169,44 @@ function updateDepthValue() {
     
     // Reload the graph while keeping the currently focused node
     loadGraph(currentFocusNodeId);
+}
+
+function toggleNodeTypeVisibility() {
+    if (!cy) return;
+    
+    // Get all checked types
+    const checkedTypes = new Set();
+    document.querySelectorAll('.legend-checkbox:checked').forEach(checkbox => {
+        checkedTypes.add(checkbox.dataset.type);
+    });
+    
+    // Hide/show nodes and their edges based on the checked types
+    cy.nodes().forEach(node => {
+        const nodeType = node.data('type') || node.data('entity_type') || 'stix';
+        
+        if (checkedTypes.has(nodeType)) {
+            node.show();
+        } else {
+            node.hide();
+        }
+    });
+    
+    // Hide edges that don't have both endpoints visible
+    cy.edges().forEach(edge => {
+        const source = edge.source();
+        const target = edge.target();
+        
+        if (source.visible() && target.visible()) {
+            edge.show();
+        } else {
+            edge.hide();
+        }
+    });
+    
+    // Fit the graph if there are visible elements
+    if (cy.elements(':visible').length > 0) {
+        cy.fit(cy.elements(':visible'), 50);
+    }
 }
 
 $(document).ready(function() {
