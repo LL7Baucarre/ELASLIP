@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Accept ARG for version during build
-ARG APP_VERSION=1.2.2
+ARG APP_VERSION=1.2.3
 ENV APP_VERSION=${APP_VERSION}
 
 # Install system dependencies
