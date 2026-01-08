@@ -41,6 +41,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 | **Email Headers** | Email header parsing, hop analysis, source IP extraction |
 | **File Analysis** | Hash extraction (MD5/SHA1/SHA256), metadata, EXIF, entropy |
 | **DMARC/DKIM/SPF** | Email authentication record analysis |
+| **URL Scan** | Automated URL analysis and security assessment |
 | **Shodan** | Internet-facing device search (requires API key) |
 
 All scan results are automatically saved to history and can be converted to IOCs.
