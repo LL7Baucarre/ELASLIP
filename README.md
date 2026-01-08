@@ -17,7 +17,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 - **Case & Incident Investigation** - Organize investigations with timeline events, comments, and IOC linking
 - **AI-Powered Reports** - Generate IOC, case, incident, and checklist reports via LLM (Ollama or OpenAI-compatible)
 - **Advanced Search** - Full-text and pattern-based search with interactive graphs
-- **Reconnaissance Tools** - WHOIS, Ping, Nmap, Traceroute, DNS, GeoIP, Email Headers, File Analysis, DMARC/DKIM, **Shodan Device Search**
+- **Reconnaissance Tools** - WHOIS, Ping, Nmap, Traceroute, DNS, GeoIP, Email Headers, File Analysis, DMARC/DKIM, URL Scan, **Shodan Device Search**
 - **Two-Factor Authentication** - TOTP support with backup codes
 - **RBAC & Audit Logging** - Granular permissions and complete audit trail
 - **OAuth2 Integration** - Support for Google, GitHub, and OIDC providers
@@ -180,8 +180,6 @@ To enable VPN routing for worker tasks:
    # Worker IP should match VPN provider
    docker exec elaslip-worker curl -s https://ipinfo.io
    ```
-
-For WireGuard or advanced config, see [vpn/README.md](vpn/README.md).
 
 ## Development
 
