@@ -1563,3 +1563,244 @@ def query_shodan():
     result['scan_id'] = scan_id
     
     return jsonify(result)
+
+
+# ============================================================================
+# URL Scan with Playwright
+# ============================================================================
+
+@tools_bp.route('/urlscan', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def start_urlscan():
+    """
+    Start a URL scan using Playwright to capture screenshot and extract links.
+    ---
+    tags:
+      - Tools
+    summary: URL Scan
+    description: Scan a URL to capture a screenshot and extract visible links, metadata, and technologies
+    requestBody:
+      description: URL scan configuration
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - url
+            properties:
+              url:
+                type: string
+                description: URL to scan (must be http or https)
+              viewport_width:
+                type: integer
+                default: 1920
+                description: Browser viewport width
+              viewport_height:
+                type: integer
+                default: 1080
+                description: Browser viewport height
+              wait_time:
+                type: integer
+                default: 2000
+                description: Time to wait after page load (ms)
+              full_page:
+                type: boolean
+                default: false
+                description: Capture full page screenshot
+    responses:
+      202:
+        description: Scan started
+        schema:
+          type: object
+          properties:
+            scan_id:
+              type: string
+            status:
+              type: string
+            message:
+              type: string
+      400:
+        description: Invalid input
+    """
+    from urllib.parse import urlparse
+    from app.tasks.urlscan_tasks import scan_url
+    
+    data = request.get_json()
+    url = data.get('url', '').strip()
+    
+    if not url:
+        return jsonify({'error': 'URL is required'}), 400
+    
+    # Validate URL format
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return jsonify({'error': 'URL must start with http:// or https://'}), 400
+        if not parsed.netloc:
+            return jsonify({'error': 'Invalid URL format'}), 400
+    except Exception:
+        return jsonify({'error': 'Invalid URL format'}), 400
+    
+    # Prevent scanning internal/private IPs (basic check)
+    netloc = parsed.netloc.lower()
+    private_patterns = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.', '10.', '172.16.', '172.17.', '172.18.', '172.19.', '172.20.', '172.21.', '172.22.', '172.23.', '172.24.', '172.25.', '172.26.', '172.27.', '172.28.', '172.29.', '172.30.', '172.31.']
+    for pattern in private_patterns:
+        if netloc.startswith(pattern) or netloc == pattern.rstrip('.'):
+            return jsonify({'error': 'Scanning private/internal addresses is not allowed'}), 400
+    
+    # Prepare scan options
+    options = {
+        'viewport_width': min(data.get('viewport_width', 1920), 3840),
+        'viewport_height': min(data.get('viewport_height', 1080), 2160),
+        'wait_time': min(data.get('wait_time', 2000), 10000),
+        'full_page': data.get('full_page', False),
+        'user_agent': data.get('user_agent')
+    }
+    
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    
+    # Queue the scan task
+    task = scan_url.delay(scan_id, url, g.current_user.id, options)
+    
+    logger.info(f"[URLScan] Started scan for {url} (scan_id: {scan_id}, task_id: {task.id})")
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'URL scan started. Poll /api/tools/urlscan/<scan_id> for results.',
+        'url': url
+    }), 202
+
+
+@tools_bp.route('/urlscan/<scan_id>', methods=['GET'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def get_urlscan_result(scan_id: str):
+    """
+    Get URL scan result.
+    ---
+    tags:
+      - Tools
+    summary: Get URL Scan Result
+    parameters:
+      - name: scan_id
+        in: path
+        type: string
+        required: true
+        description: Scan ID
+    responses:
+      200:
+        description: Scan result
+        schema:
+          type: object
+          properties:
+            scan_id:
+              type: string
+            status:
+              type: string
+              enum: [queued, processing, completed, failed]
+            success:
+              type: boolean
+            url:
+              type: string
+            final_url:
+              type: string
+            screenshot:
+              type: string
+              description: Base64 encoded PNG screenshot
+            links:
+              type: object
+            metadata:
+              type: object
+            technologies:
+              type: array
+      404:
+        description: Scan not found
+    """
+    es = ElasticsearchService()
+    
+    try:
+        result = es.get('scan_results', scan_id)
+        if result:
+            doc = result['_source']
+            
+            # Check if user owns this scan or is admin
+            if doc.get('user_id') != g.current_user.id and not g.current_user.has_role('Admin'):
+                return jsonify({'error': 'Access denied'}), 403
+            
+            return jsonify({
+                'scan_id': scan_id,
+                'status': doc.get('status', 'unknown'),
+                'success': doc.get('success', False),
+                'url': doc.get('url'),
+                'result': doc.get('result'),
+                'created_at': doc.get('created_at'),
+                'updated_at': doc.get('updated_at')
+            })
+    except Exception as e:
+        logger.error(f"[URLScan] Error getting scan result: {e}")
+    
+    return jsonify({'error': 'Scan not found'}), 404
+
+
+@tools_bp.route('/urlscan/<scan_id>/screenshot', methods=['GET'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def get_urlscan_screenshot(scan_id: str):
+    """
+    Get URL scan screenshot as image.
+    ---
+    tags:
+      - Tools
+    summary: Get URL Scan Screenshot
+    parameters:
+      - name: scan_id
+        in: path
+        type: string
+        required: true
+        description: Scan ID
+    responses:
+      200:
+        description: PNG screenshot image
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+      404:
+        description: Screenshot not found
+    """
+    import base64
+    from flask import Response
+    
+    es = ElasticsearchService()
+    
+    try:
+        result = es.get('scan_results', scan_id)
+        if result:
+            doc = result['_source']
+            
+            # Check if user owns this scan or is admin
+            if doc.get('user_id') != g.current_user.id and not g.current_user.has_role('Admin'):
+                return jsonify({'error': 'Access denied'}), 403
+            
+            scan_result = doc.get('result', {})
+            screenshot_b64 = scan_result.get('screenshot')
+            
+            if screenshot_b64:
+                screenshot_bytes = base64.b64decode(screenshot_b64)
+                return Response(
+                    screenshot_bytes,
+                    mimetype='image/png',
+                    headers={
+                        'Content-Disposition': f'inline; filename="urlscan-{scan_id}.png"'
+                    }
+                )
+    except Exception as e:
+        logger.error(f"[URLScan] Error getting screenshot: {e}")
+    
+    return jsonify({'error': 'Screenshot not found'}), 404

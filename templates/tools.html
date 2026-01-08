@@ -180,6 +180,13 @@
                             <small class="text-muted">Device search</small>
                         </div>
                     </div>
+                    <div class="col-6">
+                        <div class="card tool-card text-center p-3" data-tool="urlscan">
+                            <i class="bi bi-camera tool-icon text-purple" style="color: #9b59b6;"></i>
+                            <h6 class="mb-0">URL Scan</h6>
+                            <small class="text-muted">Screenshot & links</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -969,6 +976,198 @@
                         </div>
                     </div>
                     <div id="shodanRaw" class="result-panel p-3" style="display: none;">
+                        <pre></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- URL Scan Panel -->
+        <div id="urlscanPanel" class="tool-panel" style="display: none;">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-camera me-2"></i>URL Scan</h6>
+                </div>
+                <div class="card-body">
+                    <form id="urlscanForm">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label class="form-label">URL to Scan</label>
+                                <input type="url" class="form-control" id="urlscanTarget" 
+                                       placeholder="https://example.com" required>
+                                <small class="text-muted">Enter a full URL including http:// or https://</small>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Viewport Width</label>
+                                <select class="form-select" id="urlscanViewportWidth">
+                                    <option value="1920" selected>1920px (Desktop)</option>
+                                    <option value="1366">1366px (Laptop)</option>
+                                    <option value="768">768px (Tablet)</option>
+                                    <option value="375">375px (Mobile)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Wait Time</label>
+                                <select class="form-select" id="urlscanWaitTime">
+                                    <option value="1000">1 second</option>
+                                    <option value="2000" selected>2 seconds</option>
+                                    <option value="5000">5 seconds</option>
+                                    <option value="10000">10 seconds</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Screenshot Type</label>
+                                <select class="form-select" id="urlscanFullPage">
+                                    <option value="false" selected>Viewport only</option>
+                                    <option value="true">Full page</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Note:</strong> This tool uses a headless browser to capture a screenshot and extract links from the target page. 
+                            Scans may take 10-30 seconds depending on the website.
+                        </div>
+                        <button class="btn btn-primary" type="submit" id="urlscanBtn" style="background-color: #9b59b6; border-color: #9b59b6;">
+                            <i class="bi bi-play-fill"></i> Start Scan
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Scan Progress -->
+            <div class="card mb-4" id="urlscanProgressCard" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5 class="mb-2">Scanning URL...</h5>
+                    <p class="text-muted mb-0" id="urlscanProgressUrl"></p>
+                    <small class="text-muted">This may take 10-30 seconds</small>
+                </div>
+            </div>
+            
+            <!-- Scan Results -->
+            <div class="card" id="urlscanResultCard" style="display: none;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="bi bi-camera me-2"></i>URL Scan Results</h6>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" id="downloadScreenshot" title="Download screenshot">
+                            <i class="bi bi-download"></i> Screenshot
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleRawUrlscan">
+                            <i class="bi bi-code"></i> Raw
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="urlscanParsed">
+                        <!-- Basic Info -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <small class="text-muted">Final URL</small>
+                                <div class="font-monospace text-break" id="urlscanFinalUrl"></div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Status Code</small>
+                                <div id="urlscanStatusCode"></div>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted">Redirected</small>
+                                <div id="urlscanRedirected"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Screenshot Preview -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-image me-2"></i>Screenshot</h6>
+                            <div id="urlscanScreenshotContainer" class="text-center" style="max-height: 500px; overflow: auto; border: 1px solid #dee2e6; border-radius: 8px;">
+                                <img id="urlscanScreenshot" class="img-fluid" style="max-width: 100%;" alt="Page screenshot">
+                            </div>
+                        </div>
+                        
+                        <!-- Page Metadata -->
+                        <div class="mb-4" id="urlscanMetadataSection">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-info-circle me-2"></i>Page Metadata</h6>
+                            <div id="urlscanMetadata"></div>
+                        </div>
+                        
+                        <!-- Technologies Detected -->
+                        <div class="mb-4" id="urlscanTechSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-cpu me-2"></i>Technologies Detected</h6>
+                            <div id="urlscanTechnologies"></div>
+                        </div>
+                        
+                        <!-- Links Summary -->
+                        <div class="mb-4">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-link-45deg me-2"></i>Links Found</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2">
+                                        <div class="h4 mb-0" id="urlscanInternalCount">0</div>
+                                        <small class="text-muted">Internal Links</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2">
+                                        <div class="h4 mb-0" id="urlscanExternalCount">0</div>
+                                        <small class="text-muted">External Links</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2">
+                                        <div class="h4 mb-0" id="urlscanEmailCount">0</div>
+                                        <small class="text-muted">Email Links</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Links Tabs -->
+                            <ul class="nav nav-tabs" id="linksTab" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="external-links-tab" data-bs-toggle="tab" data-bs-target="#externalLinksPane" type="button">
+                                        External (<span id="externalTabCount">0</span>)
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="internal-links-tab" data-bs-toggle="tab" data-bs-target="#internalLinksPane" type="button">
+                                        Internal (<span id="internalTabCount">0</span>)
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="email-links-tab" data-bs-toggle="tab" data-bs-target="#emailLinksPane" type="button">
+                                        Emails (<span id="emailTabCount">0</span>)
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content border border-top-0 rounded-bottom p-3" style="max-height: 300px; overflow-y: auto;">
+                                <div class="tab-pane fade show active" id="externalLinksPane" role="tabpanel">
+                                    <div id="urlscanExternalLinks"></div>
+                                </div>
+                                <div class="tab-pane fade" id="internalLinksPane" role="tabpanel">
+                                    <div id="urlscanInternalLinks"></div>
+                                </div>
+                                <div class="tab-pane fade" id="emailLinksPane" role="tabpanel">
+                                    <div id="urlscanEmailLinks"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Forms Found -->
+                        <div class="mb-4" id="urlscanFormsSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-input-cursor-text me-2"></i>Forms Found</h6>
+                            <div id="urlscanForms"></div>
+                        </div>
+                        
+                        <!-- Scripts Found -->
+                        <div class="mb-4" id="urlscanScriptsSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-file-code me-2"></i>External Scripts</h6>
+                            <div id="urlscanScripts" style="max-height: 200px; overflow-y: auto;"></div>
+                        </div>
+                    </div>
+                    <div id="urlscanRaw" class="result-panel p-3" style="display: none;">
                         <pre></pre>
                     </div>
                 </div>
@@ -2496,27 +2695,30 @@ function displayScanHistory(scans) {
         'dig': { icon: 'bi-globe2', color: 'info' },
         'reverse-dns': { icon: 'bi-globe2', color: 'info' },
         'email-headers': { icon: 'bi-envelope', color: 'danger' },
-        'file-analysis': { icon: 'bi-file-earmark', color: 'secondary' }
+        'file-analysis': { icon: 'bi-file-earmark', color: 'secondary' },
+        'urlscan': { icon: 'bi-camera', color: 'purple' },
+        'shodan': { icon: 'bi-search', color: 'danger' }
     };
     
     let html = '';
     for (const scan of scans) {
         const toolInfo = toolIcons[scan.tool] || { icon: 'bi-terminal', color: 'secondary' };
-        const date = new Date(scan.timestamp).toLocaleString();
+        const scanDate = scan.timestamp ? new Date(scan.timestamp).toLocaleString() : 'Unknown date';
+        const scanTarget = scan.target || scan.url || 'Unknown target';
         
         html += `
             <div class="list-group-item scan-history-item" data-scan-id="${scan.id}">
                 <div class="d-flex align-items-center">
                     <i class="bi ${toolInfo.icon} text-${toolInfo.color} me-3"></i>
                     <div class="flex-grow-1">
-                        <div class="fw-bold">${scan.target}</div>
+                        <div class="fw-bold">${scanTarget}</div>
                         <small class="text-muted">
                             ${scan.tool.toUpperCase()}
                             ${scan.scan_type ? ` - ${scan.scan_type}` : ''}
                             ${scan.record_type ? ` - ${scan.record_type}` : ''}
                         </small>
                     </div>
-                    <small class="text-muted">${date}</small>
+                    <small class="text-muted">${scanDate}</small>
                 </div>
             </div>
         `;
@@ -2582,6 +2784,16 @@ function loadScanDetails(scanId) {
                 $('.tool-panel').hide();
                 $('#file-analysisPanel').show();
                 displayFileAnalysisResult(response);
+            } else if (tool === 'urlscan') {
+                // URL scan results
+                $('.tool-card').removeClass('active');
+                $(`.tool-card[data-tool="urlscan"]`).addClass('active');
+                $('.tool-panel').hide();
+                $('#urlscanPanel').show();
+                $('#urlscanTarget').val(response.target || response.url);
+                if (response.result) {
+                    displayUrlscanResult(response.result);
+                }
             }
         },
         error: function() {
@@ -3145,6 +3357,293 @@ function displayShodanSearchResults(data) {
     $('#hostInfoSection').html('');
     $('#servicesSection').hide();
     $('#vulnsSection').hide();
+}
+
+// ============================================================================
+// URL Scan functions
+// ============================================================================
+
+let currentUrlscanId = null;
+let urlscanPollInterval = null;
+
+$('#urlscanForm').on('submit', function(e) {
+    e.preventDefault();
+    startUrlscan();
+});
+
+$('#toggleRawUrlscan').on('click', function() {
+    $('#urlscanParsed').toggle();
+    $('#urlscanRaw').toggle();
+});
+
+$('#downloadScreenshot').on('click', function() {
+    if (currentUrlscanId) {
+        window.open(`/api/tools/urlscan/${currentUrlscanId}/screenshot`, '_blank');
+    }
+});
+
+function startUrlscan() {
+    const url = $('#urlscanTarget').val().trim();
+    if (!url) {
+        showAlert('Please enter a URL to scan', 'warning');
+        return;
+    }
+    
+    // Validate URL format
+    try {
+        new URL(url);
+    } catch {
+        showAlert('Please enter a valid URL (including http:// or https://)', 'warning');
+        return;
+    }
+    
+    const $btn = $('#urlscanBtn');
+    $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Starting...');
+    
+    // Show progress card
+    $('#urlscanProgressCard').show();
+    $('#urlscanResultCard').hide();
+    $('#urlscanProgressUrl').text(url);
+    
+    const options = {
+        url: url,
+        viewport_width: parseInt($('#urlscanViewportWidth').val()),
+        wait_time: parseInt($('#urlscanWaitTime').val()),
+        full_page: $('#urlscanFullPage').val() === 'true'
+    };
+    
+    $.ajax({
+        url: '/api/tools/urlscan',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(options),
+        success: function(response) {
+            currentUrlscanId = response.scan_id;
+            showAlert('Scan started. Waiting for results...', 'info');
+            
+            // Start polling for results
+            startUrlscanPolling(response.scan_id);
+        },
+        error: function(xhr) {
+            const msg = xhr.responseJSON?.error || 'Failed to start URL scan';
+            showAlert(msg, 'danger');
+            $('#urlscanProgressCard').hide();
+            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+        }
+    });
+}
+
+function startUrlscanPolling(scanId) {
+    // Clear any existing polling
+    if (urlscanPollInterval) {
+        clearInterval(urlscanPollInterval);
+    }
+    
+    let pollCount = 0;
+    const maxPolls = 60; // Max 2 minutes of polling (every 2 seconds)
+    
+    urlscanPollInterval = setInterval(function() {
+        pollCount++;
+        
+        if (pollCount > maxPolls) {
+            clearInterval(urlscanPollInterval);
+            showAlert('Scan timed out. Please try again.', 'warning');
+            $('#urlscanProgressCard').hide();
+            $('#urlscanBtn').prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+            return;
+        }
+        
+        $.ajax({
+            url: `/api/tools/urlscan/${scanId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'completed' || response.status === 'failed') {
+                    clearInterval(urlscanPollInterval);
+                    $('#urlscanProgressCard').hide();
+                    $('#urlscanBtn').prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+                    
+                    if (response.status === 'completed' && response.result) {
+                        displayUrlscanResult(response.result);
+                        loadScanHistory();
+                    } else {
+                        const error = response.result?.error || 'Scan failed';
+                        showAlert(error, 'danger');
+                    }
+                }
+            },
+            error: function() {
+                // Continue polling on error (might be temporary)
+            }
+        });
+    }, 2000);
+}
+
+function displayUrlscanResult(data) {
+    if (!data.success) {
+        showAlert(data.error || 'URL scan failed', 'danger');
+        return;
+    }
+    
+    currentScanResult = data;
+    
+    // Show result card
+    $('#urlscanResultCard').show();
+    
+    // Store raw data
+    const rawData = {...data};
+    delete rawData.screenshot; // Don't show base64 in raw view
+    rawData.screenshot = '[BASE64 DATA OMITTED]';
+    $('#urlscanRaw pre').text(JSON.stringify(rawData, null, 2));
+    
+    // Basic info
+    $('#urlscanFinalUrl').text(data.final_url || data.url);
+    
+    const statusCode = data.status_code;
+    if (statusCode) {
+        let statusClass = 'success';
+        if (statusCode >= 400) statusClass = 'danger';
+        else if (statusCode >= 300) statusClass = 'warning';
+        $('#urlscanStatusCode').html(`<span class="badge bg-${statusClass}">${statusCode}</span>`);
+    } else {
+        $('#urlscanStatusCode').text('N/A');
+    }
+    
+    $('#urlscanRedirected').html(data.redirected ? 
+        '<span class="badge bg-warning">Yes</span>' : 
+        '<span class="badge bg-secondary">No</span>');
+    
+    // Screenshot
+    if (data.screenshot) {
+        $('#urlscanScreenshot').attr('src', 'data:image/png;base64,' + data.screenshot);
+        $('#urlscanScreenshotContainer').show();
+    } else {
+        $('#urlscanScreenshotContainer').hide();
+    }
+    
+    // Metadata
+    if (data.metadata) {
+        let metaHtml = '';
+        const meta = data.metadata;
+        if (meta.title) {
+            metaHtml += `<div class="mb-2"><strong>Title:</strong> ${escapeHtml(meta.title)}</div>`;
+        }
+        if (meta.description) {
+            metaHtml += `<div class="mb-2"><strong>Description:</strong> ${escapeHtml(meta.description)}</div>`;
+        }
+        if (meta.keywords) {
+            metaHtml += `<div class="mb-2"><strong>Keywords:</strong> ${escapeHtml(meta.keywords)}</div>`;
+        }
+        if (meta.canonical) {
+            metaHtml += `<div class="mb-2"><strong>Canonical:</strong> <code>${escapeHtml(meta.canonical)}</code></div>`;
+        }
+        $('#urlscanMetadata').html(metaHtml || '<span class="text-muted">No metadata found</span>');
+    }
+    
+    // Technologies
+    if (data.technologies && data.technologies.length > 0) {
+        let techHtml = data.technologies.map(t => `<span class="badge bg-info me-1 mb-1">${escapeHtml(t)}</span>`).join('');
+        $('#urlscanTechnologies').html(techHtml);
+        $('#urlscanTechSection').show();
+    } else {
+        $('#urlscanTechSection').hide();
+    }
+    
+    // Links
+    const links = data.links || {};
+    $('#urlscanInternalCount').text(links.internal_count || 0);
+    $('#urlscanExternalCount').text(links.external_count || 0);
+    $('#urlscanEmailCount').text(links.email_count || 0);
+    
+    $('#internalTabCount').text(links.internal_count || 0);
+    $('#externalTabCount').text(links.external_count || 0);
+    $('#emailTabCount').text(links.email_count || 0);
+    
+    // External links
+    if (links.external && links.external.length > 0) {
+        let extHtml = links.external.map(l => `
+            <div class="mb-1">
+                <a href="${escapeHtml(l.href)}" target="_blank" rel="noopener" class="text-break">
+                    ${escapeHtml(l.href)}
+                </a>
+                ${l.text ? `<small class="text-muted d-block">${escapeHtml(l.text.substring(0, 100))}</small>` : ''}
+            </div>
+        `).join('');
+        $('#urlscanExternalLinks').html(extHtml);
+    } else {
+        $('#urlscanExternalLinks').html('<span class="text-muted">No external links found</span>');
+    }
+    
+    // Internal links
+    if (links.internal && links.internal.length > 0) {
+        let intHtml = links.internal.map(l => `
+            <div class="mb-1">
+                <code class="text-break">${escapeHtml(l.href)}</code>
+                ${l.text ? `<small class="text-muted d-block">${escapeHtml(l.text.substring(0, 100))}</small>` : ''}
+            </div>
+        `).join('');
+        $('#urlscanInternalLinks').html(intHtml);
+    } else {
+        $('#urlscanInternalLinks').html('<span class="text-muted">No internal links found</span>');
+    }
+    
+    // Email links
+    if (links.emails && links.emails.length > 0) {
+        let emailHtml = links.emails.map(l => {
+            const email = l.href.replace('mailto:', '');
+            return `<div class="mb-1"><a href="${escapeHtml(l.href)}">${escapeHtml(email)}</a></div>`;
+        }).join('');
+        $('#urlscanEmailLinks').html(emailHtml);
+    } else {
+        $('#urlscanEmailLinks').html('<span class="text-muted">No email links found</span>');
+    }
+    
+    // Forms
+    if (data.forms && data.forms.length > 0) {
+        let formsHtml = data.forms.map((f, i) => `
+            <div class="card mb-2">
+                <div class="card-body p-2">
+                    <div class="d-flex justify-content-between">
+                        <strong>Form ${i + 1}</strong>
+                        <span class="badge bg-secondary">${f.method.toUpperCase()}</span>
+                    </div>
+                    <small class="text-muted">Action: ${escapeHtml(f.action || '(none)')}</small>
+                    <div class="mt-1">
+                        <small>${f.fields.length} field(s): ${f.fields.map(field => field.name || field.type).join(', ')}</small>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        $('#urlscanForms').html(formsHtml);
+        $('#urlscanFormsSection').show();
+    } else {
+        $('#urlscanFormsSection').hide();
+    }
+    
+    // Scripts
+    if (data.scripts && data.scripts.length > 0) {
+        let scriptsHtml = data.scripts.map(s => `
+            <div class="mb-1 text-break">
+                <code>${escapeHtml(s.src)}</code>
+                ${s.async ? '<span class="badge bg-info ms-1">async</span>' : ''}
+                ${s.defer ? '<span class="badge bg-secondary ms-1">defer</span>' : ''}
+            </div>
+        `).join('');
+        $('#urlscanScripts').html(scriptsHtml);
+        $('#urlscanScriptsSection').show();
+    } else {
+        $('#urlscanScriptsSection').hide();
+    }
+    
+    $('#urlscanParsed').show();
+    $('#urlscanRaw').hide();
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 </script>
 {% endblock %}

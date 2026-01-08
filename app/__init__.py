@@ -100,7 +100,7 @@ def create_app(config_name=None):
         "info": {
             "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
             "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
-            "version": "1.2.4",
+            "version": "1.3.0",
             "contact": {
                 "name": "ELASLIP Support",
                 "url": "https://github.com/LL7Baucarre/ELASLIP"
@@ -269,7 +269,7 @@ def create_app(config_name=None):
     celery = create_celery_app(app)
     
     # Import task modules so Celery can discover them
-    from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks
+    from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks, urlscan_tasks
     
     # Initialize Elasticsearch indices
     from app.elasticsearch.init_indices import init_elasticsearch
@@ -326,7 +326,7 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_app_version():
         return {
-            'APP_VERSION': app.config.get('APP_VERSION', '1.2.4')
+            'APP_VERSION': app.config.get('APP_VERSION', '1.3.0')
         }
     
     # Health check endpoint
@@ -340,4 +340,4 @@ def create_app(config_name=None):
 # Create celery app for worker
 celery = create_celery_app()
 # Import tasks so they're registered with the worker
-from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks
+from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks, urlscan_tasks

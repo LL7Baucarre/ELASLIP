@@ -1,4 +1,46 @@
+# Docker Compose avec Elasticsearch externe et VPN Split-Routing
+# Usage: docker-compose -f docker-compose.external-elasticsearch.vpn.yml up -d
+
+version: '3.8'
+
 services:
+  # ============================================
+  # VPN Service (Gluetun) - Split-Routing Sidecar
+  # ============================================
+  vpn:
+    image: qmcgaw/gluetun:latest
+    container_name: elaslip-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-custom}
+      - VPN_TYPE=${VPN_TYPE:-openvpn}
+      - OPENVPN_CUSTOM_CONFIG=${OPENVPN_CUSTOM_CONFIG:-/gluetun/custom.ovpn}
+      - OPENVPN_USER=${VPN_USER:-}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD:-}
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY:-}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-}
+      - FIREWALL_OUTBOUND_SUBNETS=${VPN_FIREWALL_OUTBOUND_SUBNETS:-172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
+      - HTTP_CONTROL_SERVER_ADDRESS=:8000
+      - FIREWALL_VPN_INPUT_PORTS=${VPN_INPUT_PORTS:-}
+      - TZ=${TZ:-UTC}
+      - UPDATER_PERIOD=${VPN_UPDATER_PERIOD:-24h}
+    volumes:
+      - ./vpn:/gluetun
+    ports:
+      - "8000:8000"
+    networks:
+      - ioc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/v1/publicip/ip || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
   # ============================================
   # Application Web Flask
   # ============================================
@@ -6,8 +48,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        - APP_VERSION=${APP_VERSION:-1.3.0}
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-app
     cap_add:
@@ -18,11 +58,8 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app
-      - APP_VERSION=${APP_VERSION:-1.3.0}
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
-      - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
-      - APP_URL=${APP_URL:-http://localhost:5000}
-      - ELASTICSEARCH_URL=http://elastic:${ELASTICSEARCH_PASSWORD:-elastic123}@elasticsearch:9200
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
       - REDIS_URL=redis://redis:6379/0
@@ -30,20 +67,12 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/1
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
-      - LLM_ENABLED=${LLM_ENABLED:-false}
-      - LLM_URL=${LLM_URL:-http://ollama:11434}
-      - LLM_MODEL=${LLM_MODEL:-mistral}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_GENERATION_LANGUAGE=${LLM_GENERATION_LANGUAGE:-en}
       # OAuth Configuration
       - OAUTH_ENABLED=${OAUTH_ENABLED:-false}
       - OAUTH_AUTO_CREATE_USER=${OAUTH_AUTO_CREATE_USER:-true}
       - OAUTH_AUTO_LINK_BY_EMAIL=${OAUTH_AUTO_LINK_BY_EMAIL:-false}
       - OAUTH_DEFAULT_ROLE=${OAUTH_DEFAULT_ROLE:-viewer}
-      # NOTE: Must be set to a non-empty value when OAUTH_ENABLED=true, otherwise the app will fail to start.
-      #       Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - OAUTH_ENCRYPTION_KEY=${OAUTH_ENCRYPTION_KEY:-}
-      # Default to secure cookies; override to 'false' only for pure-HTTP local setups.
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       # OAuth Providers
       - OAUTH_GOOGLE_ENABLED=${OAUTH_GOOGLE_ENABLED:-false}
@@ -63,8 +92,6 @@ services:
       - ./static:/app/static
       - ./scripts:/app/scripts
     depends_on:
-      elasticsearch:
-        condition: service_healthy
       redis:
         condition: service_healthy
     networks:
@@ -72,7 +99,7 @@ services:
     restart: unless-stopped
 
   # ============================================
-  # Celery Worker - Standard (sans VPN)
+  # Celery Worker - Routé via VPN
   # ============================================
   worker:
     build:
@@ -80,56 +107,30 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-worker
+    network_mode: "service:vpn"
     command: celery -A app.celery worker --loglevel=info
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
-      - ELASTICSEARCH_URL=http://elastic:${ELASTICSEARCH_PASSWORD:-elastic123}@elasticsearch:9200
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - LLM_ENABLED=${LLM_ENABLED:-false}
-      - LLM_URL=${LLM_URL:-http://ollama:11434}
-      - LLM_MODEL=${LLM_MODEL:-mistral}
-      - LLM_API_KEY=${LLM_API_KEY:-}
-      - LLM_GENERATION_LANGUAGE=${LLM_GENERATION_LANGUAGE:-en}
-      - VPN_ENABLED=false
+      - VPN_ENABLED=true
     volumes:
       - ./app:/app/app
       - ./scripts:/app/scripts
     depends_on:
-      elasticsearch:
+      vpn:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - ioc-network
     restart: unless-stopped
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: elaslip-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=true
-      - xpack.security.enrollment.enabled=true
-      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
-      - "ES_JAVA_OPTS=-Xms${ELASTICSEARCH_MEMORY_XMS:-256m} -Xmx${ELASTICSEARCH_MEMORY_XMX:-256m}"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch-data:/usr/share/elasticsearch/data
-    networks:
-      - ioc-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD:-elastic123} http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 30
-      start_period: 40s
-    restart: unless-stopped
-
+  # ============================================
+  # Redis Cache
+  # ============================================
   redis:
     image: redis:7-alpine
     container_name: elaslip-redis
@@ -147,7 +148,6 @@ services:
     restart: unless-stopped
 
 volumes:
-  elasticsearch-data:
   redis-data:
 
 networks:

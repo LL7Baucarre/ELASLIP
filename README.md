@@ -41,6 +41,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 | **Email Headers** | Email header parsing, hop analysis, source IP extraction |
 | **File Analysis** | Hash extraction (MD5/SHA1/SHA256), metadata, EXIF, entropy |
 | **DMARC/DKIM/SPF** | Email authentication record analysis |
+| **URL Scan** | Automated URL analysis and security assessment |
 | **Shodan** | Internet-facing device search (requires API key) |
 
 All scan results are automatically saved to history and can be converted to IOCs.
@@ -145,13 +146,42 @@ See `.env.example` for complete defaults and examples.
 
 ## Docker Deployment
 
-```bash
-# Standard (with Elasticsearch)
-docker-compose up -d
+Four Docker Compose configurations available:
 
-# External Elasticsearch
-docker-compose -f docker-compose.external-elasticsearch.yml up -d
-```
+| Setup | Command | Features |
+|-------|---------|----------|
+| **Standard** | `docker-compose up -d` | Embedded Elasticsearch, no VPN |
+| **Standard + VPN** | `docker-compose -f docker-compose.vpn.yml up -d` | Embedded ES, worker via VPN tunnel |
+| **External ES** | `docker-compose -f docker-compose.external-elasticsearch.yml up -d` | External Elasticsearch, no VPN |
+| **External ES + VPN** | `docker-compose -f docker-compose.external-elasticsearch.vpn.yml up -d` | External ES, worker via VPN tunnel |
+
+### VPN Setup (Optional)
+
+To enable VPN routing for worker tasks:
+
+1. **Add to `.env`:**
+   ```bash
+   VPN_SERVICE_PROVIDER=custom
+   VPN_TYPE=openvpn
+   ```
+
+2. **Prepare OpenVPN config** (`vpn/custom.ovpn`):
+   - Must include `<cert>`, `<key>`, and `<tls-crypt>` sections
+   - Use inline `<auth-user-pass>` with credentials
+   - Comment out resolver scripts: `#up /etc/openvpn/...`
+
+3. **Start with VPN:**
+   ```bash
+   docker-compose -f docker-compose.vpn.yml up -d
+   ```
+
+4. **Verify:**
+   ```bash
+   # Worker IP should match VPN provider
+   docker exec elaslip-worker curl -s https://ipinfo.io
+   ```
+
+For WireGuard or advanced config, see [vpn/README.md](vpn/README.md).
 
 ## Development
 
@@ -185,14 +215,21 @@ flask run --debug
 │   Redis Cache   │    │   Celery Tasks  │    │   File Storage  │
 │   (Sessions)    │    │   (Async Jobs)  │    │    (Uploads)    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
+         │
+         ▼
+┌─────────────────┐
+│   VPN Tunnel    │  (Optional)
+│   (Gluetun)     │  Routes worker traffic
+└─────────────────┘
 ```
 
 **Core Components:**
 - **Flask Backend** - REST API with RBAC authentication
 - **Elasticsearch** - Full-text search and data storage
 - **Redis** - Caching, sessions, and Celery broker
-- **Celery** - Asynchronous task processing
+- **Celery** - Asynchronous task processing (optionally through VPN)
 - **Bootstrap UI** - Responsive web interface
+- **Gluetun VPN** (Optional) - Worker traffic routing for secure enrichment and external API calls
 
 ### Development Setup
 
