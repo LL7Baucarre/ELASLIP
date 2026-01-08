@@ -40,5 +40,8 @@ lxml==4.9.4
 python-dotenv==1.2.0
 uuid==1.30
 
+# Browser automation for URL scanning
+playwright==1.49.1
+
 # Development
 gunicorn==22.0.0

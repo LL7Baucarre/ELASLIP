@@ -1,4 +1,60 @@
+# Docker Compose avec VPN Split-Routing
+# Usage: docker-compose -f docker-compose.vpn.yml up -d
+
+version: '3.8'
+
 services:
+  # ============================================
+  # VPN Service (Gluetun) - Split-Routing Sidecar
+  # ============================================
+  # Le worker utilise ce conteneur comme passerelle réseau.
+  # Tout le trafic sortant du worker passe par le tunnel VPN.
+  vpn:
+    image: qmcgaw/gluetun:latest
+    container_name: elaslip-vpn
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      # Configuration du provider VPN
+      # Voir https://github.com/qdm12/gluetun-wiki pour la liste des providers
+      - VPN_SERVICE_PROVIDER=${VPN_SERVICE_PROVIDER:-custom}
+      - VPN_TYPE=${VPN_TYPE:-openvpn}
+      # Fichiers de configuration OpenVPN (si provider=custom)
+      - OPENVPN_CUSTOM_CONFIG=${OPENVPN_CUSTOM_CONFIG:-/gluetun/custom.ovpn}
+      # Credentials (requis pour la plupart des providers)
+      - OPENVPN_USER=${VPN_USER:-}
+      - OPENVPN_PASSWORD=${VPN_PASSWORD:-}
+      # WireGuard (si VPN_TYPE=wireguard)
+      - WIREGUARD_PRIVATE_KEY=${WIREGUARD_PRIVATE_KEY:-}
+      - WIREGUARD_ADDRESSES=${WIREGUARD_ADDRESSES:-}
+      # Autoriser l'accès au réseau Docker interne (Redis, Elasticsearch)
+      # Plages typiques Docker: 172.16.0.0/12 couvre 172.16-31.x.x
+      - FIREWALL_OUTBOUND_SUBNETS=${VPN_FIREWALL_OUTBOUND_SUBNETS:-172.16.0.0/12,192.168.0.0/16,10.0.0.0/8}
+      # Port de l'API de contrôle Gluetun (pour status/healthcheck)
+      - HTTP_CONTROL_SERVER_ADDRESS=:8000
+      # Désactiver le killswitch pour le debug (remettre à on en production)
+      - FIREWALL_VPN_INPUT_PORTS=${VPN_INPUT_PORTS:-}
+      # Options avancées
+      - TZ=${TZ:-UTC}
+      - UPDATER_PERIOD=${VPN_UPDATER_PERIOD:-24h}
+    volumes:
+      # Monter les fichiers de config OpenVPN personnalisés
+      - ./vpn:/gluetun
+    ports:
+      # Port de l'API Gluetun pour monitoring
+      - "8000:8000"
+    networks:
+      - ioc-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/v1/publicip/ip || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
   # ============================================
   # Application Web Flask
   # ============================================
@@ -40,10 +96,7 @@ services:
       - OAUTH_AUTO_CREATE_USER=${OAUTH_AUTO_CREATE_USER:-true}
       - OAUTH_AUTO_LINK_BY_EMAIL=${OAUTH_AUTO_LINK_BY_EMAIL:-false}
       - OAUTH_DEFAULT_ROLE=${OAUTH_DEFAULT_ROLE:-viewer}
-      # NOTE: Must be set to a non-empty value when OAUTH_ENABLED=true, otherwise the app will fail to start.
-      #       Generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - OAUTH_ENCRYPTION_KEY=${OAUTH_ENCRYPTION_KEY:-}
-      # Default to secure cookies; override to 'false' only for pure-HTTP local setups.
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE:-true}
       # OAuth Providers
       - OAUTH_GOOGLE_ENABLED=${OAUTH_GOOGLE_ENABLED:-false}
@@ -72,18 +125,23 @@ services:
     restart: unless-stopped
 
   # ============================================
-  # Celery Worker - Standard (sans VPN)
+  # Celery Worker - Routé via VPN
   # ============================================
+  # IMPORTANT: Ce conteneur utilise le network namespace du VPN.
+  # Tout son trafic sortant (enrichment APIs, webhooks, etc.) passe par le tunnel.
   worker:
     build:
       context: .
       dockerfile: Dockerfile
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-worker
+    # Utilise l'interface réseau du conteneur VPN (Split-Routing)
+    network_mode: "service:vpn"
     command: celery -A app.celery worker --loglevel=info
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
+      # Les URLs internes fonctionnent car le VPN est sur ioc-network
       - ELASTICSEARCH_URL=http://elastic:${ELASTICSEARCH_PASSWORD:-elastic123}@elasticsearch:9200
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
@@ -94,17 +152,20 @@ services:
       - LLM_MODEL=${LLM_MODEL:-mistral}
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_GENERATION_LANGUAGE=${LLM_GENERATION_LANGUAGE:-en}
-      - VPN_ENABLED=false
+      # Indicateur que le worker est derrière le VPN
+      - VPN_ENABLED=true
     volumes:
       - ./app:/app/app
       - ./scripts:/app/scripts
     depends_on:
+      vpn:
+        condition: service_healthy
       elasticsearch:
         condition: service_healthy
       redis:
         condition: service_healthy
-    networks:
-      - ioc-network
+    # NOTE: Pas de section "networks:" ici car network_mode: service:vpn
+    # hérite automatiquement du réseau du conteneur VPN
     restart: unless-stopped
 
   elasticsearch:
