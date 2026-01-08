@@ -53,7 +53,6 @@
 
 ### Added
 - **UI: display app version**: `APP_VERSION` injected into all templates and shown as `v{{ APP_VERSION }}` in the sidebar footer
-- **Dark mode & contrast**: `.version-footer` CSS with dark/light theme support for the version label
 - **Dashboard: Create dropdown**: replace single "Add IOC" button with a "Create" dropdown (IOC, Case, Incident, Checklist) respecting permissions
 - **Dashboard: Unresolved Public Submissions**: UI panel shows latest pending submissions (frontend + backend query) with quick access to review
 
