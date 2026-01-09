@@ -637,6 +637,7 @@ function loadGraph() {
 
             nodes.forEach(node => {
                 const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
+                node.data.type_normalized = type;  // Store normalized type for filtering
                 node.data.color = getColorForType(type);
                 node.data.icon = getIconForType(type);
             });
@@ -966,6 +967,7 @@ function updateDepthValue() {
             
             nodes.forEach(node => {
                 const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
+                node.data.type_normalized = type;  // Store normalized type for filtering
                 node.data.color = getColorForType(type);
                 node.data.icon = getIconForType(type);
             });
@@ -987,7 +989,7 @@ function toggleNodeTypeVisibility() {
     if (!cy) return;
     const checked = new Set([...document.querySelectorAll('.legend-checkbox:checked')].map(cb => cb.dataset.type));
     cy.nodes().forEach(n => {
-        const type = n.data('type') || n.data('entity_type') || 'stix';
+        const type = n.data('type_normalized') || (n.data('type') || n.data('entity_type') || 'stix').replace('-', '_');
         n[checked.has(type) ? 'show' : 'hide']();
     });
     cy.edges().forEach(e => {

@@ -14,6 +14,143 @@ class ToolsService:
     """Service for network reconnaissance tools."""
     
     @staticmethod
+    def get_public_ip() -> Dict:
+        """
+        Get the public IP address and DNS of the worker.
+        
+        Returns:
+            Dict with public IP and DNS information
+        """
+        try:
+            import socket
+            import json
+            import os
+            
+            result = {
+                'success': False,
+                'ip': None,
+                'dns': [],
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+            
+            # Check for custom DNS from environment variable
+            custom_dns = os.environ.get('WORKER_DNS', '').strip()
+            if custom_dns:
+                result['dns'] = [d.strip() for d in custom_dns.split(',') if d.strip()]
+            else:
+                # Get DNS servers from system
+                try:
+                    with open('/etc/resolv.conf', 'r') as f:
+                        dns_servers = []
+                        for line in f:
+                            if line.startswith('nameserver'):
+                                server = line.split()[1]
+                                # Skip Docker internal DNS
+                                if server != '127.0.0.11' and server not in dns_servers:
+                                    dns_servers.append(server)
+                        # If no external DNS found, use defaults
+                        if not dns_servers:
+                            dns_servers = ['1.1.1.1', '8.8.8.8']
+                        result['dns'] = dns_servers
+                except Exception as e:
+                    logger.debug(f"[PUBLIC-IP] Could not read /etc/resolv.conf: {e}")
+                    # Fallback to public DNS
+                    result['dns'] = ['1.1.1.1', '8.8.8.8']
+            
+            # Check if running with VPN (Gluetun)
+            vpn_enabled = os.environ.get('VPN_ENABLED', 'false').lower() == 'true'
+            logger.info(f"[PUBLIC-IP] VPN_ENABLED env var: {vpn_enabled}")
+            
+            if vpn_enabled:
+                try:
+                    import urllib.request
+                    import json
+                    # Try to get IP from Gluetun control API (localhost on shared network)
+                    logger.info("[PUBLIC-IP] Attempting to get IP from Gluetun API at 127.0.0.1:8000")
+                    req = urllib.request.Request(
+                        'http://127.0.0.1:8000/v1/publicip/ip',
+                        headers={'User-Agent': 'Mozilla/5.0'}
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = json.loads(response.read().decode())
+                        # Gluetun API returns {"public_ip": "...", ...}
+                        ip_text = data.get('public_ip', '').strip()
+                        if ip_text:
+                            result['ip'] = ip_text
+                            result['success'] = True
+                            result['service'] = 'gluetun-vpn'
+                            result['vpn_enabled'] = True
+                            result['region'] = data.get('region', '')
+                            result['country'] = data.get('country', '')
+                            logger.info(f"[PUBLIC-IP] Successfully got IP from Gluetun: {ip_text} ({data.get('country', '')})")
+                            return result
+                except Exception as e:
+                    logger.warning(f"[PUBLIC-IP] VPN enabled but Gluetun API failed: {e}")
+                    # Fall through to regular IP detection
+            
+            # Try multiple public IP services for redundancy
+            services = [
+                'https://api.ipify.org?format=json',
+                'https://ifconfig.me/all.json',
+                'https://ipinfo.io/json'
+            ]
+            
+            logger.info("[PUBLIC-IP] Trying fallback public IP services")
+            for service in services:
+                try:
+                    import urllib.request
+                    
+                    logger.debug(f"[PUBLIC-IP] Trying service: {service}")
+                    req = urllib.request.Request(
+                        service,
+                        headers={'User-Agent': 'Mozilla/5.0'}
+                    )
+                    
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = json.loads(response.read().decode())
+                        
+                        # Parse different response formats
+                        if 'ip' in data:
+                            result['ip'] = data['ip']
+                            result['success'] = True
+                            result['service'] = service
+                            if vpn_enabled:
+                                result['vpn_enabled'] = True
+                            logger.info(f"[PUBLIC-IP] Got IP from {service}: {data['ip']}")
+                            return result
+                        elif 'query' in data:
+                            result['ip'] = data['query']
+                            result['success'] = True
+                            result['service'] = service
+                            if vpn_enabled:
+                                result['vpn_enabled'] = True
+                            logger.info(f"[PUBLIC-IP] Got IP from {service}: {data['query']}")
+                            return result
+                except Exception as e:
+                    logger.warning(f"[PUBLIC-IP] Failed with {service}: {e}")
+                    continue
+            
+            if result['ip']:
+                result['success'] = True
+                return result
+            
+            logger.error("[PUBLIC-IP] All services failed")
+            return {
+                'success': False,
+                'error': 'Unable to determine public IP',
+                'dns': result['dns'],
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+            
+        except Exception as e:
+            logger.error(f"[PUBLIC-IP] Exception: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+    
+    @staticmethod
     def _validate_target(target: str) -> bool:
         """
         Validate target is a valid IP or hostname.
@@ -189,11 +326,11 @@ class ToolsService:
         scan_options = {
             'quick': ['-T4', '-F', '--open'],
             'full': ['-T4', '-p-', '--open'],
-            'service': ['-sV', '-T4', '-F', '--open'],
-            'vuln': ['-sV', '--script=vuln', '-T4', '-F'],
+            'service': ['-sV', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443', '--open'],
+            'vuln': ['-sV', '--script=vuln', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443'],
             'traceroute': ['-T4', '-F', '--traceroute', '--open'],
             'os': ['-O', '-T4', '-F', '--open'],
-            'aggressive': ['-A', '-T4', '-F'],
+            'aggressive': ['-A', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443'],
             'custom': []
         }
         
@@ -556,7 +693,7 @@ class ToolsService:
         
         Args:
             target: Domain name
-            record_type: DNS record type (A, AAAA, MX, NS, TXT, CNAME, SOA, PTR)
+            record_type: DNS record type (A, AAAA, MX, NS, TXT, CNAME, SOA, PTR, ANY)
             
         Returns:
             Dict with DNS records
@@ -572,22 +709,43 @@ class ToolsService:
             }
         
         try:
-            result = subprocess.run(
-                ['dig', '+noall', '+answer', '+authority', target, record_type],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            records = ToolsService._parse_dig(result.stdout)
+            if record_type == 'ANY':
+                # For ANY, query all record types and combine results
+                all_records = []
+                raw_outputs = []
+                types_to_query = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA']
+                
+                for rtype in types_to_query:
+                    result = subprocess.run(
+                        ['dig', '+noall', '+answer', '+authority', target, rtype],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if result.returncode == 0:
+                        records = ToolsService._parse_dig(result.stdout)
+                        all_records.extend(records)
+                        raw_outputs.append(f"=== {rtype} ===\n{result.stdout}")
+                
+                raw_output = '\n'.join(raw_outputs)
+            else:
+                result = subprocess.run(
+                    ['dig', '+noall', '+answer', '+authority', target, record_type],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                all_records = ToolsService._parse_dig(result.stdout)
+                raw_output = result.stdout
             
             return {
                 'success': True,
                 'target': target,
                 'record_type': record_type,
-                'raw_output': result.stdout,
+                'raw_output': raw_output,
                 'parsed': {
-                    'records': records
+                    'records': all_records
                 },
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }

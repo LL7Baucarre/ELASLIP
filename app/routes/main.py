@@ -1167,10 +1167,15 @@ def api_shodan_settings():
         current_app.config['SHODAN_API_KEY'] = api_key
         current_app.config['SHODAN_ENABLED'] = enabled
         
-        # In a real application, you would save this to:
-        # 1. Database (encrypted)
-        # 2. .env file (with appropriate file permissions)
-        # 3. Secret management system (e.g., Vault, AWS Secrets Manager)
+        # Persist to .env file
+        env_file = '.env'
+        # Create .env file if it doesn't exist
+        if not os.path.exists(env_file):
+            open(env_file, 'a').close()
+        
+        if os.path.exists(env_file):
+            set_key(env_file, 'SHODAN_API_KEY', api_key)
+            set_key(env_file, 'SHODAN_ENABLED', 'true' if enabled else 'false')
         
         return jsonify({
             'message': 'Shodan configuration saved successfully',
@@ -1182,6 +1187,12 @@ def api_shodan_settings():
         # Clear Shodan configuration
         current_app.config['SHODAN_API_KEY'] = ''
         current_app.config['SHODAN_ENABLED'] = False
+        
+        # Remove from .env file
+        env_file = '.env'
+        if os.path.exists(env_file):
+            set_key(env_file, 'SHODAN_API_KEY', '')
+            set_key(env_file, 'SHODAN_ENABLED', 'false')
         
         return jsonify({
             'message': 'Shodan configuration cleared',

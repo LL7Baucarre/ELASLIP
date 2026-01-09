@@ -272,7 +272,11 @@ async function loadAvailableObjects() {
         const response = await fetch('/api/stix/objects/available?size=100');
         if (response.ok) {
             availableObjects = await response.json();
-            renderAvailableObjects(availableObjects);
+            // Only render if container exists (used in relationship modal context)
+            const container = document.getElementById('availableObjectsList');
+            if (container) {
+                renderAvailableObjects(availableObjects);
+            }
         }
     } catch (e) {
         console.error('Failed to load available objects:', e);
@@ -281,6 +285,9 @@ async function loadAvailableObjects() {
 
 function renderAvailableObjects(objects) {
     const container = document.getElementById('availableObjectsList');
+    
+    // Exit silently if container doesn't exist
+    if (!container) return;
     
     if (objects.length === 0) {
         container.innerHTML = '<p class="text-muted text-center py-3">No objects available yet.</p>';
@@ -584,8 +591,11 @@ function collectTypeSpecificFields(sdoType, data) {
             data.malware_types = getMultiSelectValues('malwareTypes');
             data.is_family = document.getElementById('isFamily')?.value === 'true';
             data.aliases = parseCommaList(document.getElementById('malwareAliases')?.value);
+            data.kill_chain_phases = collectKillChainPhases();
             data.first_seen = formatDateTime(document.getElementById('malwareFirstSeen')?.value);
             data.last_seen = formatDateTime(document.getElementById('malwareLastSeen')?.value);
+            data.implementation_languages = parseCommaList(document.getElementById('implementationLanguages')?.value);
+            data.architecture_execution_envs = getMultiSelectValues('architectureEnvs');
             data.capabilities = getMultiSelectValues('capabilities');
             break;
             
@@ -599,7 +609,7 @@ function collectTypeSpecificFields(sdoType, data) {
             data.resource_level = document.getElementById('resourceLevel')?.value || null;
             data.primary_motivation = document.getElementById('primaryMotivation')?.value || null;
             data.secondary_motivations = getMultiSelectValues('secondaryMotivations');
-            data.goals = document.getElementById('goals')?.value || null;
+            data.goals = parseCommaList(document.getElementById('goals')?.value);
             break;
             
         case 'attack-pattern':
@@ -628,6 +638,7 @@ function collectTypeSpecificFields(sdoType, data) {
         case 'infrastructure':
             data.infrastructure_types = getMultiSelectValues('infrastructureTypes');
             data.aliases = parseCommaList(document.getElementById('infraAliases')?.value);
+            data.kill_chain_phases = collectKillChainPhases();
             data.first_seen = formatDateTime(document.getElementById('infraFirstSeen')?.value);
             data.last_seen = formatDateTime(document.getElementById('infraLastSeen')?.value);
             break;
@@ -636,13 +647,15 @@ function collectTypeSpecificFields(sdoType, data) {
             data.aliases = parseCommaList(document.getElementById('intrusionAliases')?.value);
             data.first_seen = formatDateTime(document.getElementById('intrusionFirstSeen')?.value);
             data.last_seen = formatDateTime(document.getElementById('intrusionLastSeen')?.value);
+            data.goals = parseCommaList(document.getElementById('intrusionGoals')?.value);
             data.resource_level = document.getElementById('intrusionResourceLevel')?.value || null;
             data.primary_motivation = document.getElementById('intrusionPrimaryMotivation')?.value || null;
-            data.goals = document.getElementById('intrusionGoals')?.value || null;
+            data.secondary_motivations = getMultiSelectValues('intrusionSecondaryMotivations');
             break;
             
         case 'identity':
             data.identity_class = document.getElementById('identityClass')?.value || null;
+            data.roles = parseCommaList(document.getElementById('roles')?.value);
             data.sectors = getMultiSelectValues('sectors');
             data.contact_information = document.getElementById('contactInformation')?.value || null;
             break;
@@ -659,6 +672,36 @@ function collectTypeSpecificFields(sdoType, data) {
             
         case 'course-of-action':
             data.action_type = document.getElementById('actionType')?.value || null;
+            break;
+            
+        case 'note':
+            data.abstract = document.getElementById('noteAbstract')?.value || null;
+            data.content = document.getElementById('noteContent')?.value || null;
+            data.authors = parseCommaList(document.getElementById('noteAuthors')?.value);
+            data.object_refs = parseCommaList(document.getElementById('noteObjectRefs')?.value);
+            break;
+            
+        case 'observed-data':
+            data.first_observed = formatDateTime(document.getElementById('firstObserved')?.value);
+            data.last_observed = formatDateTime(document.getElementById('lastObserved')?.value);
+            data.number_observed = parseInt(document.getElementById('numberObserved')?.value) || 1;
+            data.object_refs = parseCommaList(document.getElementById('objectRefs')?.value);
+            break;
+            
+        case 'opinion':
+            data.abstract = document.getElementById('opinionAbstract')?.value || null;
+            data.opinion = document.getElementById('opinion')?.value;
+            data.explanation = document.getElementById('opinionExplanation')?.value || null;
+            data.authors = parseCommaList(document.getElementById('opinionAuthors')?.value);
+            data.object_refs = parseCommaList(document.getElementById('opinionObjectRefs')?.value);
+            break;
+            
+        case 'report':
+            data.name = stixObject.name;
+            data.report_types = getMultiSelectValues('reportTypes');
+            data.published = formatDateTime(document.getElementById('reportPublished')?.value);
+            data.description = document.getElementById('reportDescription')?.value || null;
+            data.object_refs = parseCommaList(document.getElementById('reportObjectRefs')?.value);
             break;
     }
     
