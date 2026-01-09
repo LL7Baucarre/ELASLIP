@@ -615,6 +615,19 @@ def create_ioc_from_submission(submission_id):
         confidence_str = data.get('confidence', submission.get('confidence', 'medium'))
         confidence_int = confidence_map.get(confidence_str, 50) if isinstance(confidence_str, str) else 50
         
+        # Normalize TLP format to STIX 2.1 standard (TLP:CLEAR/GREEN/AMBER/AMBER+STRICT/RED)
+        tlp_input = data.get('tlp', 'TLP:AMBER')
+        if tlp_input and not tlp_input.startswith('TLP:'):
+            # Convert lowercase/simple format to STIX 2.1 standard format
+            tlp_map = {
+                'clear': 'TLP:CLEAR',
+                'white': 'TLP:CLEAR',  # TLP:WHITE is deprecated, use TLP:CLEAR
+                'green': 'TLP:GREEN',
+                'amber': 'TLP:AMBER',
+                'red': 'TLP:RED'
+            }
+            tlp_input = tlp_map.get(tlp_input.lower(), 'TLP:AMBER')
+        
         stix_obj = stix_service.create_sdo(
             sdo_type='indicator',
             data={
@@ -636,7 +649,7 @@ def create_ioc_from_submission(submission_id):
                 'x_ioc_type': submission['ioc_type'],
                 'x_ioc_value': submission['ioc_value'],
                 'x_threat_level': data.get('threat_level', 'medium'),
-                'x_tlp': data.get('tlp', 'amber'),
+                'x_tlp': tlp_input,
                 'x_metadata': {
                     'source': 'submission',
                     'submission_id': submission_id,

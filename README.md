@@ -52,9 +52,7 @@ A lightweight MISP and TheHive alternative for managing Indicators of Compromise
 
 ## Integrated Tools
 
-
 | Tool | Description |
-
 |------|-------------|
 | **WHOIS** | Domain and IP ownership information |
 | **Ping** | Host connectivity and latency testing |
@@ -134,106 +132,56 @@ Documentation & Analysis
 - Opinion
 - Observer Data
 
-  
-
 ## Environment Variables
-
-  
 
 | Variable | Default | Description |
 
 |---|---|---|
-
 | `FLASK_ENV` | `development` | Flask environment |
-
 | `FLASK_APP` | `app` | Flask application entrypoint |
-
 | `SECRET_KEY` | `your-super-secret-key-change-in-production` | Flask secret key (change in production) |
-
 | `SITE_NAME` | `ELASLIP` | Site short name |
-
 | `SITE_TITLE` | `ELASLIP` | Site full title |
-
 | `ELASTICSEARCH_URL` | `http://localhost:9200` | Elasticsearch URL |
-
 | `ELASTICSEARCH_USER` | `elastic` | Elasticsearch username |
-
 | `ELASTICSEARCH_PASSWORD` | `elastic123` | Elasticsearch password |
-
 | `ELASTICSEARCH_MEMORY_XMS` | `256m` | ES JVM initial heap size |
-
 | `ELASTICSEARCH_MEMORY_XMX` | `256m` | ES JVM max heap size |
-
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis URL (sessions/cache) |
-
 | `CELERY_BROKER_URL` | `redis://localhost:6379/1` | Celery broker URL |
-
 | `DEFAULT_ADMIN_USER` | `admin` | Default admin username |
-
 | `DEFAULT_ADMIN_PASSWORD` | `admin123` | Default admin password |
-
 | `DEMO_DATA_ENABLED` | `false` | Populate demo data on first run |
-
 | `DEBUG` | `false` | Flask debug flag |
-
 | `LLM_ENABLED` | `false` | Enable AI-based report generation |
-
 | `LLM_PROVIDER` | `auto` | LLM provider (`auto`, `ollama`, `openai`) |
-
 | `LLM_URL` | `http://ollama:11434` | LLM provider URL |
-
 | `LLM_MODEL` | `mistral` | Default LLM model |
-
 | `LLM_API_KEY` | `` | API key for OpenAI-compatible providers |
-
 | `LLM_GENERATION_LANGUAGE` | `fr` | Default language for generated reports |
-
 | `PUBLIC_SEARCH_ENABLED` | `true` | Enable public search portal |
-
 | `PUBLIC_SUBMISSIONS_SUBMIT_ENABLED` | `true` | Enable public IOC submission form |
-
 | `PUBLIC_SUBMISSIONS_MAX_RESULTS` | `10` | Max results for public search |
-
 | `PUBLIC_SUBMISSIONS_ALLOW_ANONYMOUS` | `true` | Allow anonymous submissions |
-
 | `ENRICHMENT_CACHE_TTL` | `3600` | Enrichment cache TTL in seconds |
-
 | `GEOIP_ENABLED` | `true` | Enable IP-API.com GeoIP enrichment |
-
 | `SHODAN_API_KEY` | `` | Shodan API key for device search |
-
 | `SHODAN_ENABLED` | `false` | Enable Shodan device search tool |
-
 | `OAUTH_ENABLED` | `false` | Enable OAuth authentication (Google, GitHub, OIDC) |
-
 | `OAUTH_ENCRYPTION_KEY` | `` | Encryption key for OAuth credentials (required when OAuth enabled) |
-
 | `OAUTH_AUTO_CREATE_USER` | `true` | Automatically create users on first OAuth login |
-
 | `OAUTH_AUTO_LINK_BY_EMAIL` | `false` | Link OAuth accounts to existing users by email |
-
 | `OAUTH_DEFAULT_ROLE` | `viewer` | Default role for new OAuth users |
-
 | `OAUTH_GOOGLE_ENABLED` | `false` | Enable Google OAuth |
-
 | `OAUTH_GOOGLE_CLIENT_ID` | `` | Google OAuth Client ID |
-
 | `OAUTH_GOOGLE_CLIENT_SECRET` | `` | Google OAuth Client Secret |
-
 | `OAUTH_GITHUB_ENABLED` | `false` | Enable GitHub OAuth |
-
 | `OAUTH_GITHUB_CLIENT_ID` | `` | GitHub OAuth Client ID |
-
 | `OAUTH_GITHUB_CLIENT_SECRET` | `` | GitHub OAuth Client Secret |
-
 | `OAUTH_OIDC_ENABLED` | `false` | Enable OIDC provider |
-
 | `OAUTH_OIDC_CLIENT_ID` | `` | OIDC Client ID |
-
 | `OAUTH_OIDC_CLIENT_SECRET` | `` | OIDC Client Secret |
-
 | `OAUTH_OIDC_DISCOVERY_URL` | `` | OIDC Discovery URL |
-
 | `OAUTH_OIDC_PROVIDER_NAME` | `` | OIDC Provider name |
 
   
@@ -251,15 +199,10 @@ Four Docker Compose configurations available:
   
 
 | Setup | Command | Features |
-
 |-------|---------|----------|
-
 | **Standard** | `docker-compose up -d` | Embedded Elasticsearch, no VPN |
-
 | **Standard + VPN** | `docker-compose -f docker-compose.vpn.yml up -d` | Embedded ES, worker via VPN tunnel |
-
 | **External ES** | `docker-compose -f docker-compose.external-elasticsearch.yml up -d` | External Elasticsearch, no VPN |
-
 | **External ES + VPN** | `docker-compose -f docker-compose.external-elasticsearch.vpn.yml up -d` | External ES, worker via VPN tunnel |
 
   
