@@ -98,7 +98,7 @@ def create_app(config_name=None):
     swagger_template = {
         "swagger": "2.0",
         "info": {
-            "title": app.config.get('SITE_TITLE', 'IOC Manager') + " API",
+            "title": app.config.get('SITE_TITLE', 'ELASLIP') + " API",
             "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
             "version": "1.3.4",
             "contact": {
@@ -229,8 +229,8 @@ def create_app(config_name=None):
             return rbac.user_has_any_permission(current_user, list(permissions))
         
         return {
-            'SITE_NAME': app.config.get('SITE_NAME', 'IOC Manager'),
-            'SITE_TITLE': app.config.get('SITE_TITLE', 'IOC Manager'),
+            'SITE_NAME': app.config.get('SITE_NAME', 'ELASLIP'),
+            'SITE_TITLE': app.config.get('SITE_TITLE', 'ELASLIP'),
             'has_permission': has_permission,
             'has_any_permission': has_any_permission,
             'llm_enabled': os.getenv('LLM_ENABLED', 'false').lower() == 'true'

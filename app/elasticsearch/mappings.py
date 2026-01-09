@@ -1,4 +1,4 @@
-"""Elasticsearch index mappings for IOC Manager."""
+"""Elasticsearch index mappings for ELASLIP."""
 
 
 # IOC Index Mapping - STIX 2.1 Indicator format

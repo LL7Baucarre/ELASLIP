@@ -1,4 +1,4 @@
-"""STIX 2.1 Schema and Models for IOC Manager."""
+"""STIX 2.1 Schema and Models for ELASLIP."""
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any

@@ -244,7 +244,7 @@ def main():
     es_user = os.environ.get("ELASTICSEARCH_USER", "elastic")
     es_password = os.environ.get("ELASTICSEARCH_PASSWORD", "elastic123")
     
-    logger.info("\nIOC Manager - Elasticsearch Initialization")
+    logger.info("\nELASLIP - Elasticsearch Initialization")
     logger.info("%s", "=" * 50)
     logger.info("Elasticsearch URL: %s\n", es_url)
     

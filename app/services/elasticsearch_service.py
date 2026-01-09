@@ -1,4 +1,4 @@
-"""Elasticsearch Service for IOC Manager."""
+"""Elasticsearch Service for ELASLIP."""
 
 import os
 from typing import Dict, Any, Optional, List

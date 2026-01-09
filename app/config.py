@@ -43,8 +43,8 @@ class Config:
     LOG_FILE = os.getenv('LOG_FILE', 'app.log')
     
     # Site Configuration
-    SITE_NAME = os.getenv('SITE_NAME', 'IOC Manager')
-    SITE_TITLE = os.getenv('SITE_TITLE', 'IOC Manager')
+    SITE_NAME = os.getenv('SITE_NAME', 'ELASLIP')
+    SITE_TITLE = os.getenv('SITE_TITLE', 'ELASLIP')
     
     # Elasticsearch
     ELASTICSEARCH_URL = os.getenv('ELASTICSEARCH_URL', 'http://localhost:9200')

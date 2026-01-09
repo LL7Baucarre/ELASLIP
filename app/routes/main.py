@@ -137,7 +137,7 @@ def get_version():
     from app.config import Config
     return jsonify({
         'version': Config.APP_VERSION,
-        'app_name': current_app.config.get('SITE_NAME', 'IOC Manager')
+        'app_name': current_app.config.get('SITE_NAME', 'ELASLIP')
     }), 200
 
 
@@ -977,8 +977,8 @@ def api_settings():
     """Get or update site settings (admin only)."""
     if request.method == 'GET':
         return jsonify({
-            'site_name': current_app.config.get('SITE_NAME', 'IOC Manager'),
-            'site_title': current_app.config.get('SITE_TITLE', 'IOC Manager')
+            'site_name': current_app.config.get('SITE_NAME', 'ELASLIP'),
+            'site_title': current_app.config.get('SITE_TITLE', 'ELASLIP')
         })
     
     data = request.get_json()

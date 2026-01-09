@@ -136,7 +136,7 @@ def test_webhook(webhook: Dict) -> Dict:
         'event': 'webhook.test',
         'timestamp': datetime.utcnow().isoformat(),
         'data': {
-            'message': 'This is a test webhook from IOC Manager',
+            'message': 'This is a test webhook from ELASLIP',
             'webhook_id': webhook.get('id'),
             'webhook_name': webhook.get('name')
         }

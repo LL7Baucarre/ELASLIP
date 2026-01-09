@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to create an admin user for IOC Manager.
+Script to create an admin user for ELASLIP.
 Run this after starting Elasticsearch.
 """
 
@@ -64,7 +64,7 @@ def main():
     es_user = os.environ.get("ELASTICSEARCH_USER", "elastic")
     es_password = os.environ.get("ELASTICSEARCH_PASSWORD", "elastic123")
     
-    logger.info("\nIOC Manager - Create Admin User")
+    logger.info("\nELASLIP - Create Admin User")
     logger.info("%s", "=" * 50)
     logger.info("Elasticsearch URL: %s\n", es_url)
     
