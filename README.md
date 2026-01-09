@@ -11,39 +11,39 @@
   
 A lightweight MISP and TheHive alternative for managing Indicators of Compromise (IOCs), investigating security incidents, and organizing security operations with AI-powered insights.
 
-![[.github/dashboard.gif]]
+![dashboard](.github/dashboard.gif)
 ## Key Features
 
 
 - **STIX objects management** - deduplication, enrichment, relationship mapping
 
-![[.github/stix-view.gif]]
+![stix-view](.github/stix-view.gif)
 
 - **Case & Incident Investigation** - Organize investigations with timeline events, comments, and STIX linking
 	- Case management :
-		![[.github/cases.gif]]
+		![cases](.github/cases.gif)
 	- Incident management : 
-		![[.github/incidents.gif]]
+		![incidents](.github/incidents.gif)
 	- Checklists :
-		![[.github/checklists.gif]]
+		![checklists](.github/checklists.gif)
 
 - **AI-Powered Reports** - Generate STIX, case, incident, and checklist reports via LLM (Ollama or OpenAI-compatible)
 	- Settings :
-		![[.github/llm-settings.gif]]
+		![llm-settings](.github/llm-settings.gif)
 	- Report generation :
-		![[.github/llm-report.gif]]
+		![llm-report](.github/llm-report.gif)
 
 - **Advanced Search** - Full-text and pattern-based search with interactive graphs vizualisation
 - **Reconnaissance Tools** - WHOIS, Ping, Nmap, Traceroute, DNS, GeoIP, Email Headers, File Analysis, DMARC/DKIM, URL Scan, Shodan Device Search, URL Scan
-		![[.github/urlscan.gif]]
+		![urlscan](.github/urlscan.gif)
 - **Two-Factor Authentication** - TOTP support with backup codes and OAuth2 Integration (Google, GitHub and OIDC Providers)
-		![[.github/OAUTH.png]]
-		![[.github/OTP.png]]
+		![oauth](.github/OAUTH.png)
+		![otp](.github/OTP.png)
 - **RBAC & Audit Logging** - Granular permissions and complete audit trail
-		![[.github/rbac.png]]
-		![[.github/audit.png]]
+		![rbac](.github/rbac.png)
+		![audit](.github/audit.png)
 - **Public Portal** - Anonymous IOC submissions and public search
-		![[.github/public-submission.gif]]
+		![public-submission](.github/public-submission.gif)
 - **External enrichment** - Custom API Integration from external providers
 - **Dark Mode** - Eye-friendly theme support
 - **LLM Tracker Dashboard** - LLM token usage tracking and analytics
