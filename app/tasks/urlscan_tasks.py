@@ -4,6 +4,8 @@ import uuid
 import os
 import base64
 import re
+import socket
+import ssl
 from datetime import datetime
 from typing import Dict, List, Optional
 from urllib.parse import urlparse, urljoin
@@ -225,6 +227,88 @@ def _extract_technologies(page, headers: Dict) -> List[str]:
     return technologies
 
 
+def _get_ip_address(hostname: str) -> Optional[str]:
+    """Resolve hostname to IP address."""
+    try:
+        return socket.gethostbyname(hostname)
+    except socket.gaierror as e:
+        logger.warning(f"Could not resolve IP for {hostname}: {e}")
+        return None
+
+
+def _get_ssl_certificate(hostname: str, port: int = 443) -> Optional[Dict]:
+    """
+    Get SSL certificate information for a hostname.
+    
+    Returns dict with certificate details or None if not available.
+    """
+    try:
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        with socket.create_connection((hostname, port), timeout=10) as sock:
+            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                cert = ssock.getpeercert(binary_form=True)
+                
+                # Decode certificate using cryptography library if available
+                try:
+                    from cryptography import x509
+                    from cryptography.hazmat.backends import default_backend
+                    
+                    cert_obj = x509.load_der_x509_certificate(cert, default_backend())
+                    
+                    # Extract subject
+                    subject_parts = {}
+                    for attr in cert_obj.subject:
+                        subject_parts[attr.oid._name] = attr.value
+                    
+                    # Extract issuer
+                    issuer_parts = {}
+                    for attr in cert_obj.issuer:
+                        issuer_parts[attr.oid._name] = attr.value
+                    
+                    # Extract SANs (Subject Alternative Names)
+                    sans = []
+                    try:
+                        san_ext = cert_obj.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+                        for name in san_ext.value:
+                            if isinstance(name, x509.DNSName):
+                                sans.append(name.value)
+                            elif isinstance(name, x509.IPAddress):
+                                sans.append(str(name.value))
+                    except x509.ExtensionNotFound:
+                        pass
+                    
+                    return {
+                        'subject': subject_parts,
+                        'issuer': issuer_parts,
+                        'serial_number': str(cert_obj.serial_number),
+                        'not_before': cert_obj.not_valid_before_utc.isoformat() if hasattr(cert_obj, 'not_valid_before_utc') else cert_obj.not_valid_before.isoformat(),
+                        'not_after': cert_obj.not_valid_after_utc.isoformat() if hasattr(cert_obj, 'not_valid_after_utc') else cert_obj.not_valid_after.isoformat(),
+                        'version': cert_obj.version.name,
+                        'signature_algorithm': cert_obj.signature_algorithm_oid._name,
+                        'subject_alt_names': sans[:20],  # Limit SANs
+                        'valid': True
+                    }
+                except ImportError:
+                    # Cryptography not available, return basic info
+                    return {
+                        'raw_available': True,
+                        'message': 'Certificate retrieved but cryptography library not available for detailed parsing'
+                    }
+                    
+    except ssl.SSLError as e:
+        logger.warning(f"SSL error for {hostname}: {e}")
+        return {'error': str(e), 'valid': False}
+    except socket.timeout:
+        logger.warning(f"Timeout connecting to {hostname}:{port}")
+        return {'error': 'Connection timeout', 'valid': False}
+    except Exception as e:
+        logger.warning(f"Error getting certificate for {hostname}: {e}")
+        return None
+
+
 @celery.task(bind=True, max_retries=2, soft_time_limit=120)
 def scan_url(self, scan_id: str, url: str, user_id: str, options: Optional[Dict] = None):
     """
@@ -301,17 +385,61 @@ def scan_url(self, scan_id: str, url: str, user_id: str, options: Optional[Dict]
             
             page = context.new_page()
             
-            # Collect response headers
+            # Collect response headers and HTTP transactions
             response_headers = {}
+            http_transactions = []
+            
+            def handle_request(request):
+                """Track outgoing HTTP requests."""
+                try:
+                    http_transactions.append({
+                        'type': 'request',
+                        'url': request.url[:500],  # Limit URL length
+                        'method': request.method,
+                        'resource_type': request.resource_type,
+                        'timestamp': datetime.utcnow().isoformat() + 'Z'
+                    })
+                except Exception:
+                    pass
+            
             def handle_response(response):
                 nonlocal response_headers
-                if response.url == url or response.url == page.url:
-                    try:
+                try:
+                    # Capture main response headers
+                    if response.url == url or response.url == page.url:
                         response_headers = dict(response.headers)
-                    except Exception:
-                        pass
+                    
+                    # Track HTTP transaction
+                    http_transactions.append({
+                        'type': 'response',
+                        'url': response.url[:500],  # Limit URL length
+                        'status': response.status,
+                        'status_text': response.status_text,
+                        'content_type': response.headers.get('content-type', ''),
+                        'content_length': response.headers.get('content-length', ''),
+                        'timestamp': datetime.utcnow().isoformat() + 'Z'
+                    })
+                except Exception:
+                    pass
             
+            # Collect console messages
+            console_messages = []
+            
+            def handle_console(msg):
+                """Track browser console messages."""
+                try:
+                    console_messages.append({
+                        'type': msg.type,  # log, warning, error, info, debug
+                        'text': msg.text[:1000] if msg.text else '',  # Limit message length
+                        'location': str(msg.location) if hasattr(msg, 'location') else '',
+                        'timestamp': datetime.utcnow().isoformat() + 'Z'
+                    })
+                except Exception:
+                    pass
+            
+            page.on('request', handle_request)
             page.on('response', handle_response)
+            page.on('console', handle_console)
             
             # Navigate to URL
             logger.info(f"[URLScan] Navigating to {url}")
@@ -343,10 +471,48 @@ def scan_url(self, scan_id: str, url: str, user_id: str, options: Optional[Dict]
             scripts = _extract_scripts(page)
             technologies = _extract_technologies(page, response_headers)
             
+            # Extract cookies from browser context
+            cookies = []
+            try:
+                raw_cookies = context.cookies()
+                for cookie in raw_cookies[:50]:  # Limit to 50 cookies
+                    cookies.append({
+                        'name': cookie.get('name', ''),
+                        'value': cookie.get('value', '')[:200],  # Limit value length
+                        'domain': cookie.get('domain', ''),
+                        'path': cookie.get('path', '/'),
+                        'expires': cookie.get('expires', -1),
+                        'httpOnly': cookie.get('httpOnly', False),
+                        'secure': cookie.get('secure', False),
+                        'sameSite': cookie.get('sameSite', 'Lax')
+                    })
+                logger.info(f"[URLScan] Extracted {len(cookies)} cookies")
+            except Exception as e:
+                logger.warning(f"[URLScan] Error extracting cookies: {e}")
+            
             # Categorize links
             internal_links = [l for l in links if l['type'] == 'internal']
             external_links = [l for l in links if l['type'] == 'external']
             email_links = [l for l in links if l['type'] == 'email']
+            
+            # Get IP address and SSL certificate for the target
+            parsed_url = urlparse(final_url)
+            hostname = parsed_url.netloc.split(':')[0]  # Remove port if present
+            
+            ip_address = _get_ip_address(hostname)
+            if ip_address:
+                logger.info(f"[URLScan] Resolved IP: {ip_address}")
+            
+            ssl_certificate = None
+            if parsed_url.scheme == 'https':
+                ssl_certificate = _get_ssl_certificate(hostname)
+                if ssl_certificate:
+                    logger.info(f"[URLScan] SSL certificate retrieved")
+            
+            # Categorize console messages
+            console_errors = [m for m in console_messages if m['type'] == 'error']
+            console_warnings = [m for m in console_messages if m['type'] == 'warning']
+            console_logs = [m for m in console_messages if m['type'] not in ('error', 'warning')]
             
             # Build result
             result.update({
@@ -373,7 +539,21 @@ def scan_url(self, scan_id: str, url: str, user_id: str, options: Optional[Dict]
                 'viewport': {
                     'width': viewport_width,
                     'height': viewport_height
-                }
+                },
+                # New fields
+                'cookies': cookies,
+                'http_transactions': http_transactions[:200],  # Limit to 200 transactions
+                'console_messages': {
+                    'total': len(console_messages),
+                    'errors': console_errors[:50],
+                    'warnings': console_warnings[:50],
+                    'logs': console_logs[:100],
+                    'error_count': len(console_errors),
+                    'warning_count': len(console_warnings),
+                    'log_count': len(console_logs)
+                },
+                'ip_address': ip_address,
+                'ssl_certificate': ssl_certificate
             })
             
             browser.close()

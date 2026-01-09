@@ -2,7 +2,7 @@
 
 
 
-## [1.3.0] - 2026-01-08
+## [1.3.1] - 2026-01-08
 
 ### Added
 - **VPN Split-Routing Architecture**: Worker container can route all traffic through VPN tunnel for anonymous enrichment and external API calls

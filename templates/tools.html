@@ -1161,6 +1161,108 @@
                             <h6 class="border-bottom pb-2"><i class="bi bi-file-code me-2"></i>External Scripts</h6>
                             <div id="urlscanScripts" style="max-height: 200px; overflow-y: auto;"></div>
                         </div>
+                        
+                        <!-- IP Address & Certificate -->
+                        <div class="mb-4" id="urlscanNetworkSection">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-globe me-2"></i>Network Information</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card p-3 mb-3">
+                                        <small class="text-muted">Resolved IP Address</small>
+                                        <div class="h5 mb-0 font-monospace" id="urlscanIpAddress">-</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card p-3 mb-3">
+                                        <small class="text-muted">Protocol</small>
+                                        <div class="h5 mb-0" id="urlscanProtocol">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- SSL Certificate -->
+                        <div class="mb-4" id="urlscanCertSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-shield-lock me-2"></i>SSL Certificate</h6>
+                            <div id="urlscanCertificate"></div>
+                        </div>
+                        
+                        <!-- Cookies -->
+                        <div class="mb-4" id="urlscanCookiesSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-cookie me-2"></i>Cookies (<span id="urlscanCookieCount">0</span>)</h6>
+                            <div id="urlscanCookies" style="max-height: 300px; overflow-y: auto;"></div>
+                        </div>
+                        
+                        <!-- Console Messages -->
+                        <div class="mb-4" id="urlscanConsoleSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-terminal me-2"></i>Console Messages</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2 border-danger">
+                                        <div class="h4 mb-0 text-danger" id="urlscanErrorCount">0</div>
+                                        <small class="text-muted">Errors</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2 border-warning">
+                                        <div class="h4 mb-0 text-warning" id="urlscanWarningCount">0</div>
+                                        <small class="text-muted">Warnings</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="card text-center p-2">
+                                        <div class="h4 mb-0" id="urlscanLogCount">0</div>
+                                        <small class="text-muted">Logs</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <ul class="nav nav-tabs" id="consoleTab" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="console-errors-tab" data-bs-toggle="tab" data-bs-target="#consoleErrorsPane" type="button">
+                                        Errors
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="console-warnings-tab" data-bs-toggle="tab" data-bs-target="#consoleWarningsPane" type="button">
+                                        Warnings
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="console-logs-tab" data-bs-toggle="tab" data-bs-target="#consoleLogsPane" type="button">
+                                        Logs
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content border border-top-0 rounded-bottom p-3" style="max-height: 250px; overflow-y: auto;">
+                                <div class="tab-pane fade show active" id="consoleErrorsPane" role="tabpanel">
+                                    <div id="urlscanConsoleErrors"></div>
+                                </div>
+                                <div class="tab-pane fade" id="consoleWarningsPane" role="tabpanel">
+                                    <div id="urlscanConsoleWarnings"></div>
+                                </div>
+                                <div class="tab-pane fade" id="consoleLogsPane" role="tabpanel">
+                                    <div id="urlscanConsoleLogs"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- HTTP Transactions -->
+                        <div class="mb-4" id="urlscanHttpSection" style="display: none;">
+                            <h6 class="border-bottom pb-2"><i class="bi bi-arrow-left-right me-2"></i>HTTP Transactions (<span id="urlscanHttpCount">0</span>)</h6>
+                            <div id="urlscanHttpTransactions" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table table-sm table-hover">
+                                    <thead class="table-light sticky-top">
+                                        <tr>
+                                            <th>Method</th>
+                                            <th>URL</th>
+                                            <th>Status</th>
+                                            <th>Type</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="urlscanHttpTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                     <div id="urlscanRaw" class="result-panel p-3" style="display: none;">
                         <pre></pre>
@@ -3627,6 +3729,172 @@ function displayUrlscanResult(data) {
         $('#urlscanScriptsSection').show();
     } else {
         $('#urlscanScriptsSection').hide();
+    }
+    
+    // IP Address & Protocol
+    const finalUrl = data.final_url || data.url;
+    const protocol = finalUrl.startsWith('https') ? 'HTTPS' : 'HTTP';
+    $('#urlscanProtocol').html(protocol === 'HTTPS' ? 
+        '<span class="badge bg-success"><i class="bi bi-lock-fill"></i> HTTPS</span>' : 
+        '<span class="badge bg-warning"><i class="bi bi-unlock-fill"></i> HTTP</span>');
+    
+    if (data.ip_address) {
+        $('#urlscanIpAddress').text(data.ip_address);
+    } else {
+        $('#urlscanIpAddress').html('<span class="text-muted">Not resolved</span>');
+    }
+    
+    // SSL Certificate
+    if (data.ssl_certificate && !data.ssl_certificate.error) {
+        const cert = data.ssl_certificate;
+        let certHtml = '<div class="table-responsive"><table class="table table-sm">';
+        
+        if (cert.subject) {
+            const cn = cert.subject.commonName || cert.subject.common_name || 'N/A';
+            const org = cert.subject.organizationName || cert.subject.organization_name || '';
+            certHtml += `<tr><td class="text-muted" style="width: 150px;">Subject</td><td><strong>${escapeHtml(cn)}</strong>${org ? ` (${escapeHtml(org)})` : ''}</td></tr>`;
+        }
+        
+        if (cert.issuer) {
+            const issuerCn = cert.issuer.commonName || cert.issuer.common_name || 'N/A';
+            const issuerOrg = cert.issuer.organizationName || cert.issuer.organization_name || '';
+            certHtml += `<tr><td class="text-muted">Issuer</td><td>${escapeHtml(issuerCn)}${issuerOrg ? ` (${escapeHtml(issuerOrg)})` : ''}</td></tr>`;
+        }
+        
+        if (cert.not_before) {
+            certHtml += `<tr><td class="text-muted">Valid From</td><td>${new Date(cert.not_before).toLocaleDateString()}</td></tr>`;
+        }
+        
+        if (cert.not_after) {
+            const expDate = new Date(cert.not_after);
+            const isExpired = expDate < new Date();
+            certHtml += `<tr><td class="text-muted">Valid Until</td><td>${expDate.toLocaleDateString()} ${isExpired ? '<span class="badge bg-danger">Expired</span>' : '<span class="badge bg-success">Valid</span>'}</td></tr>`;
+        }
+        
+        if (cert.serial_number) {
+            certHtml += `<tr><td class="text-muted">Serial Number</td><td class="font-monospace" style="font-size: 0.8rem;">${escapeHtml(cert.serial_number.substring(0, 40))}...</td></tr>`;
+        }
+        
+        if (cert.signature_algorithm) {
+            certHtml += `<tr><td class="text-muted">Signature Algo</td><td>${escapeHtml(cert.signature_algorithm)}</td></tr>`;
+        }
+        
+        if (cert.subject_alt_names && cert.subject_alt_names.length > 0) {
+            const sans = cert.subject_alt_names.slice(0, 5).map(s => `<code>${escapeHtml(s)}</code>`).join(', ');
+            const moreCount = cert.subject_alt_names.length > 5 ? ` <span class="text-muted">+${cert.subject_alt_names.length - 5} more</span>` : '';
+            certHtml += `<tr><td class="text-muted">SANs</td><td>${sans}${moreCount}</td></tr>`;
+        }
+        
+        certHtml += '</table></div>';
+        $('#urlscanCertificate').html(certHtml);
+        $('#urlscanCertSection').show();
+    } else if (data.ssl_certificate && data.ssl_certificate.error) {
+        $('#urlscanCertificate').html(`<div class="alert alert-warning mb-0"><i class="bi bi-exclamation-triangle me-2"></i>${escapeHtml(data.ssl_certificate.error)}</div>`);
+        $('#urlscanCertSection').show();
+    } else {
+        $('#urlscanCertSection').hide();
+    }
+    
+    // Cookies
+    if (data.cookies && data.cookies.length > 0) {
+        $('#urlscanCookieCount').text(data.cookies.length);
+        let cookiesHtml = '<table class="table table-sm table-hover"><thead class="table-light"><tr><th>Name</th><th>Domain</th><th>Flags</th></tr></thead><tbody>';
+        data.cookies.forEach(c => {
+            const flags = [];
+            if (c.httpOnly) flags.push('<span class="badge bg-info">HttpOnly</span>');
+            if (c.secure) flags.push('<span class="badge bg-success">Secure</span>');
+            if (c.sameSite && c.sameSite !== 'Lax') flags.push(`<span class="badge bg-secondary">${c.sameSite}</span>`);
+            
+            cookiesHtml += `<tr>
+                <td><code class="text-break">${escapeHtml(c.name)}</code></td>
+                <td class="text-muted">${escapeHtml(c.domain)}</td>
+                <td>${flags.join(' ') || '<span class="text-muted">-</span>'}</td>
+            </tr>`;
+        });
+        cookiesHtml += '</tbody></table>';
+        $('#urlscanCookies').html(cookiesHtml);
+        $('#urlscanCookiesSection').show();
+    } else {
+        $('#urlscanCookiesSection').hide();
+    }
+    
+    // Console Messages
+    const console_data = data.console_messages || {};
+    if (console_data.total > 0) {
+        $('#urlscanErrorCount').text(console_data.error_count || 0);
+        $('#urlscanWarningCount').text(console_data.warning_count || 0);
+        $('#urlscanLogCount').text(console_data.log_count || 0);
+        
+        // Errors
+        if (console_data.errors && console_data.errors.length > 0) {
+            let errHtml = console_data.errors.map(m => `
+                <div class="mb-2 p-2 bg-danger bg-opacity-10 rounded">
+                    <code class="text-danger text-break">${escapeHtml(m.text)}</code>
+                </div>
+            `).join('');
+            $('#urlscanConsoleErrors').html(errHtml);
+        } else {
+            $('#urlscanConsoleErrors').html('<span class="text-muted">No errors</span>');
+        }
+        
+        // Warnings
+        if (console_data.warnings && console_data.warnings.length > 0) {
+            let warnHtml = console_data.warnings.map(m => `
+                <div class="mb-2 p-2 bg-warning bg-opacity-10 rounded">
+                    <code class="text-warning text-break">${escapeHtml(m.text)}</code>
+                </div>
+            `).join('');
+            $('#urlscanConsoleWarnings').html(warnHtml);
+        } else {
+            $('#urlscanConsoleWarnings').html('<span class="text-muted">No warnings</span>');
+        }
+        
+        // Logs
+        if (console_data.logs && console_data.logs.length > 0) {
+            let logsHtml = console_data.logs.map(m => `
+                <div class="mb-1">
+                    <small class="text-muted">[${m.type}]</small> <code class="text-break">${escapeHtml(m.text)}</code>
+                </div>
+            `).join('');
+            $('#urlscanConsoleLogs').html(logsHtml);
+        } else {
+            $('#urlscanConsoleLogs').html('<span class="text-muted">No logs</span>');
+        }
+        
+        $('#urlscanConsoleSection').show();
+    } else {
+        $('#urlscanConsoleSection').hide();
+    }
+    
+    // HTTP Transactions
+    if (data.http_transactions && data.http_transactions.length > 0) {
+        // Group requests and responses
+        const responses = data.http_transactions.filter(t => t.type === 'response');
+        $('#urlscanHttpCount').text(responses.length);
+        
+        let httpHtml = '';
+        responses.forEach(t => {
+            let statusClass = 'secondary';
+            if (t.status >= 200 && t.status < 300) statusClass = 'success';
+            else if (t.status >= 300 && t.status < 400) statusClass = 'info';
+            else if (t.status >= 400 && t.status < 500) statusClass = 'warning';
+            else if (t.status >= 500) statusClass = 'danger';
+            
+            const contentType = t.content_type ? t.content_type.split(';')[0] : '';
+            const shortUrl = t.url.length > 80 ? t.url.substring(0, 80) + '...' : t.url;
+            
+            httpHtml += `<tr>
+                <td><span class="badge bg-primary">GET</span></td>
+                <td class="text-break" style="max-width: 400px;" title="${escapeHtml(t.url)}"><small>${escapeHtml(shortUrl)}</small></td>
+                <td><span class="badge bg-${statusClass}">${t.status}</span></td>
+                <td><small class="text-muted">${escapeHtml(contentType)}</small></td>
+            </tr>`;
+        });
+        
+        $('#urlscanHttpTableBody').html(httpHtml);
+        $('#urlscanHttpSection').show();
+    } else {
+        $('#urlscanHttpSection').hide();
     }
     
     $('#urlscanParsed').show();
