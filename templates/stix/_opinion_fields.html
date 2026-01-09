@@ -30,20 +30,15 @@
     </div>
     
     <div class="field-group">
+        <label for="opinionAuthors" class="form-label">Authors</label>
+        <input type="text" id="opinionAuthors" name="authors" class="form-control"
+               placeholder="Author names (comma-separated)">
+    </div>
+    
+    <div class="field-group">
         <label for="opinionObjectRefs" class="form-label required-field">Object References</label>
         <textarea id="opinionObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
                   placeholder="STIX objects this opinion relates to (one per line)"></textarea>
         <small class="text-muted">Enter object IDs or identifiers (required)</small>
-    </div>
-    
-    <div class="field-group">
-        <label for="opinionConfidence" class="form-label">Confidence Level</label>
-        <select id="opinionConfidence" name="x_confidence_level" class="form-select">
-            <option value="">Select confidence level</option>
-            <option value="low">Low</option>
-            <option value="medium" selected>Medium</option>
-            <option value="high">High</option>
-            <option value="very-high">Very High</option>
-        </select>
     </div>
 </div>

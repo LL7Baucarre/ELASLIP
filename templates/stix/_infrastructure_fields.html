@@ -32,6 +32,29 @@
                placeholder="Other names (comma-separated)">
     </div>
     
+    <div class="field-group">
+        <label class="form-label">Kill Chain Phases</label>
+        <div id="killChainPhases">
+            <div class="row mb-2 kill-chain-row">
+                <div class="col-md-5">
+                    <select name="kill_chain_name[]" class="form-select">
+                        <option value="mitre-attack">MITRE ATT&CK</option>
+                        <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="addKillChainPhase()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <small class="text-muted">Add kill chain phases to map infrastructure to attack lifecycle</small>
+    </div>
+
     <div class="row">
         <div class="col-md-6 field-group">
             <label for="infraFirstSeen" class="form-label">First Seen</label>

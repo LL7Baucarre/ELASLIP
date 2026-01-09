@@ -247,9 +247,9 @@
                         </div>
                         {% if stix_object.malware_types %}
                         <div class="property-row">
-                            <span class="property-label">Types:</span>
+                            <span class="property-label">Malware Types:</span>
                             {% for t in stix_object.malware_types %}
-                            <span class="badge bg-danger ms-1">{{ t }}</span>
+                            <span class="badge bg-danger ms-1">{{ t|replace('-', ' ')|title }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}
@@ -261,26 +261,126 @@
                             {% endfor %}
                         </div>
                         {% endif %}
+                        {% if stix_object.kill_chain_phases %}
+                        <div class="property-row">
+                            <span class="property-label">Kill Chain Phases:</span>
+                            {% for phase in stix_object.kill_chain_phases %}
+                            <div class="badge bg-info ms-1">{{ phase.kill_chain_name }}: {{ phase.phase_name }}</div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.first_seen %}
+                        <div class="property-row">
+                            <span class="property-label">First Seen:</span>
+                            <span class="ms-2">{{ stix_object.first_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.last_seen %}
+                        <div class="property-row">
+                            <span class="property-label">Last Seen:</span>
+                            <span class="ms-2">{{ stix_object.last_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.implementation_languages %}
+                        <div class="property-row">
+                            <span class="property-label">Implementation Languages:</span>
+                            {% for lang in stix_object.implementation_languages %}
+                            <span class="badge bg-info ms-1">{{ lang|upper }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.architecture_execution_envs %}
+                        <div class="property-row">
+                            <span class="property-label">Architecture Execution Envs:</span>
+                            {% for arch in stix_object.architecture_execution_envs %}
+                            <span class="badge bg-secondary ms-1">{{ arch }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.capabilities %}
+                        <div class="property-row">
+                            <span class="property-label">Capabilities:</span>
+                            <div class="mt-2">
+                            {% for cap in stix_object.capabilities %}
+                            <span class="badge bg-warning ms-1" style="color: black;">{{ cap|replace('-', ' ')|title }}</span>
+                            {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
                     
                     {% elif stix_object.type == 'threat-actor' %}
                         {% if stix_object.threat_actor_types %}
                         <div class="property-row">
                             <span class="property-label">Types:</span>
                             {% for t in stix_object.threat_actor_types %}
-                            <span class="badge bg-warning ms-1">{{ t }}</span>
+                            <span class="badge bg-warning ms-1">{{ t|replace('-', ' ')|title }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.aliases %}
+                        <div class="property-row">
+                            <span class="property-label">Aliases:</span>
+                            {% for a in stix_object.aliases %}
+                            <span class="badge bg-secondary ms-1">{{ a }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.first_seen %}
+                        <div class="property-row">
+                            <span class="property-label">First Seen:</span>
+                            <span class="ms-2">{{ stix_object.first_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.last_seen %}
+                        <div class="property-row">
+                            <span class="property-label">Last Seen:</span>
+                            <span class="ms-2">{{ stix_object.last_seen }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.roles %}
+                        <div class="property-row">
+                            <span class="property-label">Roles:</span>
+                            {% for role in stix_object.roles %}
+                            <span class="badge bg-info ms-1">{{ role|replace('-', ' ')|title }}</span>
                             {% endfor %}
                         </div>
                         {% endif %}
                         {% if stix_object.sophistication %}
                         <div class="property-row">
                             <span class="property-label">Sophistication:</span>
-                            <span class="ms-2">{{ stix_object.sophistication }}</span>
+                            <span class="badge bg-secondary ms-2">{{ stix_object.sophistication|title }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.resource_level %}
+                        <div class="property-row">
+                            <span class="property-label">Resource Level:</span>
+                            <span class="badge bg-warning ms-2">{{ stix_object.resource_level|title }}</span>
                         </div>
                         {% endif %}
                         {% if stix_object.primary_motivation %}
                         <div class="property-row">
                             <span class="property-label">Primary Motivation:</span>
-                            <span class="ms-2">{{ stix_object.primary_motivation }}</span>
+                            <span class="badge bg-danger ms-2">{{ stix_object.primary_motivation|replace('-', ' ')|title }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.secondary_motivations %}
+                        <div class="property-row">
+                            <span class="property-label">Secondary Motivations:</span>
+                            {% for motivation in stix_object.secondary_motivations %}
+                            <span class="badge bg-danger ms-1">{{ motivation|replace('-', ' ')|title }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if stix_object.goals %}
+                        <div class="property-row">
+                            <span class="property-label">Goals:</span>
+                            {% if stix_object.goals is string %}
+                                <p class="mb-0 mt-1">{{ stix_object.goals }}</p>
+                            {% else %}
+                                {% for goal in stix_object.goals %}
+                                <span class="badge bg-info ms-1">{{ goal }}</span>
+                                {% endfor %}
+                            {% endif %}
                         </div>
                         {% endif %}
                     
@@ -319,6 +419,26 @@
                             {% endfor %}
                         </div>
                         {% endif %}
+                        {% if stix_object.resource_level %}
+                        <div class="property-row">
+                            <span class="property-label">Resource Level:</span>
+                            <span class="badge bg-warning ms-2">{{ stix_object.resource_level|title }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.primary_motivation %}
+                        <div class="property-row">
+                            <span class="property-label">Primary Motivation:</span>
+                            <span class="badge bg-danger ms-2">{{ stix_object.primary_motivation|replace('-', ' ')|title }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.secondary_motivations %}
+                        <div class="property-row">
+                            <span class="property-label">Secondary Motivations:</span>
+                            {% for motivation in stix_object.secondary_motivations %}
+                            <span class="badge bg-danger ms-1">{{ motivation|replace('-', ' ')|title }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                         {% if stix_object.first_seen %}
                         <div class="property-row">
                             <span class="property-label">First Seen:</span>
@@ -337,6 +457,14 @@
                         <div class="property-row">
                             <span class="property-label">Identity Class:</span>
                             <span class="badge bg-info ms-2">{{ stix_object.identity_class|capitalize }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.roles %}
+                        <div class="property-row">
+                            <span class="property-label">Roles:</span>
+                            {% for role in stix_object.roles %}
+                            <span class="badge bg-primary ms-1">{{ role }}</span>
+                            {% endfor %}
                         </div>
                         {% endif %}
                         {% if stix_object.sectors %}
@@ -371,30 +499,52 @@
                         {% endif %}
                     
                     {% elif stix_object.type == 'location' %}
-                        <div class="row">
-                            {% if stix_object.country %}
-                            <div class="col-md-4 property-row">
-                                <span class="property-label">Country:</span>
-                                <span class="ms-2">{{ stix_object.country }}</span>
-                            </div>
-                            {% endif %}
-                            {% if stix_object.region %}
-                            <div class="col-md-4 property-row">
-                                <span class="property-label">Region:</span>
-                                <span class="ms-2">{{ stix_object.region }}</span>
-                            </div>
-                            {% endif %}
-                            {% if stix_object.city %}
-                            <div class="col-md-4 property-row">
-                                <span class="property-label">City:</span>
-                                <span class="ms-2">{{ stix_object.city }}</span>
-                            </div>
-                            {% endif %}
+                        {% if stix_object.region %}
+                        <div class="property-row">
+                            <span class="property-label">Region:</span>
+                            <span class="badge bg-info ms-2">{{ stix_object.region|replace('-', ' ')|title }}</span>
                         </div>
+                        {% endif %}
+                        {% if stix_object.country %}
+                        <div class="property-row">
+                            <span class="property-label">Country:</span>
+                            <span class="ms-2">{{ stix_object.country|upper }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.administrative_area %}
+                        <div class="property-row">
+                            <span class="property-label">Administrative Area:</span>
+                            <span class="ms-2">{{ stix_object.administrative_area }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.city %}
+                        <div class="property-row">
+                            <span class="property-label">City:</span>
+                            <span class="ms-2">{{ stix_object.city }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.street_address %}
+                        <div class="property-row">
+                            <span class="property-label">Street Address:</span>
+                            <p class="mb-0 mt-1">{{ stix_object.street_address }}</p>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.postal_code %}
+                        <div class="property-row">
+                            <span class="property-label">Postal Code:</span>
+                            <span class="ms-2">{{ stix_object.postal_code }}</span>
+                        </div>
+                        {% endif %}
                         {% if stix_object.latitude and stix_object.longitude %}
                         <div class="property-row">
                             <span class="property-label">Coordinates:</span>
                             <span class="ms-2">{{ stix_object.latitude }}, {{ stix_object.longitude }}</span>
+                        </div>
+                        {% endif %}
+                        {% if stix_object.precision %}
+                        <div class="property-row">
+                            <span class="property-label">Precision:</span>
+                            <span class="ms-2">{{ stix_object.precision|int }} meters</span>
                         </div>
                         {% endif %}
                     
@@ -619,7 +769,7 @@
                     {% endif %}
                     
                     <!-- Generic properties display for other types -->
-                    {% if stix_object.aliases and stix_object.type not in ['malware', 'tool'] %}
+                    {% if stix_object.aliases and stix_object.type not in ['malware', 'tool', 'infrastructure', 'intrusion-set'] %}
                     <div class="property-row">
                         <span class="property-label">Aliases:</span>
                         {% for a in stix_object.aliases %}
@@ -628,14 +778,14 @@
                     </div>
                     {% endif %}
                     
-                    {% if stix_object.first_seen %}
+                    {% if stix_object.first_seen and stix_object.type not in ['infrastructure', 'intrusion-set'] %}
                     <div class="property-row">
                         <span class="property-label">First Seen:</span>
                         <span class="ms-2">{{ stix_object.first_seen }}</span>
                     </div>
                     {% endif %}
                     
-                    {% if stix_object.last_seen %}
+                    {% if stix_object.last_seen and stix_object.type not in ['infrastructure', 'intrusion-set'] %}
                     <div class="property-row">
                         <span class="property-label">Last Seen:</span>
                         <span class="ms-2">{{ stix_object.last_seen }}</span>

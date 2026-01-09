@@ -6,14 +6,21 @@
     </div>
     
     <div class="field-group">
-        <label for="published" class="form-label required-field">Published</label>
-        <input type="datetime-local" id="published" name="published" class="form-control">
+        <label for="reportDescription" class="form-label">Description</label>
+        <textarea id="reportDescription" name="description" class="form-control" rows="4"
+                  placeholder="Summary of the threat intelligence report"></textarea>
+    </div>
+    
+    <div class="field-group">
+        <label for="reportPublished" class="form-label">Published Date</label>
+        <input type="datetime-local" id="reportPublished" name="published" class="form-control">
+        <small class="text-muted">Defaults to current time if not specified</small>
     </div>
     
     <div class="field-group">
         <label for="reportTypes" class="form-label required-field">Report Types</label>
         <select id="reportTypes" name="report_types" class="form-select" multiple>
-            <option value="threat-report" selected>Threat Report</option>
+            <option value="threat-report">Threat Report</option>
             <option value="campaign">Campaign</option>
             <option value="attack-pattern">Attack Pattern</option>
             <option value="malware">Malware</option>
@@ -28,21 +35,9 @@
     </div>
     
     <div class="field-group">
-        <label for="reportDescription" class="form-label">Description</label>
-        <textarea id="reportDescription" name="description" class="form-control" rows="4"
-                  placeholder="Summary of the threat intelligence report"></textarea>
-    </div>
-    
-    <div class="field-group">
-        <label for="reportObjectRefs" class="form-label">Object References</label>
+        <label for="reportObjectRefs" class="form-label required-field">Object References</label>
         <textarea id="reportObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
                   placeholder="Related STIX objects included in this report (one per line)"></textarea>
-        <small class="text-muted">Enter object IDs or identifiers</small>
-    </div>
-    
-    <div class="field-group">
-        <label for="reportSource" class="form-label">Report Source</label>
-        <input type="text" id="reportSource" name="x_report_source" class="form-control"
-               placeholder="Source of the threat intelligence report">
+        <small class="text-muted">Enter object IDs or identifiers (required)</small>
     </div>
 </div>

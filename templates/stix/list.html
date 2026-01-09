@@ -119,19 +119,49 @@
                     </div>
                 </div>
                 <div class="col-md-8">
-                    <div class="d-flex flex-wrap justify-content-end">
+                    <div class="d-flex flex-wrap justify-content-end" style="gap: 0.25rem;">
                         <button class="btn btn-sm btn-outline-secondary type-filter-btn active" data-type="">All</button>
-                        <button class="btn btn-sm btn-outline-info type-filter-btn" data-type="indicator">Indicators</button>
-                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="malware">Malware</button>
-                        <button class="btn btn-sm btn-outline-warning type-filter-btn" data-type="threat-actor">Threat Actors</button>
-                        <button class="btn btn-sm btn-outline-primary type-filter-btn" data-type="attack-pattern">Attack Patterns</button>
-                        <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="campaign">Campaigns</button>
-                        <button class="btn btn-sm btn-outline-secondary type-filter-btn" data-type="tool">Tools</button>
-                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="vulnerability">Vulnerabilities</button>
-                        <button class="btn btn-sm btn-outline-info type-filter-btn" data-type="note">Notes</button>
-                        <button class="btn btn-sm btn-outline-danger type-filter-btn" data-type="opinion">Opinions</button>
-                        <button class="btn btn-sm btn-outline-success type-filter-btn" data-type="report">Reports</button>
-                        <button class="btn btn-sm btn-outline-warning type-filter-btn" data-type="observed-data">Observed Data</button>
+                        {% set type_labels = {
+                            'indicator': 'Indicators',
+                            'malware': 'Malware',
+                            'threat-actor': 'Threat Actors',
+                            'attack-pattern': 'Attack Patterns',
+                            'campaign': 'Campaigns',
+                            'tool': 'Tools',
+                            'vulnerability': 'Vulnerabilities',
+                            'infrastructure': 'Infrastructure',
+                            'intrusion-set': 'Intrusion Sets',
+                            'identity': 'Identity',
+                            'location': 'Location',
+                            'course-of-action': 'Course of Action',
+                            'note': 'Notes',
+                            'opinion': 'Opinions',
+                            'report': 'Reports',
+                            'observed-data': 'Observed Data'
+                        } %}
+                        {% set type_colors = {
+                            'indicator': 'info',
+                            'malware': 'danger',
+                            'threat-actor': 'warning',
+                            'attack-pattern': 'primary',
+                            'campaign': 'success',
+                            'tool': 'secondary',
+                            'vulnerability': 'danger',
+                            'infrastructure': 'info',
+                            'intrusion-set': 'warning',
+                            'identity': 'success',
+                            'location': 'info',
+                            'course-of-action': 'success',
+                            'note': 'secondary',
+                            'opinion': 'danger',
+                            'report': 'secondary',
+                            'observed-data': 'warning'
+                        } %}
+                        {% for sdo_type in sdo_types %}
+                            <button class="btn btn-sm btn-outline-{{ type_colors.get(sdo_type, 'secondary') }} type-filter-btn" data-type="{{ sdo_type }}">
+                                {{ type_labels.get(sdo_type, sdo_type | title) }}
+                            </button>
+                        {% endfor %}
                     </div>
                 </div>
             </div>

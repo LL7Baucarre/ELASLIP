@@ -54,8 +54,25 @@
     </div>
     
     <div class="field-group">
+        <label for="intrusionSecondaryMotivations" class="form-label">Secondary Motivations</label>
+        <select id="intrusionSecondaryMotivations" name="secondary_motivations" class="form-select" multiple>
+            <option value="accidental">Accidental</option>
+            <option value="coercion">Coercion</option>
+            <option value="dominance">Dominance</option>
+            <option value="ideology">Ideology</option>
+            <option value="notoriety">Notoriety</option>
+            <option value="organizational-gain">Organizational Gain</option>
+            <option value="personal-gain">Personal Gain</option>
+            <option value="personal-satisfaction">Personal Satisfaction</option>
+            <option value="revenge">Revenge</option>
+            <option value="unpredictable">Unpredictable</option>
+        </select>
+        <small class="text-muted">Hold Ctrl to select multiple motivations</small>
+    </div>
+    
+    <div class="field-group">
         <label for="intrusionGoals" class="form-label">Goals</label>
         <textarea id="intrusionGoals" name="goals" class="form-control" rows="2"
-                  placeholder="High-level goals of this intrusion set"></textarea>
+                  placeholder="High-level goals of this intrusion set (comma-separated)"></textarea>
     </div>
 </div>

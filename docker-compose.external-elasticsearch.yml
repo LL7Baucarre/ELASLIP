@@ -53,7 +53,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ioc-network
+      - elaslip-network
     restart: unless-stopped
 
   worker:
@@ -77,7 +77,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ioc-network
+      - elaslip-network
     restart: unless-stopped
 
   redis:
@@ -88,7 +88,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -100,5 +100,5 @@ volumes:
   redis-data:
 
 networks:
-  ioc-network:
+  elaslip-network:
     driver: bridge
