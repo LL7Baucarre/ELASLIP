@@ -145,9 +145,110 @@
                         </div>
                         <div class="field-group">
                             <label for="malware_types" class="form-label">Malware Types</label>
-                            <input type="text" id="malware_types" name="malware_types" class="form-control"
-                                   value="{{ stix_object.malware_types | join(', ') if stix_object.malware_types else '' }}"
-                                   placeholder="ransomware, trojan, backdoor (comma-separated)">
+                            <select id="malware_types" name="malware_types" class="form-select" multiple>
+                                {% for t in ['adware', 'backdoor', 'bot', 'bootkit', 'ddos', 'downloader', 'dropper', 'exploit-kit', 'keylogger', 'ransomware', 'remote-access-trojan', 'resource-exploitation', 'rogue-security-software', 'rootkit', 'screen-capture', 'spyware', 'trojan', 'unknown', 'virus', 'webshell', 'wiper', 'worm'] %}
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.malware_types or []) else '' }}>{{ t|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this malware (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label class="form-label">Kill Chain Phases</label>
+                            <div id="killChainPhases">
+                                {% if stix_object.kill_chain_phases %}
+                                    {% for phase in stix_object.kill_chain_phases %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack" {{ 'selected' if phase.kill_chain_name == 'mitre-attack' else '' }}>MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain" {{ 'selected' if phase.kill_chain_name == 'lockheed-martin-cyber-kill-chain' else '' }}>Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" value="{{ phase.phase_name }}" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack">MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addKillChainPhase()">
+                                <i class="fas fa-plus me-1"></i> Add Phase
+                            </button>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_seen" class="form-label">First Seen</label>
+                                <input type="datetime-local" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:16] if stix_object.first_seen else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_seen" class="form-label">Last Seen</label>
+                                <input type="datetime-local" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:16] if stix_object.last_seen else '' }}">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="implementation_languages" class="form-label">Implementation Languages</label>
+                            <input type="text" id="implementation_languages" name="implementation_languages" class="form-control"
+                                   value="{{ stix_object.implementation_languages | join(', ') if stix_object.implementation_languages else '' }}"
+                                   placeholder="c, c++, c#, python, java, javascript (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="architecture_execution_envs" class="form-label">Architecture Execution Environments</label>
+                            <select id="architecture_execution_envs" name="architecture_execution_envs" class="form-select" multiple>
+                                {% for arch in ['x86', 'x86-64', 'IA-64', 'ARM', 'ARM-64'] %}
+                                <option value="{{ arch }}" {{ 'selected' if arch in (stix_object.architecture_execution_envs or []) else '' }}>{{ arch }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="capabilities" class="form-label">Capabilities</label>
+                            <select id="capabilities" name="capabilities" class="form-select" multiple>
+                                {% for cap in ['accesses-remote-machines', 'anti-debugging', 'anti-disassembly', 'anti-emulation', 'anti-memory-forensics', 'anti-sandbox', 'anti-vm', 'captures-input-peripherals', 'captures-output-peripherals', 'captures-system-state-data', 'cleans-traces-of-infection', 'commits-fraud', 'communicates-with-c2', 'compromises-data-availability', 'compromises-data-integrity', 'compromises-system-availability', 'controls-local-machine', 'degrades-security-software', 'degrades-system-updates', 'determines-c2-server', 'emails-spam', 'escalates-privileges', 'evades-av', 'exfiltrates-data', 'fingerprints-host', 'hides-artifacts', 'hides-executing-code', 'infects-files', 'infects-remote-machines', 'installs-other-components', 'persists-after-system-reboot', 'prevents-artifact-access', 'prevents-artifact-deletion', 'probes-network-environment', 'self-modifies', 'steals-authentication-credentials', 'violates-system-operational-integrity'] %}
+                                <option value="{{ cap }}" {{ 'selected' if cap in (stix_object.capabilities or []) else '' }}>{{ cap|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple - Capabilities of this malware</small>
+                        </div>
+                        
+                        {% elif stix_object.type == 'threat-actor' %}
+                        <div class="field-group">
+                            <label for="threat_actor_types" class="form-label">Threat Actor Types</label>
+                            <select id="threat_actor_types" name="threat_actor_types" class="form-select" multiple>
+                                {% for t in ['activist', 'competitor', 'crime-syndicate', 'criminal', 'hacker', 'insider-accidental', 'insider-disgruntled', 'nation-state', 'sensationalist', 'spy', 'terrorist', 'unknown'] %}
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.threat_actor_types or []) else '' }}>{{ t|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
                         </div>
                         <div class="field-group">
                             <label for="aliases" class="form-label">Aliases</label>
@@ -155,42 +256,81 @@
                                    value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
                                    placeholder="Alias1, Alias2 (comma-separated)">
                         </div>
-                        
-                        {% elif stix_object.type == 'threat-actor' %}
-                        <div class="field-group">
-                            <label for="threat_actor_types" class="form-label">Threat Actor Types</label>
-                            <input type="text" id="threat_actor_types" name="threat_actor_types" class="form-control"
-                                   value="{{ stix_object.threat_actor_types | join(', ') if stix_object.threat_actor_types else '' }}"
-                                   placeholder="nation-state, criminal, hacktivist (comma-separated)">
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="first_seen" class="form-label">First Seen</label>
+                                <input type="datetime-local" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:16] if stix_object.first_seen else '' }}">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="last_seen" class="form-label">Last Seen</label>
+                                <input type="datetime-local" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:16] if stix_object.last_seen else '' }}">
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 field-group">
-                                <label for="sophistication" class="form-label">Sophistication</label>
+                                <label for="roles" class="form-label">Roles</label>
+                                <select id="roles" name="roles" class="form-select" multiple>
+                                    {% for r in ['agent', 'director', 'independent', 'infrastructure-architect', 'infrastructure-operator', 'malware-author', 'sponsor'] %}
+                                    <option value="{{ r }}" {{ 'selected' if r in (stix_object.roles or []) else '' }}>{{ r|replace('-', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Hold Ctrl to select multiple</small>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="sophistication" class="form-label">Sophistication Level</label>
                                 <select id="sophistication" name="sophistication" class="form-select">
-                                    <option value="">Select...</option>
+                                    <option value="">-- Select --</option>
                                     {% for s in ['none', 'minimal', 'intermediate', 'advanced', 'expert', 'innovator', 'strategic'] %}
                                     <option value="{{ s }}" {{ 'selected' if stix_object.sophistication == s else '' }}>{{ s|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="resourceLevel" class="form-label">Resource Level</label>
+                                <select id="resourceLevel" name="resource_level" class="form-select">
+                                    <option value="">-- Select --</option>
+                                    {% for rl in ['individual', 'club', 'contest', 'team', 'organization', 'government'] %}
+                                    <option value="{{ rl }}" {{ 'selected' if stix_object.resource_level == rl else '' }}>{{ rl|title }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6 field-group">
                                 <label for="primary_motivation" class="form-label">Primary Motivation</label>
                                 <select id="primary_motivation" name="primary_motivation" class="form-select">
-                                    <option value="">Select...</option>
+                                    <option value="">-- Select --</option>
                                     {% for m in ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'] %}
-                                    <option value="{{ m }}" {{ 'selected' if stix_object.primary_motivation == m else '' }}>{{ m|title }}</option>
+                                    <option value="{{ m }}" {{ 'selected' if stix_object.primary_motivation == m else '' }}>{{ m|replace('-', ' ')|title }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                         </div>
                         <div class="field-group">
-                            <label for="aliases" class="form-label">Aliases</label>
-                            <input type="text" id="aliases" name="aliases" class="form-control"
-                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
-                                   placeholder="Alias1, Alias2 (comma-separated)">
+                            <label for="secondary_motivations" class="form-label">Secondary Motivations</label>
+                            <select id="secondary_motivations" name="secondary_motivations" class="form-select" multiple>
+                                {% for m in ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'] %}
+                                <option value="{{ m }}" {{ 'selected' if m in (stix_object.secondary_motivations or []) else '' }}>{{ m|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple</small>
+                        </div>
+                        <div class="field-group">
+                            <label for="goals" class="form-label">Goals</label>
+                            <textarea id="goals" name="goals" class="form-control" rows="3"
+                                      placeholder="High-level goals of this threat actor (comma-separated or one per line)">{{ stix_object.goals | join(', ') if stix_object.goals else '' }}</textarea>
+                            <small class="text-muted">Goals separated by commas</small>
                         </div>
                         
                         {% elif stix_object.type == 'campaign' %}
+                        <div class="field-group">
+                            <label for="aliases" class="form-label">Aliases</label>
+                            <input type="text" id="aliases" name="aliases" class="form-control"
+                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
+                                   placeholder="Other names for this campaign (comma-separated)">
+                        </div>
                         <div class="field-group">
                             <label for="objective" class="form-label">Objective</label>
                             <textarea id="objective" name="objective" class="form-control" rows="2">{{ stix_object.objective or '' }}</textarea>
@@ -274,6 +414,51 @@
                                    value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
                                    placeholder="Other names for this infrastructure (comma-separated)">
                         </div>
+                        <div class="field-group">
+                            <label class="form-label">Kill Chain Phases</label>
+                            <div id="killChainPhases">
+                                {% if stix_object.kill_chain_phases %}
+                                    {% for phase in stix_object.kill_chain_phases %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack" {{ 'selected' if phase.kill_chain_name == 'mitre-attack' else '' }}>MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain" {{ 'selected' if phase.kill_chain_name == 'lockheed-martin-cyber-kill-chain' else '' }}>Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" value="{{ phase.phase_name }}" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack">MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addKillChainPhase()">
+                                <i class="fas fa-plus me-1"></i> Add Phase
+                            </button>
+                        </div>
                         <div class="row">
                             <div class="col-md-6 field-group">
                                 <label for="first_seen" class="form-label">First Seen</label>
@@ -296,10 +481,48 @@
                         </div>
                         <div class="field-group">
                             <label class="form-label">Kill Chain Phases</label>
-                            <p class="text-muted small mb-2">
-                                <i class="bi bi-info-circle me-1"></i>
-                                Kill chain phases are preserved from the original object.
-                            </p>
+                            <div id="killChainPhases">
+                                {% if stix_object.kill_chain_phases %}
+                                    {% for phase in stix_object.kill_chain_phases %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack" {{ 'selected' if phase.kill_chain_name == 'mitre-attack' else '' }}>MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain" {{ 'selected' if phase.kill_chain_name == 'lockheed-martin-cyber-kill-chain' else '' }}>Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" value="{{ phase.phase_name }}" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="row mb-2 kill-chain-row">
+                                        <div class="col-md-5">
+                                            <select name="kill_chain_name[]" class="form-select">
+                                                <option value="mitre-attack">MITRE ATT&CK</option>
+                                                <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mt-1" onclick="addKillChainPhase()">
+                                <i class="fas fa-plus me-1"></i> Add Phase
+                            </button>
                         </div>
                         
                         {% elif stix_object.type == 'tool' %}
@@ -346,10 +569,16 @@
                         
                         {% elif stix_object.type == 'opinion' %}
                         <div class="field-group">
-                            <label for="opinion" class="form-label required-field">Opinion</label>
+                            <label for="abstract" class="form-label">Abstract</label>
+                            <input type="text" id="abstract" name="abstract" class="form-control"
+                                   value="{{ stix_object.abstract or '' }}"
+                                   placeholder="Brief summary of the opinion">
+                        </div>
+                        <div class="field-group">
+                            <label for="opinion" class="form-label required-field">Opinion Assessment</label>
                             <select id="opinion" name="opinion" class="form-select" required>
                                 {% for o in ['strongly-disagree', 'disagree', 'neutral', 'agree', 'strongly-agree'] %}
-                                <option value="{{ o }}" {{ 'selected' if stix_object.opinion == o else '' }}>{{ o|title }}</option>
+                                <option value="{{ o }}" {{ 'selected' if stix_object.opinion == o else '' }}>{{ o|replace('-', ' ')|title }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -359,26 +588,43 @@
                                       placeholder="Explain your opinion">{{ stix_object.explanation or '' }}</textarea>
                         </div>
                         <div class="field-group">
-                            <label for="authors" class="form-label">Authors</label>
-                            <input type="text" id="authors" name="authors" class="form-control"
+                            <label for="opinionAuthors" class="form-label">Authors</label>
+                            <input type="text" id="opinionAuthors" name="authors" class="form-control"
                                    value="{{ stix_object.authors | join(', ') if stix_object.authors else '' }}"
                                    placeholder="Author names (comma-separated)">
+                        </div>
+                        <div class="field-group">
+                            <label for="opinionObjectRefs" class="form-label required-field">Object References</label>
+                            <textarea id="opinionObjectRefs" name="object_refs" class="form-control" rows="3"
+                                      placeholder="Referenced STIX object identifiers (one per line)">{{ stix_object.object_refs | join('\n') if stix_object.object_refs else '' }}</textarea>
+                            <small class="text-muted">Enter object IDs or identifiers (required)</small>
                         </div>
                         
                         {% elif stix_object.type == 'report' %}
                         <div class="field-group">
-                            <label for="report_types" class="form-label">Report Types</label>
-                            <select id="report_types" name="report_types" class="form-select" multiple>
+                            <label for="reportDescription" class="form-label">Description</label>
+                            <textarea id="reportDescription" name="description" class="form-control" rows="4"
+                                      placeholder="Summary of the threat intelligence report">{{ stix_object.description or '' }}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label for="report_types" class="form-label required-field">Report Types</label>
+                            <select id="report_types" name="report_types" class="form-select" multiple required>
                                 {% for t in ['threat-report', 'attack-pattern', 'campaign', 'identity', 'indicator', 'intrusion-set', 'malware', 'observed-data', 'threat-actor', 'tool', 'vulnerability'] %}
-                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.report_types or []) else '' }}>{{ t }}</option>
+                                <option value="{{ t }}" {{ 'selected' if t in (stix_object.report_types or []) else '' }}>{{ t|replace('-', ' ')|title }}</option>
                                 {% endfor %}
                             </select>
                             <small class="text-muted">Hold Ctrl to select multiple</small>
                         </div>
                         <div class="field-group">
-                            <label for="published" class="form-label">Published Date</label>
-                            <input type="datetime-local" id="published" name="published" class="form-control"
+                            <label for="reportPublished" class="form-label">Published Date</label>
+                            <input type="datetime-local" id="reportPublished" name="published" class="form-control"
                                    value="{{ stix_object.published[:16] if stix_object.published else '' }}">
+                        </div>
+                        <div class="field-group">
+                            <label for="reportObjectRefs" class="form-label required-field">Object References</label>
+                            <textarea id="reportObjectRefs" name="object_refs" class="form-control" rows="3"
+                                      placeholder="Referenced STIX object identifiers (one per line)">{{ stix_object.object_refs | join('\n') if stix_object.object_refs else '' }}</textarea>
+                            <small class="text-muted">Enter object IDs or identifiers (required)</small>
                         </div>
                         
                         {% elif stix_object.type == 'observed-data' %}
@@ -409,94 +655,158 @@
                         </div>
                         <div class="field-group">
                             <label for="goals" class="form-label">Goals</label>
-                            <input type="text" id="goals" name="goals" class="form-control"
-                                   value="{{ stix_object.goals | join(', ') if stix_object.goals else '' }}"
-                                   placeholder="Primary goals (comma-separated)">
+                            <textarea id="goals" name="goals" class="form-control" rows="2"
+                                      placeholder="High-level goals (one per line or comma-separated)">{{ stix_object.goals | join(', ') if stix_object.goals else '' }}</textarea>
+                            <small class="text-muted">Goals separated by commas</small>
                         </div>
                         <div class="row">
                             <div class="col-md-6 field-group">
                                 <label for="first_seen" class="form-label">First Seen</label>
-                                <input type="date" id="first_seen" name="first_seen" class="form-control"
-                                       value="{{ stix_object.first_seen[:10] if stix_object.first_seen else '' }}">
+                                <input type="datetime-local" id="first_seen" name="first_seen" class="form-control"
+                                       value="{{ stix_object.first_seen[:16] if stix_object.first_seen else '' }}">
                             </div>
                             <div class="col-md-6 field-group">
                                 <label for="last_seen" class="form-label">Last Seen</label>
-                                <input type="date" id="last_seen" name="last_seen" class="form-control"
-                                       value="{{ stix_object.last_seen[:10] if stix_object.last_seen else '' }}">
+                                <input type="datetime-local" id="last_seen" name="last_seen" class="form-control"
+                                       value="{{ stix_object.last_seen[:16] if stix_object.last_seen else '' }}">
                             </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="resource_level" class="form-label">Resource Level</label>
+                                <select id="resource_level" name="resource_level" class="form-select">
+                                    <option value="">-- Not specified --</option>
+                                    {% for rl in ['individual', 'club', 'contest', 'team', 'organization', 'government'] %}
+                                    <option value="{{ rl }}" {{ 'selected' if stix_object.resource_level == rl else '' }}>{{ rl|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="primary_motivation" class="form-label">Primary Motivation</label>
+                                <select id="primary_motivation" name="primary_motivation" class="form-select">
+                                    <option value="">-- Not specified --</option>
+                                    {% for m in ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'] %}
+                                    <option value="{{ m }}" {{ 'selected' if stix_object.primary_motivation == m else '' }}>{{ m|replace('-', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="secondary_motivations" class="form-label">Secondary Motivations</label>
+                            <select id="secondary_motivations" name="secondary_motivations" class="form-select" multiple>
+                                {% for m in ['accidental', 'coercion', 'dominance', 'ideology', 'notoriety', 'organizational-gain', 'personal-gain', 'personal-satisfaction', 'revenge', 'unpredictable'] %}
+                                <option value="{{ m }}" {{ 'selected' if m in (stix_object.secondary_motivations or []) else '' }}>{{ m|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple motivations</small>
                         </div>
                         
                         {% elif stix_object.type == 'identity' %}
                         <div class="field-group">
                             <label for="identity_class" class="form-label">Identity Class</label>
                             <select id="identity_class" name="identity_class" class="form-select">
-                                {% for ic in ['individual', 'group', 'organization', 'class', 'unknown'] %}
+                                <option value="">-- Select --</option>
+                                {% for ic in ['individual', 'group', 'system', 'organization', 'class', 'unknown'] %}
                                 <option value="{{ ic }}" {{ 'selected' if stix_object.identity_class == ic else '' }}>{{ ic|title }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="field-group">
+                            <label for="roles" class="form-label">Roles</label>
+                            <input type="text" id="roles" name="roles" class="form-control"
+                                   value="{{ stix_object.roles | join(', ') if stix_object.roles else '' }}"
+                                   placeholder="e.g., CEO, Domain Administrator, Doctor (comma-separated)">
+                            <small class="text-muted">List of roles this identity performs</small>
+                        </div>
+                        <div class="field-group">
                             <label for="sectors" class="form-label">Sectors</label>
-                            <input type="text" id="sectors" name="sectors" class="form-control"
-                                   value="{{ stix_object.sectors | join(', ') if stix_object.sectors else '' }}"
-                                   placeholder="Industry sectors (comma-separated)">
+                            <select id="sectors" name="sectors" class="form-select" multiple>
+                                {% for sector in ['agriculture', 'aerospace', 'automotive', 'chemical', 'commercial', 'communications', 'construction', 'defense', 'education', 'energy', 'entertainment', 'financial-services', 'government', 'government-local', 'government-national', 'government-public-services', 'government-regional', 'healthcare', 'hospitality-leisure', 'infrastructure', 'insurance', 'manufacturing', 'mining', 'non-profit', 'pharmaceuticals', 'retail', 'technology', 'telecommunications', 'transportation', 'utilities'] %}
+                                <option value="{{ sector }}" {{ 'selected' if sector in (stix_object.sectors or []) else '' }}>{{ sector|replace('-', ' ')|title }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Hold Ctrl to select multiple sectors</small>
                         </div>
                         <div class="field-group">
                             <label for="contact_information" class="form-label">Contact Information</label>
-                            <input type="text" id="contact_information" name="contact_information" class="form-control"
-                                   value="{{ stix_object.contact_information or '' }}"
-                                   placeholder="Contact details">
+                            <textarea id="contact_information" name="contact_information" class="form-control" rows="2"
+                                      placeholder="Email, phone, address, etc.">{{ stix_object.contact_information or '' }}</textarea>
                         </div>
                         
                         {% elif stix_object.type == 'location' %}
-                        <div class="field-group">
-                            <label for="country" class="form-label">Country</label>
-                            <input type="text" id="country" name="country" class="form-control"
-                                   value="{{ stix_object.country or '' }}"
-                                   placeholder="Country name">
-                        </div>
-                        <div class="field-group">
-                            <label for="region" class="form-label">Region/State</label>
-                            <input type="text" id="region" name="region" class="form-control"
-                                   value="{{ stix_object.region or '' }}"
-                                   placeholder="Region or state">
-                        </div>
-                        <div class="field-group">
-                            <label for="city" class="form-label">City</label>
-                            <input type="text" id="city" name="city" class="form-control"
-                                   value="{{ stix_object.city or '' }}"
-                                   placeholder="City name">
+                        <div class="row">
+                            <div class="col-md-6 field-group">
+                                <label for="region" class="form-label">Region</label>
+                                <select id="region" name="region" class="form-select">
+                                    <option value="">-- Select --</option>
+                                    {% for r in ['africa', 'eastern-africa', 'middle-africa', 'northern-africa', 'southern-africa', 'western-africa', 'americas', 'caribbean', 'central-america', 'latin-america-caribbean', 'northern-america', 'south-america', 'asia', 'central-asia', 'eastern-asia', 'southern-asia', 'south-eastern-asia', 'western-asia', 'europe', 'eastern-europe', 'northern-europe', 'southern-europe', 'western-europe', 'oceania', 'australia-new-zealand', 'melanesia', 'micronesia', 'polynesia'] %}
+                                    <option value="{{ r }}" {{ 'selected' if stix_object.region == r else '' }}>{{ r|replace('-', ' ')|title }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="country" class="form-label">Country (ISO 3166-1)</label>
+                                <input type="text" id="country" name="country" class="form-control" maxlength="2"
+                                       value="{{ stix_object.country or '' }}"
+                                       placeholder="US, FR, CN, RU...">
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-md-6 field-group">
+                                <label for="administrative_area" class="form-label">Administrative Area</label>
+                                <input type="text" id="administrative_area" name="administrative_area" class="form-control"
+                                       value="{{ stix_object.administrative_area or '' }}"
+                                       placeholder="State, Province, etc.">
+                            </div>
+                            <div class="col-md-6 field-group">
+                                <label for="city" class="form-label">City</label>
+                                <input type="text" id="city" name="city" class="form-control"
+                                       value="{{ stix_object.city or '' }}"
+                                       placeholder="City name">
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label for="street_address" class="form-label">Street Address</label>
+                            <textarea id="street_address" name="street_address" class="form-control" rows="2"
+                                      placeholder="Complete street address">{{ stix_object.street_address or '' }}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label for="postal_code" class="form-label">Postal Code</label>
+                            <input type="text" id="postal_code" name="postal_code" class="form-control"
+                                   value="{{ stix_object.postal_code or '' }}"
+                                   placeholder="Postal/ZIP code">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 field-group">
                                 <label for="latitude" class="form-label">Latitude</label>
                                 <input type="number" id="latitude" name="latitude" class="form-control"
                                        value="{{ stix_object.latitude or '' }}"
                                        placeholder="-90 to 90" min="-90" max="90" step="0.000001">
                             </div>
-                            <div class="col-md-6 field-group">
+                            <div class="col-md-4 field-group">
                                 <label for="longitude" class="form-label">Longitude</label>
                                 <input type="number" id="longitude" name="longitude" class="form-control"
                                        value="{{ stix_object.longitude or '' }}"
                                        placeholder="-180 to 180" min="-180" max="180" step="0.000001">
                             </div>
+                            <div class="col-md-4 field-group">
+                                <label for="precision" class="form-label">Precision (meters)</label>
+                                <input type="number" id="precision" name="precision" class="form-control"
+                                       value="{{ stix_object.precision or '' }}"
+                                       placeholder="e.g., 1000" min="0">
+                            </div>
                         </div>
                         
                         {% elif stix_object.type == 'course-of-action' %}
                         <div class="field-group">
-                            <label for="aliases" class="form-label">Aliases</label>
-                            <input type="text" id="aliases" name="aliases" class="form-control"
-                                   value="{{ stix_object.aliases | join(', ') if stix_object.aliases else '' }}"
-                                   placeholder="Other names (comma-separated)">
-                        </div>
-                        <div class="field-group">
                             <label for="action_type" class="form-label">Action Type</label>
                             <select id="action_type" name="action_type" class="form-select">
                                 <option value="">-- Not specified --</option>
-                                {% for at in ['remediation', 'mitigation', 'detection', 'prevention'] %}
-                                <option value="{{ at }}" {{ 'selected' if stix_object.get('x_action_type') == at else '' }}>{{ at|title }}</option>
-                                {% endfor %}
+                                <option value="textual:text/plain" {{ 'selected' if stix_object.get('action_type') == 'textual:text/plain' else '' }}>Textual (Plain Text)</option>
+                                <option value="textual:text/html" {{ 'selected' if stix_object.get('action_type') == 'textual:text/html' else '' }}>Textual (HTML)</option>
+                                <option value="textual:text/md" {{ 'selected' if stix_object.get('action_type') == 'textual:text/md' else '' }}>Textual (Markdown)</option>
                             </select>
+                            <small class="text-muted">Type of course of action (format)</small>
                         </div>
                         
                         {% else %}
@@ -662,28 +972,86 @@ async function saveChanges() {
             const isFamily = document.getElementById('is_family')?.value;
             data.is_family = isFamily === 'true';
             
-            const malwareTypes = document.getElementById('malware_types')?.value.trim();
-            if (malwareTypes) data.malware_types = malwareTypes.split(',').map(t => t.trim()).filter(t => t);
+            const malwareTypes = document.getElementById('malware_types');
+            if (malwareTypes) {
+                const selected = Array.from(malwareTypes.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.malware_types = selected;
+            }
             
             const aliases = document.getElementById('aliases')?.value.trim();
             if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
+            // Process kill chain phases
+            const killChainNames = document.querySelectorAll('select[name="kill_chain_name[]"]');
+            const phaseNames = document.querySelectorAll('input[name="phase_name[]"]');
+            const kill_chain_phases = [];
+            for (let i = 0; i < killChainNames.length; i++) {
+                const kcName = killChainNames[i]?.value?.trim();
+                const phaseName = phaseNames[i]?.value?.trim();
+                if (kcName && phaseName) {
+                    kill_chain_phases.push({
+                        kill_chain_name: kcName,
+                        phase_name: phaseName
+                    });
+                }
+            }
+            if (kill_chain_phases.length > 0) data.kill_chain_phases = kill_chain_phases;
+            
+            const firstSeen = document.getElementById('first_seen')?.value;
+            if (firstSeen) data.first_seen = new Date(firstSeen).toISOString();
+            
+            const lastSeen = document.getElementById('last_seen')?.value;
+            if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+            
+            const implLangs = document.getElementById('implementation_languages')?.value.trim();
+            if (implLangs) data.implementation_languages = implLangs.split(',').map(l => l.trim()).filter(l => l);
+            
+            const archEnv = document.getElementById('architecture_execution_envs');
+            if (archEnv) {
+                const selected = Array.from(archEnv.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.architecture_execution_envs = selected;
+            }
+            
+            const caps = document.getElementById('capabilities');
+            if (caps) {
+                const selected = Array.from(caps.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.capabilities = selected;
+            }
         }
         
         if (stixType === 'threat-actor') {
-            const actorTypes = document.getElementById('threat_actor_types')?.value.trim();
-            if (actorTypes) data.threat_actor_types = actorTypes.split(',').map(t => t.trim()).filter(t => t);
+            data.threat_actor_types = Array.from(document.getElementById('threat_actor_types')?.selectedOptions || []).map(o => o.value);
+            
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
+            const firstSeen = document.getElementById('first_seen')?.value;
+            if (firstSeen) data.first_seen = new Date(firstSeen).toISOString();
+            
+            const lastSeen = document.getElementById('last_seen')?.value;
+            if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+            
+            data.roles = Array.from(document.getElementById('roles')?.selectedOptions || []).map(o => o.value);
             
             const sophistication = document.getElementById('sophistication')?.value;
             if (sophistication) data.sophistication = sophistication;
             
+            const resourceLevel = document.getElementById('resourceLevel')?.value;
+            if (resourceLevel) data.resource_level = resourceLevel;
+            
             const motivation = document.getElementById('primary_motivation')?.value;
             if (motivation) data.primary_motivation = motivation;
             
-            const aliases = document.getElementById('aliases')?.value.trim();
-            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            data.secondary_motivations = Array.from(document.getElementById('secondary_motivations')?.selectedOptions || []).map(o => o.value);
+            
+            const goals = document.getElementById('goals')?.value.trim();
+            if (goals) data.goals = goals.split(',').map(g => g.trim()).filter(g => g);
         }
         
         if (stixType === 'campaign') {
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
             const objective = document.getElementById('objective')?.value.trim();
             if (objective) data.objective = objective;
             
@@ -697,6 +1065,110 @@ async function saveChanges() {
         if (stixType === 'attack-pattern') {
             const aliases = document.getElementById('aliases')?.value.trim();
             if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
+            // Process kill chain phases
+            const killChainNames = document.querySelectorAll('select[name="kill_chain_name[]"]');
+            const phaseNames = document.querySelectorAll('input[name="phase_name[]"]');
+            const kill_chain_phases = [];
+            for (let i = 0; i < killChainNames.length; i++) {
+                const kcName = killChainNames[i]?.value?.trim();
+                const phaseName = phaseNames[i]?.value?.trim();
+                if (kcName && phaseName) {
+                    kill_chain_phases.push({
+                        kill_chain_name: kcName,
+                        phase_name: phaseName
+                    });
+                }
+            }
+            if (kill_chain_phases.length > 0) data.kill_chain_phases = kill_chain_phases;
+        }
+        
+        if (stixType === 'infrastructure') {
+            const infraTypes = document.getElementById('infrastructure_types');
+            if (infraTypes) {
+                const selected = Array.from(infraTypes.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.infrastructure_types = selected;
+            }
+            
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
+            // Process kill chain phases
+            const killChainNames = document.querySelectorAll('select[name="kill_chain_name[]"]');
+            const phaseNames = document.querySelectorAll('input[name="phase_name[]"]');
+            const kill_chain_phases = [];
+            for (let i = 0; i < killChainNames.length; i++) {
+                const kcName = killChainNames[i]?.value?.trim();
+                const phaseName = phaseNames[i]?.value?.trim();
+                if (kcName && phaseName) {
+                    kill_chain_phases.push({
+                        kill_chain_name: kcName,
+                        phase_name: phaseName
+                    });
+                }
+            }
+            if (kill_chain_phases.length > 0) data.kill_chain_phases = kill_chain_phases;
+            
+            const firstSeen = document.getElementById('first_seen')?.value;
+            if (firstSeen) data.first_seen = new Date(firstSeen).toISOString();
+            
+            const lastSeen = document.getElementById('last_seen')?.value;
+            if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+        }
+        
+        if (stixType === 'intrusion-set') {
+            const aliases = document.getElementById('aliases')?.value.trim();
+            if (aliases) data.aliases = aliases.split(',').map(a => a.trim()).filter(a => a);
+            
+            const goals = document.getElementById('goals')?.value.trim();
+            if (goals) data.goals = goals.split(',').map(g => g.trim()).filter(g => g);
+            
+            const firstSeen = document.getElementById('first_seen')?.value;
+            if (firstSeen) data.first_seen = new Date(firstSeen).toISOString();
+            
+            const lastSeen = document.getElementById('last_seen')?.value;
+            if (lastSeen) data.last_seen = new Date(lastSeen).toISOString();
+            
+            const resourceLevel = document.getElementById('resource_level')?.value;
+            if (resourceLevel) data.resource_level = resourceLevel;
+            
+            const primaryMotivation = document.getElementById('primary_motivation')?.value;
+            if (primaryMotivation) data.primary_motivation = primaryMotivation;
+            
+            const secondaryMot = document.getElementById('secondary_motivations');
+            if (secondaryMot) {
+                const selected = Array.from(secondaryMot.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.secondary_motivations = selected;
+            }
+        }
+        
+        if (stixType === 'location') {
+            const region = document.getElementById('region')?.value;
+            if (region) data.region = region;
+            
+            const country = document.getElementById('country')?.value?.toUpperCase();
+            if (country) data.country = country;
+            
+            const adminArea = document.getElementById('administrative_area')?.value.trim();
+            if (adminArea) data.administrative_area = adminArea;
+            
+            const city = document.getElementById('city')?.value.trim();
+            if (city) data.city = city;
+            
+            const streetAddr = document.getElementById('street_address')?.value.trim();
+            if (streetAddr) data.street_address = streetAddr;
+            
+            const postalCode = document.getElementById('postal_code')?.value.trim();
+            if (postalCode) data.postal_code = postalCode;
+            
+            const lat = parseFloat(document.getElementById('latitude')?.value);
+            if (!isNaN(lat)) data.latitude = lat;
+            
+            const lng = parseFloat(document.getElementById('longitude')?.value);
+            if (!isNaN(lng)) data.longitude = lng;
+            
+            const precision = parseFloat(document.getElementById('precision')?.value);
+            if (!isNaN(precision)) data.precision = precision;
         }
         
         if (stixType === 'tool') {
@@ -724,6 +1196,28 @@ async function saveChanges() {
             if (authors) data.authors = authors.split(',').map(a => a.trim()).filter(a => a);
         }
         
+        if (stixType === 'identity') {
+            const identityClass = document.getElementById('identity_class')?.value;
+            if (identityClass) data.identity_class = identityClass;
+            
+            const roles = document.getElementById('roles')?.value.trim();
+            if (roles) data.roles = roles.split(',').map(r => r.trim()).filter(r => r);
+            
+            const sectors = document.getElementById('sectors');
+            if (sectors) {
+                const selected = Array.from(sectors.selectedOptions).map(o => o.value);
+                if (selected.length > 0) data.sectors = selected;
+            }
+            
+            const contactInfo = document.getElementById('contact_information')?.value.trim();
+            if (contactInfo) data.contact_information = contactInfo;
+        }
+        
+        if (stixType === 'course-of-action') {
+            const actionType = document.getElementById('action_type')?.value;
+            if (actionType) data.action_type = actionType;
+        }
+        
         if (stixType === 'opinion') {
             const opinion = document.getElementById('opinion')?.value;
             if (opinion) data.opinion = opinion;
@@ -742,7 +1236,7 @@ async function saveChanges() {
                 if (selected.length > 0) data.report_types = selected;
             }
             
-            const published = document.getElementById('published')?.value;
+            const published = document.getElementById('reportPublished')?.value;
             if (published) data.published = new Date(published).toISOString();
         }
         
@@ -777,6 +1271,35 @@ async function saveChanges() {
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
     }
+}
+
+function addKillChainPhase() {
+    const container = document.getElementById('killChainPhases');
+    if (!container) return;
+    
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2 kill-chain-row';
+    newRow.innerHTML = `
+        <div class="col-md-5">
+            <select name="kill_chain_name[]" class="form-select">
+                <option value="mitre-attack">MITRE ATT&CK</option>
+                <option value="lockheed-martin-cyber-kill-chain">Lockheed Martin Cyber Kill Chain</option>
+            </select>
+        </div>
+        <div class="col-md-5">
+            <input type="text" name="phase_name[]" class="form-control" placeholder="Phase name (e.g., initial-access)">
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeKillChainPhase(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+}
+
+function removeKillChainPhase(btn) {
+    btn.closest('.kill-chain-row').remove();
 }
 </script>
 {% endblock %}

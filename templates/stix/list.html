@@ -137,8 +137,7 @@
                             'note': 'Notes',
                             'opinion': 'Opinions',
                             'report': 'Reports',
-                            'observed-data': 'Observed Data',
-                            'grouping': 'Grouping'
+                            'observed-data': 'Observed Data'
                         } %}
                         {% set type_colors = {
                             'indicator': 'info',
@@ -156,8 +155,7 @@
                             'note': 'secondary',
                             'opinion': 'danger',
                             'report': 'secondary',
-                            'observed-data': 'warning',
-                            'grouping': 'secondary'
+                            'observed-data': 'warning'
                         } %}
                         {% for sdo_type in sdo_types %}
                             <button class="btn btn-sm btn-outline-{{ type_colors.get(sdo_type, 'secondary') }} type-filter-btn" data-type="{{ sdo_type }}">

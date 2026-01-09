@@ -18,20 +18,15 @@
     </div>
     
     <div class="field-group">
-        <label for="noteObjectRefs" class="form-label">Object References</label>
-        <textarea id="noteObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
-                  placeholder="STIX objects this note relates to (one per line)"></textarea>
-        <small class="text-muted">Enter object IDs or identifiers</small>
+        <label for="noteAuthors" class="form-label">Authors</label>
+        <input type="text" id="noteAuthors" name="authors" class="form-control"
+               placeholder="Author names (comma-separated)">
     </div>
     
     <div class="field-group">
-        <label for="noteAuthority" class="form-label">Authority</label>
-        <select id="noteAuthority" name="x_authority" class="form-select">
-            <option value="">Select authority level</option>
-            <option value="personal">Personal Opinion</option>
-            <option value="team">Team Analysis</option>
-            <option value="organization">Organization Official</option>
-            <option value="public">Public Intelligence</option>
-        </select>
+        <label for="noteObjectRefs" class="form-label">Object References</label>
+        <textarea id="noteObjectRefs" name="x_object_refs_text" class="form-control" rows="3"
+                  placeholder="STIX objects this note relates to (one per line)"></textarea>
+        <small class="text-muted">Enter object IDs or identifiers (required)</small>
     </div>
 </div>
