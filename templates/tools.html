@@ -96,9 +96,16 @@
 
 {% block content %}
 <div class="top-bar">
-    <h4 class="mb-0">
-        <i class="bi bi-terminal me-2"></i>Reconnaissance Tools
-    </h4>
+    <div>
+        <h4 class="mb-0">
+            <i class="bi bi-terminal me-2"></i>Reconnaissance Tools
+        </h4>
+        <small class="text-muted" id="workerInfoSubtitle" style="display: none;">
+            <i class="bi bi-server me-1"></i>Worker IP: <code id="workerIp">Loading...</code>
+            <span style="margin: 0 8px;">•</span>
+            <i class="bi bi-globe me-1"></i>DNS: <code id="workerDns">Loading...</code>
+        </small>
+    </div>
 </div>
 
 <div class="row">
@@ -1367,6 +1374,31 @@ function extractDomainFromEmail(emailStr) {
 }
 
 $(document).ready(function() {
+    // Load worker public IP and DNS
+    $.ajax({
+        url: '/api/tools/worker/public-ip',
+        method: 'GET',
+        success: function(response) {
+            if (response.success && response.ip) {
+                $('#workerIp').text(response.ip);
+                
+                // Display DNS servers (first 2)
+                if (response.dns && response.dns.length > 0) {
+                    const dnsDisplay = response.dns.slice(0, 2).join(', ');
+                    $('#workerDns').text(dnsDisplay);
+                } else {
+                    $('#workerDns').text('Not available');
+                }
+                
+                $('#workerInfoSubtitle').show();
+            }
+        },
+        error: function() {
+            // Silently fail if info cannot be retrieved
+            console.debug('Could not retrieve worker info');
+        }
+    });
+    
     // Tool card selection
     $('.tool-card').click(function() {
         $('.tool-card').removeClass('active');
@@ -1666,28 +1698,87 @@ function generateSTIXPattern(iocType, value) {
     return patterns[iocType] || null;
 }
 
+// ============================================================================
+// Generic Async Polling Function
+// ============================================================================
+function pollScanResult(scanId, toolName, onSuccess, onError, $btn, btnOriginalHtml, maxPolls = 60) {
+    let pollCount = 0;
+    
+    const pollInterval = setInterval(function() {
+        pollCount++;
+        
+        if (pollCount > maxPolls) {
+            clearInterval(pollInterval);
+            showAlert(`${toolName} scan timed out. Please try again.`, 'warning');
+            if ($btn) $btn.prop('disabled', false).html(btnOriginalHtml);
+            return;
+        }
+        
+        $.ajax({
+            url: `/api/tools/scans/${scanId}`,
+            method: 'GET',
+            success: function(response) {
+                if (response.status === 'completed' || response.status === 'failed') {
+                    clearInterval(pollInterval);
+                    if ($btn) $btn.prop('disabled', false).html(btnOriginalHtml);
+                    
+                    if (response.status === 'completed' && (response.success || response.result?.success)) {
+                        onSuccess(response);
+                        loadScanHistory();
+                        loadScanQueue();
+                    } else {
+                        const error = response.error || response.result?.error || `${toolName} failed`;
+                        if (onError) {
+                            onError(error);
+                        } else {
+                            showAlert(error, 'danger');
+                        }
+                    }
+                }
+                // status === 'processing' or other: continue polling
+            },
+            error: function(xhr) {
+                // 404 means scan not indexed yet - continue polling
+                // Other errors: continue polling (might be temporary network issue)
+                if (xhr.status !== 404) {
+                    console.log(`Polling error for ${scanId}:`, xhr.status);
+                }
+            }
+        });
+    }, 2000);
+    
+    return pollInterval;
+}
+
+// ============================================================================
+// WHOIS
+// ============================================================================
 function runWhois() {
     const target = $('#whoisTarget').val().trim();
     if (!target) return;
     
     const $btn = $('#whoisBtn');
+    const btnOriginalHtml = '<i class="bi bi-search"></i> Lookup';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
     
     $.ajax({
         url: '/api/tools/whois',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({ target: target }),
         success: function(response) {
-            currentScanResult = response;
-            displayWhoisResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('WHOIS lookup started...', 'info');
+                pollScanResult(response.scan_id, 'WHOIS', function(result) {
+                    currentScanResult = result;
+                    displayWhoisResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'WHOIS lookup failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-search"></i> Lookup');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -1747,6 +1838,7 @@ function runPing() {
     if (!target) return;
     
     const $btn = $('#pingBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Ping';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Pinging...');
     
     $.ajax({
@@ -1755,16 +1847,18 @@ function runPing() {
         contentType: 'application/json',
         data: JSON.stringify({ target: target, count: count }),
         success: function(response) {
-            currentScanResult = response;
-            displayPingResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('Ping started...', 'info');
+                pollScanResult(response.scan_id, 'Ping', function(result) {
+                    currentScanResult = result;
+                    displayPingResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'Ping failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Ping');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -1857,6 +1951,7 @@ function runNmap() {
     const customArgs = $('#nmapCustomArgs').val().trim() || null;
     
     const $btn = $('#nmapBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Start Scan';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Scanning...');
     
     const payload = {
@@ -1875,71 +1970,22 @@ function runNmap() {
         contentType: 'application/json',
         data: JSON.stringify(payload),
         dataType: 'json',
-        timeout: 600000, // 10 min timeout
-        success: function(response, textStatus, xhr) {
-            // Check HTTP status code
-            if (xhr.status === 202) {
-                // Scan queued - unlock button immediately and poll in background
-                showAlert('Nmap scan queued. Processing in background...', 'info');
-                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
-                const taskId = response.task_id;
-                pollNmapTask(taskId);
-            } else {
-                // Sync response (200)
-                currentScanResult = response;
-                displayNmapResult(response);
-                loadScanHistory();
-                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+        success: function(response) {
+            if (response.scan_id) {
+                showAlert('Nmap scan started. This may take several minutes...', 'info');
+                // Use longer polling (120 polls = 4 minutes for nmap)
+                pollScanResult(response.scan_id, 'Nmap', function(result) {
+                    currentScanResult = result;
+                    displayNmapResult(result);
+                }, null, $btn, btnOriginalHtml, 180);
             }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'Nmap scan failed';
             showAlert(msg, 'danger');
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Start Scan');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
-}
-
-function pollNmapTask(taskId) {
-    let attempts = 0;
-    const maxAttempts = 600; // 10 minutes with 1s polling
-    
-    function checkTask() {
-        $.ajax({
-            url: `/api/tools/task/${taskId}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                const status = response.status || response.state;
-                
-                if (status === 'SUCCESS') {
-                    // Show results in background (don't block UI)
-                    const result = response.result;
-                    if (result && result.raw_output) {
-                        // Show notification about completion
-                        showAlert('Nmap scan completed! Check history to view results.', 'success');
-                        loadScanHistory();
-                    }
-                } else if (status === 'FAILURE') {
-                    const errorMsg = response.result?.error || response.error || 'Unknown error';
-                    showAlert(`Nmap scan failed: ${errorMsg}`, 'danger');
-                } else if (status === 'PENDING' || status === 'RETRY') {
-                    attempts++;
-                    if (attempts < maxAttempts) {
-                        // Continue polling
-                        setTimeout(checkTask, 1000);
-                    } else {
-                        showAlert('Nmap scan timed out', 'danger');
-                    }
-                }
-            },
-            error: function() {
-                // Task endpoint error - stop polling silently
-            }
-        });
-    }
-    
-    checkTask();
 }
 
 function displayNmapResult(data) {
@@ -2041,24 +2087,27 @@ function runTraceroute() {
     const maxHops = parseInt($('#tracerouteMaxHops').val()) || 30;
     
     const $btn = $('#tracerouteBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Run Traceroute';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Tracing...');
     
     $.ajax({
         url: '/api/tools/traceroute',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({ target: target, max_hops: maxHops }),
-        timeout: 120000,
         success: function(response) {
-            currentScanResult = response;
-            displayTracerouteResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('Traceroute started...', 'info');
+                pollScanResult(response.scan_id, 'Traceroute', function(result) {
+                    currentScanResult = result;
+                    displayTracerouteResult(result);
+                }, null, $btn, btnOriginalHtml, 90);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'Traceroute failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Run Traceroute');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -2107,23 +2156,27 @@ function runDig() {
     const recordType = $('#digRecordType').val();
     
     const $btn = $('#digBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Lookup';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
     
     $.ajax({
         url: '/api/tools/dig',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({ target: target, record_type: recordType }),
         success: function(response) {
-            currentScanResult = response;
-            displayDigResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('DNS lookup started...', 'info');
+                pollScanResult(response.scan_id, 'DNS Lookup', function(result) {
+                    currentScanResult = result;
+                    displayDigResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'DNS lookup failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Lookup');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -2133,23 +2186,27 @@ function runReverseDns() {
     if (!target) return;
     
     const $btn = $('#reverseDnsBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Reverse Lookup';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
     
     $.ajax({
         url: '/api/tools/reverse-dns',
         method: 'POST',
+        contentType: 'application/json',
         data: JSON.stringify({ target: target }),
         success: function(response) {
-            currentScanResult = response;
-            displayDigResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('Reverse DNS lookup started...', 'info');
+                pollScanResult(response.scan_id, 'Reverse DNS', function(result) {
+                    currentScanResult = result;
+                    displayDigResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'Reverse DNS lookup failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Reverse Lookup');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -2787,14 +2844,17 @@ function displayScanHistory(scans) {
     
     const toolIcons = {
         'whois': { icon: 'bi-search', color: 'primary' },
+        'ping': { icon: 'bi-broadcast', color: 'success' },
         'nmap': { icon: 'bi-hdd-network', color: 'success' },
         'traceroute': { icon: 'bi-diagram-3', color: 'warning' },
         'dig': { icon: 'bi-globe2', color: 'info' },
         'reverse-dns': { icon: 'bi-globe2', color: 'info' },
+        'geoip': { icon: 'bi-geo-alt-fill', color: 'danger' },
+        'dmarc-dkim': { icon: 'bi-shield-check', color: 'primary' },
+        'shodan': { icon: 'bi-search', color: 'danger' },
         'email-headers': { icon: 'bi-envelope', color: 'danger' },
         'file-analysis': { icon: 'bi-file-earmark', color: 'secondary' },
-        'urlscan': { icon: 'bi-camera', color: 'purple' },
-        'shodan': { icon: 'bi-search', color: 'danger' }
+        'urlscan': { icon: 'bi-camera', color: 'purple' }
     };
     
     let html = '';
@@ -2848,6 +2908,9 @@ function loadScanDetails(scanId) {
             if (tool === 'whois') {
                 $('#whoisTarget').val(response.target);
                 displayWhoisResult(response);
+            } else if (tool === 'ping') {
+                $('#pingTarget').val(response.target);
+                displayPingResult(response);
             } else if (tool === 'nmap') {
                 $('#nmapTarget').val(response.target);
                 displayNmapResult(response);
@@ -2868,6 +2931,15 @@ function loadScanDetails(scanId) {
                 $('.tool-panel').hide();
                 $('#digPanel').show();
                 displayDigResult(response);
+            } else if (tool === 'geoip') {
+                $('#geoipTarget').val(response.target);
+                displayGeoipResult(response);
+            } else if (tool === 'dmarc-dkim') {
+                $('#dmarcDkimTarget').val(response.target);
+                displayDmarcDkimResult(response);
+            } else if (tool === 'shodan') {
+                $('#shodanQuery').val(response.target);
+                displayShodanResult(response);
             } else if (tool === 'email-headers') {
                 $('.tool-card').removeClass('active');
                 $(`.tool-card[data-tool="email-headers"]`).addClass('active');
@@ -2907,6 +2979,7 @@ function runGeoipLookup() {
     }
     
     const $btn = $('#geoipBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Lookup';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Looking up...');
     
     $.ajax({
@@ -2915,16 +2988,18 @@ function runGeoipLookup() {
         contentType: 'application/json',
         data: JSON.stringify({ target: target }),
         success: function(response) {
-            currentScanResult = response;
-            displayGeoipResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('GeoIP lookup started...', 'info');
+                pollScanResult(response.scan_id, 'GeoIP', function(result) {
+                    currentScanResult = result;
+                    displayGeoipResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'GeoIP lookup failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Lookup');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }
@@ -3066,6 +3141,7 @@ function analyzeDmarcDkim() {
     }
     
     const $btn = $('#dmarcDkimBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Analyze';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Analyzing...');
     
     $.ajax({
@@ -3074,71 +3150,21 @@ function analyzeDmarcDkim() {
         contentType: 'application/json',
         data: JSON.stringify({ domain: domain }),
         dataType: 'json',
-        timeout: 300000, // 5 min timeout
-        success: function(response, textStatus, xhr) {
-            // Check HTTP status code
-            if (xhr.status === 202) {
-                // Analysis queued - unlock button immediately and poll in background
-                showAlert('DMARC/DKIM analysis queued. Processing in background...', 'info');
-                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
-                const taskId = response.task_id;
-                pollDmarcDkimTask(taskId);
-            } else {
-                // Sync response (200)
-                currentScanResult = response;
-                displayDmarcDkimResult(response);
-                loadScanHistory();
-                $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
+        success: function(response) {
+            if (response.scan_id) {
+                showAlert('DMARC/DKIM analysis started...', 'info');
+                pollScanResult(response.scan_id, 'DMARC/DKIM', function(result) {
+                    currentScanResult = result;
+                    displayDmarcDkimResult(result);
+                }, null, $btn, btnOriginalHtml, 120);
             }
         },
         error: function(xhr) {
             const error = xhr.responseJSON?.error || 'Error analyzing domain';
             showAlert(error, 'danger');
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Analyze');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
-}
-
-function pollDmarcDkimTask(taskId) {
-    let attempts = 0;
-    const maxAttempts = 300; // 5 minutes with 1s polling
-    
-    function checkTask() {
-        $.ajax({
-            url: `/api/tools/task/${taskId}`,
-            method: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                const status = response.status || response.state;
-                
-                if (status === 'SUCCESS') {
-                    // Show results in background (don't block UI)
-                    const result = response.result;
-                    if (result && result.dmarc) {
-                        // Show notification about completion
-                        showAlert('DMARC/DKIM analysis completed! Check history to view results.', 'success');
-                        loadScanHistory();
-                    }
-                } else if (status === 'FAILURE') {
-                    const errorMsg = response.result?.error || response.error || 'Unknown error';
-                    showAlert(`DMARC/DKIM analysis failed: ${errorMsg}`, 'danger');
-                } else if (status === 'PENDING' || status === 'RETRY') {
-                    attempts++;
-                    if (attempts < maxAttempts) {
-                        // Continue polling
-                        setTimeout(checkTask, 1000);
-                    } else {
-                        showAlert('DMARC/DKIM analysis timed out', 'danger');
-                    }
-                }
-            },
-            error: function() {
-                // Task endpoint error - stop polling silently
-            }
-        });
-    }
-    
-    checkTask();
 }
 
 function displayDmarcDkimResult(data) {
@@ -3285,6 +3311,7 @@ function queryShodan() {
     }
     
     const $btn = $('#shodanBtn');
+    const btnOriginalHtml = '<i class="bi bi-play-fill"></i> Search';
     $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> Searching...');
     
     $.ajax({
@@ -3293,16 +3320,18 @@ function queryShodan() {
         contentType: 'application/json',
         data: JSON.stringify({ query: query }),
         success: function(response) {
-            currentScanResult = response;
-            displayShodanResult(response);
-            loadScanHistory();
+            if (response.scan_id) {
+                showAlert('Shodan search started...', 'info');
+                pollScanResult(response.scan_id, 'Shodan', function(result) {
+                    currentScanResult = result;
+                    displayShodanResult(result);
+                }, null, $btn, btnOriginalHtml);
+            }
         },
         error: function(xhr) {
             const msg = xhr.responseJSON?.error || 'Shodan search failed';
             showAlert(msg, 'danger');
-        },
-        complete: function() {
-            $btn.prop('disabled', false).html('<i class="bi bi-play-fill"></i> Search');
+            $btn.prop('disabled', false).html(btnOriginalHtml);
         }
     });
 }

@@ -34,7 +34,7 @@
 
 ### Changed
 - **docker-compose.yml**: Simplified to standard config (no VPN by default)
-  - Worker now uses standard `networks: [ioc-network]`
+  - Worker now uses standard `networks: [elaslip-network]`
   - Removed VPN service and related configuration
 - **Worker container**: Renamed from hardcoded approach to flexible configuration
   - `VPN_ENABLED=false` by default in standard config

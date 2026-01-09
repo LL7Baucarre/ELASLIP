@@ -16,6 +16,19 @@ logger = logging.getLogger(__name__)
 tools_bp = Blueprint('tools', __name__)
 
 
+@tools_bp.route('/worker/public-ip', methods=['GET'])
+@login_or_api_key_required
+def get_worker_public_ip():
+    """
+    Get the public IP address of the worker.
+    
+    Returns:
+        Dict with public IP information
+    """
+    result = ToolsService.get_public_ip()
+    return jsonify(result)
+
+
 def _save_scan_result(tool_name: str, target: str, result: dict, extra_fields: dict = None) -> str:
     """
     Helper method to save scan results to Elasticsearch.
@@ -93,6 +106,8 @@ def whois_lookup():
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import whois_async
+    
     data = request.get_json()
     target = data.get('target', '').strip()
     
@@ -103,12 +118,29 @@ def whois_lookup():
     if not _is_valid_target(target):
         return jsonify({'error': 'Invalid target. Must be a valid domain or IP address.'}), 400
     
-    tools = ToolsService()
-    result = tools.whois_lookup(target)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = whois_async.delay(scan_id, target, g.current_user.id)
     
-    # Save result to Elasticsearch
-    result['scan_id'] = _save_scan_result('whois', target, result)
-    return jsonify(result)
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'whois',
+        'target': target,
+        'scan_id': scan_id,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'WHOIS lookup queued for processing'
+    }), 202
 
 
 @tools_bp.route('/ping', methods=['POST'])
@@ -159,6 +191,8 @@ def ping():
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import ping_async
+    
     data = request.get_json()
     target = data.get('target', '').strip()
     count = data.get('count', 4)
@@ -173,15 +207,30 @@ def ping():
     if not _is_valid_target(target):
         return jsonify({'error': 'Invalid target. Must be a valid domain or IP address.'}), 400
     
-    tools = ToolsService()
-    result = tools.ping(target, count)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = ping_async.delay(scan_id, target, g.current_user.id, count)
     
-    # Debug log
-    logger.debug("ROUTE PING: result keys = %s, has raw_output = %s", result.keys(), 'raw_output' in result)
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'ping',
+        'target': target,
+        'scan_id': scan_id,
+        'count': count,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
     
-    # Save result to Elasticsearch
-    result['scan_id'] = _save_scan_result('ping', target, result)
-    return jsonify(result)
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'Ping queued for processing'
+    }), 202
 
 
 @tools_bp.route('/nmap', methods=['POST'])
@@ -235,7 +284,7 @@ def nmap_scan():
       400:
         description: Invalid input
     """
-    from app.tasks.scan_tasks import single_scan
+    from app.tasks.scan_tasks import nmap_async
     
     data = request.get_json()
     target = data.get('target', '').strip()
@@ -257,15 +306,9 @@ def nmap_scan():
     if not _is_valid_target(target):
         return jsonify({'error': 'Invalid target. Must be a valid domain, IP, or CIDR range.'}), 400
     
-    # Launch scan asynchronously via Celery
-    task = single_scan.delay(
-        tool='nmap',
-        target=target,
-        user_id=g.current_user.id,
-        scan_type=scan_type,
-        ports=ports,
-        custom_args=custom_args
-    )
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = nmap_async.delay(scan_id, target, g.current_user.id, scan_type, ports, custom_args)
     
     # Store task metadata in Redis for queue display
     from app import redis_client
@@ -274,13 +317,15 @@ def nmap_scan():
     task_meta = {
         'tool': 'nmap',
         'target': target,
+        'scan_id': scan_id,
         'scan_type': scan_type,
         'user_id': g.current_user.id,
         'created_at': datetime.utcnow().isoformat() + 'Z'
     }
-    redis_client.setex(task_key, 3600, json.dumps(task_meta))  # Expire after 1 hour
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
     
     return jsonify({
+        'scan_id': scan_id,
         'task_id': task.id,
         'status': 'queued',
         'message': 'Nmap scan queued for processing'
@@ -329,6 +374,8 @@ def traceroute():
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import traceroute_async
+    
     data = request.get_json()
     target = data.get('target', '').strip()
     max_hops = data.get('max_hops', 30)
@@ -339,12 +386,30 @@ def traceroute():
     if not _is_valid_target(target):
         return jsonify({'error': 'Invalid target.'}), 400
     
-    tools = ToolsService()
-    result = tools.traceroute(target, max_hops)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = traceroute_async.delay(scan_id, target, g.current_user.id, max_hops)
     
-    scan_id = _save_scan_result('traceroute', target, result, {'max_hops': max_hops})
-    result['scan_id'] = scan_id
-    return jsonify(result)
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'traceroute',
+        'target': target,
+        'scan_id': scan_id,
+        'max_hops': max_hops,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'Traceroute queued for processing'
+    }), 202
 
 
 @tools_bp.route('/dig', methods=['POST'])
@@ -390,6 +455,8 @@ def dig_lookup():
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import dig_async
+    
     data = request.get_json()
     target = data.get('target', '').strip()
     record_type = data.get('record_type', 'A')
@@ -397,12 +464,30 @@ def dig_lookup():
     if not target:
         return jsonify({'error': 'Target is required'}), 400
     
-    tools = ToolsService()
-    result = tools.dig_lookup(target, record_type)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = dig_async.delay(scan_id, target, g.current_user.id, record_type)
     
-    scan_id = _save_scan_result('dig', target, result, {'record_type': record_type})
-    result['scan_id'] = scan_id
-    return jsonify(result)
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'dig',
+        'target': target,
+        'scan_id': scan_id,
+        'record_type': record_type,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'DNS lookup queued for processing'
+    }), 202
 
 
 @tools_bp.route('/reverse-dns', methods=['POST'])
@@ -441,18 +526,37 @@ def reverse_dns():
       400:
         description: Invalid input
     """
+    from app.tasks.scan_tasks import reverse_dns_async
+    
     data = request.get_json()
     target = data.get('target', '').strip()
     
     if not target:
         return jsonify({'error': 'Target is required'}), 400
     
-    tools = ToolsService()
-    result = tools.reverse_dns(target)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = reverse_dns_async.delay(scan_id, target, g.current_user.id)
     
-    scan_id = _save_scan_result('reverse-dns', target, result)
-    result['scan_id'] = scan_id
-    return jsonify(result)
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'reverse-dns',
+        'target': target,
+        'scan_id': scan_id,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'Reverse DNS lookup queued for processing'
+    }), 202
 
 def _clean_email_address(email_str, all_emails=False):
     """
@@ -1105,12 +1209,20 @@ def get_scan_queue():
     inspect = celery_app.control.inspect()
     active = inspect.active() or {}
     
+    # All async scan task names to track
+    scan_task_names = [
+        'whois_async', 'ping_async', 'nmap_async', 'traceroute_async', 
+        'dig_async', 'reverse_dns_async', 'dmarc_dkim_async', 'geoip_async', 
+        'shodan_async', 'scan_url', 'process_batch_scans', 'single_scan'
+    ]
+    
     # Filter tasks for current user
     user_scans = []
     for worker, tasks in active.items():
         for task in tasks:
             # Check if it's a scan task
-            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name'] or 'analyze_dmarc_dkim_async' in task['name']:
+            task_name = task['name'].split('.')[-1]
+            if any(name in task['name'] for name in scan_task_names):
                 task_id = task['id']
                 
                 # Try to get metadata from Redis
@@ -1136,8 +1248,9 @@ def get_scan_queue():
                     task_info['name'] = task_meta.get('tool', 'scan')
                     task_info['target'] = task_meta.get('target', '')
                     task_info['scan_type'] = task_meta.get('scan_type', '')
+                    task_info['scan_id'] = task_meta.get('scan_id', '')
                 else:
-                    task_info['name'] = task['name'].split('.')[-1]
+                    task_info['name'] = task_name
                 
                 user_scans.append(task_info)
     
@@ -1145,7 +1258,8 @@ def get_scan_queue():
     reserved = inspect.reserved() or {}
     for worker, tasks in reserved.items():
         for task in tasks:
-            if 'process_batch_scans' in task['name'] or 'single_scan' in task['name'] or 'analyze_dmarc_dkim_async' in task['name']:
+            task_name = task['name'].split('.')[-1]
+            if any(name in task['name'] for name in scan_task_names):
                 task_id = task['id']
                 
                 # Try to get metadata from Redis
@@ -1169,8 +1283,9 @@ def get_scan_queue():
                     task_info['name'] = task_meta.get('tool', 'scan')
                     task_info['target'] = task_meta.get('target', '')
                     task_info['scan_type'] = task_meta.get('scan_type', '')
+                    task_info['scan_id'] = task_meta.get('scan_id', '')
                 else:
-                    task_info['name'] = task['name'].split('.')[-1]
+                    task_info['name'] = task_name
                 
                 user_scans.append(task_info)
     
@@ -1235,27 +1350,37 @@ def geoip_lookup():
       400:
         description: Invalid IP address
     """
+    from app.tasks.scan_tasks import geoip_async
+    
     data = request.get_json()
     ip_address = data.get('target', '').strip()
     
     if not ip_address:
         return jsonify({'error': 'IP address is required'}), 400
     
-    try:
-        from app.services.geoip_service import GeoIPService
-        service = GeoIPService()
-        result = service.lookup(ip_address)
-        
-        # Save scan result
-        scan_id = _save_scan_result('geoip', ip_address, result)
-        result['scan_id'] = scan_id
-        
-        return jsonify(result), 200
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 400
-    except Exception as e:
-        current_app.logger.exception(f"GeoIP lookup error: {str(e)}")
-        return jsonify({'error': 'GeoIP lookup failed'}), 500
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = geoip_async.delay(scan_id, ip_address, g.current_user.id)
+    
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'geoip',
+        'target': ip_address,
+        'scan_id': scan_id,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'GeoIP lookup queued for processing'
+    }), 202
 
 
 @tools_bp.route('/geoip/bulk', methods=['POST'])
@@ -1456,7 +1581,7 @@ def analyze_dmarc_dkim():
       400:
         description: Invalid input
     """
-    from app.tasks.scan_tasks import analyze_dmarc_dkim_async
+    from app.tasks.scan_tasks import dmarc_dkim_async
     
     data = request.get_json()
     domain = data.get('domain', '').strip()
@@ -1468,11 +1593,9 @@ def analyze_dmarc_dkim():
     if not re.match(r'^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$', domain):
         return jsonify({'error': 'Invalid domain format'}), 400
     
-    # Launch analysis asynchronously via Celery
-    task = analyze_dmarc_dkim_async.delay(
-        domain=domain,
-        user_id=g.current_user.id
-    )
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
+    task = dmarc_dkim_async.delay(scan_id, domain, g.current_user.id)
     
     # Store task metadata in Redis for queue display
     from app import redis_client
@@ -1481,12 +1604,14 @@ def analyze_dmarc_dkim():
     task_meta = {
         'tool': 'dmarc-dkim',
         'target': domain,
+        'scan_id': scan_id,
         'user_id': g.current_user.id,
         'created_at': datetime.utcnow().isoformat() + 'Z'
     }
-    redis_client.setex(task_key, 3600, json.dumps(task_meta))  # Expire after 1 hour
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
     
     return jsonify({
+        'scan_id': scan_id,
         'task_id': task.id,
         'status': 'queued',
         'message': 'DMARC/DKIM analysis queued for processing'
@@ -1540,6 +1665,7 @@ def query_shodan():
         description: Invalid input or missing API key
     """
     from app.config import Config
+    from app.tasks.scan_tasks import shodan_async
     
     # Check if Shodan is enabled - first check runtime config (from settings), then fall back to environment
     shodan_api_key = current_app.config.get('SHODAN_API_KEY') or Config.SHODAN_API_KEY
@@ -1556,13 +1682,39 @@ def query_shodan():
     if len(query) > 500:
         return jsonify({'error': 'Query is too long (max 500 characters)'}), 400
     
-    tools = ToolsService()
-    result = tools.shodan_query(query, shodan_api_key)
+    # Generate scan ID and start async task
+    scan_id = str(uuid.uuid4())
     
-    scan_id = _save_scan_result('shodan', query, result)
-    result['scan_id'] = scan_id
+    # Determine query type (host lookup vs search)
+    import ipaddress
+    try:
+        ipaddress.ip_address(query)
+        query_type = 'host'
+    except ValueError:
+        query_type = 'search'
     
-    return jsonify(result)
+    task = shodan_async.delay(scan_id, query, g.current_user.id, query_type)
+    
+    # Store task metadata in Redis for queue display
+    from app import redis_client
+    import json
+    task_key = f"scan_task:{task.id}"
+    task_meta = {
+        'tool': 'shodan',
+        'target': query,
+        'scan_id': scan_id,
+        'query_type': query_type,
+        'user_id': g.current_user.id,
+        'created_at': datetime.utcnow().isoformat() + 'Z'
+    }
+    redis_client.setex(task_key, 3600, json.dumps(task_meta))
+    
+    return jsonify({
+        'scan_id': scan_id,
+        'task_id': task.id,
+        'status': 'queued',
+        'message': 'Shodan query queued for processing'
+    }), 202
 
 
 # ============================================================================

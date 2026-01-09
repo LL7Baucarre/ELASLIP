@@ -14,6 +14,104 @@ class ToolsService:
     """Service for network reconnaissance tools."""
     
     @staticmethod
+    def get_public_ip() -> Dict:
+        """
+        Get the public IP address and DNS of the worker.
+        
+        Returns:
+            Dict with public IP and DNS information
+        """
+        try:
+            import socket
+            import json
+            import os
+            
+            result = {
+                'success': False,
+                'ip': None,
+                'dns': [],
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+            
+            # Check for custom DNS from environment variable
+            custom_dns = os.environ.get('WORKER_DNS', '').strip()
+            if custom_dns:
+                result['dns'] = [d.strip() for d in custom_dns.split(',') if d.strip()]
+            else:
+                # Get DNS servers from system
+                try:
+                    with open('/etc/resolv.conf', 'r') as f:
+                        dns_servers = []
+                        for line in f:
+                            if line.startswith('nameserver'):
+                                server = line.split()[1]
+                                # Skip Docker internal DNS
+                                if server != '127.0.0.11' and server not in dns_servers:
+                                    dns_servers.append(server)
+                        # If no external DNS found, use defaults
+                        if not dns_servers:
+                            dns_servers = ['1.1.1.1', '8.8.8.8']
+                        result['dns'] = dns_servers
+                except Exception as e:
+                    logger.debug(f"[PUBLIC-IP] Could not read /etc/resolv.conf: {e}")
+                    # Fallback to public DNS
+                    result['dns'] = ['1.1.1.1', '8.8.8.8']
+            
+            # Try multiple public IP services for redundancy
+            services = [
+                'https://api.ipify.org?format=json',
+                'https://ifconfig.me/all.json',
+                'https://ipinfo.io/json'
+            ]
+            
+            for service in services:
+                try:
+                    import urllib.request
+                    
+                    req = urllib.request.Request(
+                        service,
+                        headers={'User-Agent': 'Mozilla/5.0'}
+                    )
+                    
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = json.loads(response.read().decode())
+                        
+                        # Parse different response formats
+                        if 'ip' in data:
+                            result['ip'] = data['ip']
+                            result['success'] = True
+                            result['service'] = service
+                            return result
+                        elif 'query' in data:
+                            result['ip'] = data['query']
+                            result['success'] = True
+                            result['service'] = service
+                            return result
+                except Exception as e:
+                    logger.debug(f"[PUBLIC-IP] Failed with {service}: {e}")
+                    continue
+            
+            if result['ip']:
+                result['success'] = True
+                return result
+            
+            logger.error("[PUBLIC-IP] All services failed")
+            return {
+                'success': False,
+                'error': 'Unable to determine public IP',
+                'dns': result['dns'],
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+            
+        except Exception as e:
+            logger.error(f"[PUBLIC-IP] Exception: {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+    
+    @staticmethod
     def _validate_target(target: str) -> bool:
         """
         Validate target is a valid IP or hostname.
@@ -189,11 +287,11 @@ class ToolsService:
         scan_options = {
             'quick': ['-T4', '-F', '--open'],
             'full': ['-T4', '-p-', '--open'],
-            'service': ['-sV', '-T4', '-F', '--open'],
-            'vuln': ['-sV', '--script=vuln', '-T4', '-F'],
+            'service': ['-sV', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443', '--open'],
+            'vuln': ['-sV', '--script=vuln', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443'],
             'traceroute': ['-T4', '-F', '--traceroute', '--open'],
             'os': ['-O', '-T4', '-F', '--open'],
-            'aggressive': ['-A', '-T4', '-F'],
+            'aggressive': ['-A', '-T4', '-p21-23,25,53,80,110,111,135,139,143,443,445,993,995,1723,3306,3389,5432,5900,8080,8443'],
             'custom': []
         }
         

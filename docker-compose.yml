@@ -68,7 +68,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ioc-network
+      - elaslip-network
     restart: unless-stopped
 
   # ============================================
@@ -81,6 +81,12 @@ services:
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-worker
     command: celery -A app.celery worker --loglevel=info
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
@@ -95,6 +101,7 @@ services:
       - LLM_API_KEY=${LLM_API_KEY:-}
       - LLM_GENERATION_LANGUAGE=${LLM_GENERATION_LANGUAGE:-en}
       - VPN_ENABLED=false
+      - WORKER_DNS=${WORKER_DNS:-1.1.1.1,8.8.8.8}
     volumes:
       - ./app:/app/app
       - ./scripts:/app/scripts
@@ -104,7 +111,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ioc-network
+      - elaslip-network
     restart: unless-stopped
 
   elasticsearch:
@@ -121,7 +128,7 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD:-elastic123} http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1"]
       interval: 10s
@@ -138,7 +145,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -151,5 +158,5 @@ volumes:
   redis-data:
 
 networks:
-  ioc-network:
+  elaslip-network:
     driver: bridge

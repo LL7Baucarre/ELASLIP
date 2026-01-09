@@ -46,7 +46,7 @@ services:
       # Port de l'API Gluetun pour monitoring
       - "8000:8000"
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/v1/publicip/ip || exit 1"]
       interval: 30s
@@ -121,7 +121,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - ioc-network
+      - elaslip-network
     restart: unless-stopped
 
   # ============================================
@@ -141,7 +141,7 @@ services:
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
-      # Les URLs internes fonctionnent car le VPN est sur ioc-network
+      # Les URLs internes fonctionnent car le VPN est sur elaslip-network
       - ELASTICSEARCH_URL=http://elastic:${ELASTICSEARCH_PASSWORD:-elastic123}@elasticsearch:9200
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
@@ -182,7 +182,7 @@ services:
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f -u elastic:${ELASTICSEARCH_PASSWORD:-elastic123} http://localhost:9200/_cluster/health?wait_for_status=yellow || exit 1"]
       interval: 10s
@@ -199,7 +199,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - ioc-network
+      - elaslip-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -212,5 +212,5 @@ volumes:
   redis-data:
 
 networks:
-  ioc-network:
+  elaslip-network:
     driver: bridge
