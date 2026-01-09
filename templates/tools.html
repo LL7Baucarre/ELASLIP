@@ -102,6 +102,10 @@
         </h4>
         <small class="text-muted" id="workerInfoSubtitle" style="display: none;">
             <i class="bi bi-server me-1"></i>Worker IP: <code id="workerIp">Loading...</code>
+            <span id="vpnStatusSpan" style="margin: 0 8px; display: none;">•</span>
+            <span id="vpnStatus" style="display: none;">
+                <i class="bi me-1" id="vpnIcon"></i><code id="vpnStatusText"></code>
+            </span>
         </small>
     </div>
 </div>
@@ -1372,13 +1376,38 @@ function extractDomainFromEmail(emailStr) {
 }
 
 $(document).ready(function() {
-    // Load worker public IP and DNS
+    // Load worker public IP and VPN status
     $.ajax({
         url: '/api/tools/worker/public-ip',
         method: 'GET',
         success: function(response) {
             if (response.success && response.ip) {
                 $('#workerIp').text(response.ip);
+                
+                // Display VPN status if VPN is enabled
+                if (response.vpn_enabled) {
+                    const vpnStatus = response.vpn_status || 'unknown';
+                    const vpnIcon = document.getElementById('vpnIcon');
+                    const vpnStatusText = document.getElementById('vpnStatusText');
+                    
+                    if (vpnStatus === 'running') {
+                        vpnIcon.className = 'bi bi-shield-check me-1 text-success';
+                        vpnStatusText.textContent = 'VPN: Active';
+                        vpnStatusText.className = 'text-success';
+                    } else if (vpnStatus === 'not_running') {
+                        vpnIcon.className = 'bi bi-shield-exclamation me-1 text-danger';
+                        vpnStatusText.textContent = 'VPN: Inactive';
+                        vpnStatusText.className = 'text-danger';
+                    } else {
+                        vpnIcon.className = 'bi bi-shield-question me-1 text-warning';
+                        vpnStatusText.textContent = 'VPN: Unknown';
+                        vpnStatusText.className = 'text-warning';
+                    }
+                    
+                    document.getElementById('vpnStatus').style.display = 'inline';
+                    document.getElementById('vpnStatusSpan').style.display = 'inline';
+                }
+                
                 $('#workerInfoSubtitle').show();
             }
         },

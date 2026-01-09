@@ -20,26 +20,42 @@ tools_bp = Blueprint('tools', __name__)
 @login_or_api_key_required
 def get_worker_public_ip():
     """
-    Get the public IP address of the worker.
+    Get the public IP address of the worker and VPN status.
     This endpoint is public to allow dashboard widgets to load it.
-    Executes synchronously by forcing eager mode in Celery.
     
     Returns:
-        Dict with public IP information
+        Dict with public IP information and VPN status
     """
     from app.tasks.scan_tasks import get_worker_public_ip_async
     from app import celery
+    import os
     
-    # Force synchronous execution of async task in worker context
-    # This ensures the task runs on the worker with VPN networking
-    prev_eager = celery.conf.get('task_always_eager', False)
+    result = {
+        'success': False,
+        'ip': None,
+        'vpn_enabled': os.environ.get('VPN_ENABLED', 'false').lower() == 'true',
+        'vpn_status': None
+    }
+    
     try:
-        # Don't use eager mode here - we want it to actually run on the worker
-        # Use apply_async with a short timeout
-        result = get_worker_public_ip_async.apply_async(timeout=10)
-        return jsonify(result.get(timeout=10))
-    finally:
-        celery.conf.update(task_always_eager=prev_eager)
+        # Get worker public IP
+        worker_result = get_worker_public_ip_async.apply_async(timeout=10)
+        ip_data = worker_result.get(timeout=10)
+        result.update(ip_data)
+        
+        # Determine VPN status based on response
+        if result['vpn_enabled']:
+            # If we got response from gluetun-vpn service, it means VPN is active
+            if ip_data.get('service') == 'gluetun-vpn':
+                result['vpn_status'] = 'running'
+            else:
+                result['vpn_status'] = 'not_running'
+        
+        result['success'] = True
+    except Exception as e:
+        result['error'] = str(e)
+    
+    return jsonify(result)
 
 
 def _save_scan_result(tool_name: str, target: str, result: dict, extra_fields: dict = None) -> str:
