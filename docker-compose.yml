@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        - APP_VERSION=${APP_VERSION:-1.3.1}
+        - APP_VERSION=${APP_VERSION:-1.3.2}
     image: ghcr.io/ll7baucarre/elaslip:latest
     container_name: elaslip-app
     cap_add:
@@ -18,7 +18,7 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app
-      - APP_VERSION=${APP_VERSION:-1.3.1}
+      - APP_VERSION=${APP_VERSION:-1.3.2}
       - SECRET_KEY=${SECRET_KEY:-supersecretkey}
       - FLASK_HOST=${FLASK_HOST:-0.0.0.0}
       - APP_URL=${APP_URL:-http://localhost:5000}

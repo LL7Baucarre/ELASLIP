@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Accept ARG for version during build
-ARG APP_VERSION=1.3.1
+ARG APP_VERSION=1.3.2
 ENV APP_VERSION=${APP_VERSION}
 
 # Install system dependencies including Playwright browser dependencies

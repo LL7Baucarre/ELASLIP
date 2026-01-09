@@ -654,7 +654,7 @@ class ToolsService:
         
         Args:
             target: Domain name
-            record_type: DNS record type (A, AAAA, MX, NS, TXT, CNAME, SOA, PTR)
+            record_type: DNS record type (A, AAAA, MX, NS, TXT, CNAME, SOA, PTR, ANY)
             
         Returns:
             Dict with DNS records
@@ -670,22 +670,43 @@ class ToolsService:
             }
         
         try:
-            result = subprocess.run(
-                ['dig', '+noall', '+answer', '+authority', target, record_type],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
-            
-            records = ToolsService._parse_dig(result.stdout)
+            if record_type == 'ANY':
+                # For ANY, query all record types and combine results
+                all_records = []
+                raw_outputs = []
+                types_to_query = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME', 'SOA']
+                
+                for rtype in types_to_query:
+                    result = subprocess.run(
+                        ['dig', '+noall', '+answer', '+authority', target, rtype],
+                        capture_output=True,
+                        text=True,
+                        timeout=30
+                    )
+                    if result.returncode == 0:
+                        records = ToolsService._parse_dig(result.stdout)
+                        all_records.extend(records)
+                        raw_outputs.append(f"=== {rtype} ===\n{result.stdout}")
+                
+                raw_output = '\n'.join(raw_outputs)
+            else:
+                result = subprocess.run(
+                    ['dig', '+noall', '+answer', '+authority', target, record_type],
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                all_records = ToolsService._parse_dig(result.stdout)
+                raw_output = result.stdout
             
             return {
                 'success': True,
                 'target': target,
                 'record_type': record_type,
-                'raw_output': result.stdout,
+                'raw_output': raw_output,
                 'parsed': {
-                    'records': records
+                    'records': all_records
                 },
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }

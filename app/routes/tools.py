@@ -1693,7 +1693,7 @@ def query_shodan():
     except ValueError:
         query_type = 'search'
     
-    task = shodan_async.delay(scan_id, query, g.current_user.id, query_type)
+    task = shodan_async.delay(scan_id, query, g.current_user.id, query_type, shodan_api_key)
     
     # Store task metadata in Redis for queue display
     from app import redis_client
@@ -1715,6 +1715,48 @@ def query_shodan():
         'status': 'queued',
         'message': 'Shodan query queued for processing'
     }), 202
+
+
+@tools_bp.route('/shodan/test', methods=['POST'])
+@login_or_api_key_required
+@permission_required('tools.execute')
+def test_shodan():
+    """
+    Test Shodan API connection (synchronous, for testing API keys).
+    ---
+    tags:
+      - Tools
+    summary: Test Shodan Connection
+    requestBody:
+      description: API key to test
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - api_key
+            properties:
+              api_key:
+                type: string
+                description: Shodan API key to test
+    responses:
+      200:
+        description: Connection test result
+    """
+    from app.services.tools_service import ToolsService
+    
+    data = request.get_json()
+    api_key = data.get('api_key', '').strip()
+    
+    if not api_key:
+        return jsonify({'success': False, 'error': 'API key is required'}), 400
+    
+    # Test with a simple query (Google DNS)
+    tools = ToolsService()
+    result = tools.shodan_query('8.8.8.8', api_key)
+    
+    return jsonify(result)
 
 
 # ============================================================================

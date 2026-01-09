@@ -325,74 +325,51 @@ waitForJQuery(function() {
         console.log('Testing Shodan connection...');
         
         $.ajax({
-            url: '/api/settings/shodan',
+            url: '/api/tools/shodan/test',
             method: 'POST',
             contentType: 'application/json',
             data: JSON.stringify({
-                api_key: apiKey,
-                enabled: true
+                api_key: apiKey
             }),
-            success: function(saveResponse) {
-                console.log('API key saved for testing');
-                
-                $.ajax({
-                    url: '/api/tools/shodan',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        query: '8.8.8.8'
-                    }),
-                    success: function(response) {
-                        console.log('Test response:', response);
-                        let resultHtml = '';
-                        if (response.success) {
-                            resultHtml = `
-                                <div class="alert alert-success">
-                                    <i class="bi bi-check-circle me-2"></i> <strong>Connection Successful!</strong>
-                                    <p class="mb-0 mt-2">Your Shodan API key is valid and working correctly.</p>
-                                </div>
-                                <div class="info-card">
-                                    <strong>Test Result:</strong>
-                                    <p class="mb-0 small">Organization: ${response.data?.org || 'N/A'}</p>
-                                    <p class="mb-0 small">Country: ${response.data?.country || 'N/A'}</p>
-                                    <p class="mb-0 small">Open Ports: ${response.data?.ports?.length || 0}</p>
-                                </div>
-                            `;
-                        } else {
-                            resultHtml = `
-                                <div class="alert alert-warning">
-                                    <i class="bi bi-exclamation-circle me-2"></i> <strong>Connection Failed</strong>
-                                    <p class="mb-0 mt-2">${response.error || 'Unknown error'}</p>
-                                </div>
-                            `;
-                        }
-                        $('#testResultsContent').html(resultHtml);
-                        $('#testResultsCard').show();
-                        $btn.prop('disabled', false).html(originalText);
-                    },
-                    error: function(xhr) {
-                        console.error('Test error:', xhr);
-                        const msg = xhr.responseJSON?.error || 'Connection test failed';
-                        let resultHtml = `
-                            <div class="alert alert-danger">
-                                <i class="bi bi-x-circle me-2"></i> <strong>Connection Failed</strong>
-                                <p class="mb-0 mt-2">${msg}</p>
-                            </div>
-                        `;
-                        $('#testResultsContent').html(resultHtml);
-                        $('#testResultsCard').show();
-                        $btn.prop('disabled', false).html(originalText);
-                    }
-                });
+            success: function(response) {
+                console.log('Test response:', response);
+                let resultHtml = '';
+                if (response.success) {
+                    resultHtml = `
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i> <strong>Connection Successful!</strong>
+                            <p class="mb-0 mt-2">Your Shodan API key is valid and working correctly.</p>
+                        </div>
+                        <div class="info-card">
+                            <strong>Test Result:</strong>
+                            <p class="mb-0 small">Organization: ${response.data?.org || 'N/A'}</p>
+                            <p class="mb-0 small">Country: ${response.data?.country || 'N/A'}</p>
+                            <p class="mb-0 small">Open Ports: ${response.data?.ports?.length || 0}</p>
+                        </div>
+                    `;
+                } else {
+                    resultHtml = `
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-circle me-2"></i> <strong>Connection Failed</strong>
+                            <p class="mb-0 mt-2">${response.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+                $('#testResultsContent').html(resultHtml);
+                $('#testResultsCard').show();
+                $btn.prop('disabled', false).html(originalText);
             },
             error: function(xhr) {
-                console.error('Error saving API key:', xhr);
-                const msg = 'Failed to save API key for testing';
-                if (typeof showAlert === 'function') {
-                    showAlert(msg, 'danger');
-                } else {
-                    alert(msg);
-                }
+                console.error('Test error:', xhr);
+                const msg = xhr.responseJSON?.error || 'Connection test failed';
+                let resultHtml = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-x-circle me-2"></i> <strong>Connection Failed</strong>
+                        <p class="mb-0 mt-2">${msg}</p>
+                    </div>
+                `;
+                $('#testResultsContent').html(resultHtml);
+                $('#testResultsCard').show();
                 $btn.prop('disabled', false).html(originalText);
             }
         });

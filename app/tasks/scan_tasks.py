@@ -332,7 +332,7 @@ def geoip_async(self, scan_id: str, target: str, user_id: str):
 
 
 @celery.task(bind=True, max_retries=2, soft_time_limit=120)
-def shodan_async(self, scan_id: str, target: str, user_id: str, query_type: str = 'host'):
+def shodan_async(self, scan_id: str, target: str, user_id: str, query_type: str = 'host', shodan_api_key: str = ''):
     """
     Query Shodan asynchronously.
     """
@@ -345,14 +345,9 @@ def shodan_async(self, scan_id: str, target: str, user_id: str, query_type: str 
     _init_scan_doc(es, scan_id, 'shodan', target, user_id, {'query_type': query_type})
     
     try:
-        # Get API key from Flask config
-        from flask import current_app
-        from app.config import Config
-        
-        try:
-            shodan_api_key = current_app.config.get('SHODAN_API_KEY') or Config.SHODAN_API_KEY
-        except RuntimeError:
-            # Outside of app context, use config directly
+        # Use provided API key or fall back to config
+        if not shodan_api_key:
+            from app.config import Config
             shodan_api_key = Config.SHODAN_API_KEY
         
         if not shodan_api_key:
