@@ -135,7 +135,6 @@ Documentation & Analysis
 ## Environment Variables
 
 | Variable | Default | Description |
-
 |---|---|---|
 | `FLASK_ENV` | `development` | Flask environment |
 | `FLASK_APP` | `app` | Flask application entrypoint |
