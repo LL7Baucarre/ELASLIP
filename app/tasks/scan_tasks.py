@@ -681,3 +681,28 @@ def analyze_dmarc_dkim_async(self, domain: str, user_id: str):
     except Exception as e:
         logger.error(f"[DMARC/DKIM] Task failed for {domain}: {str(e)}", exc_info=True)
         return {'error': str(e), 'success': False}
+
+@celery.task(name='get_worker_public_ip', bind=True)
+def get_worker_public_ip_async(self):
+    """
+    Get the public IP of the worker running this task.
+    This is executed on the worker and returns the actual worker IP.
+    
+    Returns:
+        Dict with public IP information
+    """
+    try:
+        import os
+        vpn_enabled = os.environ.get('VPN_ENABLED', 'false').lower() == 'true'
+        logger.info(f"[TASK] get_worker_public_ip_async running - VPN_ENABLED={vpn_enabled}")
+        
+        ip_info = ToolsService.get_public_ip()
+        logger.info(f"[TASK] Worker public IP result: {ip_info}")
+        return ip_info
+    except Exception as e:
+        logger.error(f"[TASK] Failed to get worker public IP: {str(e)}", exc_info=True)
+        return {
+            'ip': 'Unknown',
+            'dns': 'Unknown',
+            'error': str(e)
+        }

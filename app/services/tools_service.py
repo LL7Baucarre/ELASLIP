@@ -57,6 +57,37 @@ class ToolsService:
                     # Fallback to public DNS
                     result['dns'] = ['1.1.1.1', '8.8.8.8']
             
+            # Check if running with VPN (Gluetun)
+            vpn_enabled = os.environ.get('VPN_ENABLED', 'false').lower() == 'true'
+            logger.info(f"[PUBLIC-IP] VPN_ENABLED env var: {vpn_enabled}")
+            
+            if vpn_enabled:
+                try:
+                    import urllib.request
+                    import json
+                    # Try to get IP from Gluetun control API (localhost on shared network)
+                    logger.info("[PUBLIC-IP] Attempting to get IP from Gluetun API at 127.0.0.1:8000")
+                    req = urllib.request.Request(
+                        'http://127.0.0.1:8000/v1/publicip/ip',
+                        headers={'User-Agent': 'Mozilla/5.0'}
+                    )
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = json.loads(response.read().decode())
+                        # Gluetun API returns {"public_ip": "...", ...}
+                        ip_text = data.get('public_ip', '').strip()
+                        if ip_text:
+                            result['ip'] = ip_text
+                            result['success'] = True
+                            result['service'] = 'gluetun-vpn'
+                            result['vpn_enabled'] = True
+                            result['region'] = data.get('region', '')
+                            result['country'] = data.get('country', '')
+                            logger.info(f"[PUBLIC-IP] Successfully got IP from Gluetun: {ip_text} ({data.get('country', '')})")
+                            return result
+                except Exception as e:
+                    logger.warning(f"[PUBLIC-IP] VPN enabled but Gluetun API failed: {e}")
+                    # Fall through to regular IP detection
+            
             # Try multiple public IP services for redundancy
             services = [
                 'https://api.ipify.org?format=json',
@@ -64,10 +95,12 @@ class ToolsService:
                 'https://ipinfo.io/json'
             ]
             
+            logger.info("[PUBLIC-IP] Trying fallback public IP services")
             for service in services:
                 try:
                     import urllib.request
                     
+                    logger.debug(f"[PUBLIC-IP] Trying service: {service}")
                     req = urllib.request.Request(
                         service,
                         headers={'User-Agent': 'Mozilla/5.0'}
@@ -81,14 +114,20 @@ class ToolsService:
                             result['ip'] = data['ip']
                             result['success'] = True
                             result['service'] = service
+                            if vpn_enabled:
+                                result['vpn_enabled'] = True
+                            logger.info(f"[PUBLIC-IP] Got IP from {service}: {data['ip']}")
                             return result
                         elif 'query' in data:
                             result['ip'] = data['query']
                             result['success'] = True
                             result['service'] = service
+                            if vpn_enabled:
+                                result['vpn_enabled'] = True
+                            logger.info(f"[PUBLIC-IP] Got IP from {service}: {data['query']}")
                             return result
                 except Exception as e:
-                    logger.debug(f"[PUBLIC-IP] Failed with {service}: {e}")
+                    logger.warning(f"[PUBLIC-IP] Failed with {service}: {e}")
                     continue
             
             if result['ip']:

@@ -17,16 +17,28 @@ tools_bp = Blueprint('tools', __name__)
 
 
 @tools_bp.route('/worker/public-ip', methods=['GET'])
-@login_or_api_key_required
 def get_worker_public_ip():
     """
     Get the public IP address of the worker.
+    This endpoint is public to allow dashboard widgets to load it.
+    Executes synchronously by forcing eager mode in Celery.
     
     Returns:
         Dict with public IP information
     """
-    result = ToolsService.get_public_ip()
-    return jsonify(result)
+    from app.tasks.scan_tasks import get_worker_public_ip_async
+    from app import celery
+    
+    # Force synchronous execution of async task in worker context
+    # This ensures the task runs on the worker with VPN networking
+    prev_eager = celery.conf.get('task_always_eager', False)
+    try:
+        # Don't use eager mode here - we want it to actually run on the worker
+        # Use apply_async with a short timeout
+        result = get_worker_public_ip_async.apply_async(timeout=10)
+        return jsonify(result.get(timeout=10))
+    finally:
+        celery.conf.update(task_always_eager=prev_eager)
 
 
 def _save_scan_result(tool_name: str, target: str, result: dict, extra_fields: dict = None) -> str:

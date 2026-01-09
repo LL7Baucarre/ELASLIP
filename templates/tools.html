@@ -102,8 +102,6 @@
         </h4>
         <small class="text-muted" id="workerInfoSubtitle" style="display: none;">
             <i class="bi bi-server me-1"></i>Worker IP: <code id="workerIp">Loading...</code>
-            <span style="margin: 0 8px;">•</span>
-            <i class="bi bi-globe me-1"></i>DNS: <code id="workerDns">Loading...</code>
         </small>
     </div>
 </div>
@@ -1381,15 +1379,6 @@ $(document).ready(function() {
         success: function(response) {
             if (response.success && response.ip) {
                 $('#workerIp').text(response.ip);
-                
-                // Display DNS servers (first 2)
-                if (response.dns && response.dns.length > 0) {
-                    const dnsDisplay = response.dns.slice(0, 2).join(', ');
-                    $('#workerDns').text(dnsDisplay);
-                } else {
-                    $('#workerDns').text('Not available');
-                }
-                
                 $('#workerInfoSubtitle').show();
             }
         },
