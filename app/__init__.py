@@ -99,7 +99,7 @@ def create_app(config_name=None):
         "swagger": "2.0",
         "info": {
             "title": app.config.get('SITE_TITLE', 'ELASLIP') + " API",
-            "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
+            "description": "Comprehensive API for STIX Objects, investigations, incidents, checklists, and security operations with role-based access control.",
             "version": "1.3.5",
             "contact": {
                 "name": "ELASLIP Support",
