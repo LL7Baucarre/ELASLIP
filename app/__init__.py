@@ -269,7 +269,7 @@ def create_app(config_name=None):
     celery = create_celery_app(app)
     
     # Import task modules so Celery can discover them
-    from app.tasks import scan_tasks, webhook_tasks
+    from app.tasks import scan_tasks, webhook_tasks, urlscan_tasks, report_tasks
     
     # Initialize Elasticsearch indices
     from app.elasticsearch.init_indices import init_elasticsearch
@@ -339,4 +339,4 @@ def create_app(config_name=None):
 celery = create_celery_app()
 # Import tasks so they're registered with the worker
 # Only essential async tasks are imported
-from app.tasks import scan_tasks, webhook_tasks
+from app.tasks import scan_tasks, webhook_tasks, urlscan_tasks, report_tasks
