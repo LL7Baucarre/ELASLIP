@@ -541,7 +541,7 @@ Content-Type: application/json
 
                 <p><strong>Webhook Automation:</strong></p>
                 <pre><code>Create webhooks to receive events:
-- ioc.created
+- stix.created
 - ioc.updated  
 - report.llm_created
 - case.created
@@ -607,7 +607,7 @@ Then integrate with SOAR, ticketing, or notification systems.</code></pre>
             </div>
             <div class="card-body">
                 <h6 class="mt-4">Issue: IOC not appearing after import</h6>
-                <p><strong>Solution:</strong> Check that you have the <code>ioc.view</code> permission. IOCs may be filtered by threat level or search term. Clear search filters and reload.</p>
+                <p><strong>Solution:</strong> Check that you have the <code>stix.view</code> permission. IOCs may be filtered by threat level or search term. Clear search filters and reload.</p>
 
                 <h6 class="mt-4">Issue: Can't link IOC to case</h6>
                 <p><strong>Solution:</strong> Ensure you have <code>case.edit</code> permission. Verify the IOC and case both exist and aren't in deleted state.</p>

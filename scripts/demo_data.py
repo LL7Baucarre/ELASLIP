@@ -1989,7 +1989,7 @@ def populate_demo_data():
                 'user_id': resource_user_id,
                 'name': 'Demo Webhook - Slack Integration',
                 'url': 'https://hooks.slack.com/services/demo/webhook/url',
-                'events': ['ioc.created', 'ioc.updated'],
+                'events': ['stix.created', 'ioc.updated'],
                 'enabled': True,
                 'created_at': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow().isoformat()

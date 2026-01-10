@@ -13,12 +13,12 @@ def permission_required(*permissions, require_all=False):
     Automatically includes login_required check.
     
     Args:
-        *permissions: Permission strings to check (e.g., 'ioc.create', 'case.edit')
+        *permissions: Permission strings to check (e.g., 'stix.create', 'case.edit')
         require_all: If True, user must have ALL permissions. If False, ANY permission.
     
     Usage:
-        @permission_required('ioc.create', 'ioc.edit')  # requires ANY
-        @permission_required('ioc.create', require_all=True)  # requires ALL
+        @permission_required('stix.create', 'stix.edit')  # requires ANY
+        @permission_required('stix.create', require_all=True)  # requires ALL
     """
     def decorator(f):
         @wraps(f)

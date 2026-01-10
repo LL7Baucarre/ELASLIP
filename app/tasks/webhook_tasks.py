@@ -17,7 +17,7 @@ def dispatch_webhook(self, event: str, data: Dict[str, Any]):
     Dispatch webhooks for an event.
     
     Args:
-        event: Event type (e.g., 'ioc.created')
+        event: Event type (e.g., 'stix.created')
         data: Event data (IOC or import result)
     """
     es = ElasticsearchService()

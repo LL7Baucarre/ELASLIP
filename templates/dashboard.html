@@ -19,7 +19,7 @@
                 <i class="bi bi-plus-lg me-1"></i> Create
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="createDropdown">
-                {% if has_permission('ioc.create') %}
+                {% if has_permission('stix.create') %}
                 <li><a class="dropdown-item" href="{{ url_for('stix.add_stix_object_page') }}">
                     <i class="bi bi-boxes me-2"></i> STIX Object
                 </a></li>
@@ -427,7 +427,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    {% if has_permission('ioc.create') %}
+                    {% if has_permission('stix.create') %}
                     <a href="{{ url_for('stix.add_stix_object_page') }}" class="btn btn-outline-primary">
                         <i class="bi bi-plus-lg me-2"></i> Add STIX Object
                     </a>

@@ -21,7 +21,7 @@ stix_bp = Blueprint('stix', __name__)
 # ============================================================================
 
 @stix_bp.route('/api/stix/objects', methods=['POST'])
-@permission_required('ioc.create')
+@permission_required('stix.create')
 def create_stix_object():
     """
     Create a new STIX Domain Object
@@ -81,7 +81,7 @@ def create_stix_object():
 
 
 @stix_bp.route('/api/stix/objects', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def list_stix_objects():
     """
     List STIX objects with pagination and filtering
@@ -118,7 +118,7 @@ def list_stix_objects():
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_stix_object(stix_id):
     """Get a single STIX object by ID"""
     try:
@@ -134,7 +134,7 @@ def get_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['PUT'])
-@permission_required('ioc.edit')
+@permission_required('stix.edit')
 def update_stix_object(stix_id):
     """Update a STIX object"""
     try:
@@ -177,7 +177,7 @@ def update_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['DELETE'])
-@permission_required('ioc.delete')
+@permission_required('stix.delete')
 def delete_stix_object(stix_id):
     """Delete a STIX object and its relationships"""
     try:
@@ -213,7 +213,7 @@ def delete_stix_object(stix_id):
 
 @stix_bp.route('/api/stix/objects/merge', methods=['POST'])
 @login_required
-@permission_required('ioc.create')
+@permission_required('stix.create')
 def merge_stix_objects():
     """
     Merge two STIX objects together.
@@ -294,7 +294,7 @@ def merge_stix_objects():
 
 @stix_bp.route('/api/stix/objects/<stix_id>/merge-history', methods=['GET'])
 @login_required
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_merge_history_debug(stix_id):
     """Debug endpoint to check merge history for a STIX object"""
     try:
@@ -325,7 +325,7 @@ def get_merge_history_debug(stix_id):
 
 @stix_bp.route('/api/stix/objects/<stix_id>/bundle', methods=['GET'])
 @login_required
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def export_stix_bundle(stix_id):
     """Export a STIX object with all its relationships as a STIX 2.1 Bundle"""
     try:
@@ -345,7 +345,7 @@ def export_stix_bundle(stix_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/relationships', methods=['POST'])
-@permission_required('ioc.create')
+@permission_required('stix.create')
 def create_relationship():
     """
     Create a STIX relationship between two objects
@@ -414,7 +414,7 @@ def create_relationship():
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/relationships', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_object_relationships(stix_id):
     """Get all relationships for a STIX object"""
     try:
@@ -432,7 +432,7 @@ def get_object_relationships(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/related', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_related_objects(stix_id):
     """Get all related objects and relationships for a STIX object"""
     try:
@@ -449,7 +449,7 @@ def get_related_objects(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/linked-entities', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_linked_entities(stix_id):
     """Get all cases and incidents that contain this STIX object"""
     try:
@@ -514,7 +514,7 @@ def get_linked_entities(stix_id):
 
 
 @stix_bp.route('/api/stix/relationships/<rel_id>', methods=['DELETE'])
-@permission_required('ioc.delete')
+@permission_required('stix.delete')
 def delete_relationship(rel_id):
     """Delete a STIX relationship"""
     try:
@@ -545,7 +545,7 @@ def delete_relationship(rel_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/search', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def search_stix_objects():
     """
     Search STIX objects
@@ -577,7 +577,7 @@ def search_stix_objects():
 
 
 @stix_bp.route('/api/stix/objects/available', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_available_for_linking():
     """
     Get available STIX objects for linking (creating relationships)
@@ -601,7 +601,7 @@ def get_available_for_linking():
 
 
 @stix_bp.route('/api/stix/types', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_sdo_types():
     """Get available STIX SDO types and their field specifications"""
     return jsonify({
@@ -611,7 +611,7 @@ def get_sdo_types():
 
 
 @stix_bp.route('/api/stix/graph-data', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_graph_data():
     """
     Get graph data for STIX visualization with depth control
@@ -711,7 +711,7 @@ def edit_stix_object_page(stix_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrich', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def enrich_stix_object(stix_id):
     """
     Enrich a STIX object using external APIs.
@@ -804,7 +804,7 @@ def enrich_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrich/auto', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def auto_enrich_stix_object(stix_id):
     """
     Automatically enrich a STIX object and store all results.
@@ -909,7 +909,7 @@ def auto_enrich_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/store-enrichment', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def store_stix_enrichment(stix_id):
     """
     Store selected enrichment fields into a STIX object.
@@ -981,7 +981,7 @@ def store_stix_enrichment(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrichment', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_stix_enrichment(stix_id):
     """
     Get enrichment data for a STIX object.
