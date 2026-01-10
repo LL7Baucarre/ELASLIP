@@ -309,6 +309,178 @@ class STIXService:
         return stix_object
     
     @classmethod
+    def import_stix_object(cls, stix_object: Dict[str, Any],
+                          user_id: Optional[str] = None, 
+                          username: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Import a complete STIX object from JSON (with id, created, modified already set)
+        
+        Args:
+            stix_object: Complete STIX 2.1 object with all required fields
+            user_id: Optional user ID who imported this object
+            username: Optional username who imported this object
+            
+        Returns:
+            The imported STIX object
+        """
+        # Validate required STIX fields
+        required_fields = ['type', 'id', 'created', 'modified']
+        for field in required_fields:
+            if field not in stix_object:
+                raise ValueError(f"Missing required STIX field: '{field}'")
+        
+        sdo_type = stix_object.get('type')
+        
+        if sdo_type not in cls.SDO_TYPES:
+            raise ValueError(f"Unsupported STIX object type: {sdo_type}")
+        
+        # Check if object already exists
+        existing = cls.get_sdo(stix_object['id'])
+        if existing:
+            # Update with new data, preserving existing metadata if not in import
+            now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            updates = {
+                "modified": now,
+            }
+            
+            # Update fields from import (but preserve some ELASLIP fields)
+            for key, value in stix_object.items():
+                if key not in ['id', 'created'] and value is not None:
+                    updates[key] = value
+            
+            # Add import metadata
+            if user_id and not existing.get("x_elaslip_created_by_user_id"):
+                updates["x_elaslip_created_by_user_id"] = user_id
+            if username and not existing.get("x_elaslip_created_by_username"):
+                updates["x_elaslip_created_by_username"] = username
+            
+            return cls.update_sdo(stix_object['id'], updates, 
+                                 user_id=user_id, username=username,
+                                 source_type="json_import")
+        
+        # Object doesn't exist - store as-is with import metadata
+        imported = dict(stix_object)
+        
+        # Ensure spec_version is set
+        if 'spec_version' not in imported:
+            imported['spec_version'] = '2.1'
+        
+        # Add ELASLIP metadata
+        if user_id:
+            imported["x_elaslip_created_by_user_id"] = user_id
+        if username:
+            imported["x_elaslip_created_by_username"] = username
+        
+        # Track import as a source
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        imported["x_elaslip_sources"] = [{
+            "type": "json_import",
+            "user_id": user_id,
+            "username": username,
+            "imported_at": now
+        }]
+        
+        # Index in Elasticsearch
+        es = ElasticsearchService().client
+        es.index(
+            index=cls.STIX_OBJECTS_INDEX,
+            id=imported['id'],
+            document=imported,
+            refresh=True
+        )
+        
+        return imported
+    
+    @classmethod
+    def import_stix_bundle(cls, bundle: Dict[str, Any],
+                          user_id: Optional[str] = None,
+                          username: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Import a STIX bundle containing multiple objects and relationships
+        
+        Args:
+            bundle: STIX 2.1 bundle with "objects" array and optional "relationships" array
+            user_id: Optional user ID who imported this bundle
+            username: Optional username who imported this bundle
+            
+        Returns:
+            Dictionary with import statistics and imported object IDs
+        """
+        if bundle.get('type') != 'bundle':
+            raise ValueError("Expected STIX bundle object (type='bundle')")
+        
+        if 'objects' not in bundle:
+            raise ValueError("Bundle must contain 'objects' array")
+        
+        imported_objects = []
+        imported_relationships = []
+        imported_object_ids = []
+        errors = []
+        
+        # Import all objects first
+        for stix_object in bundle.get('objects', []):
+            try:
+                # Skip if not a valid STIX object
+                if 'type' not in stix_object or 'id' not in stix_object:
+                    errors.append(f"Invalid object: missing type or id")
+                    continue
+                
+                # Skip bundle objects within bundles
+                if stix_object.get('type') == 'bundle':
+                    continue
+                
+                # Check if it's a relationship - handle separately
+                if stix_object.get('type') == 'relationship':
+                    imported_relationships.append(stix_object)
+                    continue
+                
+                # Import regular STIX object (SDO)
+                if stix_object.get('type') in cls.SDO_TYPES:
+                    # Validate required fields for SDO
+                    if 'created' not in stix_object or 'modified' not in stix_object:
+                        errors.append(f"Object {stix_object.get('id')}: missing created or modified")
+                        continue
+                    
+                    imported = cls.import_stix_object(
+                        stix_object=stix_object,
+                        user_id=user_id,
+                        username=username
+                    )
+                    imported_objects.append(imported)
+                    imported_object_ids.append(imported['id'])
+            except Exception as e:
+                errors.append(f"Failed to import object: {str(e)}")
+                # Continue with other objects
+                continue
+        
+        # Import relationships from bundle
+        for rel in imported_relationships:
+            try:
+                # Relationships might be in bundle objects or separate
+                # We'll try to create them
+                if 'source_ref' in rel and 'target_ref' in rel:
+                    cls.create_relationship(
+                        source_ref=rel.get('source_ref'),
+                        target_ref=rel.get('target_ref'),
+                        relationship_type=rel.get('relationship_type', 'related-to'),
+                        description=rel.get('description'),
+                        user_id=user_id,
+                        username=username,
+                        bundle_import=True
+                    )
+            except Exception as e:
+                errors.append(f"Failed to import relationship: {str(e)}")
+                # Continue with other relationships
+                continue
+        
+        return {
+            'objects_imported': len(imported_objects),
+            'relationships_imported': len(imported_relationships),
+            'imported_object_ids': imported_object_ids,
+            'errors': errors if errors else None
+        }
+    
+    @classmethod
     def get_sdo(cls, stix_id: str) -> Optional[Dict[str, Any]]:
         """Get a STIX object by ID"""
         es = ElasticsearchService().client

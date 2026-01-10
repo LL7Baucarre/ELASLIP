@@ -816,6 +816,166 @@ function resetForm() {
         handleTypeChange();
     }
 }
+
+/**
+ * JSON Import Functions
+ */
+function clearJsonInput() {
+    document.getElementById('jsonInput').value = '';
+    document.getElementById('jsonFile').value = '';
+    hideJsonValidation();
+}
+
+function hideJsonValidation() {
+    document.getElementById('jsonValidationAlert').classList.add('d-none');
+    document.getElementById('jsonValidationMsg').textContent = '';
+}
+
+function showJsonValidation(message, isError = false) {
+    const alert = document.getElementById('jsonValidationAlert');
+    const msgSpan = document.getElementById('jsonValidationMsg');
+    
+    alert.classList.remove('d-none');
+    alert.classList.remove('alert-info', 'alert-danger', 'alert-success');
+    
+    if (isError) {
+        alert.classList.add('alert-danger');
+        msgSpan.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>' + message;
+    } else {
+        alert.classList.add('alert-success');
+        msgSpan.innerHTML = '<i class="bi bi-check-circle me-2"></i>' + message;
+    }
+}
+
+/**
+ * Load JSON file and populate textarea
+ */
+let selectedFile = null;
+
+function loadJsonFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    selectedFile = file;
+    showJsonValidation(`File selected: ${file.name}`, false);
+}
+
+function loadJsonFromFile() {
+    if (!selectedFile) {
+        showJsonValidation('Please select a file first', true);
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const content = e.target.result;
+            // Try to parse to validate it's valid JSON
+            JSON.parse(content);
+            // If valid, populate textarea
+            document.getElementById('jsonInput').value = content;
+            showJsonValidation(`File loaded successfully: ${selectedFile.name}`, false);
+        } catch (error) {
+            showJsonValidation(`Invalid JSON in file: ${error.message}`, true);
+        }
+    };
+    reader.onerror = function() {
+        showJsonValidation('Error reading file', true);
+    };
+    reader.readAsText(selectedFile);
+}
+
+async function importJsonStix() {
+    const jsonInput = document.getElementById('jsonInput').value.trim();
+    
+    if (!jsonInput) {
+        showJsonValidation('Please paste STIX JSON or load a file first', true);
+        return;
+    }
+
+    try {
+        // Parse JSON
+        const stixObject = JSON.parse(jsonInput);
+        
+        // Validate STIX object
+        if (!stixObject.type || !stixObject.id) {
+            showJsonValidation('Invalid STIX object: missing type or id', true);
+            return;
+        }
+
+        // For bundles, only check that it has objects array
+        if (stixObject.type === 'bundle') {
+            if (!Array.isArray(stixObject.objects) || stixObject.objects.length === 0) {
+                showJsonValidation('Invalid STIX bundle: must contain objects array with at least one object', true);
+                return;
+            }
+        } else {
+            // For individual objects, require created and modified timestamps
+            if (!stixObject.created || !stixObject.modified) {
+                showJsonValidation('Invalid STIX object: missing created or modified timestamps', true);
+                return;
+            }
+        }
+
+        // Show loading state
+        const btn = document.getElementById('importJsonBtn');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i> Importing...';
+
+        // Send to server
+        const response = await fetch('/api/stix/import-json', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(stixObject)
+        });
+
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+
+        if (!response.ok) {
+            const error = await response.json();
+            showJsonValidation(error.error || 'Failed to import STIX object', true);
+            return;
+        }
+
+        const result = await response.json();
+        
+        // Handle bundle vs single object response
+        if (result.bundle_id) {
+            // Bundle import
+            let msg = `Successfully imported bundle: <strong>${result.objects_imported}</strong> objects`;
+            if (result.relationships_imported > 0) {
+                msg += `, <strong>${result.relationships_imported}</strong> relationships`;
+            }
+            showJsonValidation(msg, false);
+        } else {
+            // Single object import
+            showJsonValidation(`Successfully imported ${stixObject.type} object: ${stixObject.id}`, false);
+        }
+        
+        // Clear input and redirect after 2 seconds
+        setTimeout(() => {
+            clearJsonInput();
+            // For single objects, redirect to detail page
+            if (result.id) {
+                window.location.href = `/stix/objects/${result.id}`;
+            } else if (result.imported_objects && result.imported_objects[0]) {
+                // For bundles, redirect to first imported object
+                window.location.href = `/stix/objects/${result.imported_objects[0]}`;
+            } else {
+                // Fallback to list
+                window.location.href = `/stix/objects`;
+            }
+        }, 2000);
+
+    } catch (e) {
+        showJsonValidation(`JSON Parse Error: ${e.message}`, true);
+    }
+}
+
 // Debounce utility function (like in detail.html)
 function debounce(func, wait) {
     let timeout;

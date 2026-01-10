@@ -64,15 +64,35 @@
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
                     <h1 class="h3 mb-1"><i class="bi bi-plus-circle me-2"></i>Add STIX Object</h1>
-                    <p class="text-muted mb-0">Create any STIX 2.1 Domain Object (SDO)</p>
+                    <p class="text-muted mb-0">Create or import any STIX 2.1 Domain Object (SDO)</p>
                 </div>
                 <a href="{{ url_for('stix.list_stix_objects_page') }}" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left me-1"></i> Back to List
                 </a>
             </div>
+
+            <!-- Tab Navigation -->
+            <ul class="nav nav-tabs nav-fill mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="form-tab" data-bs-toggle="tab" data-bs-target="#form-content" 
+                            type="button" role="tab" aria-controls="form-content" aria-selected="true">
+                        <i class="bi bi-pencil-square me-1"></i> Create Form
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="import-tab" data-bs-toggle="tab" data-bs-target="#import-content" 
+                            type="button" role="tab" aria-controls="import-content" aria-selected="false">
+                        <i class="bi bi-file-earmark-json me-1"></i> Paste JSON
+                    </button>
+                </li>
+            </ul>
         </div>
     </div>
 
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Form Tab -->
+        <div class="tab-pane fade show active" id="form-content" role="tabpanel" aria-labelledby="form-tab">
     <form id="stixForm" method="POST">
         <div class="row">
             <!-- Main Form Column -->
@@ -243,7 +263,104 @@
             </div>
         </div>
     </form>
-</div>
+        </div>
+
+        <!-- Import JSON Tab -->
+        <div class="tab-pane fade" id="import-content" role="tabpanel" aria-labelledby="import-tab">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-file-earmark-json me-2"></i>Import STIX Object from JSON</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- File Upload Section -->
+                            <div class="field-group mb-4">
+                                <label for="jsonFile" class="form-label">Upload JSON File</label>
+                                <div class="input-group">
+                                    <input type="file" id="jsonFile" class="form-control" accept=".json,.txt" onchange="loadJsonFile(event)">
+                                    <button class="btn btn-outline-secondary" type="button" id="loadFileBtn" onclick="loadJsonFromFile()">
+                                        <i class="bi bi-upload me-1"></i> Load
+                                    </button>
+                                </div>
+                                <small class="text-muted">Select a .json or .txt file containing STIX JSON</small>
+                            </div>
+
+                            <div class="text-center mb-3">
+                                <small class="text-muted">— OR —</small>
+                            </div>
+
+                            <div class="field-group mb-3">
+                                <label for="jsonInput" class="form-label required-field">Paste STIX JSON</label>
+                                <textarea id="jsonInput" class="form-control font-monospace" rows="15" 
+                                          placeholder="{&#10;  &quot;type&quot;: &quot;malware&quot;,&#10;  &quot;id&quot;: &quot;malware--...&quot;,&#10;  &quot;created&quot;: &quot;2024-01-10T00:00:00.000Z&quot;,&#10;  &quot;modified&quot;: &quot;2024-01-10T00:00:00.000Z&quot;,&#10;  &quot;name&quot;: &quot;...&quot;,&#10;  &quot;description&quot;: &quot;...&quot;&#10;}"></textarea>
+                                <small class="text-muted">Or paste valid STIX 2.1 JSON directly</small>
+                            </div>
+
+                            <div id="jsonValidationAlert" class="alert alert-info d-none" role="alert">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span id="jsonValidationMsg"></span>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-primary btn-lg" id="importJsonBtn" onclick="importJsonStix()">
+                                    <i class="bi bi-check-circle me-2"></i> Import STIX Object
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearJsonInput()">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-question-circle me-2"></i>Format Requirements</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>Single STIX Object:</h6>
+                            <ul class="small mb-3">
+                                <li>Must be valid STIX 2.1 JSON format</li>
+                                <li>Must include required fields: <code>type</code>, <code>id</code>, <code>created</code>, <code>modified</code></li>
+                                <li>Supported object types: <code>indicator</code>, <code>malware</code>, <code>threat-actor</code>, <code>campaign</code>, <code>attack-pattern</code>, <code>vulnerability</code>, <code>report</code>, etc.</li>
+                                <li>Can include relationships, external references, and custom properties</li>
+                                <li>Timestamps must be in ISO 8601 format (UTC)</li>
+                            </ul>
+                            
+                            <h6>STIX Bundle:</h6>
+                            <ul class="small">
+                                <li>Must have <code>"type": "bundle"</code></li>
+                                <li>Must contain <code>"objects"</code> array with STIX objects</li>
+                                <li>Can contain <code>"relationships"</code> array to link objects</li>
+                                <li>All objects and relationships will be imported automatically</li>
+                                <li>Objects are deduplicated if they already exist</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-example me-2"></i>Example</h5>
+                        </div>
+                        <div class="card-body">
+                            <pre class="small" style="max-height: 400px; overflow-y: auto;"><code id="exampleJson">{
+  "type": "malware",
+  "id": "malware--12345678-1234-1234-1234-123456789012",
+  "created": "2024-01-10T12:00:00.000Z",
+  "modified": "2024-01-10T12:00:00.000Z",
+  "name": "Example Malware",
+  "description": "A test malware object",
+  "malware_types": ["trojan"],
+  "labels": ["malicious-code"]
+}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
 <!-- Add Relationship Modal -->
 <div class="modal fade" id="addRelationshipModal" tabindex="-1">

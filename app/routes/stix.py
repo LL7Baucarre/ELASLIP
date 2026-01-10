@@ -80,6 +80,111 @@ def create_stix_object():
         return jsonify({"error": f"Failed to create STIX object: {str(e)}"}), 500
 
 
+@stix_bp.route('/api/stix/import-json', methods=['POST'])
+@permission_required('stix.create')
+def import_stix_json():
+    """
+    Import STIX objects or bundles from JSON
+    
+    Expected JSON body: Either a STIX object or a STIX bundle
+    
+    STIX Object:
+    {
+        "type": "indicator|malware|threat-actor|...",
+        "id": "indicator--12345678-...",
+        "created": "2024-01-10T12:00:00.000Z",
+        "modified": "2024-01-10T12:00:00.000Z",
+        "name": "Object name",
+        ...
+    }
+    
+    STIX Bundle:
+    {
+        "type": "bundle",
+        "id": "bundle--12345678-...",
+        "objects": [...],
+        "relationships": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Check if it's a bundle
+        if data.get('type') == 'bundle':
+            # Import bundle
+            result = STIXService.import_stix_bundle(
+                bundle=data,
+                user_id=str(current_user.id),
+                username=current_user.username
+            )
+            
+            # Audit log
+            AuditService().log(
+                action="import",
+                entity_type="stix_bundle",
+                entity_id=data.get('id', 'unknown'),
+                entity_name=f"STIX Bundle ({result.get('objects_imported', 0)} objects)",
+                user_id=str(current_user.id),
+                username=current_user.username
+            )
+            
+            return jsonify({
+                "success": True,
+                "message": f"STIX Bundle imported: {result['objects_imported']} objects, {result['relationships_imported']} relationships",
+                "bundle_id": data.get('id'),
+                "objects_imported": result['objects_imported'],
+                "relationships_imported": result['relationships_imported'],
+                "imported_objects": result.get('imported_object_ids', [])
+            }), 201
+        
+        # Import single object
+        # Validate required STIX fields
+        required_fields = ['type', 'id', 'created', 'modified']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required STIX field: '{field}'"}), 400
+        
+        sdo_type = data.get('type')
+        
+        if sdo_type not in STIXService.SDO_TYPES:
+            return jsonify({
+                "error": f"Unsupported STIX object type: {sdo_type}",
+                "supported_types": list(STIXService.SDO_TYPES.keys())
+            }), 400
+        
+        # Import the STIX object
+        imported_object = STIXService.import_stix_object(
+            stix_object=data,
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Audit log
+        AuditService().log(
+            action="import",
+            entity_type="stix_object",
+            entity_id=imported_object["id"],
+            entity_name=data.get("name", sdo_type),
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        return jsonify({
+            "success": True,
+            "message": f"STIX {sdo_type} imported successfully",
+            "id": imported_object["id"],
+            "object": imported_object
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to import STIX object: {str(e)}"}), 500
+
+
 @stix_bp.route('/api/stix/objects', methods=['GET'])
 @permission_required('stix.view')
 def list_stix_objects():
