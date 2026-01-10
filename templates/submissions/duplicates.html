@@ -103,10 +103,10 @@ function markAsDuplicate(duplicateId, primaryId) {
     })
     .then(r => r.json())
     .then(data => {
-        alert('Marked as duplicate successfully');
+        showAlert('Marked as duplicate successfully', 'success');
         location.reload();
     })
-    .catch(err => alert('Error: ' + err.message));
+    .catch(err => showAlert('Error: ' + err.message, 'danger'));
 }
 </script>
 

@@ -211,6 +211,118 @@ def delete_stix_object(stix_id):
         return jsonify({"error": f"Failed to delete STIX object: {str(e)}"}), 500
 
 
+@stix_bp.route('/api/stix/objects/merge', methods=['POST'])
+@login_required
+@permission_required('ioc.create')
+def merge_stix_objects():
+    """
+    Merge two STIX objects together.
+    
+    Expected JSON body:
+    {
+        "primary_id": "indicator--xxxxx",  // Object that will keep this ID
+        "secondary_id": "indicator--yyyyy"  // Object that will be deleted after merge
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        primary_id = data.get("primary_id")
+        secondary_id = data.get("secondary_id")
+        
+        if not primary_id or not secondary_id:
+            return jsonify({"error": "Missing 'primary_id' or 'secondary_id' fields"}), 400
+        
+        if primary_id == secondary_id:
+            return jsonify({"error": "Cannot merge an object with itself"}), 400
+        
+        # Pre-validate that objects exist and are of the same type
+        primary_obj = STIXService.get_sdo(primary_id)
+        secondary_obj = STIXService.get_sdo(secondary_id)
+        
+        if not primary_obj:
+            return jsonify({"error": f"Primary object {primary_id} not found"}), 404
+        if not secondary_obj:
+            return jsonify({"error": f"Secondary object {secondary_id} not found"}), 404
+        
+        # Check type compatibility BEFORE attempting merge
+        if primary_obj.get("type") != secondary_obj.get("type"):
+            return jsonify({
+                "error": f"Cannot merge objects of different types",
+                "details": f"Primary object is '{primary_obj.get('type')}' but secondary object is '{secondary_obj.get('type')}'. "
+                          f"Both objects must be of the same type.",
+                "primary_type": primary_obj.get("type"),
+                "secondary_type": secondary_obj.get("type")
+            }), 400
+        
+        # Perform the merge
+        result = STIXService.merge_sdos(
+            primary_id=primary_id,
+            secondary_id=secondary_id,
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Audit log
+        AuditService().log(
+            action="merge",
+            entity_type="stix_object",
+            entity_id=primary_id,
+            entity_name=f"Merged {secondary_id} into {primary_id}",
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Get updated merge history
+        merge_history = STIXService.get_merge_history(primary_id)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully merged {secondary_id} into {primary_id}",
+            "object": result,
+            "merge_history": merge_history
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to merge STIX objects: {str(e)}"}), 500
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/merge-history', methods=['GET'])
+@login_required
+@permission_required('ioc.view')
+def get_merge_history_debug(stix_id):
+    """Debug endpoint to check merge history for a STIX object"""
+    try:
+        # Get merge history
+        merge_history = STIXService.get_merge_history(stix_id)
+        
+        # Also get all relationships to debug
+        es = ElasticsearchService().client
+        all_rels = es.search(
+            index="elaslip_stix_relationships",
+            body={"query": {"match_all": {}}, "size": 100}
+        )
+        
+        # Filter for relationships involving this object
+        related = [r["_source"] for r in all_rels["hits"]["hits"] 
+                  if r["_source"].get("source_ref") == stix_id or r["_source"].get("target_ref") == stix_id]
+        
+        return jsonify({
+            "stix_id": stix_id,
+            "merge_history": merge_history,
+            "all_related_relationships": related,
+            "merge_count": len(merge_history)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "stix_id": stix_id}), 500
+
+
 @stix_bp.route('/api/stix/objects/<stix_id>/bundle', methods=['GET'])
 @login_required
 @permission_required('ioc.view')
@@ -568,11 +680,13 @@ def view_stix_object_page(stix_id):
         return redirect(url_for('stix.list_stix_objects_page'))
     
     related_objects, relationships = STIXService.get_related_objects(stix_id)
+    merge_history = STIXService.get_merge_history(stix_id)
     
     return render_template('stix/detail.html',
                           stix_object=stix_object,
                           related_objects=related_objects,
                           relationships=relationships,
+                          merge_history=merge_history,
                           relationship_types=STIXService.RELATIONSHIP_TYPES)
 
 

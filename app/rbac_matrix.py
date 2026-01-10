@@ -8,16 +8,15 @@ Each role has a specific set of permissions that can be used to build custom rol
 # Permission categories for better organization
 PERMISSION_CATEGORIES = {
     'IOC Management': {
-        'ioc.view': 'View IOCs',
-        'ioc.create': 'Create IOCs',
-        'ioc.edit': 'Edit IOCs',
-        'ioc.delete': 'Delete IOCs',
-        'ioc.export': 'Export IOCs',
-        'ioc.import': 'Import IOCs',
-        'ioc.enrich': 'Enrich IOCs with external APIs',
-        'ioc.relations.view': 'View IOC relationships',
-        'ioc.relations.create': 'Create IOC relationships',
-        'ioc.relations.delete': 'Delete IOC relationships',
+        'ioc.view': 'View STIX Objects',
+        'ioc.create': 'Create STIX Objects',
+        'ioc.edit': 'Edit STIX Objects',
+        'ioc.delete': 'Delete STIX Objects',
+        'ioc.export': 'Export STIX Objects',
+        'ioc.enrich': 'Enrich STIX Objects with external APIs',
+        'ioc.relations.view': 'View STIX Relationships',
+        'ioc.relations.create': 'Create STIX Relationships',
+        'ioc.relations.delete': 'Delete STIX Relationships',
     },
     'Case Management': {
         'case.view': 'View cases',

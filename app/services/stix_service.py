@@ -587,6 +587,74 @@ class STIXService:
         return related_objects, relationships
     
     @classmethod
+    def get_merge_history(cls, stix_id: str) -> List[Dict[str, Any]]:
+        """
+        Get merge history for a STIX object (objects that were merged into this one)
+        
+        Returns:
+            List of merge records with secondary object info
+        """
+        es = ElasticsearchService().client
+        
+        try:
+            # Get all relationships for this object (both directions)
+            # Then filter for merged-from relationships in Python
+            query = {
+                "bool": {
+                    "should": [
+                        {"term": {"source_ref": stix_id}},
+                        {"term": {"target_ref": stix_id}}
+                    ]
+                }
+            }
+            
+            response = es.search(
+                index=cls.STIX_RELATIONSHIPS_INDEX,
+                body={
+                    "query": query,
+                    "size": 500
+                }
+            )
+            
+            merge_history = []
+            
+            # Filter for merged-from relationships where stix_id is the source
+            for hit in response["hits"]["hits"]:
+                rel = hit["_source"]
+                
+                # Only include merged-from relationships where this object is the primary (source)
+                if (rel.get("relationship_type") == "merged-from" and 
+                    rel.get("source_ref") == stix_id):
+                    
+                    secondary_id = rel.get("target_ref")
+                    
+                    # Try to fetch secondary object details (it may have been deleted)
+                    secondary_obj = cls.get_sdo(secondary_id) if secondary_id else None
+                    
+                    # Extract display name from secondary object
+                    secondary_name = None
+                    if secondary_obj:
+                        secondary_name = secondary_obj.get("name") or secondary_obj.get("x_ioc_value") or secondary_id
+                    else:
+                        secondary_name = None
+                    
+                    merge_history.append({
+                        "relationship_id": rel.get("id"),
+                        "secondary_id": secondary_id,
+                        "secondary_name": secondary_name,
+                        "created": rel.get("created"),
+                        "description": rel.get("description")
+                    })
+            
+            return sorted(merge_history, key=lambda x: x.get("created", ""), reverse=True)
+            
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logging.error(f"Error getting merge history for {stix_id}: {str(e)}")
+            return []
+    
+    @classmethod
     def export_bundle(cls, stix_id: str) -> Dict[str, Any]:
         """
         Export a STIX object with all its relationships as a STIX 2.1 Bundle
@@ -1125,3 +1193,116 @@ class STIXService:
             return None
         
         return obj.get("x_elaslip_enrichment")
+    
+    @classmethod
+    def merge_sdos(cls, primary_id: str, secondary_id: str, 
+                   user_id: str = None, username: str = None) -> Dict[str, Any]:
+        """
+        Merge two STIX objects. The primary object ingests the secondary object.
+        
+        Args:
+            primary_id: ID of the primary object (will keep this ID)
+            secondary_id: ID of the secondary object (will be deleted after merge)
+            user_id: User ID performing the merge
+            username: Username performing the merge
+            
+        Returns:
+            The merged STIX object
+            
+        Raises:
+            ValueError: If objects don't exist or are incompatible types
+        """
+        primary = cls.get_sdo(primary_id)
+        secondary = cls.get_sdo(secondary_id)
+        
+        if not primary:
+            raise ValueError(f"Primary object {primary_id} not found")
+        if not secondary:
+            raise ValueError(f"Secondary object {secondary_id} not found")
+        
+        # Objects must be of the same type - THIS IS CRITICAL
+        primary_type = primary.get("type")
+        secondary_type = secondary.get("type")
+        
+        if primary_type != secondary_type:
+            raise ValueError(
+                f"Cannot merge objects of different types. "
+                f"Primary object is type '{primary_type}' but secondary object is type '{secondary_type}'. "
+                f"Both objects must be of the same type to merge."
+            )
+        
+        now = datetime.utcnow().isoformat() + "Z"
+        
+        # Merge fields
+        updates = {}
+        
+        # Merge labels (union of both sets)
+        primary_labels = set(primary.get("labels", []))
+        secondary_labels = set(secondary.get("labels", []))
+        merged_labels = list(primary_labels.union(secondary_labels))
+        if merged_labels:
+            updates["labels"] = merged_labels
+        
+        # Merge description (use primary if exists, otherwise secondary)
+        if not primary.get("description") and secondary.get("description"):
+            updates["description"] = secondary.get("description")
+        
+        # Merge name (use primary if exists, otherwise secondary)
+        if not primary.get("name") and secondary.get("name"):
+            updates["name"] = secondary.get("name")
+        
+        # Merge aliases
+        if "aliases" in primary or "aliases" in secondary:
+            primary_aliases = set(primary.get("aliases", []))
+            secondary_aliases = set(secondary.get("aliases", []))
+            merged_aliases = list(primary_aliases.union(secondary_aliases))
+            if merged_aliases:
+                updates["aliases"] = merged_aliases
+        
+        # Merge custom fields that start with x_
+        for key in secondary:
+            if key.startswith("x_") and key not in updates and key not in ["x_elaslip_created_by", "x_elaslip_references"]:
+                # Skip standard STIX and internal fields
+                if key not in primary:
+                    updates[key] = secondary[key]
+        
+        # Track the merge in relationships
+        # Create a relationship indicating the merge
+        relationship = {
+            "type": "relationship",
+            "id": f"relationship--{uuid.uuid4()}",
+            "created": now,
+            "modified": now,
+            "relationship_type": "merged-from",
+            "source_ref": primary_id,
+            "target_ref": secondary_id,
+            "description": f"Object {secondary_id} was merged into {primary_id}"
+        }
+        
+        # Store merge relationship
+        es = ElasticsearchService().client
+        es.index(
+            index=cls.STIX_RELATIONSHIPS_INDEX,
+            id=relationship["id"],
+            document=relationship,
+            refresh=True
+        )
+        
+        # Update primary object
+        updates["modified"] = now
+        result = cls.update_sdo(primary_id, updates, user_id=user_id, username=username)
+        
+        # Delete secondary object and its relationships (but NOT the merge relationship we just created)
+        cls.delete_sdo(secondary_id)
+        
+        # Delete relationships involving the secondary object EXCEPT the merge relationship
+        try:
+            rels = cls.get_relationships(secondary_id)
+            for rel in rels:
+                # Don't delete the merge relationship we just created
+                if rel.get("relationship_type") != "merged-from":
+                    cls.delete_relationship(rel["id"])
+        except:
+            pass
+        
+        return result

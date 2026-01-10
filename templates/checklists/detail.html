@@ -756,7 +756,7 @@ document.getElementById('editForm').addEventListener('submit', function(e) {
             location.reload();
         }
     })
-    .catch(err => alert('Error updating checklist'));
+    .catch(err => showAlert('Error updating checklist', 'danger'));
 });
 
 document.getElementById('addItemForm').addEventListener('submit', function(e) {
@@ -765,7 +765,7 @@ document.getElementById('addItemForm').addEventListener('submit', function(e) {
     const description = document.getElementById('itemDescription').value.trim();
     
     if (!title) {
-        alert('Title is required');
+        showAlert('Title is required', 'warning');
         return;
     }
     
@@ -780,7 +780,7 @@ document.getElementById('addItemForm').addEventListener('submit', function(e) {
             location.reload();
         }
     })
-    .catch(err => alert('Error adding item'));
+    .catch(err => showAlert('Error adding item', 'danger'));
 });
 
 // Initialize edit form when modal is shown
@@ -801,10 +801,10 @@ document.querySelectorAll('.link-case-name').forEach(link => {
                 if (caseItem && caseItem.id) {
                     window.location.href = `/cases/${caseItem.id}`;
                 } else {
-                    alert('Case not found');
+                    showAlert('Case not found', 'danger');
                 }
             })
-            .catch(err => alert('Error finding case'));
+            .catch(err => showAlert('Error finding case', 'danger'));
     });
 });
 
@@ -818,7 +818,7 @@ function toggleItem(itemId) {
             location.reload();
         }
     })
-    .catch(err => alert('Error toggling item'));
+    .catch(err => showAlert('Error toggling item', 'danger'));
 }
 
 function deleteItem(itemId) {
@@ -832,7 +832,7 @@ function deleteItem(itemId) {
                 location.reload();
             }
         })
-        .catch(err => alert('Error deleting item'));
+        .catch(err => showAlert('Error deleting item', 'danger'));
     }
 }
 
@@ -854,10 +854,10 @@ function addComment(itemId) {
         if (data.id) {
             location.reload();
         } else {
-            alert('Error adding comment');
+            showAlert('Error adding comment', 'danger');
         }
     })
-    .catch(err => alert('Error adding comment'));
+    .catch(err => showAlert('Error adding comment', 'danger'));
 }
 
 function deleteComment(itemId, commentId) {
@@ -870,10 +870,10 @@ function deleteComment(itemId, commentId) {
             if (data.id) {
                 location.reload();
             } else {
-                alert('Error deleting comment');
+                showAlert('Error deleting comment', 'danger');
             }
         })
-        .catch(err => alert('Error deleting comment'));
+        .catch(err => showAlert('Error deleting comment', 'danger'));
     }
 }
 
@@ -889,7 +889,7 @@ function updateStatus(status) {
             location.reload();
         }
     })
-    .catch(err => alert('Error updating status'));
+    .catch(err => showAlert('Error updating status', 'danger'));
 }
 
 function deleteChecklist() {
@@ -903,13 +903,13 @@ function deleteChecklist() {
                 window.location.href = '/checklists/';
             }
         })
-        .catch(err => alert('Error deleting checklist'));
+        .catch(err => showAlert('Error deleting checklist', 'danger'));
     }
 }
 
 function generateReport(e) {
     if (!checklistId) {
-        alert('Checklist ID not found');
+        showAlert('Checklist ID not found', 'danger');
         return;
     }
     
@@ -944,7 +944,7 @@ function generateReport(e) {
             // Redirect to loading page that verifies task is registered
             window.location.href = `/reports/loading?task_id=${data.task_id}&type=checklist&id=${checklistId}`;
         } else {
-            alert('Report generation started. Check the reports page.');
+            showAlert('Report generation started. Check the reports page.', 'success');
             window.location.href = '/reports';
         }
     })
@@ -966,7 +966,7 @@ document.getElementById('imageInput').addEventListener('change', function(e) {
 function uploadImages() {
     const files = document.getElementById('imageInput').files;
     if (files.length === 0) {
-        alert('Please select images to upload');
+        showAlert('Please select images to upload', 'warning');
         return;
     }
     
@@ -1103,10 +1103,10 @@ function deleteImage(imageId) {
             if (data.success) {
                 loadEntityImages();
             } else {
-                alert('Error: ' + (data.error || 'Failed to delete'));
+                showAlert('Error: ' + (data.error || 'Failed to delete'), 'danger');
             }
         })
-        .catch(error => alert('Delete failed: ' + error.message));
+        .catch(error => showAlert('Delete failed: ' + error.message, 'danger'));
     }
 }
 
@@ -1130,7 +1130,7 @@ function submitRenameImage() {
     const newFilename = document.getElementById('renameImageInput').value.trim();
     
     if (!newFilename) {
-        alert('Please enter a filename');
+        showAlert('Please enter a filename', 'warning');
         return;
     }
     
@@ -1147,7 +1147,7 @@ function submitRenameImage() {
         return response.json();
     })
     .then(data => {
-        alert('Image renamed successfully');
+        showAlert('Image renamed successfully', 'success');
         const modal = bootstrap.Modal.getInstance(document.getElementById('renameImageModal'));
         modal.hide();
         loadEntityImages();

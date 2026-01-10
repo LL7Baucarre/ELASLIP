@@ -100,7 +100,7 @@ def create_app(config_name=None):
         "info": {
             "title": app.config.get('SITE_TITLE', 'ELASLIP') + " API",
             "description": "Comprehensive API for managing Indicators of Compromise (IOCs), investigations, incidents, checklists, and security operations with role-based access control.",
-            "version": "1.3.4",
+            "version": "1.3.5",
             "contact": {
                 "name": "ELASLIP Support",
                 "url": "https://github.com/LL7Baucarre/ELASLIP"
@@ -269,7 +269,7 @@ def create_app(config_name=None):
     celery = create_celery_app(app)
     
     # Import task modules so Celery can discover them
-    from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks, urlscan_tasks
+    from app.tasks import scan_tasks, webhook_tasks
     
     # Initialize Elasticsearch indices
     from app.elasticsearch.init_indices import init_elasticsearch
@@ -280,7 +280,6 @@ def create_app(config_name=None):
     from app.routes.auth import auth_bp
     from app.routes.oauth import oauth_bp
     from app.routes.search import search_bp
-    from app.routes.import_routes import import_bp
     from app.routes.api_config import api_config_bp
     from app.routes.webhook import webhook_bp
     from app.routes.main import main_bp
@@ -303,7 +302,6 @@ def create_app(config_name=None):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(oauth_bp, url_prefix='/oauth')
     app.register_blueprint(search_bp, url_prefix='/api/search')
-    app.register_blueprint(import_bp, url_prefix='/api/import')
     app.register_blueprint(api_config_bp, url_prefix='/api/external-apis')
     app.register_blueprint(webhook_bp, url_prefix='/api/webhooks')
     app.register_blueprint(api_keys_bp, url_prefix='/api/api-keys')
@@ -326,7 +324,7 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_app_version():
         return {
-            'APP_VERSION': app.config.get('APP_VERSION', '1.3.4')
+            'APP_VERSION': app.config.get('APP_VERSION', '1.3.5')
         }
     
     # Health check endpoint
@@ -340,4 +338,5 @@ def create_app(config_name=None):
 # Create celery app for worker
 celery = create_celery_app()
 # Import tasks so they're registered with the worker
-from app.tasks import scan_tasks, webhook_tasks, import_tasks, expiration_tasks, report_tasks, urlscan_tasks
+# Only essential async tasks are imported
+from app.tasks import scan_tasks, webhook_tasks

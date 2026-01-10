@@ -12,15 +12,14 @@ from app.services.elasticsearch_service import ElasticsearchService
 PERMISSIONS = {
     # ============== IOC Management ==============
     'ioc.view': 'View IOCs',
-    'ioc.create': 'Create IOCs',
-    'ioc.edit': 'Edit IOCs',
-    'ioc.delete': 'Delete IOCs',
-    'ioc.export': 'Export IOCs',
-    'ioc.import': 'Import IOCs',
-    'ioc.enrich': 'Enrich IOCs with external APIs',
-    'ioc.relations.view': 'View IOC relationships',
-    'ioc.relations.create': 'Create IOC relationships',
-    'ioc.relations.delete': 'Delete IOC relationships',
+    'ioc.create': 'Create STIX Objects',
+    'ioc.edit': 'Edit STIX Objects',
+    'ioc.delete': 'Delete STIX Objects',
+    'ioc.export': 'Export STIX Objects',
+    'ioc.enrich': 'Enrich STIX Objects with external APIs',
+    'ioc.relations.view': 'View STIX Relationships',
+    'ioc.relations.create': 'Create STIX Relationships',
+    'ioc.relations.delete': 'Delete STIX Relationships',
     
     # ============== Case Management ==============
     'case.view': 'View cases',
@@ -149,7 +148,7 @@ DEFAULT_ROLES = {
         'color': '#0066cc',  # Blue
         'permissions': [
             # IOC permissions
-            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
+            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.enrich',
             'ioc.relations.view', 'ioc.relations.create', 'ioc.relations.delete',
             # Case permissions
             'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
@@ -188,7 +187,7 @@ DEFAULT_ROLES = {
         'color': '#ff6600',  # Orange
         'permissions': [
             # IOC permissions
-            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
+            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.enrich',
             'ioc.relations.view', 'ioc.relations.create',
             # Case & Incident - read mostly
             'case.view', 'incident.view',

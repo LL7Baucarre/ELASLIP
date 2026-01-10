@@ -432,16 +432,12 @@
                         <i class="bi bi-plus-lg me-2"></i> Add STIX Object
                     </a>
                     {% endif %}
-                    {% if has_permission('ioc.import') %}
-                    <a href="{{ url_for('main.import_page') }}" class="btn btn-outline-success">
-                        <i class="bi bi-upload me-2"></i> Import Data
-                    </a>
-                    {% endif %}
+
                     <a href="{{ url_for('main.search_page') }}" class="btn btn-outline-info">
                         <i class="bi bi-search me-2"></i> Search
                     </a>
-                    <a href="{{ url_for('main.settings_external_apis') }}" class="btn btn-outline-secondary">
-                        <i class="bi bi-plug me-2"></i> Configure APIs
+                    <a href="{{ url_for('main.settings') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-gear me-2"></i> Settings
                     </a>
                 </div>
             </div>

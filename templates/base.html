@@ -76,13 +76,6 @@
                 </a>
             </li>
             {% endif %}
-            {% if has_permission('ioc.import') %}
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
-                    <i class="bi bi-upload"></i> Import
-                </a>
-            </li>
-            {% endif %}
             {% if has_permission('tools.execute') or has_permission('tools.view') %}
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.tools_page' %}active{% endif %}" href="{{ url_for('main.tools_page') }}">

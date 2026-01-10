@@ -1262,12 +1262,12 @@ async function saveChanges() {
         if (response.ok) {
             window.location.href = `/stix/objects/${stixId}`;
         } else {
-            alert(result.error || 'Failed to save changes');
+            showAlert(result.error || 'Failed to save changes', 'danger');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        showAlert('Error: ' + e.message, 'danger');
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="bi bi-save me-2"></i>Save Changes';
     }

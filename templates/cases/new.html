@@ -246,7 +246,7 @@ document.getElementById('caseForm').addEventListener('submit', function(e) {
         window.location.href = `/cases/${result.id}`;
     })
     .catch(error => {
-        alert('Error creating case: ' + error.message);
+        showAlert('Error creating case: ' + error.message, 'danger');
     });
 });
 </script>

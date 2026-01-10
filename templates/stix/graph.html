@@ -673,7 +673,7 @@ function loadGraph() {
                 document.getElementById('emptyGraphMessage').style.display = 'block';
             }
         },
-        error: () => alert('Failed to load graph data')
+        error: () => showAlert('Failed to load graph data', 'danger')
     });
 }
 
@@ -981,7 +981,7 @@ function updateDepthValue() {
                 cy.fit(null, 50);
             }
         },
-        error: () => alert('Failed to load graph data with new depth')
+        error: () => showAlert('Failed to load graph data with new depth', 'danger')
     });
 }
 

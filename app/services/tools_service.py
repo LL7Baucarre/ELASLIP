@@ -261,33 +261,74 @@ class ToolsService:
         """Parse common WHOIS fields from output."""
         parsed = {}
         
-        # Common patterns for both domain and IP WHOIS
+        # Comprehensive patterns for both domain and IP WHOIS
         patterns = {
+            # Domain registrar fields
             'registrar': r'Registrar:\s*(.+)',
+            'registrant': r'Registrant Organization:\s*(.+)',
+            'admin_email': r'Admin Email:\s*(.+)',
+            'tech_email': r'Tech Email:\s*(.+)',
+            
+            # Dates
             'creation_date': r'Creation Date:\s*(.+)',
             'expiration_date': r'(?:Registry Expiry Date|Expiration Date):\s*(.+)',
             'updated_date': r'Updated Date:\s*(.+)',
+            'last_modified': r'Last Modified:\s*(.+)',
+            
+            # DNS
             'name_servers': r'Name Server:\s*(.+)',
-            'registrant_org': r'Registrant Organization:\s*(.+)',
-            'registrant_country': r'Registrant Country:\s*(.+)',
-            'admin_email': r'Admin Email:\s*(.+)',
-            'tech_email': r'Tech Email:\s*(.+)',
-            # IP WHOIS specific
+            
+            # IP network fields (primary)
+            'inetnum': r'inetnum:\s*(.+)',
             'netname': r'[Nn]etname:\s*(.+)',
             'netrange': r'NetRange:\s*(.+)',
             'cidr': r'CIDR:\s*(.+)',
-            'origin_as': r'[Oo]rigin(?:AS)?:\s*(AS\d+)',
+            
+            # Organization
             'org_name': r'[Oo]rg(?:anization)?(?:-name)?:\s*(.+)',
-            'country': r'[Cc]ountry:\s*(.+)',
+            'org_id': r'[Oo]rg(?:anization)?(?:-id)?:\s*(.+)',
+            'organization': r'[Oo]rganization:\s*(.+)',
+            'description': r'[Dd]escription?:\s*(.+)',
             'descr': r'[Dd]escr:\s*(.+)',
+            
+            # Country and location
+            'country': r'[Cc]ountry:\s*(.+)',
+            
+            # Contacts
+            'admin_c': r'admin-c:\s*(.+)',
+            'tech_c': r'tech-c:\s*(.+)',
+            'abuse_c': r'abuse-c:\s*(.+)',
+            
+            # Routing
+            'origin_as': r'[Oo]rigin(?:AS)?:\s*(AS\d+)',
+            'status': r'[Ss]tatus:\s*(.+)',
+            
+            # Maintenance
+            'mnt_by': r'mnt-by:\s*(.+)',
+            'mnt_routes': r'mnt-routes:\s*(.+)',
+            'mnt_irt': r'mnt-irt:\s*(.+)',
+            'mnt_lower': r'mnt-lower:\s*(.+)',
+            
+            # Additional fields
+            'source': r'source:\s*(.+)',
+            'remarks': r'remarks?:\s*(.+)',
+            'abuse_mailbox': r'abuse-mailbox:\s*(.+)',
+            'email': r'e-mail:\s*(.+)',
+            'address': r'address:\s*(.+)',
+            'phone': r'phone:\s*(.+)',
+            'fax': r'fax-no:\s*(.+)',
         }
         
         for field, pattern in patterns.items():
-            matches = re.findall(pattern, output, re.IGNORECASE)
+            matches = re.findall(pattern, output, re.IGNORECASE | re.MULTILINE)
             if matches:
                 if field == 'name_servers':
-                    parsed[field] = list(set(matches))
+                    parsed[field] = list(set([m.strip() for m in matches]))
+                elif field in ['address', 'remarks', 'descr', 'description']:
+                    # Keep multiple matches for fields that can have multiple values
+                    parsed[field] = [m.strip() for m in matches]
                 else:
+                    # For most fields, keep first match
                     parsed[field] = matches[0].strip()
         
         return parsed

@@ -803,8 +803,8 @@ function showToast(message, type) {
             position: 'right',
             backgroundColor: type === 'error' ? '#dc3545' : '#28a745'
         }).showToast();
-    } else {
-        alert(message);
+    } else if (typeof showAlert !== 'undefined') {
+        showAlert(message, type === 'error' ? 'danger' : 'success');
     }
 }
 
