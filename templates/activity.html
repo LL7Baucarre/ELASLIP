@@ -734,12 +734,12 @@ function loadFinopsData() {
                 updateTokenBreakdownChart(data.breakdown || {});
                 updateTopConsumers(data.top_consumers || []);
             } else {
-                alert('Error loading FinOps data: ' + (data.error || 'Unknown error'));
+                showAlert('Error loading FinOps data: ' + (data.error || 'Unknown error'), 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error loading FinOps data');
+            showAlert('Error loading FinOps data', 'danger');
         });
 }
 

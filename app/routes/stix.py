@@ -21,7 +21,7 @@ stix_bp = Blueprint('stix', __name__)
 # ============================================================================
 
 @stix_bp.route('/api/stix/objects', methods=['POST'])
-@permission_required('ioc.create')
+@permission_required('stix.create')
 def create_stix_object():
     """
     Create a new STIX Domain Object
@@ -80,8 +80,113 @@ def create_stix_object():
         return jsonify({"error": f"Failed to create STIX object: {str(e)}"}), 500
 
 
+@stix_bp.route('/api/stix/import-json', methods=['POST'])
+@permission_required('stix.create')
+def import_stix_json():
+    """
+    Import STIX objects or bundles from JSON
+    
+    Expected JSON body: Either a STIX object or a STIX bundle
+    
+    STIX Object:
+    {
+        "type": "indicator|malware|threat-actor|...",
+        "id": "indicator--12345678-...",
+        "created": "2024-01-10T12:00:00.000Z",
+        "modified": "2024-01-10T12:00:00.000Z",
+        "name": "Object name",
+        ...
+    }
+    
+    STIX Bundle:
+    {
+        "type": "bundle",
+        "id": "bundle--12345678-...",
+        "objects": [...],
+        "relationships": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Check if it's a bundle
+        if data.get('type') == 'bundle':
+            # Import bundle
+            result = STIXService.import_stix_bundle(
+                bundle=data,
+                user_id=str(current_user.id),
+                username=current_user.username
+            )
+            
+            # Audit log
+            AuditService().log(
+                action="import",
+                entity_type="stix_bundle",
+                entity_id=data.get('id', 'unknown'),
+                entity_name=f"STIX Bundle ({result.get('objects_imported', 0)} objects)",
+                user_id=str(current_user.id),
+                username=current_user.username
+            )
+            
+            return jsonify({
+                "success": True,
+                "message": f"STIX Bundle imported: {result['objects_imported']} objects, {result['relationships_imported']} relationships",
+                "bundle_id": data.get('id'),
+                "objects_imported": result['objects_imported'],
+                "relationships_imported": result['relationships_imported'],
+                "imported_objects": result.get('imported_object_ids', [])
+            }), 201
+        
+        # Import single object
+        # Validate required STIX fields
+        required_fields = ['type', 'id', 'created', 'modified']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required STIX field: '{field}'"}), 400
+        
+        sdo_type = data.get('type')
+        
+        if sdo_type not in STIXService.SDO_TYPES:
+            return jsonify({
+                "error": f"Unsupported STIX object type: {sdo_type}",
+                "supported_types": list(STIXService.SDO_TYPES.keys())
+            }), 400
+        
+        # Import the STIX object
+        imported_object = STIXService.import_stix_object(
+            stix_object=data,
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Audit log
+        AuditService().log(
+            action="import",
+            entity_type="stix_object",
+            entity_id=imported_object["id"],
+            entity_name=data.get("name", sdo_type),
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        return jsonify({
+            "success": True,
+            "message": f"STIX {sdo_type} imported successfully",
+            "id": imported_object["id"],
+            "object": imported_object
+        }), 201
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to import STIX object: {str(e)}"}), 500
+
+
 @stix_bp.route('/api/stix/objects', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def list_stix_objects():
     """
     List STIX objects with pagination and filtering
@@ -118,7 +223,7 @@ def list_stix_objects():
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_stix_object(stix_id):
     """Get a single STIX object by ID"""
     try:
@@ -134,7 +239,7 @@ def get_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['PUT'])
-@permission_required('ioc.edit')
+@permission_required('stix.edit')
 def update_stix_object(stix_id):
     """Update a STIX object"""
     try:
@@ -177,7 +282,7 @@ def update_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>', methods=['DELETE'])
-@permission_required('ioc.delete')
+@permission_required('stix.delete')
 def delete_stix_object(stix_id):
     """Delete a STIX object and its relationships"""
     try:
@@ -211,9 +316,121 @@ def delete_stix_object(stix_id):
         return jsonify({"error": f"Failed to delete STIX object: {str(e)}"}), 500
 
 
+@stix_bp.route('/api/stix/objects/merge', methods=['POST'])
+@login_required
+@permission_required('stix.create')
+def merge_stix_objects():
+    """
+    Merge two STIX objects together.
+    
+    Expected JSON body:
+    {
+        "primary_id": "indicator--xxxxx",  // Object that will keep this ID
+        "secondary_id": "indicator--yyyyy"  // Object that will be deleted after merge
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        primary_id = data.get("primary_id")
+        secondary_id = data.get("secondary_id")
+        
+        if not primary_id or not secondary_id:
+            return jsonify({"error": "Missing 'primary_id' or 'secondary_id' fields"}), 400
+        
+        if primary_id == secondary_id:
+            return jsonify({"error": "Cannot merge an object with itself"}), 400
+        
+        # Pre-validate that objects exist and are of the same type
+        primary_obj = STIXService.get_sdo(primary_id)
+        secondary_obj = STIXService.get_sdo(secondary_id)
+        
+        if not primary_obj:
+            return jsonify({"error": f"Primary object {primary_id} not found"}), 404
+        if not secondary_obj:
+            return jsonify({"error": f"Secondary object {secondary_id} not found"}), 404
+        
+        # Check type compatibility BEFORE attempting merge
+        if primary_obj.get("type") != secondary_obj.get("type"):
+            return jsonify({
+                "error": f"Cannot merge objects of different types",
+                "details": f"Primary object is '{primary_obj.get('type')}' but secondary object is '{secondary_obj.get('type')}'. "
+                          f"Both objects must be of the same type.",
+                "primary_type": primary_obj.get("type"),
+                "secondary_type": secondary_obj.get("type")
+            }), 400
+        
+        # Perform the merge
+        result = STIXService.merge_sdos(
+            primary_id=primary_id,
+            secondary_id=secondary_id,
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Audit log
+        AuditService().log(
+            action="merge",
+            entity_type="stix_object",
+            entity_id=primary_id,
+            entity_name=f"Merged {secondary_id} into {primary_id}",
+            user_id=str(current_user.id),
+            username=current_user.username
+        )
+        
+        # Get updated merge history
+        merge_history = STIXService.get_merge_history(primary_id)
+        
+        return jsonify({
+            "success": True,
+            "message": f"Successfully merged {secondary_id} into {primary_id}",
+            "object": result,
+            "merge_history": merge_history
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": f"Failed to merge STIX objects: {str(e)}"}), 500
+
+
+@stix_bp.route('/api/stix/objects/<stix_id>/merge-history', methods=['GET'])
+@login_required
+@permission_required('stix.view')
+def get_merge_history_debug(stix_id):
+    """Debug endpoint to check merge history for a STIX object"""
+    try:
+        # Get merge history
+        merge_history = STIXService.get_merge_history(stix_id)
+        
+        # Also get all relationships to debug
+        es = ElasticsearchService().client
+        all_rels = es.search(
+            index="elaslip_stix_relationships",
+            body={"query": {"match_all": {}}, "size": 100}
+        )
+        
+        # Filter for relationships involving this object
+        related = [r["_source"] for r in all_rels["hits"]["hits"] 
+                  if r["_source"].get("source_ref") == stix_id or r["_source"].get("target_ref") == stix_id]
+        
+        return jsonify({
+            "stix_id": stix_id,
+            "merge_history": merge_history,
+            "all_related_relationships": related,
+            "merge_count": len(merge_history)
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e), "stix_id": stix_id}), 500
+
+
 @stix_bp.route('/api/stix/objects/<stix_id>/bundle', methods=['GET'])
 @login_required
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def export_stix_bundle(stix_id):
     """Export a STIX object with all its relationships as a STIX 2.1 Bundle"""
     try:
@@ -233,7 +450,7 @@ def export_stix_bundle(stix_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/relationships', methods=['POST'])
-@permission_required('ioc.create')
+@permission_required('stix.create')
 def create_relationship():
     """
     Create a STIX relationship between two objects
@@ -302,7 +519,7 @@ def create_relationship():
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/relationships', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_object_relationships(stix_id):
     """Get all relationships for a STIX object"""
     try:
@@ -320,7 +537,7 @@ def get_object_relationships(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/related', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_related_objects(stix_id):
     """Get all related objects and relationships for a STIX object"""
     try:
@@ -337,7 +554,7 @@ def get_related_objects(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/linked-entities', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_linked_entities(stix_id):
     """Get all cases and incidents that contain this STIX object"""
     try:
@@ -402,7 +619,7 @@ def get_linked_entities(stix_id):
 
 
 @stix_bp.route('/api/stix/relationships/<rel_id>', methods=['DELETE'])
-@permission_required('ioc.delete')
+@permission_required('stix.delete')
 def delete_relationship(rel_id):
     """Delete a STIX relationship"""
     try:
@@ -433,7 +650,7 @@ def delete_relationship(rel_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/search', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def search_stix_objects():
     """
     Search STIX objects
@@ -465,7 +682,7 @@ def search_stix_objects():
 
 
 @stix_bp.route('/api/stix/objects/available', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_available_for_linking():
     """
     Get available STIX objects for linking (creating relationships)
@@ -489,7 +706,7 @@ def get_available_for_linking():
 
 
 @stix_bp.route('/api/stix/types', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_sdo_types():
     """Get available STIX SDO types and their field specifications"""
     return jsonify({
@@ -499,7 +716,7 @@ def get_sdo_types():
 
 
 @stix_bp.route('/api/stix/graph-data', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_graph_data():
     """
     Get graph data for STIX visualization with depth control
@@ -568,11 +785,13 @@ def view_stix_object_page(stix_id):
         return redirect(url_for('stix.list_stix_objects_page'))
     
     related_objects, relationships = STIXService.get_related_objects(stix_id)
+    merge_history = STIXService.get_merge_history(stix_id)
     
     return render_template('stix/detail.html',
                           stix_object=stix_object,
                           related_objects=related_objects,
                           relationships=relationships,
+                          merge_history=merge_history,
                           relationship_types=STIXService.RELATIONSHIP_TYPES)
 
 
@@ -597,7 +816,7 @@ def edit_stix_object_page(stix_id):
 # ============================================================================
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrich', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def enrich_stix_object(stix_id):
     """
     Enrich a STIX object using external APIs.
@@ -690,7 +909,7 @@ def enrich_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrich/auto', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def auto_enrich_stix_object(stix_id):
     """
     Automatically enrich a STIX object and store all results.
@@ -795,7 +1014,7 @@ def auto_enrich_stix_object(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/store-enrichment', methods=['POST'])
-@permission_required('ioc.enrich')
+@permission_required('stix.enrich')
 def store_stix_enrichment(stix_id):
     """
     Store selected enrichment fields into a STIX object.
@@ -867,7 +1086,7 @@ def store_stix_enrichment(stix_id):
 
 
 @stix_bp.route('/api/stix/objects/<stix_id>/enrichment', methods=['GET'])
-@permission_required('ioc.view')
+@permission_required('stix.view')
 def get_stix_enrichment(stix_id):
     """
     Get enrichment data for a STIX object.

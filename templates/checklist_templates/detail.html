@@ -207,7 +207,7 @@ function saveTemplate() {
     const isPublic = document.getElementById('editIsPublic').checked;
     
     if (!name) {
-        alert('Template name is required');
+        showAlert('Template name is required', 'warning');
         return;
     }
     
@@ -220,10 +220,10 @@ function saveTemplate() {
         if (r.ok) {
             location.reload();
         } else {
-            alert('Error updating template');
+            showAlert('Error updating template', 'danger');
         }
     })
-    .catch(err => alert('Error: ' + err));
+    .catch(err => showAlert('Error: ' + err, 'danger'));
 }
 
 function addItem() {
@@ -231,7 +231,7 @@ function addItem() {
     const description = document.getElementById('itemDescription').value.trim();
     
     if (!title) {
-        alert('Item title is required');
+        showAlert('Item title is required', 'warning');
         return;
     }
     
@@ -244,7 +244,7 @@ function addItem() {
     .then(data => {
         location.reload();
     })
-    .catch(err => alert('Error: ' + err));
+    .catch(err => showAlert('Error: ' + err, 'danger'));
 }
 
 function deleteItem(itemId) {
@@ -254,10 +254,10 @@ function deleteItem(itemId) {
                 if (r.ok) {
                     location.reload();
                 } else {
-                    alert('Error deleting item');
+                    showAlert('Error deleting item', 'danger');
                 }
             })
-            .catch(err => alert('Error: ' + err));
+            .catch(err => showAlert('Error: ' + err, 'danger'));
     }
 }
 
@@ -268,10 +268,10 @@ function deleteThisTemplate() {
                 if (r.ok) {
                     window.location.href = '/checklist-templates/';
                 } else {
-                    alert('Error deleting template');
+                    showAlert('Error deleting template', 'danger');
                 }
             })
-            .catch(err => alert('Error: ' + err));
+            .catch(err => showAlert('Error: ' + err, 'danger'));
     }
 }
 {% endif %}
@@ -284,7 +284,7 @@ function useThisTemplate() {
             localStorage.setItem('checklistTemplate', JSON.stringify(data));
             window.location.href = '/checklists/new?from_template=1';
         })
-        .catch(err => alert('Error: ' + err));
+        .catch(err => showAlert('Error: ' + err, 'danger'));
 }
 </script>
 {% endblock %}

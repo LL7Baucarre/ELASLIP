@@ -55,10 +55,6 @@
                class="list-group-item list-group-item-action">
                 <i class="bi bi-shield-lock me-2"></i> Roles & Permissions
             </a>
-            <a href="{{ url_for('main.settings_scheduled_tasks') }}" 
-               class="list-group-item list-group-item-action">
-                <i class="bi bi-clock-history me-2"></i> Scheduled Tasks
-            </a>
             <a href="{{ url_for('main.settings_backup') }}" 
                class="list-group-item list-group-item-action">
                 <i class="bi bi-cloud-download me-2"></i> Backup & Restore
@@ -139,7 +135,7 @@
                         <div class="mb-2">
                             <strong class="d-block text-secondary small mb-2">IOC Events</strong>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="eventCreate" value="ioc.created" checked>
+                                <input class="form-check-input" type="checkbox" id="eventCreate" value="stix.created" checked>
                                 <label class="form-check-label" for="eventCreate">
                                     IOC Created
                                 </label>
@@ -151,7 +147,7 @@
                                 </label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="eventDelete" value="ioc.deleted">
+                                <input class="form-check-input" type="checkbox" id="eventDelete" value="stix.deleted">
                                 <label class="form-check-label" for="eventDelete">
                                     IOC Deleted
                                 </label>

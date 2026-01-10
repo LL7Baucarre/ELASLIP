@@ -7,17 +7,16 @@ Each role has a specific set of permissions that can be used to build custom rol
 
 # Permission categories for better organization
 PERMISSION_CATEGORIES = {
-    'IOC Management': {
-        'ioc.view': 'View IOCs',
-        'ioc.create': 'Create IOCs',
-        'ioc.edit': 'Edit IOCs',
-        'ioc.delete': 'Delete IOCs',
-        'ioc.export': 'Export IOCs',
-        'ioc.import': 'Import IOCs',
-        'ioc.enrich': 'Enrich IOCs with external APIs',
-        'ioc.relations.view': 'View IOC relationships',
-        'ioc.relations.create': 'Create IOC relationships',
-        'ioc.relations.delete': 'Delete IOC relationships',
+    'STIX Management': {
+        'stix.view': 'View STIX Objects',
+        'stix.create': 'Create STIX Objects',
+        'stix.edit': 'Edit STIX Objects',
+        'stix.delete': 'Delete STIX Objects',
+        'stix.export': 'Export STIX Objects',
+        'stix.enrich': 'Enrich STIX Objects with external APIs',
+        'stix.relations.view': 'View STIX Relationships',
+        'stix.relations.create': 'Create STIX Relationships',
+        'stix.relations.delete': 'Delete STIX Relationships',
     },
     'Case Management': {
         'case.view': 'View cases',
@@ -110,11 +109,11 @@ PERMISSION_CATEGORIES = {
         'report.view': 'View reports',
         'report.create': 'Create reports',
         'report.export': 'Export reports',
-        'report.generate_llm': 'Generate LLM reports for IOCs, cases, and incidents',
+        'report.generate_llm': 'Generate LLM reports for STIX, cases, and incidents',
     },
     'Public Submissions': {
         'submission.view': 'View public submissions',
-        'submission.create': 'Create IOCs from submissions',
+        'submission.create': 'Create STIX from submissions',
         'submission.manage': 'Manage submissions (review, reject)',
     },
     'Audit & Monitoring': {
@@ -142,7 +141,7 @@ PERMISSION_CATEGORIES = {
 # Permission Matrix - Maps roles to feature sets
 PERMISSION_MATRIX = {
     'Admin': {
-        'IOC Management': ['view', 'create', 'edit', 'delete', 'export', 'import', 'enrich', 'relations'],
+        'STIX Management': ['view', 'create', 'edit', 'delete', 'export', 'import', 'enrich', 'relations'],
         'Case Management': ['view', 'create', 'edit', 'delete', 'assign', 'close', 'reopen'],
         'Incident Management': ['view', 'create', 'edit', 'delete', 'report', 'escalate'],
         'Comments & Collaboration': ['view', 'create', 'edit', 'delete', 'edit_any', 'delete_any'],
@@ -160,7 +159,7 @@ PERMISSION_MATRIX = {
         'Administration': ['users_view', 'users_create', 'users_edit', 'users_delete', 'users_assign_role', 'roles_view', 'roles_create', 'roles_edit', 'roles_delete', 'settings', 'audit', 'tasks', 'import_jobs', 'backup'],
     },
     'Security Analyst': {
-        'IOC Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
+        'STIX Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
         'Case Management': ['view', 'create', 'edit', 'assign', 'close'],
         'Incident Management': ['view', 'create', 'edit', 'report', 'escalate'],
         'Comments & Collaboration': ['view', 'create', 'edit', 'delete', 'edit_any', 'delete_any'],
@@ -178,7 +177,7 @@ PERMISSION_MATRIX = {
         'Administration': ['users_view', 'roles_view', 'audit', 'tasks', 'import_jobs'],
     },
     'Threat Intel Officer': {
-        'IOC Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
+        'STIX Management': ['view', 'create', 'edit', 'export', 'import', 'enrich', 'relations'],
         'Case Management': ['view'],
         'Incident Management': ['view'],
         'Comments & Collaboration': ['view', 'create', 'edit'],
@@ -196,7 +195,7 @@ PERMISSION_MATRIX = {
         'Administration': ['roles_view'],
     },
     'Incident Responder': {
-        'IOC Management': ['view', 'create', 'edit', 'export', 'relations'],
+        'STIX Management': ['view', 'create', 'edit', 'export', 'relations'],
         'Case Management': ['view', 'create', 'edit', 'assign', 'close', 'reopen'],
         'Incident Management': ['view', 'create', 'edit', 'escalate', 'report'],
         'Comments & Collaboration': ['view', 'create', 'edit', 'delete', 'edit_any', 'delete_any'],
@@ -213,7 +212,7 @@ PERMISSION_MATRIX = {
         'Audit & Monitoring': ['view'],
     },
     'Viewer': {
-        'IOC Management': ['view', 'export', 'relations'],
+        'STIX Management': ['view', 'export', 'relations'],
         'Case Management': ['view'],
         'Incident Management': ['view'],
         'Comments & Collaboration': ['view', 'create'],

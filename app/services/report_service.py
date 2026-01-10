@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from app.services.elasticsearch_service import ElasticsearchService
 from app.services.cache_service import CacheService
-from app.services.ioc_service import IOCService
+from app.services.stix_service import STIXService
 from app.services.case_service import CaseService, IncidentService, TimelineService
 from app.services.comment_service import CommentService
 from app.config import Config
@@ -267,7 +267,6 @@ class ReportService:
         """Initialize report service."""
         self.es = ElasticsearchService()
         self.cache = CacheService()
-        self.ioc_service = IOCService()
         self.case_service = CaseService()
         self.incident_service = IncidentService()
         self.timeline_service = TimelineService()
@@ -535,44 +534,25 @@ class ReportService:
     def generate_ioc_report(self, ioc_id: str) -> Dict[str, Any]:
         """
         Generate a report for an IOC and its relations.
+        Uses STIX 2.1 bundle format for comprehensive context.
         
         Args:
-            ioc_id: The IOC document ID
+            ioc_id: The IOC document ID (or indicator STIX ID)
             
         Returns:
             Report data with analysis and relations
         """
-        # Get IOC using the IOC service
-        ioc = self.ioc_service.get(ioc_id)
-        if not ioc:
-            raise ValueError(f"IOC {ioc_id} not found")
+        # Convert to STIX indicator ID if needed
+        stix_id = f"indicator--{ioc_id}" if not ioc_id.startswith('indicator--') else ioc_id
         
-        # Ensure IOC has its ID for relation comparison
-        ioc['id'] = ioc_id
-        
-        # Get ALL first-level relations (IOCs, cases, incidents) like the graph
-        relations = self._get_first_level_relations(ioc_id)
-        
-        # Build prompt with emphasis on the main IOC
-        prompt = self._build_ioc_prompt(ioc, relations)
-        
-        # Generate analysis
-        analysis, token_usage = self._call_llm(prompt)
-        
-        return {
-            'ioc_id': ioc_id,
-            'ioc_value': ioc.get('value') or ioc.get('pattern', ''),
-            'ioc_type': ioc.get('type', 'unknown'),
-            'generated_at': datetime.utcnow().isoformat(),
-            'token_usage': token_usage,
-            'analysis': analysis,
-            'relations_count': len(relations)
-        }
+        # Use STIX bundle approach instead of IOC service
+        return self.generate_stix_report(stix_id)
     
     def generate_stix_report(self, stix_id: str) -> Dict[str, Any]:
         """
         Generate a report for a STIX object and its relations.
         Works for all STIX types (indicator, malware, threat-actor, etc.).
+        Uses STIX 2.1 Bundle format for comprehensive context.
         
         Args:
             stix_id: The STIX object ID
@@ -580,7 +560,7 @@ class ReportService:
         Returns:
             Report data with analysis and relations
         """
-        # Try to get the STIX object from both indices
+        # Get the STIX object
         stix_obj = self._get_stix_object(stix_id)
         if not stix_obj:
             raise ValueError(f"STIX object {stix_id} not found")
@@ -588,11 +568,11 @@ class ReportService:
         # Ensure object has its ID
         stix_obj['id'] = stix_id
         
-        # Get ALL first-level relations using the STIX-aware method
-        relations = self._get_stix_first_level_relations(stix_id)
+        # Get STIX bundle with all related objects and relationships
+        bundle = STIXService.export_bundle(stix_id)
         
-        # Build prompt - use dedicated STIX prompt format
-        prompt = self._build_stix_prompt(stix_obj, relations)
+        # Build prompt using bundle data
+        prompt = self._build_stix_prompt_from_bundle(stix_obj, bundle)
         
         # Generate analysis
         analysis, token_usage = self._call_llm(prompt)
@@ -601,6 +581,10 @@ class ReportService:
         stix_value = stix_obj.get('value') or stix_obj.get('name') or stix_obj.get('pattern', stix_id)
         stix_type = stix_obj.get('type', 'unknown')
         
+        # Count objects in bundle for relations
+        bundle_objects = bundle.get('objects', []) if bundle else []
+        relations_count = len(bundle_objects) - 1  # Exclude the main object
+        
         return {
             'stix_id': stix_id,
             'stix_value': stix_value,
@@ -608,7 +592,7 @@ class ReportService:
             'generated_at': datetime.utcnow().isoformat(),
             'token_usage': token_usage,
             'analysis': analysis,
-            'relations_count': len(relations.get('stix_objects', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', []))
+            'relations_count': relations_count
         }
     
     def generate_case_report(self, case_id: str) -> Dict[str, Any]:
@@ -726,47 +710,27 @@ class ReportService:
     def regenerate_ioc_report(self, ioc_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
         """
         Regenerate an IOC report with correction instructions.
+        Uses STIX 2.1 bundle format for comprehensive context.
         
         Args:
-            ioc_id: The IOC document ID
+            ioc_id: The IOC document ID (or indicator STIX ID)
             correction_prompt: User correction/refinement instructions
             previous_report: The previous report content for context
             
         Returns:
             Report data with regenerated analysis
         """
-        # Get IOC using the IOC service
-        ioc = self.ioc_service.get(ioc_id)
-        if not ioc:
-            raise ValueError(f"IOC {ioc_id} not found")
+        # Convert to STIX indicator ID if needed
+        stix_id = f"indicator--{ioc_id}" if not ioc_id.startswith('indicator--') else ioc_id
         
-        ioc['id'] = ioc_id
-        relations = self._get_first_level_relations(ioc_id)
-        
-        # Build base prompt
-        base_prompt = self._build_ioc_prompt(ioc, relations)
-        
-        # Build regeneration prompt
-        prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
-        
-        # Generate analysis
-        analysis, token_usage = self._call_llm(prompt)
-        
-        return {
-            'ioc_id': ioc_id,
-            'ioc_value': ioc.get('value') or ioc.get('pattern', ''),
-            'ioc_type': ioc.get('type', 'unknown'),
-            'generated_at': datetime.utcnow().isoformat(),
-            'token_usage': token_usage,
-            'analysis': analysis,
-            'relations_count': len(relations),
-            'regenerated': True
-        }
+        # Use STIX bundle approach instead of IOC service
+        return self.regenerate_stix_report(stix_id, correction_prompt, previous_report)
     
     def regenerate_stix_report(self, stix_id: str, correction_prompt: str, previous_report: str = '') -> Dict[str, Any]:
         """
         Regenerate a STIX object report with correction instructions.
         Works for all STIX types (indicator, malware, threat-actor, etc.).
+        Uses STIX 2.1 Bundle format for comprehensive context.
         
         Args:
             stix_id: The STIX object ID
@@ -776,16 +740,18 @@ class ReportService:
         Returns:
             Report data with regenerated analysis
         """
-        # Get STIX object from both indices
+        # Get STIX object
         stix_obj = self._get_stix_object(stix_id)
         if not stix_obj:
             raise ValueError(f"STIX object {stix_id} not found")
         
         stix_obj['id'] = stix_id
-        relations = self._get_first_level_relations(stix_id)
         
-        # Build base prompt
-        base_prompt = self._build_ioc_prompt(stix_obj, relations)
+        # Get STIX bundle with all related objects and relationships
+        bundle = STIXService.export_bundle(stix_id)
+        
+        # Build base prompt from bundle
+        base_prompt = self._build_stix_prompt_from_bundle(stix_obj, bundle)
         
         # Build regeneration prompt
         prompt = self._build_regeneration_prompt(base_prompt, correction_prompt, previous_report)
@@ -797,6 +763,10 @@ class ReportService:
         stix_value = stix_obj.get('value') or stix_obj.get('name') or stix_obj.get('pattern', stix_id)
         stix_type = stix_obj.get('type', 'unknown')
         
+        # Count objects in bundle for relations
+        bundle_objects = bundle.get('objects', []) if bundle else []
+        relations_count = len(bundle_objects) - 1
+        
         return {
             'stix_id': stix_id,
             'stix_value': stix_value,
@@ -804,7 +774,7 @@ class ReportService:
             'generated_at': datetime.utcnow().isoformat(),
             'token_usage': token_usage,
             'analysis': analysis,
-            'relations_count': len(relations.get('iocs', [])) + len(relations.get('cases', [])) + len(relations.get('incidents', [])),
+            'relations_count': relations_count,
             'regenerated': True
         }
     
@@ -2045,7 +2015,313 @@ Generate a comprehensive threat intelligence report focused on this {stix_type}:
    - Related intelligence gaps
 
 Format your response in clean Markdown with headers, bullet points, and bold text for emphasis. Be specific and actionable."""
+
+    def _build_stix_prompt_from_bundle(self, stix_obj: Dict, bundle: Optional[Dict]) -> str:
+        """
+        Build comprehensive prompt for STIX object analysis using STIX 2.1 Bundle format.
+        
+        Args:
+            stix_obj: The main STIX object
+            bundle: STIX bundle containing all related objects and relationships
+            
+        Returns:
+            Formatted prompt for LLM analysis
+        """
+        # Get language instruction
+        language_instruction = self._get_language_instruction()
+        
+        # Extract main object information
+        stix_type = stix_obj.get('type', 'unknown')
+        stix_value = stix_obj.get('name') or stix_obj.get('value') or stix_obj.get('pattern', 'Unknown')
+        description = stix_obj.get('description', 'No description available')
+        threat_level = stix_obj.get('x_threat_level') or stix_obj.get('severity') or stix_obj.get('confidence', 'unknown')
+        
+        # Parse bundle to extract objects and relationships
+        bundle_data = self._parse_stix_bundle(bundle)
+        
+        # Extract metadata based on STIX type
+        metadata_text = self._extract_stix_metadata(stix_obj, stix_type)
+        
+        # Build relations context from bundle
+        relations_text = self._format_bundle_relations(stix_obj, bundle_data)
+        
+        # Use custom prompt if available
+        if self.custom_prompt_stix:
+            try:
+                return language_instruction + self.custom_prompt_stix.format(
+                    type=stix_type,
+                    value=stix_value,
+                    severity=threat_level,
+                    description=description,
+                    relations=relations_text if relations_text else "No related entities found"
+                )
+            except KeyError:
+                pass
+        
+        # Build comprehensive default prompt with bundle context
+        return language_instruction + f"""# STIX Threat Intelligence Report
+## Main Object: {stix_type.upper()} - {stix_value}
+
+### Object Properties
+- **Type**: {stix_type.upper()}
+- **Identifier**: {stix_obj.get('id', 'Unknown')}
+- **Created**: {stix_obj.get('created', 'Unknown')}
+- **Modified**: {stix_obj.get('modified', 'Unknown')}
+- **Threat Level**: {threat_level}
+
+### Detailed Characteristics
+{metadata_text}
+
+### Object Description
+{description}
+
+### STIX 2.1 Bundle Context
+This object is part of a STIX Bundle containing {len(bundle_data.get('objects', []))} related objects and {len(bundle_data.get('relationships', []))} relationships.
+
+### Relationships & Related Intelligence
+{relations_text if relations_text else "This object stands alone with no detected relationships."}
+
+## Analysis Requirements
+
+You are a senior threat intelligence analyst. Generate a comprehensive, actionable threat intelligence report:
+
+1. **Executive Summary**
+   - What is this {stix_type}?
+   - Why is it significant for cybersecurity defenders?
+   - What is the immediate threat level and impact potential?
+   - Key statistics or metrics that make it notable
+
+2. **Detailed Technical Analysis**
+   - In-depth characteristics specific to this {stix_type}
+   - Technical capabilities and behaviors
+   - Known attack vectors or exploitation methods
+   - Historical evolution and version information
+   - Variants or related campaigns
+
+3. **Attribution & Threat Actors**
+   - Known threat actors associated with this {stix_type}
+   - Geopolitical origins if applicable
+   - Motivation and objectives
+   - Organizations or sectors targeted
+   - Timeline of known activities
+
+4. **Relationship Analysis**
+   - How do the related STIX objects connect to this threat?
+   - What attack chains or campaigns are evidenced?
+   - Indicators of Compromise (IOCs) and their significance
+   - Related vulnerabilities or attack patterns
+   - Connection to known incidents or cases
+
+5. **Detection & Indicators**
+   - Specific technical indicators to hunt for
+   - Network-based detection signatures
+   - Host-based behavioral indicators
+   - Log sources and detection points
+   - False positive mitigation strategies
+
+6. **Mitigation & Defense Strategy**
+   - Immediate containment and response actions
+   - Short-term defensive measures
+   - Long-term remediation and hardening strategies
+   - Threat hunting recommendations
+   - Security control recommendations
+
+7. **References & Confidence**
+   - Confidence level in this assessment (High/Medium/Low)
+   - Critical gaps or uncertainties
+   - Related intelligence sources
+   - Additional information that would strengthen analysis
+
+## Important Guidelines
+- Be specific and avoid generic statements
+- Use technical terminology appropriately
+- Focus on actionable intelligence for defenders
+- Provide practical recommendations
+- Format response in clean Markdown with clear headers and bullet points
+- Do NOT wrap response in code blocks"""
+
+    def _parse_stix_bundle(self, bundle: Optional[Dict]) -> Dict[str, Any]:
+        """
+        Parse STIX 2.1 bundle to extract objects and relationships.
+        
+        Args:
+            bundle: STIX bundle
+            
+        Returns:
+            Dict with 'objects' and 'relationships' lists
+        """
+        if not bundle:
+            return {'objects': [], 'relationships': []}
+        
+        objects = []
+        relationships = []
+        
+        for item in bundle.get('objects', []):
+            if item.get('type') == 'relationship':
+                relationships.append(item)
+            else:
+                objects.append(item)
+        
+        return {
+            'objects': objects,
+            'relationships': relationships
+        }
     
+    def _extract_stix_metadata(self, stix_obj: Dict, stix_type: str) -> str:
+        """
+        Extract and format metadata based on STIX object type.
+        
+        Args:
+            stix_obj: The STIX object
+            stix_type: Type of STIX object
+            
+        Returns:
+            Formatted metadata text
+        """
+        metadata_text = ""
+        
+        if stix_type == 'malware':
+            malware_types = stix_obj.get('malware_types', [])
+            is_family = stix_obj.get('is_family', False)
+            aliases = stix_obj.get('aliases', [])
+            capabilities = stix_obj.get('capabilities', [])
+            kill_chain = stix_obj.get('kill_chain_phases', [])
+            
+            metadata_text = f"""- **Malware Type**: {', '.join(malware_types) if malware_types else 'N/A'}
+- **Is Family**: {'Yes' if is_family else 'No'}
+- **Aliases**: {', '.join(aliases) if aliases else 'None documented'}
+- **Capabilities**: {', '.join(capabilities) if capabilities else 'Not specified'}
+- **Kill Chain Phases**: {', '.join([kc.get('phase_name', '') for kc in kill_chain]) if kill_chain else 'N/A'}"""
+        
+        elif stix_type == 'threat-actor':
+            threat_actor_types = stix_obj.get('threat_actor_types', [])
+            aliases = stix_obj.get('aliases', [])
+            goals = stix_obj.get('goals', [])
+            resource_level = stix_obj.get('resource_level', 'N/A')
+            primary_motivation = stix_obj.get('primary_motivation', 'N/A')
+            secondary_motivations = stix_obj.get('secondary_motivations', [])
+            
+            metadata_text = f"""- **Classification**: {', '.join(threat_actor_types) if threat_actor_types else 'N/A'}
+- **Known Aliases**: {', '.join(aliases) if aliases else 'None documented'}
+- **Primary Goals**: {', '.join(goals) if goals else 'Not specified'}
+- **Resource Level**: {resource_level}
+- **Primary Motivation**: {primary_motivation}
+- **Secondary Motivations**: {', '.join(secondary_motivations) if secondary_motivations else 'None'}"""
+        
+        elif stix_type == 'attack-pattern':
+            aliases = stix_obj.get('aliases', [])
+            kill_chain = stix_obj.get('kill_chain_phases', [])
+            
+            metadata_text = f"""- **Known Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Kill Chain Phases**: {', '.join([kc.get('phase_name', '') for kc in kill_chain]) if kill_chain else 'N/A'}"""
+        
+        elif stix_type == 'campaign':
+            aliases = stix_obj.get('aliases', [])
+            objective = stix_obj.get('objective', 'N/A')
+            
+            metadata_text = f"""- **Known Aliases**: {', '.join(aliases) if aliases else 'None'}
+- **Campaign Objective**: {objective}"""
+        
+        elif stix_type == 'vulnerability':
+            external_refs = stix_obj.get('external_references', [])
+            cve_ids = [ref.get('external_id', '') for ref in external_refs if ref.get('external_id', '').startswith('CVE')]
+            
+            metadata_text = f"""- **CVE IDs**: {', '.join(cve_ids) if cve_ids else 'Not specified'}
+- **External References**: {len(external_refs)} available"""
+        
+        elif stix_type == 'indicator':
+            pattern = stix_obj.get('pattern', 'N/A')
+            pattern_type = stix_obj.get('pattern_type', 'stix')
+            valid_from = stix_obj.get('valid_from', 'Unknown')
+            valid_until = stix_obj.get('valid_until', 'Open-ended')
+            
+            metadata_text = f"""- **Pattern Type**: {pattern_type}
+- **Pattern**: {pattern[:100]}{'...' if len(pattern) > 100 else ''}
+- **Valid From**: {valid_from}
+- **Valid Until**: {valid_until}"""
+        
+        else:
+            # Generic metadata for other types
+            aliases = stix_obj.get('aliases', [])
+            if aliases:
+                metadata_text = f"- **Known Aliases**: {', '.join(aliases)}"
+        
+        return metadata_text if metadata_text else "- **Additional Details**: See STIX object properties"
+    
+    def _format_bundle_relations(self, main_obj: Dict, bundle_data: Dict) -> str:
+        """
+        Format relationships from STIX bundle for analysis.
+        
+        Args:
+            main_obj: The main STIX object
+            bundle_data: Parsed bundle data with objects and relationships
+            
+        Returns:
+            Formatted relations text
+        """
+        main_id = main_obj.get('id')
+        relationships = bundle_data.get('relationships', [])
+        objects = {obj.get('id'): obj for obj in bundle_data.get('objects', [])}
+        
+        # Filter relationships involving the main object
+        relevant_rels = [r for r in relationships 
+                        if r.get('source_ref') == main_id or r.get('target_ref') == main_id]
+        
+        if not relevant_rels:
+            return ""
+        
+        relations_text = f"### Found {len(relevant_rels)} STIX Relationships\n"
+        
+        # Group by relationship type
+        by_type = {}
+        for rel in relevant_rels:
+            rel_type = rel.get('relationship_type', 'related-to')
+            if rel_type not in by_type:
+                by_type[rel_type] = []
+            by_type[rel_type].append(rel)
+        
+        # Format each relationship type
+        for rel_type, rels in by_type.items():
+            relations_text += f"\n#### {rel_type.replace('-', ' ').title()} ({len(rels)})\n"
+            
+            for rel in rels[:5]:  # Limit to 5 per type
+                # Determine if main object is source or target
+                if rel.get('source_ref') == main_id:
+                    related_id = rel.get('target_ref')
+                    direction = "→"
+                else:
+                    related_id = rel.get('source_ref')
+                    direction = "←"
+                
+                related_obj = objects.get(related_id, {})
+                related_type = related_obj.get('type', 'unknown').title()
+                related_name = related_obj.get('name') or related_obj.get('value') or related_id
+                related_desc = related_obj.get('description', '')[:80]
+                
+                relations_text += f"- **{direction} {related_type}: {related_name}**\n"
+                if related_desc:
+                    relations_text += f"  - Description: {related_desc}{'...' if len(related_desc) > 80 else ''}\n"
+                if rel.get('description'):
+                    relations_text += f"  - Relationship Note: {rel.get('description')[:100]}\n"
+        
+        # Add summary of all objects in bundle
+        other_objects = [obj for obj in bundle_data.get('objects', []) 
+                        if obj.get('id') != main_id]
+        
+        if other_objects:
+            relations_text += f"\n### All Objects in Bundle ({len(other_objects)} additional)\n"
+            by_obj_type = {}
+            for obj in other_objects:
+                obj_type = obj.get('type', 'unknown')
+                if obj_type not in by_obj_type:
+                    by_obj_type[obj_type] = []
+                by_obj_type[obj_type].append(obj)
+            
+            for obj_type, objs in by_obj_type.items():
+                relations_text += f"- **{obj_type.title()}**: {len(objs)} objects\n"
+        
+        return relations_text
+
     def _build_case_prompt(self, case: Dict, incidents: List[Dict], iocs: List[Dict], timeline: List[Dict] = None, comments: List[Dict] = None) -> str:
         """Build prompt for case analysis."""
         if timeline is None:

@@ -174,6 +174,9 @@
             <span id="selectedCount">0</span> object(s) selected
         </div>
         <div class="btn-group">
+            <button class="btn btn-sm btn-outline-success" onclick="mergeObjects()" id="mergeBtn" style="display: none;">
+                <i class="bi bi-shuffle me-1"></i> Merge
+            </button>
             <button class="btn btn-sm btn-outline-primary" onclick="bulkExport()">
                 <i class="bi bi-download me-1"></i> Export Bundle
             </button>
@@ -420,6 +423,14 @@ function updateBulkActionBar() {
     const count = selectedObjects.size;
     document.getElementById('selectedCount').textContent = count;
     bar.classList.toggle('active', count > 0);
+    
+    // Show merge button only if exactly 2 objects are selected
+    const mergeBtn = document.getElementById('mergeBtn');
+    if (count === 2) {
+        mergeBtn.style.display = 'block';
+    } else {
+        mergeBtn.style.display = 'none';
+    }
 }
 
 function clearSelection() {
@@ -430,6 +441,102 @@ function clearSelection() {
     });
     document.getElementById('selectAll').checked = false;
     updateBulkActionBar();
+}
+
+async function mergeObjects() {
+    if (selectedObjects.size !== 2) {
+        showAlert('Please select exactly 2 objects to merge', 'warning');
+        return;
+    }
+    
+    const ids = Array.from(selectedObjects);
+    
+    // Get object details for display
+    let obj1Data, obj2Data;
+    try {
+        const res1 = await fetch(`/api/stix/objects/${ids[0]}`);
+        const res2 = await fetch(`/api/stix/objects/${ids[1]}`);
+        obj1Data = await res1.json();
+        obj2Data = await res2.json();
+    } catch (e) {
+        showAlert('Failed to load object details: ' + e.message, 'danger');
+        return;
+    }
+    
+    const obj1Name = obj1Data.name || obj1Data.x_ioc_value || obj1Data.type;
+    const obj2Name = obj2Data.name || obj2Data.x_ioc_value || obj2Data.type;
+    
+    // Create a modal dialog for choosing which object ingests which
+    const modalHtml = `
+        <div class="modal-backdrop fade show" id="mergeModal" style="display: block; z-index: 1050;"></div>
+        <div class="modal fade show" id="mergeDialogModal" tabindex="-1" style="display: block; z-index: 1060;" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Merge STIX Objects</h5>
+                        <button type="button" class="btn-close" onclick="closeMergeDialog()"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-3">Choose which object will ingest the other:</p>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button class="btn btn-outline-primary w-100 p-3" onclick="performMerge('${ids[0]}', '${ids[1]}')">
+                                    <div class="fw-bold text-truncate">${escapeHtml(obj1Name)}</div>
+                                    <small class="text-muted">${ids[0].substring(0, 20)}...</small>
+                                    <div class="mt-2"><i class="bi bi-arrow-left me-1"></i>Ingests</div>
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button class="btn btn-outline-primary w-100 p-3" onclick="performMerge('${ids[1]}', '${ids[0]}')">
+                                    <div class="fw-bold text-truncate">${escapeHtml(obj2Name)}</div>
+                                    <small class="text-muted">${ids[1].substring(0, 20)}...</small>
+                                    <div class="mt-2"><i class="bi bi-arrow-left me-1"></i>Ingests</div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+
+function closeMergeDialog() {
+    const modal = document.getElementById('mergeDialogModal');
+    const backdrop = document.getElementById('mergeModal');
+    if (modal) modal.remove();
+    if (backdrop) backdrop.remove();
+}
+
+async function performMerge(primaryId, secondaryId) {
+    closeMergeDialog();
+    
+    try {
+        const response = await fetch('/api/stix/objects/merge', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                primary_id: primaryId,
+                secondary_id: secondaryId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showAlert(`Successfully merged objects! ${secondaryId} has been merged into ${primaryId}`, 'success');
+            selectedObjects.clear();
+            loadObjects();
+        } else {
+            showAlert('Merge failed: ' + (data.error || 'Unknown error'), 'danger');
+        }
+    } catch (e) {
+        showAlert('Merge error: ' + e.message, 'danger');
+    }
 }
 
 async function bulkExport() {
@@ -460,7 +567,7 @@ async function bulkExport() {
         URL.revokeObjectURL(url);
         
     } catch (e) {
-        alert('Export failed: ' + e.message);
+        showAlert('Export failed: ' + e.message, 'danger');
     }
 }
 
@@ -478,12 +585,12 @@ async function bulkDelete() {
             if (response.ok) deleted++;
         }
         
-        alert(`Deleted ${deleted} object(s)`);
+        showAlert(`Deleted ${deleted} object(s)`, 'success');
         selectedObjects.clear();
         loadObjects();
         
     } catch (e) {
-        alert('Delete failed: ' + e.message);
+        showAlert('Delete failed: ' + e.message, 'danger');
         loadObjects();
     }
 }
@@ -494,13 +601,14 @@ async function deleteObject(id) {
     try {
         const response = await fetch(`/api/stix/objects/${id}`, { method: 'DELETE' });
         if (response.ok) {
+            showAlert('Object deleted successfully', 'success');
             loadObjects();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to delete');
+            showAlert(data.error || 'Failed to delete', 'danger');
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        showAlert('Error: ' + e.message, 'danger');
     }
 }
 

@@ -15,9 +15,9 @@ webhook_bp = Blueprint('webhooks', __name__)
 
 # Supported webhook events
 WEBHOOK_EVENTS = [
-    'ioc.created',
+    'stix.created',
     'ioc.updated',
-    'ioc.deleted',
+    'stix.deleted',
     'import.completed',
     'public_submission.created',
     'incident.created',
@@ -68,7 +68,7 @@ def create_webhook():
     {
         "name": "My Webhook",
         "url": "https://example.com/webhook",
-        "events": ["ioc.created", "ioc.updated"],
+        "events": ["stix.created", "ioc.updated"],
         "enabled": true
     }
     """

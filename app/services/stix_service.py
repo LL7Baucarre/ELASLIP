@@ -309,6 +309,178 @@ class STIXService:
         return stix_object
     
     @classmethod
+    def import_stix_object(cls, stix_object: Dict[str, Any],
+                          user_id: Optional[str] = None, 
+                          username: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Import a complete STIX object from JSON (with id, created, modified already set)
+        
+        Args:
+            stix_object: Complete STIX 2.1 object with all required fields
+            user_id: Optional user ID who imported this object
+            username: Optional username who imported this object
+            
+        Returns:
+            The imported STIX object
+        """
+        # Validate required STIX fields
+        required_fields = ['type', 'id', 'created', 'modified']
+        for field in required_fields:
+            if field not in stix_object:
+                raise ValueError(f"Missing required STIX field: '{field}'")
+        
+        sdo_type = stix_object.get('type')
+        
+        if sdo_type not in cls.SDO_TYPES:
+            raise ValueError(f"Unsupported STIX object type: {sdo_type}")
+        
+        # Check if object already exists
+        existing = cls.get_sdo(stix_object['id'])
+        if existing:
+            # Update with new data, preserving existing metadata if not in import
+            now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+            updates = {
+                "modified": now,
+            }
+            
+            # Update fields from import (but preserve some ELASLIP fields)
+            for key, value in stix_object.items():
+                if key not in ['id', 'created'] and value is not None:
+                    updates[key] = value
+            
+            # Add import metadata
+            if user_id and not existing.get("x_elaslip_created_by_user_id"):
+                updates["x_elaslip_created_by_user_id"] = user_id
+            if username and not existing.get("x_elaslip_created_by_username"):
+                updates["x_elaslip_created_by_username"] = username
+            
+            return cls.update_sdo(stix_object['id'], updates, 
+                                 user_id=user_id, username=username,
+                                 source_type="json_import")
+        
+        # Object doesn't exist - store as-is with import metadata
+        imported = dict(stix_object)
+        
+        # Ensure spec_version is set
+        if 'spec_version' not in imported:
+            imported['spec_version'] = '2.1'
+        
+        # Add ELASLIP metadata
+        if user_id:
+            imported["x_elaslip_created_by_user_id"] = user_id
+        if username:
+            imported["x_elaslip_created_by_username"] = username
+        
+        # Track import as a source
+        now = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+        imported["x_elaslip_sources"] = [{
+            "type": "json_import",
+            "user_id": user_id,
+            "username": username,
+            "imported_at": now
+        }]
+        
+        # Index in Elasticsearch
+        es = ElasticsearchService().client
+        es.index(
+            index=cls.STIX_OBJECTS_INDEX,
+            id=imported['id'],
+            document=imported,
+            refresh=True
+        )
+        
+        return imported
+    
+    @classmethod
+    def import_stix_bundle(cls, bundle: Dict[str, Any],
+                          user_id: Optional[str] = None,
+                          username: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Import a STIX bundle containing multiple objects and relationships
+        
+        Args:
+            bundle: STIX 2.1 bundle with "objects" array and optional "relationships" array
+            user_id: Optional user ID who imported this bundle
+            username: Optional username who imported this bundle
+            
+        Returns:
+            Dictionary with import statistics and imported object IDs
+        """
+        if bundle.get('type') != 'bundle':
+            raise ValueError("Expected STIX bundle object (type='bundle')")
+        
+        if 'objects' not in bundle:
+            raise ValueError("Bundle must contain 'objects' array")
+        
+        imported_objects = []
+        imported_relationships = []
+        imported_object_ids = []
+        errors = []
+        
+        # Import all objects first
+        for stix_object in bundle.get('objects', []):
+            try:
+                # Skip if not a valid STIX object
+                if 'type' not in stix_object or 'id' not in stix_object:
+                    errors.append(f"Invalid object: missing type or id")
+                    continue
+                
+                # Skip bundle objects within bundles
+                if stix_object.get('type') == 'bundle':
+                    continue
+                
+                # Check if it's a relationship - handle separately
+                if stix_object.get('type') == 'relationship':
+                    imported_relationships.append(stix_object)
+                    continue
+                
+                # Import regular STIX object (SDO)
+                if stix_object.get('type') in cls.SDO_TYPES:
+                    # Validate required fields for SDO
+                    if 'created' not in stix_object or 'modified' not in stix_object:
+                        errors.append(f"Object {stix_object.get('id')}: missing created or modified")
+                        continue
+                    
+                    imported = cls.import_stix_object(
+                        stix_object=stix_object,
+                        user_id=user_id,
+                        username=username
+                    )
+                    imported_objects.append(imported)
+                    imported_object_ids.append(imported['id'])
+            except Exception as e:
+                errors.append(f"Failed to import object: {str(e)}")
+                # Continue with other objects
+                continue
+        
+        # Import relationships from bundle
+        for rel in imported_relationships:
+            try:
+                # Relationships might be in bundle objects or separate
+                # We'll try to create them
+                if 'source_ref' in rel and 'target_ref' in rel:
+                    cls.create_relationship(
+                        source_ref=rel.get('source_ref'),
+                        target_ref=rel.get('target_ref'),
+                        relationship_type=rel.get('relationship_type', 'related-to'),
+                        description=rel.get('description'),
+                        user_id=user_id,
+                        username=username,
+                        bundle_import=True
+                    )
+            except Exception as e:
+                errors.append(f"Failed to import relationship: {str(e)}")
+                # Continue with other relationships
+                continue
+        
+        return {
+            'objects_imported': len(imported_objects),
+            'relationships_imported': len(imported_relationships),
+            'imported_object_ids': imported_object_ids,
+            'errors': errors if errors else None
+        }
+    
+    @classmethod
     def get_sdo(cls, stix_id: str) -> Optional[Dict[str, Any]]:
         """Get a STIX object by ID"""
         es = ElasticsearchService().client
@@ -585,6 +757,74 @@ class STIXService:
                 related_objects.append(obj)
         
         return related_objects, relationships
+    
+    @classmethod
+    def get_merge_history(cls, stix_id: str) -> List[Dict[str, Any]]:
+        """
+        Get merge history for a STIX object (objects that were merged into this one)
+        
+        Returns:
+            List of merge records with secondary object info
+        """
+        es = ElasticsearchService().client
+        
+        try:
+            # Get all relationships for this object (both directions)
+            # Then filter for merged-from relationships in Python
+            query = {
+                "bool": {
+                    "should": [
+                        {"term": {"source_ref": stix_id}},
+                        {"term": {"target_ref": stix_id}}
+                    ]
+                }
+            }
+            
+            response = es.search(
+                index=cls.STIX_RELATIONSHIPS_INDEX,
+                body={
+                    "query": query,
+                    "size": 500
+                }
+            )
+            
+            merge_history = []
+            
+            # Filter for merged-from relationships where stix_id is the source
+            for hit in response["hits"]["hits"]:
+                rel = hit["_source"]
+                
+                # Only include merged-from relationships where this object is the primary (source)
+                if (rel.get("relationship_type") == "merged-from" and 
+                    rel.get("source_ref") == stix_id):
+                    
+                    secondary_id = rel.get("target_ref")
+                    
+                    # Try to fetch secondary object details (it may have been deleted)
+                    secondary_obj = cls.get_sdo(secondary_id) if secondary_id else None
+                    
+                    # Extract display name from secondary object
+                    secondary_name = None
+                    if secondary_obj:
+                        secondary_name = secondary_obj.get("name") or secondary_obj.get("x_ioc_value") or secondary_id
+                    else:
+                        secondary_name = None
+                    
+                    merge_history.append({
+                        "relationship_id": rel.get("id"),
+                        "secondary_id": secondary_id,
+                        "secondary_name": secondary_name,
+                        "created": rel.get("created"),
+                        "description": rel.get("description")
+                    })
+            
+            return sorted(merge_history, key=lambda x: x.get("created", ""), reverse=True)
+            
+        except Exception as e:
+            # Log the error for debugging
+            import logging
+            logging.error(f"Error getting merge history for {stix_id}: {str(e)}")
+            return []
     
     @classmethod
     def export_bundle(cls, stix_id: str) -> Dict[str, Any]:
@@ -1125,3 +1365,116 @@ class STIXService:
             return None
         
         return obj.get("x_elaslip_enrichment")
+    
+    @classmethod
+    def merge_sdos(cls, primary_id: str, secondary_id: str, 
+                   user_id: str = None, username: str = None) -> Dict[str, Any]:
+        """
+        Merge two STIX objects. The primary object ingests the secondary object.
+        
+        Args:
+            primary_id: ID of the primary object (will keep this ID)
+            secondary_id: ID of the secondary object (will be deleted after merge)
+            user_id: User ID performing the merge
+            username: Username performing the merge
+            
+        Returns:
+            The merged STIX object
+            
+        Raises:
+            ValueError: If objects don't exist or are incompatible types
+        """
+        primary = cls.get_sdo(primary_id)
+        secondary = cls.get_sdo(secondary_id)
+        
+        if not primary:
+            raise ValueError(f"Primary object {primary_id} not found")
+        if not secondary:
+            raise ValueError(f"Secondary object {secondary_id} not found")
+        
+        # Objects must be of the same type - THIS IS CRITICAL
+        primary_type = primary.get("type")
+        secondary_type = secondary.get("type")
+        
+        if primary_type != secondary_type:
+            raise ValueError(
+                f"Cannot merge objects of different types. "
+                f"Primary object is type '{primary_type}' but secondary object is type '{secondary_type}'. "
+                f"Both objects must be of the same type to merge."
+            )
+        
+        now = datetime.utcnow().isoformat() + "Z"
+        
+        # Merge fields
+        updates = {}
+        
+        # Merge labels (union of both sets)
+        primary_labels = set(primary.get("labels", []))
+        secondary_labels = set(secondary.get("labels", []))
+        merged_labels = list(primary_labels.union(secondary_labels))
+        if merged_labels:
+            updates["labels"] = merged_labels
+        
+        # Merge description (use primary if exists, otherwise secondary)
+        if not primary.get("description") and secondary.get("description"):
+            updates["description"] = secondary.get("description")
+        
+        # Merge name (use primary if exists, otherwise secondary)
+        if not primary.get("name") and secondary.get("name"):
+            updates["name"] = secondary.get("name")
+        
+        # Merge aliases
+        if "aliases" in primary or "aliases" in secondary:
+            primary_aliases = set(primary.get("aliases", []))
+            secondary_aliases = set(secondary.get("aliases", []))
+            merged_aliases = list(primary_aliases.union(secondary_aliases))
+            if merged_aliases:
+                updates["aliases"] = merged_aliases
+        
+        # Merge custom fields that start with x_
+        for key in secondary:
+            if key.startswith("x_") and key not in updates and key not in ["x_elaslip_created_by", "x_elaslip_references"]:
+                # Skip standard STIX and internal fields
+                if key not in primary:
+                    updates[key] = secondary[key]
+        
+        # Track the merge in relationships
+        # Create a relationship indicating the merge
+        relationship = {
+            "type": "relationship",
+            "id": f"relationship--{uuid.uuid4()}",
+            "created": now,
+            "modified": now,
+            "relationship_type": "merged-from",
+            "source_ref": primary_id,
+            "target_ref": secondary_id,
+            "description": f"Object {secondary_id} was merged into {primary_id}"
+        }
+        
+        # Store merge relationship
+        es = ElasticsearchService().client
+        es.index(
+            index=cls.STIX_RELATIONSHIPS_INDEX,
+            id=relationship["id"],
+            document=relationship,
+            refresh=True
+        )
+        
+        # Update primary object
+        updates["modified"] = now
+        result = cls.update_sdo(primary_id, updates, user_id=user_id, username=username)
+        
+        # Delete secondary object and its relationships (but NOT the merge relationship we just created)
+        cls.delete_sdo(secondary_id)
+        
+        # Delete relationships involving the secondary object EXCEPT the merge relationship
+        try:
+            rels = cls.get_relationships(secondary_id)
+            for rel in rels:
+                # Don't delete the merge relationship we just created
+                if rel.get("relationship_type") != "merged-from":
+                    cls.delete_relationship(rel["id"])
+        except:
+            pass
+        
+        return result

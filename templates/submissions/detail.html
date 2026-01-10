@@ -391,10 +391,10 @@ function markAsDuplicate(duplicateId, primaryId) {
     })
     .then(r => r.json())
     .then(data => {
-        alert('Marked as duplicate');
+        showAlert('Marked as duplicate', 'success');
         location.reload();
     })
-    .catch(err => alert('Error: ' + err.message));
+    .catch(err => showAlert('Error: ' + err.message, 'danger'));
 }
 
 function escapeHtml(text) {
@@ -441,10 +441,10 @@ document.getElementById('confirmCreateIocBtn').addEventListener('click', async (
             location.reload();
         } else {
             const data = await response.json();
-            alert('Error: ' + (data.error || 'Failed to create IOC'));
+            showAlert('Error: ' + (data.error || 'Failed to create IOC'), 'danger');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showAlert('Error: ' + error.message, 'danger');
     }
 });
 {% endif %}
@@ -471,10 +471,10 @@ document.getElementById('approveBtn')?.addEventListener('click', async () => {
         if (response.ok) {
             location.reload();
         } else {
-            alert('Failed to approve submission');
+            showAlert('Failed to approve submission', 'danger');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showAlert('Error: ' + error.message, 'danger');
     }
 });
 
@@ -497,10 +497,10 @@ document.getElementById('rejectBtn')?.addEventListener('click', async () => {
         if (response.ok) {
             location.reload();
         } else {
-            alert('Failed to reject submission');
+            showAlert('Failed to reject submission', 'danger');
         }
     } catch (error) {
-        alert('Error: ' + error.message);
+        showAlert('Error: ' + error.message, 'danger');
     }
 });
 {% endif %}

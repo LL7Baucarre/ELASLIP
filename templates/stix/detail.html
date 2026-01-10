@@ -919,13 +919,13 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>History</h5>
-                        {% if stix_object.x_elaslip_sources %}
-                        <span class="badge bg-secondary">{{ stix_object.x_elaslip_sources|length }} entries</span>
+                        {% if stix_object.x_elaslip_sources or merge_history %}
+                        <span class="badge bg-secondary">{{ stix_object.x_elaslip_sources|length + merge_history|length }} entries</span>
                         {% endif %}
                     </div>
                 </div>
                 <div class="card-body">
-                    {% if stix_object.x_elaslip_sources %}
+                    {% if stix_object.x_elaslip_sources or merge_history %}
                     {% set sources_list = stix_object.x_elaslip_sources | reverse | list %}
                     <div class="table-responsive">
                         <table class="table table-sm table-striped mb-0">
@@ -938,6 +938,26 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                <!-- DEBUG: merge_history = {{ merge_history|length }} items -->
+                                {% for merge in merge_history %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-info"><i class="bi bi-shuffle me-1"></i>Merged</span>
+                                    </td>
+                                    <td>
+                                        <small>{{ merge.secondary_name or merge.secondary_id[:30] }}</small>
+                                        {% if merge.secondary_id and merge.secondary_name and merge.secondary_id != merge.secondary_name %}
+                                        <code class="small ms-2">{{ merge.secondary_id[:20] }}{% if merge.secondary_id|length > 20 %}...{% endif %}</code>
+                                        {% endif %}
+                                    </td>
+                                    <td><span class="badge bg-secondary">System</span></td>
+                                    <td>
+                                        <small class="text-muted">
+                                            {{ merge.created[:19] if merge.created else 'N/A' }}
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
                                 {% for source in sources_list[:10] %}
                                 <tr>
                                     <td>
@@ -969,9 +989,9 @@
                             </tbody>
                         </table>
                     </div>
-                    {% if stix_object.x_elaslip_sources|length > 10 %}
+                    {% if (stix_object.x_elaslip_sources|length + merge_history|length) > 10 %}
                     <div class="mt-2 text-center">
-                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Showing 10 of {{ stix_object.x_elaslip_sources|length }} entries</small>
+                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Showing 10 of {{ stix_object.x_elaslip_sources|length + merge_history|length }} entries</small>
                     </div>
                     {% endif %}
                     {% elif stix_object.x_elaslip_import_job_id %}
@@ -1725,10 +1745,10 @@ async function confirmAddRelationship() {
             location.reload();
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to create relationship');
+            showAlert(data.error || 'Failed to create relationship', 'danger');
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        showAlert('Error: ' + e.message, 'danger');
     }
 }
 
@@ -1754,16 +1774,16 @@ async function deleteObject() {
             window.location.href = '{{ url_for("stix.list_stix_objects_page") }}';
         } else {
             const data = await response.json();
-            alert(data.error || 'Failed to delete');
+            showAlert(data.error || 'Failed to delete', 'danger');
         }
     } catch (e) {
-        alert('Error: ' + e.message);
+        showAlert('Error: ' + e.message, 'danger');
     }
 }
 
 function generateReport(e) {
     if (!objectId) {
-        alert('STIX object ID not found');
+        showAlert('STIX object ID not found', 'danger');
         return;
     }
     
@@ -1798,12 +1818,12 @@ function generateReport(e) {
             // Redirect to loading page
             window.location.href = `/reports/loading?task_id=${data.task_id}&type=stix&id=${objectId}`;
         } else {
-            alert('Report generation started. Check the reports page.');
+            showAlert('Report generation started. Check the reports page.', 'success');
             window.location.href = '/reports';
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+        showAlert('Error: ' + error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = originalText;
     });
@@ -1822,7 +1842,7 @@ async function exportBundle() {
         a.click();
         URL.revokeObjectURL(url);
     } catch (e) {
-        alert('Export failed: ' + e.message);
+        showAlert('Export failed: ' + e.message, 'danger');
     }
 }
 
@@ -1833,7 +1853,7 @@ function showRawJson() {
 
 function copyRawJson() {
     navigator.clipboard.writeText(JSON.stringify(stixObject, null, 2));
-    alert('Copied to clipboard!');
+    showAlert('Copied to clipboard!', 'success');
 }
 
 function escapeHtml(text) {
@@ -1926,7 +1946,7 @@ async function enrichObject(apiId = null) {
         showEnrichmentModal(data);
         
     } catch (e) {
-        alert('Enrichment error: ' + e.message);
+        showAlert('Enrichment error: ' + e.message, 'danger');
     } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
@@ -2100,7 +2120,7 @@ async function storeEnrichmentResult(resultIdx) {
     });
     
     if (Object.keys(selectedFields).length === 0) {
-        alert('Please select at least one field to store');
+        showAlert('Please select at least one field to store', 'warning');
         return;
     }
     
@@ -2125,7 +2145,7 @@ async function storeEnrichmentResult(resultIdx) {
         location.reload();
         
     } catch (e) {
-        alert('Error storing enrichment: ' + e.message);
+        showAlert('Error storing enrichment: ' + e.message, 'danger');
     }
 }
 

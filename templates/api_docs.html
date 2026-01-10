@@ -568,7 +568,7 @@
                 <p><strong>Request Body:</strong></p>
                 <pre><code>{
   "url": "https://example.com/webhook",
-  "events": ["ioc.created", "ioc.updated", "report.llm_created"],
+  "events": ["stix.created", "ioc.updated", "report.llm_created"],
   "enabled": true
 }</code></pre>
 
@@ -630,7 +630,7 @@
                 <p><strong>Request Body:</strong></p>
                 <pre><code>{
   "name": "My API Key",
-  "scopes": ["ioc.view", "ioc.create", "report.view"]
+  "scopes": ["stix.view", "stix.create", "report.view"]
 }</code></pre>
 
                 <h6 class="mt-4">Revoke API Key</h6>

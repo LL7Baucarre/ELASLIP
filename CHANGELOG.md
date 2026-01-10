@@ -1,8 +1,34 @@
 # Changelog
 
+## [1.3.5] - 2026-01-10
 
+### Added
+- **STIX Object Merging**: Complete merge functionality allowing users to combine two STIX objects with choice of primary/secondary ingestion
+  - POST `/api/stix/objects/merge` endpoint with validation and permission checks
+  - Modal dialog for selecting which object ingests which
+  - Automatic consolidation of data and relationship creation
+  - Audit logging for all merge operations
+- **Merge History Display**: Enhanced STIX detail pages to show merge history
+  - History section displays merged objects with "Merged" badges
+  - Shows secondary object names in details column
+  - Badge count includes merge history entries
 
-## [1.3.4] - 2026-01-08
+### Changed
+- **UI Notifications System**: Replaced all JavaScript `alert()` calls with Bootstrap flash messages
+  - Converted 100+ alert() instances across 15+ templates to `showAlert()` function
+  - Added proper severity levels (success, danger, warning, info)
+  - Auto-dismissing toast notifications with 5-second timeout
+  - Consistent user experience across the entire application
+- **WHOIS Tool Enhancement**: Expanded field parsing and display for comprehensive WHOIS data
+  - Added 20+ additional fields: inetnum, admin-c, tech-c, abuse-c, mnt-by, mnt-routes, etc.
+  - Organized display into logical categories (Network, Organization, Contacts, etc.)
+  - Support for multi-value fields with badge display
+  - Improved raw output preservation alongside parsed data
+- **Dashboard Quick Actions**: Updated quick action buttons for better navigation
+  - "Import Data" → "Tools" (links to tools page)
+  - "Configure APIs" → "Settings" (links to settings page)
+
+## [1.3.5] - 2026-01-08
 
 ### Added
 - **VPN Split-Routing Architecture**: Worker container can route all traffic through VPN tunnel for anonymous enrichment and external API calls

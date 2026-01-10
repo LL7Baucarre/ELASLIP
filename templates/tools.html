@@ -1812,29 +1812,114 @@ function displayWhoisResult(data) {
     const parsed = data.parsed || data.result?.parsed || {};
     let html = '<div class="whois-fields">';
     
-    const fields = [
-        ['Registrar', parsed.registrar],
-        ['Creation Date', parsed.creation_date],
-        ['Expiration Date', parsed.expiration_date],
-        ['Updated Date', parsed.updated_date],
-        ['Name Servers', parsed.name_servers?.join(', ')],
-        ['Registrant', parsed.registrant],
-        ['Organization', parsed.org_name],
-        ['Net Name', parsed.netname],
-        ['Net Range', parsed.netrange],
-        ['CIDR', parsed.cidr],
-        ['Country', parsed.country],
-        ['Origin AS', parsed.origin_as]
-    ];
+    // Helper function to format field values
+    const formatValue = (value) => {
+        if (Array.isArray(value)) {
+            return value.map(v => `<div class="badge bg-secondary me-1">${escapeHtml(String(v))}</div>`).join('');
+        }
+        return escapeHtml(String(value));
+    };
     
-    for (const [name, value] of fields) {
+    // Helper function to add a field row
+    const addField = (name, value) => {
         if (value) {
             html += `
                 <div class="whois-field">
                     <div class="whois-field-name">${name}</div>
-                    <div class="whois-field-value">${value}</div>
+                    <div class="whois-field-value">${formatValue(value)}</div>
                 </div>
             `;
+        }
+    };
+    
+    // Organize fields by category
+    const categories = [
+        {
+            name: 'Network Information',
+            fields: [
+                ['IPv4 Range', parsed.inetnum],
+                ['Net Name', parsed.netname],
+                ['Net Range', parsed.netrange],
+                ['CIDR', parsed.cidr],
+                ['Country', parsed.country]
+            ]
+        },
+        {
+            name: 'Organization',
+            fields: [
+                ['Organization', parsed.org_name || parsed.organization],
+                ['Organization ID', parsed.org_id],
+                ['Description', parsed.description],
+                ['Additional Info', parsed.descr]
+            ]
+        },
+        {
+            name: 'Contacts',
+            fields: [
+                ['Admin Contact', parsed.admin_c],
+                ['Tech Contact', parsed.tech_c],
+                ['Abuse Contact', parsed.abuse_c],
+                ['Email', parsed.email || parsed.admin_email],
+                ['Phone', parsed.phone],
+                ['Fax', parsed.fax],
+                ['Address', parsed.address]
+            ]
+        },
+        {
+            name: 'Registry Information',
+            fields: [
+                ['Registrar', parsed.registrar],
+                ['Status', parsed.status],
+                ['Origin AS', parsed.origin_as],
+                ['Source', parsed.source]
+            ]
+        },
+        {
+            name: 'Dates',
+            fields: [
+                ['Creation Date', parsed.creation_date],
+                ['Updated Date', parsed.updated_date],
+                ['Last Modified', parsed.last_modified],
+                ['Expiration Date', parsed.expiration_date]
+            ]
+        },
+        {
+            name: 'Domain Information',
+            fields: [
+                ['Registrant', parsed.registrant],
+                ['Name Servers', parsed.name_servers],
+                ['Tech Email', parsed.tech_email]
+            ]
+        },
+        {
+            name: 'Maintenance',
+            fields: [
+                ['Maintained By', parsed.mnt_by],
+                ['Route Maintenance', parsed.mnt_routes],
+                ['IRT Maintenance', parsed.mnt_irt],
+                ['Lower Maintenance', parsed.mnt_lower],
+                ['Abuse Mailbox', parsed.abuse_mailbox]
+            ]
+        },
+        {
+            name: 'Additional Information',
+            fields: [
+                ['Remarks', parsed.remarks]
+            ]
+        }
+    ];
+    
+    // Render categories
+    for (const category of categories) {
+        const hasValues = category.fields.some(([_, value]) => value);
+        if (hasValues) {
+            html += `<div class="whois-category"><h6 class="mb-2 text-secondary fw-bold">${category.name}</h6>`;
+            for (const [name, value] of category.fields) {
+                if (value) {
+                    addField(name, value);
+                }
+            }
+            html += '</div>';
         }
     }
     

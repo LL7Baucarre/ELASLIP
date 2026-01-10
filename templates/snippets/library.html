@@ -346,7 +346,7 @@ function saveSnippet() {
             resetForm();
             loadSnippets();
         } else {
-            alert('Error saving snippet');
+            showAlert('Error saving snippet', 'danger');
         }
     });
 }
@@ -356,7 +356,7 @@ function copySnippet(id) {
         .then(r => r.json())
         .then(data => {
             navigator.clipboard.writeText(data.content)
-                .then(() => alert('Snippet copied to clipboard!'));
+                .then(() => showAlert('Snippet copied to clipboard!', 'success'));
         });
 }
 

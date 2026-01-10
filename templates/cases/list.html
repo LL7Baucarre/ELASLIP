@@ -264,7 +264,7 @@ function deleteCase(caseId) {
             if (response.ok) {
                 loadCases();
             } else {
-                alert('Failed to delete case');
+                showAlert('Failed to delete case', 'danger');
             }
         });
 }

@@ -11,16 +11,15 @@ from app.services.elasticsearch_service import ElasticsearchService
 # IMPORTANT: Only include permissions that are actually checked in the application
 PERMISSIONS = {
     # ============== IOC Management ==============
-    'ioc.view': 'View IOCs',
-    'ioc.create': 'Create IOCs',
-    'ioc.edit': 'Edit IOCs',
-    'ioc.delete': 'Delete IOCs',
-    'ioc.export': 'Export IOCs',
-    'ioc.import': 'Import IOCs',
-    'ioc.enrich': 'Enrich IOCs with external APIs',
-    'ioc.relations.view': 'View IOC relationships',
-    'ioc.relations.create': 'Create IOC relationships',
-    'ioc.relations.delete': 'Delete IOC relationships',
+    'stix.view': 'View IOCs',
+    'stix.create': 'Create STIX Objects',
+    'stix.edit': 'Edit STIX Objects',
+    'stix.delete': 'Delete STIX Objects',
+    'stix.export': 'Export STIX Objects',
+    'stix.enrich': 'Enrich STIX Objects with external APIs',
+    'stix.relations.view': 'View STIX Relationships',
+    'stix.relations.create': 'Create STIX Relationships',
+    'stix.relations.delete': 'Delete STIX Relationships',
     
     # ============== Case Management ==============
     'case.view': 'View cases',
@@ -149,8 +148,8 @@ DEFAULT_ROLES = {
         'color': '#0066cc',  # Blue
         'permissions': [
             # IOC permissions
-            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
-            'ioc.relations.view', 'ioc.relations.create', 'ioc.relations.delete',
+            'stix.view', 'stix.create', 'stix.edit', 'stix.export', 'stix.enrich',
+            'stix.relations.view', 'stix.relations.create', 'stix.relations.delete',
             # Case permissions
             'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
             # Incident permissions
@@ -188,8 +187,8 @@ DEFAULT_ROLES = {
         'color': '#ff6600',  # Orange
         'permissions': [
             # IOC permissions
-            'ioc.view', 'ioc.create', 'ioc.edit', 'ioc.export', 'ioc.import', 'ioc.enrich',
-            'ioc.relations.view', 'ioc.relations.create',
+            'stix.view', 'stix.create', 'stix.edit', 'stix.export', 'stix.enrich',
+            'stix.relations.view', 'stix.relations.create',
             # Case & Incident - read mostly
             'case.view', 'incident.view',
             # Comments & collaboration
@@ -225,8 +224,8 @@ DEFAULT_ROLES = {
         'color': '#cc0000',  # Dark red
         'permissions': [
             # IOC permissions
-            'ioc.view', 'ioc.create', 'ioc.edit',
-            'ioc.relations.view', 'ioc.relations.create',
+            'stix.view', 'stix.create', 'stix.edit',
+            'stix.relations.view', 'stix.relations.create',
             # Case & Incident
             'case.view', 'case.create', 'case.edit', 'case.assign', 'case.close',
             'incident.view', 'incident.create', 'incident.edit', 'incident.report',
@@ -263,8 +262,8 @@ DEFAULT_ROLES = {
         'color': '#666666',  # Gray
         'permissions': [
             # IOC - view only
-            'ioc.view', 'ioc.export',
-            'ioc.relations.view',
+            'stix.view', 'stix.export',
+            'stix.relations.view',
             # Case & Incident - view only
             'case.view',
             'incident.view',

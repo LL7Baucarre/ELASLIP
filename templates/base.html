@@ -32,7 +32,7 @@
             </li>
                         
             <li class="nav-section-title">INVESTIGATIONS</li>
-            {% if has_any_permission('ioc.view', 'ioc.create', 'ioc.edit') %}
+            {% if has_any_permission('stix.view', 'stix.create', 'stix.edit') %}
             <li class="nav-item">
                 <a class="nav-link {% if 'stix' in request.endpoint %}active{% endif %}" href="{{ url_for('stix.list_stix_objects_page') }}">
                     <i class="bi bi-boxes"></i> Objects
@@ -73,13 +73,6 @@
             <li class="nav-item">
                 <a class="nav-link {% if request.endpoint == 'main.reports_dashboard' %}active{% endif %}" href="{{ url_for('main.reports_dashboard') }}">
                     <i class="bi bi-file-earmark-pdf"></i> LLM Reports
-                </a>
-            </li>
-            {% endif %}
-            {% if has_permission('ioc.import') %}
-            <li class="nav-item">
-                <a class="nav-link {% if request.endpoint == 'main.import_page' %}active{% endif %}" href="{{ url_for('main.import_page') }}">
-                    <i class="bi bi-upload"></i> Import
                 </a>
             </li>
             {% endif %}

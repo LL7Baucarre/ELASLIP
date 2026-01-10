@@ -994,7 +994,7 @@ loadIncidents();
 
 function generateReport(e) {
     if (!caseId) {
-        alert('Case ID not found');
+        showAlert('Case ID not found', 'danger');
         return;
     }
     
@@ -1029,12 +1029,12 @@ function generateReport(e) {
             // Redirect to loading page that verifies task is registered
             window.location.href = `/reports/loading?task_id=${data.task_id}&type=case&id=${caseId}`;
         } else {
-            alert('Report generation started. Check the reports page.');
+            showAlert('Report generation started. Check the reports page.', 'success');
             window.location.href = '/reports';
         }
     })
     .catch(error => {
-        alert('Error: ' + error.message);
+        showAlert('Error: ' + error.message, 'danger');
         btn.disabled = false;
         btn.innerHTML = originalText;
     });
@@ -1051,7 +1051,7 @@ document.getElementById('imageInput').addEventListener('change', function(e) {
 function uploadImages() {
     const files = document.getElementById('imageInput').files;
     if (files.length === 0) {
-        alert('Please select images to upload');
+        showAlert('Please select images to upload', 'warning');
         return;
     }
     
@@ -1069,11 +1069,11 @@ function uploadImages() {
             btn.innerHTML = originalText;
             
             if (failedCount === 0) {
-                alert(`Successfully uploaded ${uploadedCount} image(s)`);
+                showAlert(`Successfully uploaded ${uploadedCount} image(s)`, 'success');
                 document.getElementById('imageInput').value = '';
                 loadEntityImages();
             } else {
-                alert(`Uploaded ${uploadedCount} image(s), ${failedCount} failed`);
+                showAlert(`Uploaded ${uploadedCount} image(s), ${failedCount} failed`, 'warning');
             }
             return;
         }
@@ -1188,10 +1188,10 @@ function deleteImage(imageId) {
             if (data.success) {
                 loadEntityImages();
             } else {
-                alert('Error: ' + (data.error || 'Failed to delete'));
+                showAlert('Error: ' + (data.error || 'Failed to delete'), 'danger');
             }
         })
-        .catch(error => alert('Delete failed: ' + error.message));
+        .catch(error => showAlert('Delete failed: ' + error.message, 'danger'));
     }
 }
 
@@ -1215,7 +1215,7 @@ function submitRenameImage() {
     const newFilename = document.getElementById('renameImageInput').value.trim();
     
     if (!newFilename) {
-        alert('Please enter a filename');
+        showAlert('Please enter a filename', 'warning');
         return;
     }
     
@@ -1232,7 +1232,7 @@ function submitRenameImage() {
         return response.json();
     })
     .then(data => {
-        alert('Image renamed successfully');
+        showAlert('Image renamed successfully', 'success');
         const modal = bootstrap.Modal.getInstance(document.getElementById('renameImageModal'));
         modal.hide();
         loadEntityImages();

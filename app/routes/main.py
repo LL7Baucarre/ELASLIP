@@ -5,7 +5,6 @@ from flask_login import login_required, current_user
 import os
 from dotenv import load_dotenv, set_key
 
-from app.services.ioc_service import IOCService
 from app.services.stix_service import STIXService
 from app.services.case_service import CaseService
 from app.services.checklist_service import ChecklistService
@@ -738,222 +737,11 @@ def debug_relations():
         })
 
 
-@main_bp.route('/api/iocs/<ioc_id>/graph-data')
-@login_required
-def get_ioc_graph_data(ioc_id):
-    """Get graph data for a specific IOC and its relations (including cases and incidents)."""
-    from app.services.case_service import CaseService
-    
-    ioc_service = IOCService()
-    case_service = CaseService()
-    
-    nodes = []
-    edges = []
-    edge_set = set()
-    node_ids = set()
-    
-    try:
-        # Get the main IOC
-        main_ioc = ioc_service.get(ioc_id)
-        if not main_ioc:
-            return jsonify({'error': 'IOC not found'}), 404
-        
-        # Add main IOC as central node
-        nodes.append({
-            'data': {
-                'id': main_ioc['id'],
-                'label': str(main_ioc.get('ioc_value', main_ioc.get('value', 'Unknown'))),
-                'type': str(main_ioc.get('ioc_type', 'unknown')),
-                'threat_level': str(main_ioc.get('threat_level', 'unknown')),
-                'confidence': str(main_ioc.get('confidence', '')),
-                'tlp': str(main_ioc.get('tlp', '')),
-                'entity_type': 'ioc'
-            },
-            'classes': f"ioc-{main_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
-        })
-        node_ids.add(ioc_id)
-        
-        # Build STIX ref for this IOC (ioc_id already has indicator-- prefix)
-        ioc_ref = ioc_id
-        
-        # Get all STIX relationships for this IOC
-        all_relations = ioc_service.es.search(
-            'stix_relationships',
-            {'size': 10000, 'query': {'match_all': {}}}
-        )
-        
-        related_ioc_ids = set()
-        
-        # Find STIX relationships where this IOC is source or target
-        for rel in all_relations.get('hits', {}).get('hits', []):
-            rel_data = rel.get('_source', {})
-            source_ref = rel_data.get('source_ref', '')
-            target_ref = rel_data.get('target_ref', '')
-            relationship_type = rel_data.get('relationship_type', 'related-to')
-            
-            # source_ref and target_ref are in indicator--uuid format
-            # ioc_id is also in indicator--uuid format
-            source_id = source_ref  # Keep full ID for node creation
-            target_id = target_ref  # Keep full ID for node creation
-            
-            # Check if this IOC is involved in the relationship
-            if source_ref == ioc_id and target_ref:
-                related_ioc_ids.add(target_ref)
-                edge_id = f"{source_ref}-{target_ref}"
-                if edge_id not in edge_set:
-                    edge_set.add(edge_id)
-                    edges.append({
-                        'data': {
-                            'id': edge_id,
-                            'source': source_ref,
-                            'target': target_ref,
-                            'label': relationship_type
-                        },
-                        'classes': f"relation-{relationship_type.replace('-', '_')}"
-                    })
-            elif target_ref == ioc_id and source_ref:
-                related_ioc_ids.add(source_ref)
-                edge_id = f"{source_ref}-{target_ref}"
-                if edge_id not in edge_set:
-                    edge_set.add(edge_id)
-                    edges.append({
-                        'data': {
-                            'id': edge_id,
-                            'source': source_ref,
-                            'target': target_ref,
-                            'label': relationship_type
-                        },
-                        'classes': f"relation-{relationship_type.replace('-', '_')}"
-                    })
-        
-        # Load related IOCs
-        for related_id in related_ioc_ids:
-            try:
-                related_ioc = ioc_service.get(related_id)
-                if related_ioc:
-                    nodes.append({
-                        'data': {
-                            'id': related_ioc['id'],
-                            'label': str(related_ioc.get('ioc_value', related_ioc.get('value', 'Unknown'))),
-                            'type': str(related_ioc.get('ioc_type', 'unknown')),
-                            'threat_level': str(related_ioc.get('threat_level', 'unknown')),
-                            'confidence': str(related_ioc.get('confidence', '')),
-                            'tlp': str(related_ioc.get('tlp', '')),
-                            'entity_type': 'ioc'
-                        },
-                        'classes': f"ioc-{related_ioc.get('ioc_type', 'unknown').replace('-', '_')}"
-                    })
-                    node_ids.add(related_id)
-            except:
-                pass
-        
-        # Get cases that contain this IOC
-        try:
-            all_cases = case_service.es.search(
-                'cases',
-                {'size': 1000, 'query': {'match_all': {}}}
-            )
-            
-            for hit in all_cases.get('hits', {}).get('hits', []):
-                case_id = hit.get('_id')
-                case_data = hit.get('_source', {})
-                ioc_ids = case_data.get('ioc_ids', [])
-                
-                if ioc_id in ioc_ids:
-                    nodes.append({
-                        'data': {
-                            'id': case_id,
-                            'label': str(case_data.get('title', 'Unknown Case')),
-                            'entity_type': 'case',
-                            'status': case_data.get('status', 'unknown')
-                        },
-                        'classes': 'case'
-                    })
-                    node_ids.add(case_id)
-                    
-                    # Add edge from IOC to case
-                    edge_id = f"{ioc_id}-{case_id}"
-                    if edge_id not in edge_set:
-                        edge_set.add(edge_id)
-                        edges.append({
-                            'data': {
-                                'id': edge_id,
-                                'source': ioc_id,
-                                'target': case_id,
-                                'label': 'found-in-case'
-                            },
-                            'classes': 'relation-found_in_case'
-                        })
-        except Exception as e:
-            current_app.logger.warning(f"Could not fetch cases: {str(e)}")
-        
-        # Get incidents that contain this IOC
-        try:
-            all_incidents = case_service.es.search(
-                'incidents',
-                {'size': 1000, 'query': {'match_all': {}}}
-            )
-            
-            for hit in all_incidents.get('hits', {}).get('hits', []):
-                incident_id = hit.get('_id')
-                incident_data = hit.get('_source', {})
-                ioc_ids = incident_data.get('ioc_ids', [])
-                
-                if ioc_id in ioc_ids:
-                    nodes.append({
-                        'data': {
-                            'id': incident_id,
-                            'label': str(incident_data.get('title', 'Unknown Incident')),
-                            'entity_type': 'incident',
-                            'severity': incident_data.get('severity', 'unknown')
-                        },
-                        'classes': 'incident'
-                    })
-                    node_ids.add(incident_id)
-                    
-                    # Add edge from IOC to incident
-                    edge_id = f"{ioc_id}-{incident_id}"
-                    if edge_id not in edge_set:
-                        edge_set.add(edge_id)
-                        edges.append({
-                            'data': {
-                                'id': edge_id,
-                                'source': ioc_id,
-                                'target': incident_id,
-                                'label': 'found-in-incident'
-                            },
-                            'classes': 'relation-found_in_incident'
-                        })
-        except Exception as e:
-            current_app.logger.warning(f"Could not fetch incidents: {str(e)}")
-        
-        return jsonify({
-            'nodes': nodes,
-            'edges': edges,
-            'count': len(nodes)
-        })
-    except Exception as e:
-        import traceback
-        current_app.logger.error(f"Error getting IOC graph data: {str(e)}")
-        return jsonify({
-            'error': str(e),
-            'nodes': [],
-            'edges': []
-        })
-
 @main_bp.route('/search')
 @login_required
 def search_page():
     """Search page."""
     return render_template('search.html')
-
-
-@main_bp.route('/import')
-@login_required
-def import_page():
-    """Import page."""
-    return render_template('import.html')
-
 
 @main_bp.route('/tools')
 @login_required
@@ -1237,14 +1025,6 @@ def settings_roles():
     return render_template('settings/roles.html')
 
 
-@main_bp.route('/settings/scheduled-tasks')
-@login_required
-@admin_required
-def settings_scheduled_tasks():
-    """Scheduled tasks settings page (admin only)."""
-    return render_template('settings/scheduled_tasks.html')
-
-
 @main_bp.route('/settings/llm')
 @login_required
 @admin_required
@@ -1481,63 +1261,6 @@ def reports_dashboard():
     return render_template('reports_dashboard.html')
 
 
-@main_bp.route('/api/scheduled-tasks/run', methods=['POST'])
-@login_required
-@admin_required
-def run_scheduled_task():
-    """Run a scheduled task manually."""
-    from app.tasks.expiration_tasks import (
-        check_expired_iocs, check_expiring_soon, 
-        cleanup_old_versions, update_risk_scores, cleanup_old_audit_logs
-    )
-    from app.services.elasticsearch_service import ElasticsearchService
-    from datetime import datetime
-    
-    data = request.get_json()
-    task_name = data.get('task')
-    params = data.get('params', {})
-    
-    task_map = {
-        'check_expired_iocs': check_expired_iocs,
-        'check_expiring_soon': check_expiring_soon,
-        'cleanup_old_versions': cleanup_old_versions,
-        'update_risk_scores': update_risk_scores,
-        'cleanup_old_audit_logs': cleanup_old_audit_logs
-    }
-    
-    if task_name not in task_map:
-        return jsonify({'error': f'Unknown task: {task_name}'}), 400
-    
-    # Log task execution start
-    es = ElasticsearchService()
-    execution_id = f"{task_name}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
-    
-    try:
-        es.index('task_executions', execution_id, {
-            'task_name': task_name,
-            'status': 'running',
-            'started_at': datetime.utcnow().isoformat() + 'Z',
-            'started_by': current_user.username,
-            'params': params
-        })
-    except Exception:
-        pass
-    
-    # Run task asynchronously
-    try:
-        if params:
-            task_map[task_name].delay(**params)
-        else:
-            task_map[task_name].delay()
-        
-        return jsonify({
-            'message': f'Task {task_name} started',
-            'execution_id': execution_id
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
 @main_bp.route('/api/scheduled-tasks/history', methods=['GET'])
 @login_required
 @admin_required
@@ -1563,44 +1286,6 @@ def get_task_history():
         return jsonify({'executions': executions})
     except Exception:
         return jsonify({'executions': []})
-
-
-@main_bp.route('/api/scheduled-tasks/config', methods=['GET', 'PUT'])
-@login_required
-@admin_required
-def task_config():
-    """Get or update task configuration."""
-    from app.services.elasticsearch_service import ElasticsearchService
-    
-    es = ElasticsearchService()
-    config_id = 'scheduled_tasks_config'
-    
-    if request.method == 'GET':
-        try:
-            result = es.get('elaslip_app_config', config_id)
-            return jsonify({'config': result})
-        except Exception:
-            return jsonify({'config': {
-                'expiring_days': 7,
-                'keep_versions': 50,
-                'audit_retention': 90
-            }})
-    
-    # PUT - update config
-    data = request.get_json()
-    config = {
-        'expiring_days': data.get('expiring_days', 7),
-        'keep_versions': data.get('keep_versions', 50),
-        'audit_retention': data.get('audit_retention', 90),
-        'updated_at': request.json.get('updated_at', None) or __import__('datetime').datetime.utcnow().isoformat() + 'Z',
-        'updated_by': current_user.username
-    }
-    
-    try:
-        es.index('elaslip_app_config', config_id, config)
-        return jsonify({'message': 'Configuration saved', 'config': config})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @main_bp.route('/api/elasticsearch/stats', methods=['GET'])

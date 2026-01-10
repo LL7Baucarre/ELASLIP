@@ -98,7 +98,7 @@ def create_role():
         "name": "custom_role",
         "display_name": "Custom Role",
         "description": "Description of the role",
-        "permissions": ["ioc.view", "ioc.create", "case.view"]
+        "permissions": ["stix.view", "stix.create", "case.view"]
     }
     """
     # Check admin permission
@@ -281,7 +281,7 @@ def check_permission():
     
     Request body:
     {
-        "permissions": ["ioc.view", "ioc.create"],
+        "permissions": ["stix.view", "stix.create"],
         "require_all": false  # true: user must have ALL permissions, false: ANY
     }
     
