@@ -794,6 +794,35 @@
                 </div>
             </div>
             
+            <!-- Referenced Objects (object_refs) -->
+            {% if object_refs %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-collection me-2"></i>Referenced Objects</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% for obj in object_refs %}
+                        <a href="{{ url_for('stix.view_stix_object_page', stix_id=obj.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        <span class="badge bg-primary me-2">{{ obj.type }}</span>
+                                        {{ obj.name or obj.x_ioc_value or obj.id[:40] }}
+                                    </h6>
+                                    {% if obj.description %}
+                                    <p class="mb-0 text-muted small">{{ obj.description[:100] }}{% if obj.description|length > 100 %}...{% endif %}</p>
+                                    {% endif %}
+                                </div>
+                                <i class="bi bi-chevron-right text-muted"></i>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
             <!-- Relationships -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">

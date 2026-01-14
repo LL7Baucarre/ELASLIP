@@ -497,20 +497,20 @@ const DEFAULT_NODE_SPACING = 80;
 // COSE-Bilkent layout configuration for better node spacing
 const COSE_BILKENT_CONFIG = {
     name: 'cose-bilkent',
-    quality: 'default',
-    nodeDimensionsIncludeLabels: true,
+    quality: 'proof',
+    nodeDimensionsIncludeLabels: false,
     fit: true,
-    padding: 500,
+    padding: 0,
     randomize: true,
-    nodeRepulsion: 70000,      // Increased from default 4500 for more spacing
-    idealEdgeLength: 500,     // Increased from default 50 for more edge length
+    nodeRepulsion: 1000,      // Increased from default 4500 for more spacing
+    idealEdgeLength: 100,     // Increased from default 50 for more edge length
     edgeElasticity: 0.45,
     nestingFactor: 0.1,
-    gravity: 0.2,
-    numIter: 2500,
-    tile: false,
-    animate: 'end',
-    animationDuration: 500,
+    gravity: 0,
+    numIter: 500,
+    tile: true,
+    animate: 'false',
+    animationDuration: 0,
     tilingPaddingVertical: 20,
     tilingPaddingHorizontal: 20
 };

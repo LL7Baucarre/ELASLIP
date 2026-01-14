@@ -785,12 +785,14 @@ def view_stix_object_page(stix_id):
         return redirect(url_for('stix.list_stix_objects_page'))
     
     related_objects, relationships = STIXService.get_related_objects(stix_id)
+    object_refs = STIXService.get_object_refs(stix_id)
     merge_history = STIXService.get_merge_history(stix_id)
     
     return render_template('stix/detail.html',
                           stix_object=stix_object,
                           related_objects=related_objects,
                           relationships=relationships,
+                          object_refs=object_refs,
                           merge_history=merge_history,
                           relationship_types=STIXService.RELATIONSHIP_TYPES)
 

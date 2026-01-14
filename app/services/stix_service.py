@@ -728,6 +728,28 @@ class STIXService:
             return False
     
     @classmethod
+    def get_object_refs(cls, stix_id: str) -> List[Dict[str, Any]]:
+        """
+        Get objects referenced via object_refs property (used by reports, bundles, etc.)
+        
+        Returns:
+            List of referenced objects
+        """
+        stix_object = cls.get_sdo(stix_id)
+        if not stix_object or 'object_refs' not in stix_object:
+            return []
+        
+        object_refs = stix_object.get('object_refs', [])
+        referenced_objects = []
+        
+        for ref_id in object_refs:
+            obj = cls.get_sdo(ref_id)
+            if obj:
+                referenced_objects.append(obj)
+        
+        return referenced_objects
+    
+    @classmethod
     def get_related_objects(cls, stix_id: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Get related objects and relationships for a STIX object
