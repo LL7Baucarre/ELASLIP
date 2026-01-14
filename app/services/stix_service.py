@@ -465,8 +465,7 @@ class STIXService:
                         relationship_type=rel.get('relationship_type', 'related-to'),
                         description=rel.get('description'),
                         user_id=user_id,
-                        username=username,
-                        bundle_import=True
+                        username=username
                     )
             except Exception as e:
                 errors.append(f"Failed to import relationship: {str(e)}")
