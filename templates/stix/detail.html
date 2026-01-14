@@ -143,7 +143,26 @@
                     <h1 class="h3 mb-2">
                         {% set type_icons = {'indicator': 'bi-graph-up', 'malware': 'bi-bug', 'threat-actor': 'bi-person-x', 'attack-pattern': 'bi-lightning', 'campaign': 'bi-bullseye', 'tool': 'bi-tools', 'vulnerability': 'bi-unlock', 'infrastructure': 'bi-hdd-network', 'intrusion-set': 'bi-incognito', 'identity': 'bi-building', 'location': 'bi-geo-alt', 'course-of-action': 'bi-shield-check', 'note': 'bi-sticky', 'opinion': 'bi-chat-left-quote', 'report': 'bi-file-text', 'observed-data': 'bi-eye'} %}
                         <i class="bi {{ type_icons.get(stix_object.type, 'bi-box') }} me-2"></i>
-                        {{ stix_object.name or stix_object.x_ioc_value or 'Unnamed Object' }}
+                        {% if stix_object.name %}
+                            {{ stix_object.name }}
+                        {% elif stix_object.x_ioc_value %}
+                            {{ stix_object.x_ioc_value }}
+                        {% elif stix_object.type == 'location' %}
+                            {% set location_parts = [] %}
+                            {% if stix_object.country %}{% set _ = location_parts.append(stix_object.country) %}{% endif %}
+                            {% if stix_object.region %}{% set _ = location_parts.append(stix_object.region) %}{% endif %}
+                            {% if stix_object.city %}{% set _ = location_parts.append(stix_object.city) %}{% endif %}
+                            {% if stix_object.street_address %}{% set _ = location_parts.append(stix_object.street_address) %}{% endif %}
+                            {% if location_parts|length > 0 %}
+                                {{ location_parts|join(', ') }}
+                            {% elif stix_object.latitude and stix_object.longitude %}
+                                {{ stix_object.latitude }}, {{ stix_object.longitude }}
+                            {% else %}
+                                Unnamed Location
+                            {% endif %}
+                        {% else %}
+                            Unnamed Object
+                        {% endif %}
                     </h1>
                     <p class="stix-id text-muted">{{ stix_object.id }}</p>
                 </div>

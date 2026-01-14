@@ -488,31 +488,30 @@ let showEdgeLabels = true;
 let searchTimeout = null;
 let currentFocusNodeId = null;
 let currentSearchTerm = '';
-let nodePositions = {}; // Store node positions
-let isSearchLocked = false; // Lock to prevent loading all nodes unless Show All is selected
+let nodePositions = {};
+let isSearchLocked = false;
 
 const STORAGE_KEY = 'stix_graph_node_positions';
 const DEFAULT_NODE_SPACING = 80;
 
-// COSE-Bilkent layout configuration for better node spacing
 const COSE_BILKENT_CONFIG = {
     name: 'cose-bilkent',
     quality: 'proof',
-    nodeDimensionsIncludeLabels: false,
+    nodeDimensionsIncludeLabels: true,
     fit: true,
-    padding: 0,
+    padding: 100,
     randomize: true,
-    nodeRepulsion: 1000,      // Increased from default 4500 for more spacing
-    idealEdgeLength: 100,     // Increased from default 50 for more edge length
-    edgeElasticity: 0.45,
-    nestingFactor: 0.1,
+    nodeRepulsion: 1000,  
+    idealEdgeLength: 1000,
+    edgeElasticity: 0.55,
+    nestingFactor: 1,
     gravity: 0,
-    numIter: 500,
+    numIter: 0,
     tile: true,
     animate: 'false',
     animationDuration: 0,
-    tilingPaddingVertical: 20,
-    tilingPaddingHorizontal: 20
+    tilingPaddingVertical: 50,
+    tilingPaddingHorizontal: 50
 };
 
 function escapeHtml(text) {
@@ -558,7 +557,6 @@ function createEdgeStylesheet() {
         style: { 'line-color': '#FFD700', 'target-arrow-color': '#FFD700', 'width': 4, 'opacity': 1 }
     }];
 
-    // Generate edge styles from color map
     Object.entries(EDGE_COLORS).forEach(([label, color]) => {
         const width = ['targets', 'mitigates', 'exploits'].includes(label) ? 4 : 3;
         const lineStyle = ['found-in-incident', 'found-in-case'].includes(label) ? 'dashed' : 'solid';
@@ -613,7 +611,6 @@ function initGraph(nodes, edges) {
 
     fitGraph();
     
-    // Save positions after layout completes
     setTimeout(() => {
         if (cy) {
             nodePositions = {};
@@ -637,7 +634,7 @@ function loadGraph() {
 
             nodes.forEach(node => {
                 const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
-                node.data.type_normalized = type;  // Store normalized type for filtering
+                node.data.type_normalized = type;
                 node.data.color = getColorForType(type);
                 node.data.icon = getIconForType(type);
             });
@@ -648,7 +645,6 @@ function loadGraph() {
                 setTimeout(() => {
                     if (!cy) return;
                     
-                    // Restore saved positions if they exist
                     const savedPositions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
                     if (Object.keys(savedPositions).length > 0) {
                         cy.nodes().forEach(node => {
@@ -662,7 +658,6 @@ function loadGraph() {
                     cy.edges().show();
                     document.getElementById('emptyGraphMessage').style.display = 'none';
                     
-                    // Only apply search filter if NOT locked
                     if (currentSearchTerm && currentSearchTerm.length >= 2 && !isSearchLocked) {
                         applySearchFilter(currentSearchTerm);
                     } else {
@@ -704,7 +699,6 @@ function updateNodeSpacing() {
 
     const spacing = parseInt(document.getElementById('nodeSpacing').value) || DEFAULT_NODE_SPACING;
 
-    // Re-run layout with adjusted spacing
     if (currentLayout === 'cose-bilkent') {
         const config = { ...COSE_BILKENT_CONFIG };
         config.nodeRepulsion = 4500 + (spacing - 50) * 70;
@@ -737,7 +731,21 @@ function toggleEdgeLabels() {
 
 function showNodeInfo(node) {
     const data = node.data();
-    const label = data.label || data.id || 'Unknown';
+    let label = data.label || data.id || 'Unknown';
+    
+    if (data.type === 'location' && label === data.id) {
+        const parts = [];
+        if (data.country) parts.push(data.country);
+        if (data.region) parts.push(data.region);
+        if (data.city) parts.push(data.city);
+        if (data.street_address) parts.push(data.street_address);
+        if (parts.length > 0) {
+            label = parts.join(', ');
+        } else if (data.latitude && data.longitude) {
+            label = `${data.latitude}, ${data.longitude}`;
+        }
+    }
+    
     const entityType = data.entity_type || 'stix';
     const edges = node.connectedEdges();
 
@@ -818,7 +826,6 @@ function getIconForType(type) {
 
 function debouncedSearch() {
     clearTimeout(searchTimeout);
-    // Don't apply filter while typing, just show dropdown on Enter
     searchTimeout = setTimeout(() => {}, 300);
 }
 
@@ -836,7 +843,18 @@ function applySearchFilter(term) {
     const matches = new Set();
 
     cy.nodes().forEach(node => {
-        const label = (node.data('label') || node.data('name') || node.id()).toLowerCase();
+        let label = (node.data('label') || node.data('name') || node.data('id') || '').toLowerCase();
+        
+        if (node.data('type') === 'location' && !label) {
+            const parts = [];
+            if (node.data('country')) parts.push(node.data('country'));
+            if (node.data('region')) parts.push(node.data('region'));
+            if (node.data('city')) parts.push(node.data('city'));
+            if (parts.length > 0) {
+                label = parts.join(' ').toLowerCase();
+            }
+        }
+        
         if (label.includes(termLower)) matches.add(node.id());
     });
 
@@ -873,7 +891,21 @@ function searchSTIX() {
                 } else {
                     let html = '<div class="search-result-item" onclick="showAllSTIXObjects(event)" style="background-color: #f8f9fa; font-weight: bold; cursor: pointer;"><i class="bi bi-collection me-2"></i>Show All STIX Objects</div>';
                     items.forEach(item => {
-                        const label = item.name || item.title || item.value || 'Unknown';
+                        let label = item.name || item.title || item.value || 'Unknown';
+                        
+
+                        if (item.type === 'location' && label === 'Unknown') {
+                            const parts = [];
+                            if (item.country) parts.push(item.country);
+                            if (item.region) parts.push(item.region);
+                            if (item.city) parts.push(item.city);
+                            if (parts.length > 0) {
+                                label = parts.join(', ');
+                            } else if (item.latitude && item.longitude) {
+                                label = `${item.latitude}, ${item.longitude}`;
+                            }
+                        }
+                        
                         const type = (item.type || item.entity_type || 'stix').toUpperCase();
                         html += `<div class="search-result-item" onclick="selectFromSearch('${item.id}', '${label.replace(/'/g, "\\'")}', event)">
                                     <strong>${escapeHtml(label)}</strong> <small class="text-muted">${escapeHtml(type)}</small>
@@ -895,17 +927,16 @@ function selectFromSearch(objId, objValue, event) {
     if (cy) {
         const focusNode = cy.$id(objId);
         if (focusNode && focusNode.length > 0) {
-            // Just update the input field and set focus on the node - don't hide all others
+
             document.getElementById('searchSTIX').value = objValue;
             document.getElementById('searchResultsDropdown').style.display = 'none';
             currentFocusNodeId = objId;
-            isSearchLocked = true; // Lock to prevent reloading
+            isSearchLocked = true;
             
             focusNode.select();
             cy.fit(focusNode.union(focusNode.neighborhood()), 50);
             showNodeInfo(focusNode);
         } else {
-            // Node not in current graph, load it
             currentFocusNodeId = objId;
             document.getElementById('searchSTIX').value = objValue;
             document.getElementById('searchResultsDropdown').style.display = 'none';
@@ -920,7 +951,7 @@ function showAllSTIXObjects(event) {
     document.getElementById('searchSTIX').value = '';
     document.getElementById('searchResultsDropdown').style.display = 'none';
     currentSearchTerm = '';
-    isSearchLocked = false; // Unlock search to allow all nodes
+    isSearchLocked = false;
     
     if (cy) {
         cy.nodes().show();
@@ -956,7 +987,6 @@ function updateDepthValue() {
     const descriptions = { '1': 'Direct relations', '2': 'Up to 2 levels', '3': 'Up to 3 levels', '4': 'Up to 4 levels', '5': 'Up to 5 levels (max)' };
     document.getElementById('depthDescription').textContent = descriptions[depth] || 'Direct relations';
     
-    // Reload graph with new depth but preserve search state
     if (!cy) return;
     
     $.ajax({
@@ -967,14 +997,13 @@ function updateDepthValue() {
             
             nodes.forEach(node => {
                 const type = (node.data.type || node.data.entity_type || 'crosshair').replace('-', '_');
-                node.data.type_normalized = type;  // Store normalized type for filtering
+                node.data.type_normalized = type;
                 node.data.color = getColorForType(type);
                 node.data.icon = getIconForType(type);
             });
 
             initGraph(nodes, edges);
             
-            // Restore search filter if exists and not locked
             if (currentSearchTerm && currentSearchTerm.length >= 2 && !isSearchLocked) {
                 applySearchFilter(currentSearchTerm);
             } else {

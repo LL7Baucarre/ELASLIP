@@ -338,7 +338,30 @@ function setSortOrder(field, order) {
 }
 
 function renderTableRow(obj) {
-    const name = escapeHtml(obj.name || obj.x_ioc_value || obj.pattern?.substring(0, 40) || 'Unnamed');
+    // Build display name based on object type
+    let name = 'Unnamed';
+    
+    if (obj.name) {
+        name = obj.name;
+    } else if (obj.x_ioc_value) {
+        name = obj.x_ioc_value;
+    } else if (obj.pattern) {
+        name = obj.pattern.substring(0, 40);
+    } else if (obj.type === 'location') {
+        // For location objects, combine available geographic info
+        const parts = [];
+        if (obj.country) parts.push(obj.country);
+        if (obj.region) parts.push(obj.region);
+        if (obj.city) parts.push(obj.city);
+        if (obj.street_address) parts.push(obj.street_address);
+        if (parts.length > 0) {
+            name = parts.join(', ');
+        } else if (obj.latitude && obj.longitude) {
+            name = `${obj.latitude}, ${obj.longitude}`;
+        }
+    }
+    
+    name = escapeHtml(name);
     const description = obj.description ? escapeHtml(obj.description.substring(0, 60)) + (obj.description.length > 60 ? '...' : '') : '-';
     const created = new Date(obj.created).toLocaleDateString();
     const typeClass = `type-${obj.type}`;
