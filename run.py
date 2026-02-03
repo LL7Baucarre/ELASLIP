@@ -30,8 +30,8 @@ def wait_for_elasticsearch(max_retries=30, retry_delay=2):
     retry_count = 0
     while retry_count < max_retries:
         try:
-            # Create temporary ES client
-            es_temp = Elasticsearch([es_url])
+            # Create temporary ES client with SSL verification disabled
+            es_temp = Elasticsearch([es_url], verify_certs=False, ssl_show_warn=False)
             
             # Try to get cluster health
             health = es_temp.cluster.health()
