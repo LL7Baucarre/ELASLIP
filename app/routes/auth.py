@@ -393,3 +393,42 @@ def otp_regenerate_backup_codes():
     
     flash('Backup codes regenerated successfully', 'success')
     return redirect(url_for('auth.profile'))
+
+
+@auth_bp.route('/api/auth/change-password', methods=['POST'])
+@login_required
+def api_change_password():
+    """Change user password via API."""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    confirm_password = data.get('confirm_password')
+    
+    # Validate required fields
+    if not all([current_password, new_password, confirm_password]):
+        return jsonify({'error': 'All fields are required'}), 400
+    
+    # Verify current password
+    if not current_user.check_password(current_password):
+        return jsonify({'error': 'Current password is incorrect'}), 401
+    
+    # Verify passwords match
+    if new_password != confirm_password:
+        return jsonify({'error': 'New passwords do not match'}), 400
+    
+    # Validate password strength (minimum 8 characters)
+    if len(new_password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+    
+    # Update password
+    current_user.set_password(new_password)
+    current_user.save()
+    
+    return jsonify({
+        'message': 'Password changed successfully',
+        'status': 'success'
+    }), 200
