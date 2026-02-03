@@ -62,9 +62,9 @@ services:
       - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
-      - REDIS_URL=redis://redis:6380/0
+      - REDIS_URL=redis://redis:6379/0
       - SESSION_REDIS_DB=${SESSION_REDIS_DB:-2}
-      - CELERY_BROKER_URL=redis://redis:6380/1
+      - CELERY_BROKER_URL=redis://redis:6379/1
       - DEFAULT_ADMIN_USER=${DEFAULT_ADMIN_USER:-admin}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD:-admin123}
       # OAuth Configuration
@@ -115,8 +115,8 @@ services:
       - ELASTICSEARCH_URL=${ELASTICSEARCH_URL:-http://elastic:elastic123@elasticsearch:9200}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-elastic123}
-      - REDIS_URL=redis://redis:6380/0
-      - CELERY_BROKER_URL=redis://redis:6380/1
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
       - VPN_ENABLED=true
     volumes:
       - ./app:/app/app
