@@ -395,7 +395,7 @@ def otp_regenerate_backup_codes():
     return redirect(url_for('auth.profile'))
 
 
-@auth_bp.route('/api/auth/change-password', methods=['POST'])
+@auth_bp.route('/change-password', methods=['POST'])
 @login_required
 def api_change_password():
     """Change user password via API."""

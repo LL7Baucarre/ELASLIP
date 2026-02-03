@@ -299,7 +299,7 @@ def create_app(config_name=None):
     from app.routes.users import users_bp
     
     app.register_blueprint(main_bp)
-    app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(oauth_bp, url_prefix='/oauth')
     app.register_blueprint(search_bp, url_prefix='/api/search')
     app.register_blueprint(api_config_bp, url_prefix='/api/external-apis')
