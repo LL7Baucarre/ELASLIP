@@ -70,5 +70,6 @@ if not wait_for_elasticsearch():
 app = create_app()
 
 if __name__ == '__main__':
-    logger.info("Starting Flask app on 0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
+    port = int(os.getenv('FLASK_PORT', 5000))
+    logger.info("Starting Flask app on 0.0.0.0:%d", port)
+    app.run(host='0.0.0.0', port=port, debug=True, ssl_context='adhoc')
