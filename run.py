@@ -71,4 +71,4 @@ app = create_app()
 
 if __name__ == '__main__':
     logger.info("Starting Flask app on 0.0.0.0:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000, debug=True, ssl_context='adhoc')
