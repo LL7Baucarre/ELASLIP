@@ -25,9 +25,12 @@ class ElasticsearchService:
             es_password = os.getenv('ELASTICSEARCH_PASSWORD', 'elastic123')
             
             # Create Elasticsearch client with basic auth if credentials are provided
-            if es_user and es_password and 'http://' in es_url and '@' not in es_url:
+            if es_user and es_password and '@' not in es_url:
                 # Construct URL with credentials if not already included
-                es_url = es_url.replace('http://', f'http://{es_user}:{es_password}@')
+                if es_url.startswith('https://'):
+                    es_url = es_url.replace('https://', f'https://{es_user}:{es_password}@')
+                elif es_url.startswith('http://'):
+                    es_url = es_url.replace('http://', f'http://{es_user}:{es_password}@')
             
             self._client = Elasticsearch([es_url], verify_certs=False, ssl_show_warn=False)
     

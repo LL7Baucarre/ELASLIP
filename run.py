@@ -23,9 +23,16 @@ def wait_for_elasticsearch(max_retries=30, retry_delay=2):
     """Wait for Elasticsearch to be fully ready"""
     from app.config import Config
     
-    es_url = os.getenv('ELASTICSEARCH_URL', 'http://elastic:elastic123@elasticsearch:9200')
+    es_url = os.getenv('ELASTICSEARCH_URL', 'http://localhost:9200')
     es_user = os.getenv('ELASTICSEARCH_USER', 'elastic')
     es_password = os.getenv('ELASTICSEARCH_PASSWORD', 'elastic123')
+    
+    # Add credentials to URL if not already present and URL doesn't contain @
+    if es_user and es_password and '@' not in es_url:
+        if es_url.startswith('https://'):
+            es_url = es_url.replace('https://', f'https://{es_user}:{es_password}@')
+        elif es_url.startswith('http://'):
+            es_url = es_url.replace('http://', f'http://{es_user}:{es_password}@')
     
     retry_count = 0
     while retry_count < max_retries:

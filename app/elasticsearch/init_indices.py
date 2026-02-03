@@ -15,9 +15,12 @@ def get_elasticsearch_client():
     es_user = os.getenv('ELASTICSEARCH_USER', 'elastic')
     es_password = os.getenv('ELASTICSEARCH_PASSWORD', 'elastic123')
     
-    # Construct URL with credentials if not already included
-    if es_user and es_password and 'http://' in es_url and '@' not in es_url:
-        es_url = es_url.replace('http://', f'http://{es_user}:{es_password}@')
+    # Construct URL with credentials if not already included and @ is not in URL
+    if es_user and es_password and '@' not in es_url:
+        if es_url.startswith('https://'):
+            es_url = es_url.replace('https://', f'https://{es_user}:{es_password}@')
+        elif es_url.startswith('http://'):
+            es_url = es_url.replace('http://', f'http://{es_user}:{es_password}@')
     
     return Elasticsearch([es_url], verify_certs=False, ssl_show_warn=False)
 
