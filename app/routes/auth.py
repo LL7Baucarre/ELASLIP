@@ -420,8 +420,7 @@ def api_change_password():
         return jsonify({'error': 'Password must be at least 8 characters long'}), 400
     
     # Update password
-    current_user.set_password(new_password)
-    current_user.save()
+    current_user.update(password=new_password)
     
     return jsonify({
         'message': 'Password changed successfully',
